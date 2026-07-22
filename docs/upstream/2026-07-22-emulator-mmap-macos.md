@@ -24,7 +24,7 @@
 4. Observe.
 
 **Observed — stable 36.6.11.0:** the qemu engine process terminates immediately
-(SIGSEGV, exit 139; crashpad handler fires). Deterministic: 2/2 with the
+(SIGSEGV, exit 139; crashpad handler output observed in the engine log). Deterministic: 2/2 with the
 `file:///` handle across independent cold boots; a POSIX-shm-style handle
 (`/name`) also kills the engine (SIGABRT, exit 134). Client sees
 `UNAVAILABLE: Stream removed (Socket closed)` with zero frames delivered.
@@ -37,15 +37,13 @@ client's buffer is never written: content stays all-zero across frames
 recreate-behind semantics), and — decisively — `lsof -p <qemu_pid>` during an
 active MMAP stream shows the engine has NOT opened the handle path at all, and
 no PSXSHM objects exist. Tried three handle variants (long `file:///` temp
-path, short `file:///tmp/x.bin`, bare shm-style name): same result (inference:
+path, short `file:///tmp/x.bin`, bare shm-style name): no data written in any case — all-zero buffer for the file paths; for the bare shm name, no shm object was even created (inference:
 none was rejected — notifications flowed for all three). So on macOS the MMAP
 transport's host write side appears to be a silent no-op while the
 notification side works.
 
 **Expected:** either (a) frames are written into the client-provided
-mmap/shm handle as documented in emulator_controller.proto (ImageTransport:
-"Write images to the a file/shared memory handle. The client sets and owns
-this handle."), or (b) the request is rejected cleanly with
+mmap/shm handle as documented in emulator_controller.proto (the `handle` field's comment in ImageTransport, emulator_controller.proto: "The client sets and owns this handle. It can be either a shm region, or a mmap."), or (b) the request is rejected cleanly with
 INVALID_ARGUMENT/UNIMPLEMENTED on platforms where MMAP transport is
 unsupported — never an engine crash, never empty notifications with no data.
 
