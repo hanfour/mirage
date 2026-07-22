@@ -39,7 +39,7 @@ MMAP 深度診斷（主 session，Task 1 完成後）後段換裝 **canary 37.2.
     與探測時的已知 guest 解析度一致）——資料在協定層面確實走 mmap 通道而非 gRPC payload
 - **emulator 是否自建/接受既有檔案**：canary 版**形式上接受**——長路徑 `file:///`、短路徑
   `file:///tmp/mirage_f.bin`、POSIX shm 名稱 `mirage_shm` 三種 handle 變體皆未被拒絕
-  （無 `INVALID_ARGUMENT`（推論：通知既已流動，該請求不可能被拒））），但**決定性反證**：串流進行中執行 `lsof -p <qemu_pid>` 顯示
+  （無 `INVALID_ARGUMENT`（推論：通知既已流動，該請求不可能被拒）），但**決定性反證**：串流進行中執行 `lsof -p <qemu_pid>` 顯示
   qemu **從未開啟**任一 handle 對應的檔案、亦無任何 PSXSHM 物件——形式接受、實際從未寫入。
   穩定版則因請求即崩潰，連「形式接受」都無法驗證。
 - **tearing 觀察**：N/A——canary 版三種 handle 變體下 mmap 內容恆為全零（md5 恆同，
@@ -93,7 +93,7 @@ PyAV 解幀時序的交叉比對）確認這是 FFmpeg/PyAV 對無容器索引�
 編碼路徑在 headless emulator + AOSP default 映像上不可用，非量測假象或方法論疏漏。
 
 ### Host load 全程偏高，數據需標記 contaminated
-本次驗證全程（Phase 0 延續至 Phase 0b）host load average 落在 30–77 之間，多次遠超過內部
+本次驗證全程（Phase 0 延續至 Phase 0b）host load average 落在 32–77 之間，多次遠超過內部
 「~30 為乾淨基準」的指引門檻。已知會被 host load 影響的量測（fps 絕對值、e2e 延遲）本身
 在 Task 1（MMAP 崩潰）與 Task 5（編碼路徑不可用）中都是**結構性、非負載相關**的失敗——
 MMAP 崩潰行為在低負載時間點（探測時 33–40）與高負載時間點一致重現；編碼路徑的 batching
