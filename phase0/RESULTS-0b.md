@@ -1,5 +1,7 @@
 # Phase 0b 顯示傳輸備援驗證結果（日期：2026-07-22）
 
+> **重大更正（2026-07-23）**：本檔量化數字量測於受污染主機（16 個殭屍行程吃 ~6.4 核，詳見 `RESULTS-rebaseline.md`）。行為性結論（MMAP 崩潰/no-op）維持；「編碼軌 0.6fps 不可用」已翻案（乾淨重測 52.4fps）；決策選項的前提已失效，待重開。
+
 環境：與 Phase 0 相同——MacBook Air (M1, 16GB RAM) / macOS 26.3.1 / 映像 android-35 default
 arm64。Host load 於量測期間全程落在 **32–77**（`task-1-report.md` 記錄 32.63–51.93；
 `final-fix-report.md` 記錄 76–77；`task-5-report.md` 各次量測前後記錄 42.18–61.61，但該
