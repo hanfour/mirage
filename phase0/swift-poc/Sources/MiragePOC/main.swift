@@ -29,6 +29,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         } catch {
             fatalError("無法連線 emulator gRPC：\(error)")
         }
+
+        // 滑鼠 → guest 觸控：正規化座標換算 guest 像素
+        var guestSize = (w: 1080, h: 2400)  // 首幀後更新
+        view.onMouse = { [weak self] nx, ny, down in
+            guard let self else { return }
+            let gx = Int(nx * Double(guestSize.w))
+            let gy = Int(ny * Double(guestSize.h))
+            Task { await self.client.sendTap(x: gx, y: gy, down: down) }
+        }
+
         Task {
             // AUTHORIZED EXTENSION (deviation from brief, documented in task-8-report.md):
             // lightweight fps counter — count frames and once per second print
@@ -40,6 +50,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             var lastSize = (w: 0, h: 0)
             do {
                 for try await frame in client.frames() {
+                    guestSize = (frame.width, frame.height)
                     view.present(frame)
                     frameCount += 1
                     lastSize = (frame.width, frame.height)
