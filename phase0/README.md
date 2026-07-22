@@ -9,7 +9,7 @@
 2. `scripts/01_create_avd.sh` — 建立 mirage-poc AVD
 3. `scripts/02_boot_headless.sh` — 啟動（保持前景）
 4. `scripts/03_wait_boot.sh` — 等 BOOTED
-5. harness 量測（`harness/` 內，先 `source .venv/bin/activate`）：
+5. harness 量測（`harness/` 內，先 `source .venv/bin/activate`；首次於新 clone 執行見下方「harness 環境建置」）：
    - `python -m pytest tests/ -v` — 單元測試
    - `python smoke_grpc.py` — 連通
    - `python animate.py --seconds 30` — 另開終端（或背景）執行的持續動畫來源。`streamScreenshot` 為變化驅動，靜止畫面不出幀，量 fps/延遲前必須先跑這支腳本
@@ -19,8 +19,29 @@
 6. `cd swift-poc && swift run -c release` — 鏡像視窗體感驗證（**建議使用 Release build**：Debug build 因未優化的逐幀 Metal 上傳路徑，實測 fps 會比 Release 低 15–20 倍，屬建置模式假象，不可用於效能判讀）
 7. 數據填入 `RESULTS.md`，做 go/no-go 判定
 
+## harness 環境建置（新 clone 首次執行）
+
+```bash
+cd phase0/harness
+python3 -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+SDK="${ANDROID_SDK_ROOT:-$HOME/Library/Android/sdk}"
+mkdir -p protos gen
+cp "$SDK/emulator/lib/emulator_controller.proto" protos/
+python -m grpc_tools.protoc -I protos \
+  --python_out=gen --grpc_python_out=gen \
+  protos/emulator_controller.proto
+touch gen/__init__.py
+```
+
+`gen/`（protobuf/gRPC stub）為產生物，不進版控（見 `.gitignore`），每次新 clone 都需重跑上述 `protoc` 指令。
+
+## 連線埠
+
+所有 harness/Swift 客戶端一律連線 `localhost:8554`（寫死於程式碼常數，如 `stream_bench.py`/`animate.py` 的 `TARGET`、`EmulatorClient` 的預設 `port`）。`scripts/02_boot_headless.sh` 的 `GRPC_PORT` 環境變數只影響 emulator 啟動時綁定的埠，不會連動更新客戶端；若要改埠，兩邊都要手動改。
+
 ## 結果
 
 實測數據與 go/no-go 判定紀錄於 [`RESULTS.md`](./RESULTS.md)。
 
-**結論摘要**：控制面（headless 啟動、gRPC 輸入注入、剪貼簿、生命週期）驗證優異；顯示傳輸（gRPC raw-frame streaming）未達 60fps 門檻，判定 **NO-GO**，需啟動備援路線（WebRTC → fork + 共享記憶體），詳見 `RESULTS.md`。
+**結論摘要**：實測過的控制面（headless 啟動、gRPC 輸入注入、串流控制介面）驗證優異；顯示傳輸（gRPC raw-frame streaming）未達 60fps 門檻，判定 **NO-GO**，需啟動備援路線（WebRTC → fork + 共享記憶體）。剪貼簿、生命週期（快照休眠/喚醒）、sendKey 在 Phase 0 未實測，列為 Phase 1 前置驗證項。詳見 `RESULTS.md`。
