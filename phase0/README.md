@@ -19,6 +19,26 @@
 6. `cd swift-poc && swift run -c release` — 鏡像視窗體感驗證（**建議使用 Release build**：Debug build 因未優化的逐幀 Metal 上傳路徑，實測 fps 會比 Release 低 15–20 倍，屬建置模式假象，不可用於效能判讀）
 7. 數據填入 `RESULTS.md`，做 go/no-go 判定
 
+## Phase 0b 傳輸驗證（備援）
+
+Phase 0 判 gRPC 原始畫格 NO-GO 後的備援驗證。**兩條備援皆判 NO-GO**，判定與完整證據見
+[`RESULTS-0b.md`](./RESULTS-0b.md)：
+
+1. `python probe_mmap.py` — MMAP 通道探測（需 `animate.py` 供應動畫）。**⚠️ 警告：於穩定版
+   emulator 36.6.11.0 執行本腳本會使 emulator 引擎崩潰**（SIGSEGV/SIGABRT，3/3 確定性重現，
+   零幀送達，且無自動復原機制）——執行前務必確認可承受 emulator 需要手動重啟的代價。詳見
+   `RESULTS-0b.md`。
+2. `python stream_bench.py --format rgba --seconds 8 --transport mmap` — mmap 幀率
+   **[SKIPPED——未實作]**：MMAP 軌已於步驟 1 判死，依計畫應變條款跳過
+3. `python e2e_latency.py --transport mmap` — mmap 端到端（先開 show_touches）**[SKIPPED——未實作]**：同上
+4. `MIRAGE_TRANSPORT=mmap ./.build/release/MiragePOC` — Swift mmap 終裁 **[SKIPPED——未實作]**：同上
+5. `python encoded_bench.py --mode fps|e2e` — 編碼路徑對照（WebRTC 等效）；實測同樣
+   NO-GO（真實內容變化下僅 0.6fps，e2e 模式於方法論層面直接失敗），詳見 `RESULTS-0b.md`
+
+Phase 1 顯示路徑目前無現成方案通過 60fps 閘門，`RESULTS-0b.md` 列出四個決策選項（fork 補
+MMAP 寫入端／回報上游並暫用縮放串流／改用有視窗 emulator + ScreenCaptureKit／接受
+42fps），交由決策者裁決。
+
 ## harness 環境建置（新 clone 首次執行）
 
 ```bash
@@ -45,3 +65,7 @@ touch gen/__init__.py
 實測數據與 go/no-go 判定紀錄於 [`RESULTS.md`](./RESULTS.md)。
 
 **結論摘要**：實測過的控制面（headless 啟動、gRPC 輸入注入、串流控制介面）驗證優異；顯示傳輸（gRPC raw-frame streaming）未達 60fps 門檻，判定 **NO-GO**，需啟動備援路線（WebRTC → fork + 共享記憶體）。剪貼簿、生命週期（快照休眠/喚醒）、sendKey 在 Phase 0 未實測，列為 Phase 1 前置驗證項。詳見 `RESULTS.md`。
+
+**Phase 0b 後續**：備援驗證（MMAP 共享記憶體、H.264 編碼串流）兩條路皆判 NO-GO——詳見上方
+「Phase 0b 傳輸驗證」與 [`RESULTS-0b.md`](./RESULTS-0b.md)。Phase 1 顯示路徑目前無現成方案
+通過閘門，待決策者從 `RESULTS-0b.md` 列出的四個選項中裁決。
