@@ -19,7 +19,7 @@ if [[ ! -x "$SDKMANAGER" ]]; then
   exit 1
 fi
 
-yes | "$SDKMANAGER" --licenses > /dev/null
+yes | "$SDKMANAGER" --licenses > /dev/null || true
 "$SDKMANAGER" "platform-tools" "emulator" "$IMAGE"
 
 "$SDK/emulator/emulator" -version | head -1
