@@ -12,7 +12,8 @@
 5. harness 量測（`harness/` 內，先 `source .venv/bin/activate`）：
    - `python -m pytest tests/ -v` — 單元測試
    - `python smoke_grpc.py` — 連通
-   - `python stream_bench.py --format rgba --seconds 10` — 幀率（另開終端跑動畫，見計畫 Task 4 Step 6；`streamScreenshot` 為變化驅動，靜止畫面不出幀，動畫來源須為持續高頻注入，不可用間歇性 `adb shell input` 指令）
+   - `python animate.py --seconds 30` — 另開終端（或背景）執行的持續動畫來源。`streamScreenshot` 為變化驅動，靜止畫面不出幀，量 fps/延遲前必須先跑這支腳本
+   - `python stream_bench.py --format rgba --seconds 10`（可加 `--width`/`--height` 縮小解析度，例如 `--width 540 --height 1200`）— 幀率
    - `python input_latency.py` — 注入 RTT
    - `adb shell settings put system show_touches 1 && python e2e_latency.py` — 端到端
 6. `cd swift-poc && swift run -c release` — 鏡像視窗體感驗證（**建議使用 Release build**：Debug build 因未優化的逐幀 Metal 上傳路徑，實測 fps 會比 Release 低 15–20 倍，屬建置模式假象，不可用於效能判讀）
