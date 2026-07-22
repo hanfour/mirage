@@ -2,3 +2,4 @@ grpcio>=1.66,<2
 grpcio-tools>=1.66,<2
 numpy>=1.26
 pytest>=8
+av>=12
