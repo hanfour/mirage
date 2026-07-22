@@ -10,7 +10,7 @@
 | sendTouch 注入 RTT p50 / p95 | < 3ms | p50=1.04ms, p95=2.37ms (n=200) | ✅ |
 | E2E input-to-photon p50（+17ms 上屏） | < 50ms 目標 / < 80ms 上限 | run1: 51.1+17=68.1ms；run2: 56.8+17=73.8ms | ✅（<80ms）／❌（<50ms 理想未達） |
 | E2E p95（+17ms） | < 80ms | run1: 65.2+17=82.2ms；run2: 65.7+17=82.7ms | ❌（邊緣超標約 3ms） |
-| Swift 視窗體感（定性） | 「跟手」 | pending human verification（agent 無法操作 GUI；串流上屏與滑鼠接線已建置完成，座標映射經 code review 靜態追蹤分析驗證〔task-9 review〕，非即時人機互動驗證，互動體感待人工確認） | ⬜ |
+| Swift 視窗體感（定性） | 「跟手」 | 人工驗收（2026-07-22）：「有點卡」——與量測一致（~29fps + e2e p50 68-74ms 的預期體感）；點擊/拖曳功能正常。座標映射先前經 code review 靜態追蹤分析驗證〔task-9 review〕 | ❌（確認 NO-GO 判定） |
 
 ## 判定
 
