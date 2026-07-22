@@ -1,0 +1,6 @@
+# phase0/.gitignore
+harness/.venv/
+harness/gen/
+__pycache__/
+swift-poc/.build/
+*.log
