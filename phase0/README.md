@@ -29,9 +29,9 @@ Phase 0 判 gRPC 原始畫格 NO-GO 後的備援驗證。**兩條備援皆判 NO
    零幀送達，且無自動復原機制）——執行前務必確認可承受 emulator 需要手動重啟的代價。詳見
    `RESULTS-0b.md`。
 2. `python stream_bench.py --format rgba --seconds 8 --transport mmap` — mmap 幀率
-   **[SKIPPED]**：MMAP 軌已於步驟 1 判死，依計畫應變條款跳過
-3. `python e2e_latency.py --transport mmap` — mmap 端到端（先開 show_touches）**[SKIPPED]**：同上
-4. `MIRAGE_TRANSPORT=mmap ./.build/release/MiragePOC` — Swift mmap 終裁 **[SKIPPED]**：同上
+   **[SKIPPED——未實作]**：MMAP 軌已於步驟 1 判死，依計畫應變條款跳過
+3. `python e2e_latency.py --transport mmap` — mmap 端到端（先開 show_touches）**[SKIPPED——未實作]**：同上
+4. `MIRAGE_TRANSPORT=mmap ./.build/release/MiragePOC` — Swift mmap 終裁 **[SKIPPED——未實作]**：同上
 5. `python encoded_bench.py --mode fps|e2e` — 編碼路徑對照（WebRTC 等效）；實測同樣
    NO-GO（真實內容變化下僅 0.6fps，e2e 模式於方法論層面直接失敗），詳見 `RESULTS-0b.md`
 

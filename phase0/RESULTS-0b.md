@@ -1,10 +1,10 @@
 # Phase 0b 顯示傳輸備援驗證結果（日期：2026-07-22）
 
 環境：與 Phase 0 相同——MacBook Air (M1, 16GB RAM) / macOS 26.3.1 / 映像 android-35 default
-arm64。Host load 於量測期間全程落在 **30–77**（`task-1-report.md` 記錄 32.63–51.93；
+arm64。Host load 於量測期間全程落在 **32–77**（`task-1-report.md` 記錄 32.63–51.93；
 `final-fix-report.md` 記錄 76–77；`task-5-report.md` 各次量測前後記錄 42.18–61.61，但該
 報告自我審查段落另有「42–115」的敘述性說法，與其自身逐字引用的 `uptime` 數字不符——此為
-**task-5-report 內部不一致**，本檔案採各次量測**逐字引用**的 `uptime` 輸出為準，「30–77」
+**task-5-report 內部不一致**，本檔案採各次量測**逐字引用**的 `uptime` 輸出為準，「32–77」
 為全程（Phase 0 + Phase 0b）觀測到的最寬區間，全數據標記 **contaminated 風險**，非乾淨基準
 環境下的量測。
 
@@ -39,7 +39,7 @@ MMAP 深度診斷（主 session，Task 1 完成後）後段換裝 **canary 37.2.
     與探測時的已知 guest 解析度一致）——資料在協定層面確實走 mmap 通道而非 gRPC payload
 - **emulator 是否自建/接受既有檔案**：canary 版**形式上接受**——長路徑 `file:///`、短路徑
   `file:///tmp/mirage_f.bin`、POSIX shm 名稱 `mirage_shm` 三種 handle 變體皆未被拒絕
-  （無 `INVALID_ARGUMENT`），但**決定性反證**：串流進行中執行 `lsof -p <qemu_pid>` 顯示
+  （無 `INVALID_ARGUMENT`（推論：通知既已流動，該請求不可能被拒））），但**決定性反證**：串流進行中執行 `lsof -p <qemu_pid>` 顯示
   qemu **從未開啟**任一 handle 對應的檔案、亦無任何 PSXSHM 物件——形式接受、實際從未寫入。
   穩定版則因請求即崩潰，連「形式接受」都無法驗證。
 - **tearing 觀察**：N/A——canary 版三種 handle 變體下 mmap 內容恆為全零（md5 恆同，

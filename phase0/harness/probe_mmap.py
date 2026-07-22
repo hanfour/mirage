@@ -6,11 +6,14 @@
   3. mmap 檔案內容是否隨畫面變化（動畫下連續三幀 hash 應不同）？
   4. 訊息裡 format.width/height 是否照常回報？
 前置：emulator 執行中；另終端跑 `python animate.py --seconds 30` 供應動畫。
+
+⚠️ 危險警告（穩定版 emulator 36.6.11.0）：執行本腳本會導致 emulator 引擎崩潰（SIGSEGV/SIGABRT，
+3/3 確定性重現，零幀送達，無自動復原機制）。Canary 37.2.1.0 不崩潰，但通知流動時 host 寫入端為 no-op。
+詳見 RESULTS-0b.md。執行前務必確認可承受 emulator 需要手動重啟的代價。
 """
 import hashlib
 import sys
 import tempfile
-import time
 
 sys.path.insert(0, "gen")
 
