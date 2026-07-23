@@ -48,11 +48,14 @@ mmap/shm handle as documented in emulator_controller.proto (the `handle` field's
 INVALID_ARGUMENT/UNIMPLEMENTED on platforms where MMAP transport is
 unsupported — never an engine crash, never empty notifications with no data.
 
-**Impact:** MMAP is the only built-in path that avoids the ~10 MiB/frame
-protobuf serialization cost of raw RGBA streaming, which caps
-streamScreenshot at roughly 30 fps at native resolution on Apple Silicon
-hosts (measured; gRPC transport, continuous screen updates). With MMAP broken
-there is no built-in 60 fps display-out path on macOS.
+**Impact:** raw RGBA streaming pushes ~10 MiB/frame through protobuf
+serialization (measured ~55 fps at native 1080x2400 on an idle M1 host,
+~546 MiB/s per stream). MMAP is the built-in way to avoid that per-frame
+serialization cost — it matters for client/host CPU efficiency,
+multi-instance setups, and >60 fps headroom. With streaming MMAP broken,
+the only shared-memory option on macOS is polling unary getScreenshot
+(works, ~52 calls/s measured), which loses the change-driven delivery that
+streamScreenshot provides.
 
 **Root-cause isolation (unary works, streaming does not):** on the same
 canary build and host, a *unary* `getScreenshot` call with the identical
