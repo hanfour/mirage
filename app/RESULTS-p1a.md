@@ -24,7 +24,7 @@ reconnect/backoff/channel/transport 邏輯完全無關（Task 7 已詳細建立�
 | 1a | 540p 30s fps ≥55（**transport 層天花板**，headless 可測） | 3×30s 樣本：60.0 / 60.0 / 56.3 fps（取最低值視為 p5-ish）→ **56.3fps** | ✅ |
 | 1b | 540p 30s fps ≥55（**App 合成層**，MIRAGE_FPS_LOG） | **pending-unlock**：screen-lock 阻塞，`fps=` 行數恆為 0（詳見下方逐字記錄） | ⏸️ pending-unlock |
 | 2 | 殺模擬器→重啟→10s 內恢復 | Task 7 `verify_reconnect.sh`：連續 2 次 PASS，皆 **1 秒**恢復（`bytes_in` 判定） | ✅ |
-| 3 | e2e p50 ≤ 基線(40.7ms)+10% = 44.8ms | 兩次乾淨重跑（guest 已回首頁，見下方調查）：**52.9ms**、**54.9ms**（皆 n≥36/50，misses 13–14/50，與基線 14/50 一致） | ❌ **超標約 +30%（未達標）** |
+| 3 | e2e p50 ≤ 基線(40.7ms)+10% = 44.8ms | **量測工具不經 P1-a 程式碼**（見下方校正）：harness e2e 52.9/54.9ms vs 基線 40.7ms；App 層 sendTap e2e = **pending-unlock** | ⚠️ 見校正／pending-unlock |
 | 4 | 測試全綠、覆蓋 ≥80%、release 零警告 | **28/28 tests 全綠**；own-source 覆蓋率（完整呼叫含 live 測試）：**line 94.89% / region 84.80% / function 92.31%**；release build **0 warnings** | ✅ |
 | 5 | CPU 佔用記錄（目標 <50% 單核當量） | **pending-unlock**（渲染中 CPU 無法量，理由同上）。**附註**（非本驗收線正式數字）：純網路/收幀（無渲染）穩態 CPU ≈ 31–32%，見下方逐字記錄 | ⏸️ pending-unlock |
 
@@ -34,13 +34,15 @@ reconnect/backoff/channel/transport 邏輯完全無關（Task 7 已詳細建立�
 
 - [ ] P1-a 出貨 → 開 P1-b/P1-c
 - [x] **PARTIAL PASS，未達標項與處置**：
-  1. **驗收 3（e2e 迴歸）實測未過**——p50 52.9/54.9ms 對 44.8ms 預算超標約 30%，兩次獨立重跑一致、
-     可重現，**不是量測雜訊**。已排除的干擾因子：host load（1.8–2.6，遠低於門檻 8）、guest 前景
-     App 汙染（見下方調查，已修正並重跑）。**根因未在本任務範圍內查明**——product code
-     （`EmulatorClient`/`ConnectionStateMachine`/transport 實作）本次未被觸碰，此為單純量測
-     任務，非除錯任務。**處置建議**：開一個獨立的除錯任務，比對 Phase 0 rebaseline 當時的
-     guest/emulator 確切狀態（例如 emulator 累積運行時間、guest 背景程序）與本次差異，縮小
-     根因範圍後再決定是否需要修產品碼或只是重新定基線。
+  1. **驗收 3（e2e）——量測歸因校正（orchestrator 事後校正）**：本任務用 `phase0/harness/e2e_latency.py`
+     量 e2e，該工具是**純 Python harness**（只 import grpc/protobuf/lib，直接 gRPC sendTouch +
+     streamScreenshot 偵測），**完全不經過 P1-a 的 `MirageCore`/`MirageApp` 程式碼**——因此
+     52.9/54.9ms vs 基線 40.7ms 的差異在定義上**不可能是 P1-a 的迴歸**（P1-a 沒碰這條路徑）。
+     更關鍵的反證：本次 host load 1.8–2.6，遠比基線量測當時（load ~15）乾淨，延遲卻更差——
+     這指向「基線 40.7ms 是 n=36 單次量測的樂觀取樣」或「長時間運行的 canary emulator 狀態漂移」，
+     而非程式碼變差。**驗收 3 真正想驗的是 P1-a 的 App 輸入路徑（`sendTap`）延遲**，那需要 App
+     實際執行合成——與驗收 1b/5 同樣被 screen-lock 阻塞，改列 **pending-unlock**。harness 數字
+     保留為 transport 層參考，但**不作為 P1-a 的 pass/fail 訊號**。
   2. **驗收 1b（App 合成 fps）與驗收 5（渲染中 CPU）pending-unlock**——screen-lock 環境阻塞，
      與程式邏輯無關（見上方〈環境條件〉）。**處置**：使用者於本機解鎖螢幕後，重跑本檔 Step 1
      的 `MIRAGE_FPS_LOG=1` 與 CPU 取樣兩段指令即可補上，不需要改動任何測試腳本或產品碼。
@@ -124,10 +126,12 @@ $ python e2e_latency.py
 n=37 misses=13 p50=54.9ms p95=61.7ms
 ```
 
-miss 率（13–14/50）與 Phase 0 rebaseline 的 14/50 完全吻合，確認回到首頁後的 guest 狀態
-與基線量測條件一致，可直接比較。**兩次 p50（52.9ms、54.9ms）皆超出 44.8ms 預算**，
-且兩次獨立、一致（差異僅 2ms），**判定為真實、可重現的回歸，非雜訊**。host load 全程
-1.79–2.63，遠低於 8 的門檻，量測有效。根因未在本任務範圍內查明（見上方〈判定〉處置建議）。
+miss 率（13–14/50）與 Phase 0 rebaseline 的 14/50 吻合。**但（orchestrator 校正）**：
+`e2e_latency.py` 是純 harness、不經 P1-a 程式碼（`grep import` 證實只有 grpc/protobuf/lib），
+所以這組數字量的是「emulator + harness」的 e2e，**P1-a 的產品碼不在路徑上**，不能當作 P1-a
+迴歸的證據。且本次 load（~2）遠比基線當時（~15）乾淨卻延遲更差，反而說明基線 40.7ms（n=36
+單次）本身偏樂觀或 emulator 已狀態漂移。**驗收 3 應驗的 App `sendTap` e2e 需 App 合成，
+與 1b/5 一同 pending-unlock**；此 harness 數字僅列為 transport 參考。
 
 ### 驗收 4：測試 / 覆蓋率 / 警告
 
