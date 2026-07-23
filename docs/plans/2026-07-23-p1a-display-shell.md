@@ -44,6 +44,10 @@
 
 3. 各任務「Expected: N tests passed」的數字不變；輸出格式為 swift-testing 樣式
    （`✔ Test run with N tests passed`）。
+4. **勿移除 swift-testing 相依**：編譯器會警告「toolchain 已內建、請移除相依」——
+   已實證（scratchpad st-probe）CLT 環境拿掉相依後 `import Testing` 直接失敗，
+   該警告在無 Xcode 環境是誤導。測試 target 的 deprecation 警告為預期噪音；
+   驗收的「零警告」僅指 `swift build -c release`（不含測試 target）。
 
 ## File Structure
 
