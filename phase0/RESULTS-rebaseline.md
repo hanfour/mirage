@@ -64,3 +64,25 @@ staging（MTLBuffer）、掉幀策略（drop-late）、視窗尺寸串流（產�
 **客觀體感代理結論**：傳輸容量 55–57fps（≈guest 60Hz vsync 極限）、e2e p50+17=57.7ms/
 p95+17=71.3ms 全進 80ms 界內——2026-07-22 的「有點卡」主因為主機污染 + POC 未優化，
 gRPC 顯示路徑架構成立（選項 A）。
+
+## unary-MMAP 路徑發現（2026-07-23 補測，canary 37.2.1.0）
+
+原始碼追蹤（AOSP emu-master-dev）+ 隔離實驗：
+- **unary `getScreenshot` + MMAP 在 macOS 上是好的**：payload=0、伺服器回 MMAP 通道、
+  客戶端檔案收到真像素。串流版才是壞的（borrow 後逐幀寫入路徑缺失）。
+- 輪詢吞吐實測：**52.5 次/s（serial）、p50 15.3ms、p95 35.8ms**、內容新鮮度 48/52
+  distinct（animate 動畫源；量測時 load 15-32）。
+- 意涵：**第三條不 fork 的顯示路徑**——unary-MMAP 輪詢=零拷貝資料面+今天可用。
+  限制：僅 canary（穩定版 36.6.11.0 對任何 MMAP 請求都會崩潰）；輪詢非變化驅動
+  （閒置畫面仍耗擷取成本，可用自適應頻率緩解）。
+- 上游草稿已依此強化（stream-vs-unary 隔離 + 原始碼分析 + 修法建議）並修正 lsof
+  過強表述。修復定位：`streamScreenshot` 逐幀寫入需比照 unary 的
+  `isOpen()/isMapped()` 守衛與 shm 寫入；`SharedMemoryLibrary::borrow` 錯誤處理
+  為 assert-only（release build 靜默）。
+
+**顯示路徑總結（全部實測於乾淨主機）**：
+| 路徑 | 數字 | 特性 |
+|---|---|---|
+| gRPC stream RGBA（主選） | 55-57fps | 變化驅動、每幀 10MiB 序列化 |
+| unary-MMAP 輪詢（canary 限定） | ~52/s, p50 15.3ms | 零拷貝、需輪詢 |
+| 編碼 H.264 | 52.4fps | 頻寬最省、有編解碼延遲 |

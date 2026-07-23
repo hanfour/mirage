@@ -34,9 +34,10 @@ at a plausible frame cadence with `image` payload EMPTY (0 bytes, as expected
 for MMAP transport) and correct `format.width/height` (1080x2400). However the
 client's buffer is never written: content stays all-zero across frames
 (identical md5 per frame), the file's inode never changes (rules out
-recreate-behind semantics), and — decisively — `lsof -p <qemu_pid>` during an
-active MMAP stream shows the engine has NOT opened the handle path at all, and
-no PSXSHM objects exist. Tried three handle variants (long `file:///` temp
+recreate-behind semantics), and no PSXSHM objects appear. (`lsof` during an
+active stream shows no retained fd for the handle either, though an
+open-mmap-close pattern would also look this way — the decisive isolation is
+the unary-vs-stream experiment below.) Tried three handle variants (long `file:///` temp
 path, short `file:///tmp/x.bin`, bare shm-style name): no data written in any case — all-zero buffer for the file paths; for the bare shm name, no shm object was even created (inference:
 none was rejected — notifications flowed for all three). So on macOS the MMAP
 transport's host write side appears to be a silent no-op while the
@@ -52,6 +53,26 @@ protobuf serialization cost of raw RGBA streaming, which caps
 streamScreenshot at roughly 30 fps at native resolution on Apple Silicon
 hosts (measured; gRPC transport, continuous screen updates). With MMAP broken
 there is no built-in 60 fps display-out path on macOS.
+
+**Root-cause isolation (unary works, streaming does not):** on the same
+canary build and host, a *unary* `getScreenshot` call with the identical
+`ImageTransport{MMAP, file://...}` request **works correctly**: the reply has
+empty payload, `transport.channel == MMAP`, and the client's file receives
+real pixel data (verified nonzero + changing md5). Sustained unary polling
+delivers ~52 calls/s (p50 15.3 ms per call) with fresh content. So the
+shared-memory plumbing (`SharedMemoryLibrary` / `aemu::base::SharedMemory`
+file:// path) is functional on macOS — the defect is isolated to
+**`streamScreenshot`'s per-frame writer path**, which borrows the shm region
+but never writes frames into it (and still emits empty-payload notifications).
+Reading `EmulatorService.cpp` (emu-master-dev,
+services/emulator-controller/server/src/android/emulation/control/): the
+unary path guards with `shm->isOpen() && shm->isMapped()` before redirecting
+pixels, while the streaming path's borrow result does not appear to feed the
+per-frame write, and `SharedMemoryLibrary::borrow` has assert-only error
+handling — in release builds a failed open would also be silent. A fix on the
+streaming path mirroring the unary logic (write into the mapped region when
+available, else fall back to payload bytes or fail with INVALID_ARGUMENT)
+would likely resolve this.
 
 **Happy to provide:** crashpad dumps, full client repro script (Python,
 ~60 lines, grpcio only), lsof captures, measurement logs.
