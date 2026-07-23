@@ -1,4 +1,5 @@
 import Foundation
+import SwiftProtobuf
 import Testing
 @testable import MirageCore
 
@@ -104,5 +105,22 @@ actor SleepRecorder {
         #expect(frame != nil, "5 秒內應收到至少一幀")
         #expect(frame?.width == 540)
         await client.stop()
+    }
+
+    @Test func liveUnaryMmapDeliversFrames() async throws {
+        // 修正案 A 對應：XCTSkipUnless → guard 提前 return（需要 canary 模擬器）。
+        // 執行：MIRAGE_LIVE_MMAP=1 swift test --filter LiveSmokeTests/liveUnaryMmapDeliversFrames
+        guard ProcessInfo.processInfo.environment["MIRAGE_LIVE_MMAP"] == "1" else { return }
+        let chBox = try GrpcChannelBox(host: "localhost", port: 8554)
+        let status = try await chBox.client.getStatus(Google_Protobuf_Empty())
+        let transport = UnaryMmapTransport(channel: chBox,
+                                           versionString: status.version)
+        let box = LatestFrameBox()
+        let pump = FramePump()
+        await pump.attach(transport.frames(width: 540, height: 1200),
+                          into: box, onEnd: { _ in })
+        try await Task.sleep(for: .seconds(2))
+        #expect(box.takeLatest() != nil)
+        await pump.detach()
     }
 }
