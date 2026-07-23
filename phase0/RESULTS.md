@@ -21,6 +21,8 @@
 **NO-GO for gRPC raw-frame streaming as the display path**（幀率 29–42fps 遠低於 60fps 門檻；e2e p95 邊緣超標）→ 依計畫啟動備援 (a) WebRTC 通道驗證（官方 android-emulator-container-scripts 有現成實作可參考），限時 2 週；若再不達標 → 備援 (b) fork + 共享記憶體。
 
 > **後續（2026-07-22）**：備援驗證已完成——兩條備援路線皆不達標，詳見 `RESULTS-0b.md`。
+>
+> **重大更正（2026-07-23）**：本檔全部 fps/延遲數字量測於受污染主機（詳見 `RESULTS-rebaseline.md`）——乾淨重測 gRPC native 55.3fps、e2e p95 進界，NO-GO 的量化基礎已翻案。
 
 **重要澄清**：實測過的控制面（headless 啟動、gRPC 輸入注入 1.04ms、串流控制介面）驗證成功且表現優異——判 NO-GO 的只有「顯示傳輸」這一段；備援只需替換畫面通道，其餘架構不變。剪貼簿、生命週期（快照休眠/喚醒）、sendKey（spec §7 列出 sendTouch/sendKey，本次僅實測 sendTouch）在 Phase 0 未實測，列為 Phase 1 前置驗證項。
 

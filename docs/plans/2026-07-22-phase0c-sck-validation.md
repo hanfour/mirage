@@ -1,5 +1,9 @@
 # Mirage Phase 0c — 上游回報 + ScreenCaptureKit 顯示路徑驗證 Implementation Plan
 
+> **結案註記（2026-07-23）**：Task 1-2 已完成合併；Task 3-6（SCK 驗證）**轉 backlog 不執行**——
+> 乾淨主機重測（`phase0/RESULTS-rebaseline.md`）翻案了本計畫的前提（污染事件），gRPC 顯示路線
+> 復活（選項 A 採納），SCK 降為未來優化選項。上游 bug 草稿（Task 1 產出）仍有效待提交。
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** (1) 產出可直接提交 Google Issue Tracker 的 MMAP bug 報告草稿；(2) 驗證「有視窗 emulator + ScreenCaptureKit 視窗擷取」能否達到 60fps 與延遲閘門——RESULTS-0b 決策選項 3 的可行性裁決。

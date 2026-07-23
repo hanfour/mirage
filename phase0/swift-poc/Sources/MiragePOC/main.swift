@@ -49,7 +49,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             var windowStart = DispatchTime.now()
             var lastSize = (w: 0, h: 0)
             do {
-                for try await frame in client.frames() {
+                // AUTHORIZED EXTENSION（rebaseline 診斷）：MIRAGE_STREAM_WIDTH/HEIGHT
+                // 環境變數請求縮放串流（0/未設 = 原生），量測視窗尺寸串流的客戶端表現。
+                let env = ProcessInfo.processInfo.environment
+                let sw = Int(env["MIRAGE_STREAM_WIDTH"] ?? "") ?? 0
+                let sh = Int(env["MIRAGE_STREAM_HEIGHT"] ?? "") ?? 0
+                for try await frame in client.frames(width: sw, height: sh) {
                     guestSize = (frame.width, frame.height)
                     view.present(frame)
                     frameCount += 1
