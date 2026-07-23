@@ -118,7 +118,7 @@ Phase 0b 一節加註此警告。
 
 ---
 
-## 附錄：上游 bug 報告素材
+## 附錄：上游 bug 報告素材（**已提交**: [issuetracker.google.com/issues/537802959](https://issuetracker.google.com/issues/537802959)，2026-07-23，Assigned/P3）
 
 供回報 Android Emulator 專案（或內部 issue tracker）使用，證據鏈全部可溯源至
 `task-1-report.md`、`mmap-canary-diagnostic.md`。

@@ -1,7 +1,8 @@
-# [Draft] Issue Tracker submission — Emulator MMAP ImageTransport broken on macOS
+# [SUBMITTED] Issue Tracker — Emulator MMAP ImageTransport broken on macOS
 
-**提交網址**: https://issuetracker.google.com/issues/new?component=192727 (Android Studio > Emulator)
-**提交前確認**: 版本號與重現輸出對照 phase0/RESULTS-0b.md 附錄；以下為貼上用全文。
+**已提交（2026-07-23）**: https://issuetracker.google.com/issues/537802959
+**提交當日狀態**: Assigned（Google 工程師）、P3/S3、2 hotlists。實際提交於 component Android Studio（192708，Emulator 子元件不開放外部直接建立），內文含 triage 轉派註記。
+**追蹤**: 上游若要求 crashpad dumps / repro script，素材見 phase0/ 與 .superpowers 診斷紀錄。
 
 ---
 
