@@ -1,17 +1,18 @@
-import XCTest
+import Foundation
+import Testing
 @testable import MirageCore
 
-final class FrameTests: XCTestCase {
-    func testValidFrame() {
+@Suite struct FrameTests {
+    @Test func validFrame() {
         let f = Frame(width: 2, height: 3, rgba: Data(count: 24))
-        XCTAssertTrue(f.isValid)
+        #expect(f.isValid)
     }
 
-    func testInvalidSizeMismatch() {
-        XCTAssertFalse(Frame(width: 2, height: 3, rgba: Data(count: 23)).isValid)
+    @Test func invalidSizeMismatch() {
+        #expect(!Frame(width: 2, height: 3, rgba: Data(count: 23)).isValid)
     }
 
-    func testInvalidZeroDimensions() {
-        XCTAssertFalse(Frame(width: 0, height: 3, rgba: Data()).isValid)
+    @Test func invalidZeroDimensions() {
+        #expect(!Frame(width: 0, height: 3, rgba: Data()).isValid)
     }
 }

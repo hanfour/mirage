@@ -1,13 +1,17 @@
-// swift-tools-version:5.9
+// swift-tools-version:6.0
 import PackageDescription
 
-let strict = [SwiftSetting.unsafeFlags(["-strict-concurrency=complete"])]
+let strict: [SwiftSetting] = [
+    .swiftLanguageMode(.v5),
+    .unsafeFlags(["-strict-concurrency=complete"]),
+]
 
 let package = Package(
     name: "Mirage",
     platforms: [.macOS(.v14)],
     dependencies: [
         .package(url: "https://github.com/grpc/grpc-swift.git", exact: "1.27.5"),
+        .package(url: "https://github.com/swiftlang/swift-testing.git", from: "0.12.0"),
     ],
     targets: [
         .target(
@@ -22,7 +26,11 @@ let package = Package(
         ),
         .testTarget(
             name: "MirageCoreTests",
-            dependencies: ["MirageCore"]
+            dependencies: [
+                "MirageCore",
+                .product(name: "Testing", package: "swift-testing"),
+            ],
+            swiftSettings: strict
         ),
     ]
 )
