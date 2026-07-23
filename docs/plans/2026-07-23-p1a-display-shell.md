@@ -19,6 +19,32 @@
 - Commit：conventional commits、無 attribution。TDD 順序：測試先行、先紅後綠。
 - 模擬器操作：headless 啟動用 `phase0/scripts/02_boot_headless.sh` + `03_wait_boot.sh`；目前安裝版本為 canary 37.2.1.0。
 
+## 修正案 A（2026-07-23，執行期環境事實）
+
+本機僅有 CommandLineTools（無 Xcode），**XCTest 模組不存在**；磁碟 10GB 裝不下 Xcode。
+經最小實驗驗證：swift-testing 以 SPM 相依方式在 CLT 的 `swift test` 原生可跑。因此：
+
+1. `Package.swift` 改為 canonical 修正版：`swift-tools-version:6.0`、加相依
+   `.package(url: "https://github.com/swiftlang/swift-testing.git", from: "0.12.0")`、
+   test target 依賴 `.product(name: "Testing", package: "swift-testing")`、
+   **每個 target 加 `.swiftLanguageMode(.v5)`**（Generated stubs 為 v1 grpc 程式碼，
+   不承受 v6 語言模式）並保留 `-strict-concurrency=complete`。
+2. 本計畫所有測試程式碼區塊維持 XCTest 語法**作為語意規格**，實作時依下表機械轉換
+   為 swift-testing；審查者以「語意等價」裁決：
+
+| XCTest | swift-testing |
+|---|---|
+| `final class XTests: XCTestCase` + `func testX()` | `@Suite struct XTests` + `@Test func x()` |
+| `XCTAssertEqual(a, b)` / `XCTAssertTrue/False/Nil/NotNil` | `#expect(a == b)` / `#expect(x)` / `#expect(!x)` / `#expect(x == nil)` / `#expect(x != nil)` |
+| `XCTAssertGreaterThan(a, b)` 等比較 | `#expect(a > b)` 等 |
+| async 測試 | `@Test func x() async throws` 原生支援 |
+| `expectation` + `fulfillment(of:timeout:)` | `confirmation { }` 或 deadline 輪詢（`for _ in 0..<N { if 條件 { break }; try await Task.sleep(...) }` 後 `#expect(條件)`） |
+| `XCTSkipUnless(cond, msg)` | `try #require(cond)` 之前用 `@Test(.enabled(if: cond))` 或函式開頭 `guard cond else { return }`（記 skip 註解） |
+| `swift test --filter XTests` | 同指令，過濾字串改 suite/測試名 |
+
+3. 各任務「Expected: N tests passed」的數字不變；輸出格式為 swift-testing 樣式
+   （`✔ Test run with N tests passed`）。
+
 ## File Structure
 
 ```
