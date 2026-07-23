@@ -69,3 +69,6 @@ touch gen/__init__.py
 **Phase 0b 後續**：備援驗證（MMAP 共享記憶體、H.264 編碼串流）兩條路皆判 NO-GO——詳見上方
 「Phase 0b 傳輸驗證」與 [`RESULTS-0b.md`](./RESULTS-0b.md)。Phase 1 顯示路徑目前無現成方案
 通過閘門，待決策者從 `RESULTS-0b.md` 列出的四個選項中裁決。
+
+## 後續
+Phase 1 產品程式碼在 `../app/`（P1-a 起）；本目錄保留為量測 harness 與歷史紀錄。
