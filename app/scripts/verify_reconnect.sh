@@ -112,7 +112,8 @@ for i in $(seq 1 10); do
   NOW=$(grep -c 'fps=' "$LOG" || true)
   NOW_BYTES=$(get_bytes_in "$APP_PID")
   echo "[test $(ts)] +${i}s: bytes_in=${NOW_BYTES} fps_lines=${NOW}"
-  if [ "$NOW_BYTES" -gt "$BEFORE_BYTES" ]; then
+  # 下限門檻：排除 keepalive/SETTINGS 噪音（一幀 540p≈2.6MB）
+  if [ "$((NOW_BYTES - BEFORE_BYTES))" -ge 1000000 ]; then
     RECOVERED=$(( $(date +%s) - BOOT_DONE ))
     break
   fi

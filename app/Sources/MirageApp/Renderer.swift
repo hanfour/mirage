@@ -87,8 +87,9 @@ final class Renderer: NSObject, MTKViewDelegate {
         if fpsLog {
             fpsCount += 1
             let now = CFAbsoluteTimeGetCurrent()
-            if now - fpsWindowStart >= 1.0 {
-                print("[app] fps=\(fpsCount)")
+            let elapsed = now - fpsWindowStart
+            if elapsed >= 1.0 {
+                print("[app] fps=\(Int((Double(fpsCount) / elapsed).rounded()))")
                 fpsCount = 0
                 fpsWindowStart = now
             }
