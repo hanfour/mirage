@@ -87,8 +87,10 @@ struct MirrorView: NSViewRepresentable {
         init(client: EmulatorClient) { self.client = client }
 
         func sendMouse(nx: Double, ny: Double, down: Bool) {
-            let gx = Int(nx * Double(guestSize.w))
-            let gy = Int(ny * Double(guestSize.h))
+            // AUTHORIZED FIX（Task 6 review CRITICAL：滑鼠映射採實際幀尺寸——proto 縮放合約 can-be-less）
+            let size = renderer?.lastFrameSize ?? guestSize
+            let gx = Int(nx * Double(size.w))
+            let gy = Int(ny * Double(size.h))
             Task { await client.sendTap(x: gx, y: gy, down: down) }
         }
 

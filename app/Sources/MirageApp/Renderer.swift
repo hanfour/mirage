@@ -19,6 +19,8 @@ final class Renderer: NSObject, MTKViewDelegate {
     private let queue: MTLCommandQueue
     private let box: LatestFrameBox
     private var texture: MTLTexture?
+    // AUTHORIZED FIX（Task 6 review CRITICAL：滑鼠映射採實際幀尺寸——proto 縮放合約 can-be-less）
+    private(set) var lastFrameSize: (w: Int, h: Int)?
     private var fpsCount = 0
     private var fpsWindowStart = CFAbsoluteTimeGetCurrent()
     private let fpsLog = ProcessInfo.processInfo.environment["MIRAGE_FPS_LOG"] == "1"
@@ -54,6 +56,8 @@ final class Renderer: NSObject, MTKViewDelegate {
     }
 
     private func upload(_ frame: Frame, into view: MTKView) {
+        // AUTHORIZED FIX（Task 6 review CRITICAL：滑鼠映射採實際幀尺寸——proto 縮放合約 can-be-less）
+        lastFrameSize = (frame.width, frame.height)
         if texture?.width != frame.width || texture?.height != frame.height {
             let desc = MTLTextureDescriptor.texture2DDescriptor(
                 pixelFormat: .rgba8Unorm,
