@@ -22,7 +22,8 @@ ccusage statusline，~146%）。
 | e2e p50（+17ms） | 68–74ms | **57.7ms**（40.7+17） | ✅（<80；理想 <50 未達） |
 | e2e p95（+17ms） | 82–83ms ❌ | **71.3ms**（54.3+17） | ✅（首次進界） |
 | screenrecord H.264 720×1600 | 0.6fps | **52.4fps**（629 幀/12s, 11.5MB） | ❌（邊緣） |
-| Swift Release fps | ~29fps | 待補（daemon 脈絡下視窗行程異常，需 GUI session 重跑） | — |
+| Swift Release fps native | ~29fps | **24.8fps avg（12–32）** | ❌（客戶端瓶頸，見下） |
+| Swift Release fps 540×1200 | — | **46.6fps avg（典型 48–54）** | 邊緣（未優化 POC） |
 
 註記：
 - e2e 重測 misses=14/50 偏高（污染期 8/2），成因未查（快幀率下基線動態改變？），
@@ -49,3 +50,17 @@ ccusage statusline，~146%）。
 的 load 當成「使用者環境常態」接受了——錯。負載異常持續存在時，應先追查負載
 來源再量測，而不是帶著註記硬量。** 5 天前的殭屍行程一直在，Phase 0 開工前查一次
 `ps aux | sort -rk3` 就能省掉兩個 phase 的誤判。
+
+## Swift 客戶端瓶頸解析（2026-07-23 補測，load 6–17）
+
+同一乾淨主機、同一條 gRPC 流：Python 收幀 55fps（只計數）、Swift POC 25fps（native）。
+污染期兩者同被壓到 ~29，掩蓋了客戶端差異，Phase 0 誤把 POC 的客戶端成本歸給伺服器。
+POC 目前每幀在主執行緒做兩次 10MB 拷貝 + 貼圖上傳（gRPC Data → Frame.rgba → texture.replace，
+且收幀 Task 繼承 MainActor）；縮放至 540p（2.5MB/幀）即回到 46.6fps 均值。
+
+**優化 backlog（Phase 1 顯示管線，全屬常規工程）**：收幀移出主執行緒、單次拷貝
+staging（MTLBuffer）、掉幀策略（drop-late）、視窗尺寸串流（產品常態）、全螢幕才拉原生。
+
+**客觀體感代理結論**：傳輸容量 55–57fps（≈guest 60Hz vsync 極限）、e2e p50+17=57.7ms/
+p95+17=71.3ms 全進 80ms 界內——2026-07-22 的「有點卡」主因為主機污染 + POC 未優化，
+gRPC 顯示路徑架構成立（選項 A）。
