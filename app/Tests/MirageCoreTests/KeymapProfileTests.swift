@@ -44,4 +44,31 @@ import Testing
         ])
         #expect(throws: ProfileError.invalidSensitivity) { try bad.validated() }
     }
+
+    @Test func rejectsDuplicateJoystickBinding() {
+        let bad = KeymapProfile(gameId: "g", version: 1, bindings: [
+            .joystick(up: .key("w"), down: .key("s"), left: .key("a"), right: .key("d"),
+                      center: NormPoint(x: 0.2, y: 0.75), radius: 0.15),
+            .joystick(up: .key("i"), down: .key("k"), left: .key("j"), right: .key("l"),
+                      center: NormPoint(x: 0.8, y: 0.75), radius: 0.15),
+        ])
+        #expect(throws: ProfileError.identifierConflict) { try bad.validated() }
+    }
+
+    @Test func rejectsDuplicateLookBinding() {
+        let bad = KeymapProfile(gameId: "g", version: 1, bindings: [
+            .look(activation: nil, sensitivity: 1.5),
+            .look(activation: .key("r"), sensitivity: 2.0),
+        ])
+        #expect(throws: ProfileError.identifierConflict) { try bad.validated() }
+    }
+
+    @Test func allowsRepeatedTapBindings() throws {
+        let profile = KeymapProfile(gameId: "g", version: 1, bindings: [
+            .tap(key: .key("j"), at: NormPoint(x: 0.85, y: 0.8)),
+            .tap(key: .key("k"), at: NormPoint(x: 0.72, y: 0.88)),
+            .tap(key: .key("l"), at: NormPoint(x: 0.6, y: 0.9)),
+        ])
+        #expect(throws: Never.self) { try profile.validated() }
+    }
 }

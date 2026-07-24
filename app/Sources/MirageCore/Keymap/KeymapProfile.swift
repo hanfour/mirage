@@ -38,6 +38,11 @@ public extension KeymapProfile {
                 guard sensitivity > 0 else { throw ProfileError.invalidSensitivity }
             }
         }
+        // KeymapEngine 對 joystick/look 採一對一 id 模型：多餘的綁定會被靜默丟棄。
+        // 在此 fail-fast，避免載入期靜默遺失使用者設定。
+        let joystickCount = bindings.filter { if case .joystick = $0 { return true }; return false }.count
+        let lookCount = bindings.filter { if case .look = $0 { return true }; return false }.count
+        guard joystickCount <= 1, lookCount <= 1 else { throw ProfileError.identifierConflict }
         return self
     }
 }
