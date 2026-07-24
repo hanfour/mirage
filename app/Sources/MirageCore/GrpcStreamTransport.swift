@@ -15,10 +15,13 @@ public final class GrpcChannelBox: @unchecked Sendable {
     // targets, so dropping `public` is the minimal fix. `GrpcChannelBox` itself
     // stays `public` — it appears in `EmulatorClient`'s public init signature.
     let client: Android_Emulation_Control_EmulatorControllerAsyncClient
+    // `channel` 公開：GRPCChannel 是 grpc-swift 的 public 型別，`public let` 可直接編譯
+    // （不同於上面 `client`——其產生型別為 internal，見上方註解）。供 SnapshotService 共用同一條連線。
+    public let channel: GRPCChannel
 
     public init(host: String, port: Int) throws {
         group = MultiThreadedEventLoopGroup(numberOfThreads: 1)
-        let channel = try GRPCChannelPool.with(
+        channel = try GRPCChannelPool.with(
             target: .host(host, port: port),
             transportSecurity: .plaintext,
             eventLoopGroup: group

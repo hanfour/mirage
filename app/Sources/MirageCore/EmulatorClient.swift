@@ -6,6 +6,7 @@ public actor EmulatorClient {
     private let port: Int
     private let makeTransport: @Sendable (GrpcChannelBox) -> DisplayTransport
     private let makeHealthProbe: @Sendable (GrpcChannelBox) -> HealthProbe
+    private let makeSnapshot: @Sendable (GrpcChannelBox) -> SnapshotSaving
     private let backoff: BackoffPolicy
     private let sleeper: @Sendable (Duration) async throws -> Void
     private let randomSource: @Sendable () -> Double
@@ -21,15 +22,20 @@ public actor EmulatorClient {
     private var running = false
     private var loopTask: Task<Void, Never>?
     private var breakCont: AsyncStream<Void>.Continuation?
+    private var power: PowerState = .active
 
     public nonisolated let states: AsyncStream<ConnState>
     private let stateCont: AsyncStream<ConnState>.Continuation
+    public nonisolated let powerStates: AsyncStream<PowerState>
+    private let powerCont: AsyncStream<PowerState>.Continuation
 
     public init(host: String = "localhost", port: Int = 8554,
                 makeTransport: @escaping @Sendable (GrpcChannelBox) -> DisplayTransport
                     = { GrpcStreamTransport(channel: $0) },
                 makeHealthProbe: @escaping @Sendable (GrpcChannelBox) -> HealthProbe
                     = { GrpcHealthProbe(channel: $0) },
+                makeSnapshot: @escaping @Sendable (GrpcChannelBox) -> SnapshotSaving
+                    = { GrpcSnapshotService(channelBox: $0) },
                 backoff: BackoffPolicy = .init(),
                 sleeper: @escaping @Sendable (Duration) async throws -> Void
                     = { try await Task.sleep(for: $0) },
@@ -40,11 +46,13 @@ public actor EmulatorClient {
         self.port = port
         self.makeTransport = makeTransport
         self.makeHealthProbe = makeHealthProbe
+        self.makeSnapshot = makeSnapshot
         self.backoff = backoff
         self.sleeper = sleeper
         self.randomSource = randomSource
         self.probeTimeout = probeTimeout
         (states, stateCont) = AsyncStream.makeStream(of: ConnState.self)
+        (powerStates, powerCont) = AsyncStream.makeStream(of: PowerState.self)
     }
 
     public func start(box: LatestFrameBox, width: Int, height: Int) async {
@@ -78,6 +86,30 @@ public actor EmulatorClient {
         var event = Android_Emulation_Control_TouchEvent()
         event.touches = [touch]
         _ = try? await client.sendTouch(event)
+    }
+
+    // MARK: - 電源（休眠/喚醒）：channelBox 維持不動，供 wake() 沿用同一連線
+
+    public func suspend() async {
+        guard power == .active, let boxCh = channelBox else { return }
+        setPower(.suspending)
+        let ok = await makeSnapshot(boxCh).save("mirage_suspend")
+        await pump.detach()                 // 停止拉幀（省 app 端 CPU；qemu 仍在跑）
+        setPower(.suspended)                // save 失敗也進 suspended（降級：仍凍結，spec §5）
+        _ = ok
+    }
+
+    public func wake() async {
+        guard power == .suspended, let boxCh = channelBox else { return }
+        setPower(.waking)
+        _ = await makeSnapshot(boxCh).load("mirage_suspend")  // 失敗則恢復當前串流畫面（降級）
+        if state == .connected { attachStream() }             // 恢復拉幀
+        setPower(.active)
+    }
+
+    private func setPower(_ p: PowerState) {
+        power = p
+        powerCont.yield(p)
     }
 
     // MARK: - 純轉移（reducer 語意不變，只發布狀態、回傳 effect）
