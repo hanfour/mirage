@@ -61,4 +61,25 @@ import Testing
         _ = e.apply(.keyDown(.key("z")))              // 未映射
         #expect(e.unmappedCount == 1)
     }
+
+    @Test func gatedLookLiftsTouchWhenActivationKeyReleased() {
+        // Task 4 補審：activation-gated look 的 releaseLookIfGateClosed 迴歸測試。
+        // 唯一 binding → look 為 id 1。
+        let e = KeymapEngine(profile: KeymapProfile(gameId: "g", version: 1, bindings: [
+            .look(activation: .key("Shift"), sensitivity: 1.0),   // id 1
+        ]))
+
+        // 1) gate 關閉：未按啟動鍵時 mouseMove 應被忽略。
+        let closed = e.apply(.mouseMove(dx: 10, dy: 0))
+        #expect(closed.touches.first { $0.identifier == 1 }?.down == false)
+
+        // 2) gate 開啟：按住啟動鍵後 mouseMove 生效。
+        _ = e.apply(.keyDown(.key("Shift")))
+        let open = e.apply(.mouseMove(dx: 10, dy: 0))
+        #expect(open.touches.first { $0.identifier == 1 }?.down == true)
+
+        // 3) 放開啟動鍵：gate 因此關閉，look 觸點應被收回（down=false）。
+        let released = e.apply(.keyUp(.key("Shift")))
+        #expect(released.touches.first { $0.identifier == 1 }?.down == false)
+    }
 }
