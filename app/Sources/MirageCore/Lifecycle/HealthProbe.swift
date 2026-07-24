@@ -22,13 +22,17 @@ public struct GrpcHealthProbe: HealthProbe {
     // `Android_Emulation_Control_EmulatorControllerAsyncClient` is `internal`
     // (default access), not `public`. A `public init` cannot take it as a
     // parameter ("initializer cannot be declared public because its parameter
-    // uses an internal type"). Dropping `public` here is the minimal fix — the
-    // type itself stays `public` (satisfies the public `HealthProbe`
-    // conformance), only construction is confined to within MirageCore, e.g.
-    // via `EmulatorClient`'s default `healthProbe` factory (Task 3) using
-    // `GrpcChannelBox.client`.
-    init(client: Android_Emulation_Control_EmulatorControllerAsyncClient) {
-        self.client = client
+    // uses an internal type"), and — the Task 3 trigger — a `public init(client:)`
+    // referenced from EmulatorClient's PUBLIC default argument fails ("initializer
+    // 'init(client:)' is internal and cannot be referenced from a default argument
+    // value"). Mirroring the sibling `GrpcStreamTransport.init(channel:)`, we
+    // expose a `public init(channel: GrpcChannelBox)` whose BODY reads the
+    // internal `channel.client` (bodies may reference internal symbols; default
+    // argument EXPRESSIONS may not). The public type still satisfies the public
+    // `HealthProbe` conformance; construction stays confined to MirageCore via
+    // EmulatorClient's default `makeHealthProbe` factory `{ GrpcHealthProbe(channel: $0) }`.
+    public init(channel: GrpcChannelBox) {
+        self.client = channel.client
     }
 
     public func probe(timeout: Duration) async -> HealthResult {

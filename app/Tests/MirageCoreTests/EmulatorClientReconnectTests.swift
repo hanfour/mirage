@@ -43,6 +43,7 @@ actor SleepRecorder {
         let sleepRecorder = SleepRecorder()
         let client = EmulatorClient(
             makeTransport: { _ in mock },
+            makeHealthProbe: { _ in ScriptedProbe([]) },      // 永遠 .healthy
             sleeper: { d in await sleepRecorder.record(d) },  // 假時鐘：不真睡
             randomSource: { 0.5 }
         )
@@ -59,6 +60,7 @@ actor SleepRecorder {
         let mock = MockTransport([.yieldThenHang(1)])
         let client = EmulatorClient(
             makeTransport: { _ in mock },
+            makeHealthProbe: { _ in ScriptedProbe([]) },  // 永遠 .healthy
             sleeper: { _ in },
             randomSource: { 0.5 }
         )
@@ -84,6 +86,90 @@ actor SleepRecorder {
         await client.start(box: LatestFrameBox(), width: 540, height: 1200)
         let seen = await statesTask.value
         #expect(seen.suffix(2) == [.connecting, .connected])
+        await client.stop()
+    }
+}
+
+@Suite struct EmulatorClientHealthGateTests {
+    @Test func unhealthyProbeIncrementsAttemptThenConnects() async throws {
+        // 探測劇本：失敗、逾時、健康 → 應走 reconnecting(0) → reconnecting(1) → connected
+        let probe = ScriptedProbe([.failed, .timedOut, .healthy])
+        let mock = MockTransport([.yieldThenHang(9)])
+        let recorder = SleepRecorder()
+        let client = EmulatorClient(
+            makeTransport: { _ in mock },
+            makeHealthProbe: { _ in probe },
+            sleeper: { d in await recorder.record(d) },
+            randomSource: { 0.5 }
+        )
+        // ADAPTATION (compile-forced warning, same as statesPublishesTransitions
+        // above): the brief captures a local `var seen` and mutates it from inside
+        // a `Task { }` closure, which under -strict-concurrency=complete emits
+        // "sending value of non-Sendable type '() async -> ()' risks causing data
+        // races". Building the array inside the task and returning via `.value`
+        // removes the shared mutable capture entirely while preserving identical
+        // observable behaviour, and compiles with zero warnings.
+        let watch = Task { () -> [ConnState] in
+            var seen: [ConnState] = []
+            for await s in client.states {
+                seen.append(s)
+                if s == .connected { break }
+            }
+            return seen
+        }
+        await client.start(box: LatestFrameBox(), width: 540, height: 1200)
+        let seen = await watch.value
+        // 真實經過 reconnecting，attempt 隨失敗遞增
+        #expect(seen.contains(.reconnecting(attempt: 0)))
+        #expect(seen.contains(.reconnecting(attempt: 1)))
+        #expect(seen.last == .connected)
+        #expect(probe.calls == 3)                      // 探測 3 次才健康
+        let sleeps = await recorder.all
+        #expect(sleeps.count == 2)                     // 2 次失敗 → 2 次 backoff sleep
+        #expect(sleeps.first == .milliseconds(500))    // attempt 0、random 0.5
+        await client.stop()
+    }
+
+    @Test func bannerHonestWhileReconnecting() async throws {
+        // 只給失敗劇本：狀態必須停在 reconnecting，絕不出現 connected（誠實 banner）
+        let probe = ScriptedProbe([.failed, .failed, .failed])
+        let client = EmulatorClient(
+            makeTransport: { _ in MockTransport([]) },
+            makeHealthProbe: { _ in probe },
+            sleeper: { _ in },
+            randomSource: { 0.5 }
+        )
+        // ADAPTATION (same compile-forced warning as above): build the result
+        // inside the task and return it, instead of mutating a captured `var`.
+        let watch = Task { () -> Bool in
+            var everConnected = false
+            var n = 0
+            for await s in client.states {
+                if s == .connected { everConnected = true }
+                n += 1
+                if n >= 4 { break }
+            }
+            return everConnected
+        }
+        await client.start(box: LatestFrameBox(), width: 540, height: 1200)
+        let everConnected = await watch.value
+        #expect(everConnected == false)
+        await client.stop()
+    }
+
+    @Test func loopNotRecursionUnderManyFailures() async throws {
+        // 100 次失敗後健康：迴圈不堆積 async frame（能跑完且最終 connected 即證明）
+        let probe = ScriptedProbe(Array(repeating: .failed, count: 100) + [.healthy])
+        let client = EmulatorClient(
+            makeTransport: { _ in MockTransport([.yieldThenHang(1)]) },
+            makeHealthProbe: { _ in probe },
+            sleeper: { _ in },              // 假時鐘：不真睡
+            randomSource: { 0.5 }
+        )
+        let watch = Task { for await s in client.states { if s == .connected { break } } }
+        await client.start(box: LatestFrameBox(), width: 540, height: 1200)
+        _ = await watch.value
+        #expect(probe.calls == 101)
         await client.stop()
     }
 }
