@@ -28,6 +28,7 @@ struct MirageApp: App {
             .task {
                 appDelegate.model = model   // 供 applicationWillTerminate 使用
                 await model.start()
+                model.startLifecycle()
             }
         }
     }
@@ -40,13 +41,93 @@ final class AppModel {
     let box = LatestFrameBox()
     var connState: ConnState = .disconnected
 
+    // Task 6: 選單列、剪貼簿橋接、視窗關閉/喚醒生命週期。
+    var menuBar: MenuBarController?
+    var lifecycle: AppLifecycle?
+    var watcher: ClipboardWatcher?
+    private var bridge = ClipboardBridge()
+
     func start() async {
+        // RECONCILIATION (Task 6 brief vs. this file): the brief's `startLifecycle()`
+        // snippet spins up a SECOND `for await s in client.states` loop to feed
+        // `menuBar?.updateStatus`. `client.states` is a plain single-continuation
+        // `AsyncStream` (see EmulatorClient.swift) — it is not a broadcast/multicast
+        // stream, so two independent `for await` consumers would each only receive
+        // a subset of emitted values (elements are split between whichever iterator
+        // calls `next()` first), silently desyncing `connState` (already consumed
+        // here, pre-dating Task 6) from the menu bar label. Fixed by keeping this
+        // as the SOLE consumer of `client.states` and having it drive both
+        // `connState` and `menuBar?.updateStatus` together; `startLifecycle()`
+        // seeds the label with the already-known `connState` at menuBar-creation
+        // time (menuBar is nil until then, so earlier emissions would otherwise
+        // be missed by it).
         Task { [client] in
             for await s in client.states {
-                await MainActor.run { self.connState = s }
+                await MainActor.run {
+                    self.connState = s
+                    self.menuBar?.updateStatus(Self.label(s))
+                }
             }
         }
         await client.start(box: box, width: 540, height: 1200)
+    }
+
+    func startLifecycle() {
+        lifecycle = AppLifecycle(client: client)
+        menuBar = MenuBarController(
+            onWake: { [weak self] in self?.wake() },
+            onShow: { [weak self] in self?.wake() }
+        )
+        menuBar?.updateStatus(Self.label(connState))   // 補上 menuBar 建立前已錯過的狀態
+
+        // guest→host 剪貼簿：經 bridge 防回音後寫 NSPasteboard
+        Task { [weak self, client] in
+            for await text in client.guestClipboard {
+                await MainActor.run { self?.applyGuestClipboard(text) }
+            }
+        }
+
+        // host→guest：watcher 輪詢 → 經 bridge → setGuestClipboard
+        watcher = ClipboardWatcher { [weak self] text in self?.applyHostClipboard(text) }
+        watcher?.start()
+
+        // 視窗關閉→休眠、喚醒→load 交由 AppLifecycle 當 NSWindowDelegate；
+        // 用 Task 讓出一輪 run loop，確保 WindowGroup 的視窗已完成建立掛載。
+        Task { [weak self] in
+            await MainActor.run {
+                NSApp.windows.first?.delegate = self?.lifecycle
+            }
+        }
+    }
+
+    private func applyGuestClipboard(_ text: String) {
+        let (ok, next) = bridge.shouldPropagate(value: text, direction: .guestToHost)
+        bridge = next
+        guard ok else { return }
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(text, forType: .string)
+        watcher?.syncBaseline()          // 別把自己剛寫入的值當 host 變更
+    }
+
+    private func applyHostClipboard(_ text: String) {
+        let (ok, next) = bridge.shouldPropagate(value: text, direction: .hostToGuest)
+        bridge = next
+        guard ok else { return }
+        Task { await client.setGuestClipboard(text) }
+    }
+
+    private func wake() {
+        let window = NSApp.windows.first
+        lifecycle?.wake(showing: window)
+    }
+
+    static func label(_ s: ConnState) -> String {
+        switch s {
+        case .connected: return "已連線"
+        case .connecting: return "連線中"
+        case .reconnecting(let n): return "重連中（第 \(n + 1) 次）"
+        case .disconnected: return "未連線"
+        }
     }
 
     // AUTHORIZED ADDITION（Task 4 review: NIO teardown race）— see AppDelegate
