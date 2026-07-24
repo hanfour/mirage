@@ -210,3 +210,132 @@ actor SleepRecorder {
         await pump.detach()
     }
 }
+
+// MARK: - suspend()/wake() 不變式回歸測試（Task 4 補審）
+
+/// 假快照：只記錄呼叫、永遠成功。存取只發生在 EmulatorClient actor 的序列化情境
+/// （每次測試依序 await suspend()/wake()，不會並發呼叫），故不需要鎖。
+final class MockSnapshot: SnapshotSaving, @unchecked Sendable {
+    private(set) var saveCalls: [String] = []
+    private(set) var loadCalls: [String] = []
+
+    func save(_ id: String) async -> Bool {
+        saveCalls.append(id)
+        return true
+    }
+
+    func load(_ id: String) async -> Bool {
+        loadCalls.append(id)
+        return true
+    }
+}
+
+actor ConnStateRecorder {
+    private(set) var items: [ConnState] = []
+    func record(_ s: ConnState) { items.append(s) }
+}
+
+actor PowerStateRecorder {
+    private(set) var items: [PowerState] = []
+    func record(_ p: PowerState) { items.append(p) }
+}
+
+/// 輪詢直到條件成立或逾時（比照 FramePumpTests 的 deadline polling 慣例），
+/// 回傳是否在期限內達成；逾時回傳 false，呼叫端用 #expect 斷言。
+private func waitUntil(
+    attempts: Int = 100,
+    interval: Duration = .milliseconds(20),
+    _ condition: @Sendable () async -> Bool
+) async -> Bool {
+    for _ in 0..<attempts {
+        if await condition() { return true }
+        try? await Task.sleep(for: interval)
+    }
+    return false
+}
+
+@Suite struct EmulatorClientSuspendTests {
+    @Test func suspendPreservesConnectionAndDoesNotReconnect() async throws {
+        let mock = MockTransport([.yieldThenHang(1)])
+        let snapshot = MockSnapshot()
+        let client = EmulatorClient(
+            makeTransport: { _ in mock },
+            makeHealthProbe: { _ in ScriptedProbe([]) },      // 永遠 .healthy
+            makeSnapshot: { _ in snapshot },
+            sleeper: { _ in },
+            randomSource: { 0.5 }
+        )
+
+        // 在 start 之前訂閱，避免漏收任何轉移；單一 consumer 各自佔一條 stream。
+        let connRecorder = ConnStateRecorder()
+        let powerRecorder = PowerStateRecorder()
+        let statesTask = Task { for await s in client.states { await connRecorder.record(s) } }
+        let powerTask = Task { for await p in client.powerStates { await powerRecorder.record(p) } }
+
+        await client.start(box: LatestFrameBox(), width: 540, height: 1200)
+        let reachedConnected = await waitUntil { await connRecorder.items.last == .connected }
+        #expect(reachedConnected)
+        #expect(mock.subscribeCount == 1)   // connectedRun() 的唯一一次 attach
+
+        await client.suspend()
+        let reachedSuspended = await waitUntil { await powerRecorder.items.last == .suspended }
+        #expect(reachedSuspended)
+
+        // 核心不變式：suspend 不觸發重連、channel 原封不動保留給 wake() 沿用。
+        let powerSeen = await powerRecorder.items
+        #expect(powerSeen == [.suspending, .suspended])
+
+        let connSeen = await connRecorder.items
+        let sawReconnecting = connSeen.contains { if case .reconnecting = $0 { return true }; return false }
+        #expect(!sawReconnecting)
+        #expect(connSeen.last == .connected)          // 連線狀態全程停在 .connected
+        #expect(mock.subscribeCount == 1)              // 沒有重新訂閱／重建串流
+        #expect(snapshot.saveCalls == ["mirage_suspend"])
+
+        statesTask.cancel(); powerTask.cancel()
+        _ = await statesTask.value; _ = await powerTask.value
+        await client.stop()
+    }
+
+    @Test func wakeResumesStreamingAfterSuspend() async throws {
+        // 兩筆劇本：第一筆供初始連線消耗，第二筆供 wake() 重新 attach 消耗。
+        let mock = MockTransport([.yieldThenHang(1), .yieldThenHang(2)])
+        let snapshot = MockSnapshot()
+        let client = EmulatorClient(
+            makeTransport: { _ in mock },
+            makeHealthProbe: { _ in ScriptedProbe([]) },      // 永遠 .healthy
+            makeSnapshot: { _ in snapshot },
+            sleeper: { _ in },
+            randomSource: { 0.5 }
+        )
+
+        let connRecorder = ConnStateRecorder()
+        let powerRecorder = PowerStateRecorder()
+        let statesTask = Task { for await s in client.states { await connRecorder.record(s) } }
+        let powerTask = Task { for await p in client.powerStates { await powerRecorder.record(p) } }
+
+        await client.start(box: LatestFrameBox(), width: 540, height: 1200)
+        #expect(await waitUntil { await connRecorder.items.last == .connected })
+
+        await client.suspend()
+        #expect(await waitUntil { await powerRecorder.items.last == .suspended })
+        #expect(mock.subscribeCount == 1)
+
+        await client.wake()
+        #expect(await waitUntil { await powerRecorder.items.last == .active })
+
+        let powerSeen = await powerRecorder.items
+        #expect(powerSeen == [.suspending, .suspended, .waking, .active])
+        #expect(snapshot.loadCalls == ["mirage_suspend"])
+        #expect(mock.subscribeCount == 2)              // wake() 恢復拉幀，重新 attach
+        // 連線狀態全程仍停在 .connected（wake 期間同樣不曾重連）。
+        let connSeen = await connRecorder.items
+        let sawReconnecting = connSeen.contains { if case .reconnecting = $0 { return true }; return false }
+        #expect(!sawReconnecting)
+        #expect(connSeen.last == .connected)
+
+        statesTask.cancel(); powerTask.cancel()
+        _ = await statesTask.value; _ = await powerTask.value
+        await client.stop()
+    }
+}
