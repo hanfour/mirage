@@ -1,4 +1,6 @@
 import Foundation
+import GRPC
+import SwiftProtobuf
 
 /// 門面 actor：連線生命週期（reducer + 健康探測迴圈驅動）、串流掛載、輸入注入、狀態發布。
 public actor EmulatorClient {
@@ -23,11 +25,17 @@ public actor EmulatorClient {
     private var loopTask: Task<Void, Never>?
     private var breakCont: AsyncStream<Void>.Continuation?
     private var power: PowerState = .active
+    private var clipboardTask: Task<Void, Never>?
+    private var clipboardCall: GRPCAsyncServerStreamingCall<
+        SwiftProtobuf.Google_Protobuf_Empty, Android_Emulation_Control_ClipData
+    >?
 
     public nonisolated let states: AsyncStream<ConnState>
     private let stateCont: AsyncStream<ConnState>.Continuation
     public nonisolated let powerStates: AsyncStream<PowerState>
     private let powerCont: AsyncStream<PowerState>.Continuation
+    public nonisolated let guestClipboard: AsyncStream<String>
+    private let guestClipCont: AsyncStream<String>.Continuation
 
     public init(host: String = "localhost", port: Int = 8554,
                 makeTransport: @escaping @Sendable (GrpcChannelBox) -> DisplayTransport
@@ -53,6 +61,7 @@ public actor EmulatorClient {
         self.probeTimeout = probeTimeout
         (states, stateCont) = AsyncStream.makeStream(of: ConnState.self)
         (powerStates, powerCont) = AsyncStream.makeStream(of: PowerState.self)
+        (guestClipboard, guestClipCont) = AsyncStream.makeStream(of: String.self)
     }
 
     public func start(box: LatestFrameBox, width: Int, height: Int) async {
@@ -86,6 +95,13 @@ public actor EmulatorClient {
         var event = Android_Emulation_Control_TouchEvent()
         event.touches = [touch]
         _ = try? await client.sendTouch(event)
+    }
+
+    public func setGuestClipboard(_ text: String) async {
+        guard let client = channelBox?.client else { return }
+        var clip = Android_Emulation_Control_ClipData()
+        clip.text = text
+        _ = try? await client.setClipboard(clip)
     }
 
     // MARK: - 電源（休眠/喚醒）：channelBox 維持不動，供 wake() 沿用同一連線
@@ -131,6 +147,7 @@ public actor EmulatorClient {
             if !running { break }
             if result == .healthy {
                 _ = step(.connectSucceeded)         // → .connected（gate：只有健康才連上）
+                startClipboardStream()
                 await connectedRun()                // 阻塞到串流斷或 stop
                 guard running else { break }
                 await pump.detach()
@@ -183,13 +200,63 @@ public actor EmulatorClient {
 
     private func signalBreak() { breakCont?.yield() }
 
+    /// 於 step(.connectSucceeded) 後啟動（在 runConnectionLoop 的 .healthy 分支呼叫）；dropChannel 前取消。
+    ///
+    /// ADAPTATION (found during Task 5 verification, see task-5-report.md): the brief uses
+    /// `client.streamClipboard(.init())`, the `EmulatorControllerAsyncClientProtocol` convenience
+    /// method that returns only `GRPCAsyncResponseStream<ClipData>` — it discards the underlying
+    /// `GRPCAsyncServerStreamingCall`. That response stream's `next()` only checks
+    /// `Task.isCancelled` synchronously at the start of each call (see grpc-swift's
+    /// GRPCAsyncResponseStream.swift); it never calls `.cancel()` on the real call. So cancelling
+    /// `clipboardTask` does NOT interrupt an already in-flight `next()` await and does NOT resolve
+    /// the pending NIO promise — verified empirically: with a real emulator holding the stream
+    /// open (nothing else yields further clipboard events), `clipboardTask` never completes on its
+    /// own. Using `makeStreamClipboardCall(_:)` instead returns the full `GRPCAsyncServerStreamingCall`,
+    /// which has a genuine `.cancel()` (calls `self.call.cancel(promise: nil)`, resolving the
+    /// in-flight promise). Storing that call lets `dropChannel()` cancel the real RPC before
+    /// tearing down the channel's event-loop group, avoiding both a hang (task never finishing)
+    /// and the NIO "leaking promise created" fatal crash (group shut down while a promise is
+    /// still outstanding).
+    private func startClipboardStream() {
+        guard let client = channelBox?.client else { return }
+        clipboardTask?.cancel()
+        let call = client.makeStreamClipboardCall(.init())
+        clipboardCall = call
+        // Capture only `responseStream` (explicitly `Sendable` in grpc-swift), not `call`
+        // itself (non-Sendable — a data-race warning otherwise, since `Task { }` sends its
+        // closure across `self`'s actor isolation).
+        let stream = call.responseStream
+        clipboardTask = Task { [guestClipCont] in
+            do {
+                for try await clip in stream {
+                    if Task.isCancelled { return }
+                    guestClipCont.yield(clip.text)
+                }
+            } catch { /* 串流斷屬正常（連線斷）；由重連迴圈處理，不在此重連 */ }
+        }
+    }
+
     private func backoffDelay(_ effect: ConnEffect) async {
         guard case .scheduleReconnect(let attempt) = effect, running else { return }
         let delay = backoff.delay(attempt: attempt, random: randomSource())
         try? await sleeper(delay)
     }
 
+    // ADAPTATION (found during Task 5 verification, see task-5-report.md): the brief's
+    // snippet appends `clipboardTask?.cancel(); clipboardTask = nil` AFTER `channelBox = nil`.
+    // That order lets `channelBox`'s deinit (`group.syncShutdownGracefully()`) tear down the
+    // NIO EventLoopGroup synchronously while the clipboard stream's in-flight promise on that
+    // same group may still be unresolved — a real race that intermittently (~1-in-8 runs,
+    // reproduced empirically) trips NIO's "leaking promise created" fatal precondition and
+    // crashes the whole process. Cancelling `clipboardCall` (the real RPC, not just the Swift
+    // Task — see startClipboardStream's ADAPTATION note above) BEFORE releasing the channel
+    // resolves that promise synchronously up front, so the group's graceful shutdown has
+    // nothing left dangling. dropChannel stays synchronous — no call-site changes needed.
     private func dropChannel() {
+        clipboardCall?.cancel()
+        clipboardTask?.cancel()
+        clipboardTask = nil
+        clipboardCall = nil
         transport = nil
         probe = nil
         channelBox = nil            // deinit → group.syncShutdownGracefully()
