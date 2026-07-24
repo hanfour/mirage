@@ -21,15 +21,45 @@ struct MirageApp: App {
     var body: some Scene {
         WindowGroup("Mirage") {
             ZStack(alignment: .top) {
-                MirrorView(client: model.client, box: model.box)
+                // P1-c: model.keymap 起始為 nil（非同步載入），MirrorView.updateNSView 會在
+                // loadKeymap() 完成、@Observable 觸發重繪時把值同步進 Coordinator。
+                MirrorView(client: model.client, box: model.box, controller: model.keymap)
                 ConnectionBanner(state: model.connState)
+                keymapOverlayLayer
+                // 隱藏按鈕：⌘E 切換編輯模式。用 SwiftUI .keyboardShortcut 走標準
+                // performKeyEquivalent 路徑，不需要額外的 NSEvent monitor 生命週期管理，
+                // 也不會和 MirrorMTKView.keyDown（一般字元鍵）互相搶事件。
+                Button("") { model.toggleEditing() }
+                    .keyboardShortcut("e", modifiers: .command)
+                    .frame(width: 0, height: 0)
+                    .opacity(0)
             }
             .frame(minWidth: 270, minHeight: 600)
             .task {
                 appDelegate.model = model   // 供 applicationWillTerminate 使用
                 await model.start()
                 model.startLifecycle()
+                model.loadKeymap(guestSize: AppModel.defaultGuestSize)
             }
+        }
+    }
+
+    // P1-c：編輯模式顯示陽春編輯器，否則顯示唯讀提示 overlay；兩者都在無 profile 時
+    // 優雅退化（OverlayEditorView 需要非 nil profile 才有東西可編，KeymapOverlay 本身
+    // 就接受 nil 直接不畫任何標記）。獨立成 @MainActor computed var 而非塞進 body 是因為
+    // MirrorView 那行已經夠長；標 @MainActor 是因為它讀取的是 model 的 MainActor-isolated
+    // 屬性（editing/profile），不像 body 本身有 App 協定的 @MainActor 需求可以白拿。
+    @MainActor
+    @ViewBuilder
+    private var keymapOverlayLayer: some View {
+        if model.editing, let profile = model.profile {
+            OverlayEditorView(
+                // SwiftUI.Binding 明確寫模組名——MirageCore.Binding（keymap 綁定列舉）撞名。
+                profile: SwiftUI.Binding(get: { profile }, set: { model.profile = $0 }),
+                onSave: { model.saveProfile($0) }
+            )
+        } else {
+            KeymapOverlay(profile: model.profile)
         }
     }
 }
@@ -46,6 +76,22 @@ final class AppModel {
     var lifecycle: AppLifecycle?
     var watcher: ClipboardWatcher?
     private var bridge = ClipboardBridge()
+
+    // P1-c: 鍵位映射——KeymapController 橋接輸入、profile 供 overlay/編輯器讀寫、
+    // editing 由 ⌘E 切換、mouseCapture 管 look 模式的游標鎖定。
+    var keymap: KeymapController?
+    var profile: KeymapProfile?
+    var editing = false
+    let mouseCapture = MouseCapture()
+
+    /// 兩處共用（client.start 的初始尺寸、KeymapController 的初始 guestSize），避免同一組
+    /// 數字散在兩個檔案裡各寫一份（原本 540/1200 只出現在 start() 一處，Task 7 新增第二個
+    /// 消費者時順手收斂成常數，不算擴大改動範圍）。
+    static let defaultGuestSize: (w: Int, h: Int) = (540, 1200)
+
+    /// PLACEHOLDER：目前哪個 game 在跑（gameId）尚未有偵測機制，先寫死——與 Task 7 brief
+    /// 一致，實際綁定留待後續任務（見 task-7-report.md pending-human 清單）。
+    static let gameId = "com.example.game"
 
     func start() async {
         // RECONCILIATION (Task 6 brief vs. this file): the brief's `startLifecycle()`
@@ -69,7 +115,41 @@ final class AppModel {
                 }
             }
         }
-        await client.start(box: box, width: 540, height: 1200)
+        await client.start(box: box, width: Self.defaultGuestSize.w, height: Self.defaultGuestSize.h)
+    }
+
+    /// 啟動時載入 profile；找不到／解析失敗一律吞成 nil（直接模式），對齊 spec §5「無 profile
+    /// 不得崩潰」——與 loadKeymap 呼叫端（body 的 .task）同一批啟動流程，但獨立成一步，
+    /// 這樣往後要換成「偵測目前遊戲」時只需要改這一個函式。
+    func loadKeymap(guestSize: (w: Int, h: Int)) {
+        profile = try? ProfileStore.standard().load(gameId: Self.gameId)
+        keymap = KeymapController(client: client, profile: profile, guestSize: guestSize)
+        if keymap?.hasProfile == true { mouseCapture.capture() }
+    }
+
+    /// ⌘E：切換編輯模式。編輯時放開游標（要看得到、能拖拉调整 binding）；離開編輯時，
+    /// 如果有作用中 profile 就重新捕捉（回到 look 手感）。
+    func toggleEditing() {
+        editing.toggle()
+        keymap?.setEditing(editing)
+        if editing {
+            mouseCapture.release()
+        } else if keymap?.hasProfile == true {
+            mouseCapture.capture()
+        }
+    }
+
+    /// OverlayEditorView 的「存檔」呼叫這裡：version+1 已在編輯器裡算好，這裡只管原子寫
+    /// 檔＋讓當前 session 的引擎立即套用新 binding。失敗只記錄不丟例外中斷編輯流程——
+    /// 使用者可見的錯誤提示（例如存檔失敗 toast）留待後續（pending-human，無 GUI 無法驗證）。
+    func saveProfile(_ p: KeymapProfile) {
+        do {
+            try ProfileStore.standard().save(p)
+            profile = p
+            keymap?.reload(profile: p)
+        } catch {
+            print("[keymap] profile save failed: \(error)")
+        }
     }
 
     func startLifecycle() {
