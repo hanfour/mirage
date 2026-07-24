@@ -8,7 +8,6 @@ public actor EmulatorClient {
     private let port: Int
     private let makeTransport: @Sendable (GrpcChannelBox) -> DisplayTransport
     private let makeHealthProbe: @Sendable (GrpcChannelBox) -> HealthProbe
-    private let makeSnapshot: @Sendable (GrpcChannelBox) -> SnapshotSaving
     private let backoff: BackoffPolicy
     private let sleeper: @Sendable (Duration) async throws -> Void
     private let randomSource: @Sendable () -> Double
@@ -42,8 +41,6 @@ public actor EmulatorClient {
                     = { GrpcStreamTransport(channel: $0) },
                 makeHealthProbe: @escaping @Sendable (GrpcChannelBox) -> HealthProbe
                     = { GrpcHealthProbe(channel: $0) },
-                makeSnapshot: @escaping @Sendable (GrpcChannelBox) -> SnapshotSaving
-                    = { GrpcSnapshotService(channelBox: $0) },
                 backoff: BackoffPolicy = .init(),
                 sleeper: @escaping @Sendable (Duration) async throws -> Void
                     = { try await Task.sleep(for: $0) },
@@ -54,7 +51,6 @@ public actor EmulatorClient {
         self.port = port
         self.makeTransport = makeTransport
         self.makeHealthProbe = makeHealthProbe
-        self.makeSnapshot = makeSnapshot
         self.backoff = backoff
         self.sleeper = sleeper
         self.randomSource = randomSource
@@ -107,12 +103,10 @@ public actor EmulatorClient {
     // MARK: - 電源（休眠/喚醒）：channelBox 維持不動，供 wake() 沿用同一連線
 
     public func suspend() async {
-        guard power == .active, let boxCh = channelBox else { return }
+        guard power == .active, channelBox != nil else { return }
         setPower(.suspending)
-        let ok = await makeSnapshot(boxCh).save("mirage_suspend")
         await pump.detach()                 // 停止拉幀（省 app 端 CPU；qemu 仍在跑）
-        setPower(.suspended)                // save 失敗也進 suspended（降級：仍凍結，spec §5）
-        _ = ok
+        setPower(.suspended)
     }
 
     public func wake() async {
@@ -191,6 +185,12 @@ public actor EmulatorClient {
     }
 
     private func attachStream() {
+        // 休眠期間不拉幀（即使底層重連）。防禦性 guard：目前碼庫中「休眠期間斷線觸發重連」
+        // 這條路徑其實不可達——suspend() 呼叫 pump.detach() 後，FramePump 沒有存活的
+        // consumer task，其 onEnd（唯一會 yield breakCont 的來源，見 signalBreak()）
+        // 因此永不觸發，connectedRun() 會一直卡在 suspended 期間收不到斷線訊號。仍保留
+        // 此 guard 作為未來重構的安全網。
+        guard power != .suspended, power != .suspending else { return }
         guard let transport, let box else { return }
         let stream = transport.frames(width: streamSize.w, height: streamSize.h)
         Task {

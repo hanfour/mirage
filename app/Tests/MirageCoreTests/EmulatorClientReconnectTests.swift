@@ -213,23 +213,6 @@ actor SleepRecorder {
 
 // MARK: - suspend()/wake() 不變式回歸測試（Task 4 補審）
 
-/// 假快照：只記錄呼叫、永遠成功。存取只發生在 EmulatorClient actor 的序列化情境
-/// （每次測試依序 await suspend()/wake()，不會並發呼叫），故不需要鎖。
-final class MockSnapshot: SnapshotSaving, @unchecked Sendable {
-    private(set) var saveCalls: [String] = []
-    private(set) var loadCalls: [String] = []
-
-    func save(_ id: String) async -> Bool {
-        saveCalls.append(id)
-        return true
-    }
-
-    func load(_ id: String) async -> Bool {
-        loadCalls.append(id)
-        return true
-    }
-}
-
 actor ConnStateRecorder {
     private(set) var items: [ConnState] = []
     func record(_ s: ConnState) { items.append(s) }
@@ -257,11 +240,9 @@ private func waitUntil(
 @Suite struct EmulatorClientSuspendTests {
     @Test func suspendPreservesConnectionAndDoesNotReconnect() async throws {
         let mock = MockTransport([.yieldThenHang(1)])
-        let snapshot = MockSnapshot()
         let client = EmulatorClient(
             makeTransport: { _ in mock },
             makeHealthProbe: { _ in ScriptedProbe([]) },      // 永遠 .healthy
-            makeSnapshot: { _ in snapshot },
             sleeper: { _ in },
             randomSource: { 0.5 }
         )
@@ -290,7 +271,6 @@ private func waitUntil(
         #expect(!sawReconnecting)
         #expect(connSeen.last == .connected)          // 連線狀態全程停在 .connected
         #expect(mock.subscribeCount == 1)              // 沒有重新訂閱／重建串流
-        #expect(snapshot.saveCalls == ["mirage_suspend"])
 
         statesTask.cancel(); powerTask.cancel()
         _ = await statesTask.value; _ = await powerTask.value
@@ -300,11 +280,9 @@ private func waitUntil(
     @Test func wakeResumesStreamingAfterSuspend() async throws {
         // 兩筆劇本：第一筆供初始連線消耗，第二筆供 wake() 重新 attach 消耗。
         let mock = MockTransport([.yieldThenHang(1), .yieldThenHang(2)])
-        let snapshot = MockSnapshot()
         let client = EmulatorClient(
             makeTransport: { _ in mock },
             makeHealthProbe: { _ in ScriptedProbe([]) },      // 永遠 .healthy
-            makeSnapshot: { _ in snapshot },
             sleeper: { _ in },
             randomSource: { 0.5 }
         )
@@ -326,7 +304,6 @@ private func waitUntil(
 
         let powerSeen = await powerRecorder.items
         #expect(powerSeen == [.suspending, .suspended, .waking, .active])
-        #expect(snapshot.loadCalls.isEmpty)            // wake() 不 load 快照（spec §8：qemu 仍在跑，只恢復拉幀）
         #expect(mock.subscribeCount == 2)              // wake() 恢復拉幀，重新 attach
         // 連線狀態全程仍停在 .connected（wake 期間同樣不曾重連）。
         let connSeen = await connRecorder.items
