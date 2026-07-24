@@ -48,3 +48,19 @@ App 合成層 fps（`MIRAGE_FPS_LOG=1`）、渲染中 CPU 佔用、App 層 `send
 **已知限制/移交**：NIO teardown race（重連時，今非致命但 NIO 稱未來會升 crash——待可注入 channel 硬化）；GUI 體感 pending-human（需真 GUI session）；`powerStates` UI 未接線。
 
 架構詳見 `../docs/specs/2026-07-24-p1b-lifecycle-design.md`。
+
+# P1-c 鍵位映射
+
+把 P1-a 的「滑鼠即觸控」升級為每遊戲 profile 的鍵位映射——鍵盤/滑鼠 → 多點觸控注入：
+
+- **鍵位映射引擎（`MirageCore/Keymap/`，純引擎）**：tap（技能鍵）、joystick（WASD 移動）、look（滑鼠視角）→ 多指 `TouchFrame` 快照。identifier 靜態分配（joystick=1／taps=2,3…／look=最後）保證多指決定論不衝突。核心 `KeymapEngine` 逐行 100% 覆蓋。
+- **每遊戲 profile**：`KeymapProfile`（Codable + schema 驗證，載入 fail-fast）；`ProfileStore` 原子檔案 I/O（temp+rename）。位置 `~/Library/Application Support/Mirage/profiles/<gameId>.json`；內建指標 `com.example.game`。
+- **多指注入**：`EmulatorClient.sendTouches([TouchSpec], width:height:)`（一個 `TouchEvent` 帶多 `Touch`）、`sendKey`；`sendTap` 為單指特例。座標用解碼後實際幀尺寸（對齊 P1-a `renderer.lastFrameSize`）。
+- **無 profile 退回**：`MirrorView` 在無 active profile 時仍走 P1-a 直接 mouse→tap（不回歸）。
+- **App 整合**：`KeymapController`（NSEvent→引擎→注入）、`MouseCapture`（look 游標鎖定）、overlay 提示與陽春編輯器、⌘E 進編輯。
+- 活體多指：`ANDROID_SERIAL=emulator-5554 MIRAGE_LIVE=1 swift test --filter MultiTouchLiveTests`（配 `adb shell settings put system show_touches 1`，注入後 show_touches 見 `P: 0/2`）。
+- 驗收紀錄：`RESULTS-p1c.md`（authoritative）。
+
+**已知限制/移交**：真實觸點落點精度 pending-human（GUI/解鎖）；overlay 拖放存檔、look 手感、⌘E 即時行為 pending-human；`MouseCapture` 無失焦自動釋放；`gameId` 硬編碼待遊戲偵測（P1-d）。
+
+架構詳見 `../docs/specs/2026-07-24-p1c-keymap-engine-design.md`。
