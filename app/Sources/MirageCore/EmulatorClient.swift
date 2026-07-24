@@ -116,9 +116,12 @@ public actor EmulatorClient {
     }
 
     public func wake() async {
-        guard power == .suspended, let boxCh = channelBox else { return }
+        guard power == .suspended else { return }
         setPower(.waking)
-        _ = await makeSnapshot(boxCh).load("mirage_suspend")  // 失敗則恢復當前串流畫面（降級）
+        // spec §8：suspend 期間 qemu 仍在跑，故 wake 只恢復拉幀，不 load 快照。
+        // 載入快照會 rewind、丟失 suspend 期間的 guest 狀態；且活體實測 loadSnapshot
+        // 會使運行中的模擬器崩潰（canary 37.2.1，見 RESULTS-p1b §4）。save-on-suspend
+        // 保留為磁碟檢查點（save 正常），但不在 wake 路徑載入。
         if state == .connected { attachStream() }             // 恢復拉幀
         setPower(.active)
     }

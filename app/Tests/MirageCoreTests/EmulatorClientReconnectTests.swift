@@ -326,7 +326,7 @@ private func waitUntil(
 
         let powerSeen = await powerRecorder.items
         #expect(powerSeen == [.suspending, .suspended, .waking, .active])
-        #expect(snapshot.loadCalls == ["mirage_suspend"])
+        #expect(snapshot.loadCalls.isEmpty)            // wake() 不 load 快照（spec §8：qemu 仍在跑，只恢復拉幀）
         #expect(mock.subscribeCount == 2)              // wake() 恢復拉幀，重新 attach
         // 連線狀態全程仍停在 .connected（wake 期間同樣不曾重連）。
         let connSeen = await connRecorder.items
