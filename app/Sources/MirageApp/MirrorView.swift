@@ -131,9 +131,23 @@ struct MirrorView: NSViewRepresentable {
         var renderer: Renderer?
         // P1-c：無 profile（nil 或 hasProfile==false，例如編輯模式中）時 sendMouse 退回直接
         // tap——spec §7 驗收 4，P1-a 行為不回歸。
-        var controller: KeymapController?
+        //
+        // AUTHORIZED FIX（Task 7 終審 Important：KeymapController 觸點座標對齊 sendMouse 的
+        // 實際幀尺寸換算）。controller 由 AppModel 非同步載入後透過 MirrorView.updateNSView
+        // 逐次指派進來（makeNSView 只跑一次），因此用 didSet 而非在各賦值點手動重複佈線——
+        // 不論 controller 何時被設定（makeNSView 或 updateNSView），都會即時取得同一份
+        // frameSizeProvider，讀取 renderer?.lastFrameSize ?? guestSize，與 sendMouse 完全一致。
+        var controller: KeymapController? {
+            didSet {
+                controller?.frameSizeProvider = { [weak self] in
+                    guard let self else { return Self.defaultGuestSize }
+                    return self.renderer?.lastFrameSize ?? self.guestSize
+                }
+            }
+        }
         private var resizeTask: Task<Void, Never>?
-        private var guestSize = (w: 540, h: 1200)
+        private static let defaultGuestSize = (w: 540, h: 1200)
+        private var guestSize = Coordinator.defaultGuestSize
 
         init(client: EmulatorClient) { self.client = client }
 

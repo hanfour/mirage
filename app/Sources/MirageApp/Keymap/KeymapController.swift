@@ -11,6 +11,13 @@ final class KeymapController {
     private var guestSize: (w: Int, h: Int)
     private var pressedModifiers: Set<KeyCode> = []
 
+    /// AUTHORIZED FIX（Task 7 終審 Important：觸點座標應採「解碼後的實際幀尺寸」，對齊
+    /// MirrorView.Coordinator.sendMouse 的 P1-a AUTHORIZED FIX ——proto 縮放合約 can-be-less，
+    /// emulator 實際回傳的幀可能小於請求的串流尺寸）。由呼叫端（Coordinator）注入，讀取
+    /// renderer.lastFrameSize；未設定或回傳 nil 時退回 guestSize，語意等同
+    /// sendMouse 的 `renderer?.lastFrameSize ?? guestSize`。
+    var frameSizeProvider: (@MainActor () -> (w: Int, h: Int))?
+
     /// 修飾鍵不會有 keyDown/keyUp（只有 flagsChanged），W3C 對照表見 handleFlagsChanged。
     private static let modifierKeys: [(NSEvent.ModifierFlags, KeyCode)] = [
         (.shift, .key("Shift")), (.control, .key("Control")),
@@ -59,7 +66,8 @@ final class KeymapController {
     private func emit(_ frame: TouchFrame?) {
         guard let frame, !editing else { return }
         let touches = frame.touches
-        let size = guestSize
+        // AUTHORIZED FIX（Task 7 終審 Important）：優先用解碼後的實際幀尺寸，退回 guestSize。
+        let size = frameSizeProvider?() ?? guestSize
         Task { await client.sendTouches(touches, width: size.w, height: size.h) }
     }
 }
