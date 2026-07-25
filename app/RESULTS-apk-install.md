@@ -9,8 +9,8 @@
 
 | # | 驗收線 | 實測 | 判定 |
 |---|---|---|---|
-| 1 | InstallResult 單元全綠、覆蓋 ≥80%、release 零警告、既有 92 不回歸 | `swift test --filter InstallResultTests` **9/9 綠**；`llvm-cov report`（本次重新量測）`InstallResult.swift` line coverage **95.00%**（20 行，1 行未執行；region 93.75%、function 100%）；`swift build -c release 2>&1 \| grep -E 'warning\|error' \| grep -v deprecat` **零輸出（零警告）**；`swift test` 全量 **101/101 綠**（92 基準 + Task 1 新增 9）| ✅ PASS |
-| 2 | AdbClient run 重構後 P1-d 偵測不回歸 | 既有測試面：101/101 含 `ForegroundParserTests`/`ActivationDeciderTests`/`AdbOutcomeTests` 全綠。**活體面**（本次重新對活體模擬器執行 `verify_apk_install.sh`）：`dumpsys activity activities` 解析出 `topResumedActivity=ActivityRecord{39cc710 u0 com.android.launcher3/.uioverrides.QuickstepLauncher t16}`——與 P1-d `RESULTS-p1d.md` 驗收 2 同一格式、同一 launcher package，證 Task 2 的 `run(args:timeout:mergeStderr:)` 抽出未改變 `dumpsysForegroundPackage` 的 argv/輸出路徑 | ✅ PASS |
+| 1 | InstallResult 單元全綠、覆蓋 ≥80%、release 零警告、既有 92 不回歸 | `swift test --filter InstallResultTests` **9/9 綠**；`llvm-cov report`（本次量測）`InstallResult.swift` line coverage **≥90%**（並行 `@Test` 執行與 LLVM 非原子覆蓋計數器競態，使精確值逐次浮動——重跑觀察到 90.00–95.00% 區間，region 87.5–93.75%、function 100%；每次取樣皆遠過 ≥80% 門檻，未執行者為 no-closing-bracket fallback 行）；`swift build -c release 2>&1 \| grep -E 'warning\|error' \| grep -v deprecat` **零輸出（零警告）**；`swift test` 全量 **101/101 綠**（92 基準 + Task 1 新增 9）| ✅ PASS |
+| 2 | AdbClient run 重構後 P1-d 偵測不回歸 | 既有測試面：101/101 含 `ForegroundParserTests`/`ActivationDeciderTests`/`AdbOutcomeTests` 全綠。**活體面（間接佐證）**（本次對活體模擬器執行 `verify_apk_install.sh`）：`dumpsys activity activities` 解析出 `topResumedActivity=ActivityRecord{39cc710 u0 com.android.launcher3/.uioverrides.QuickstepLauncher t16}`——與 P1-d `RESULTS-p1d.md` 驗收 2 同一格式、同一 launcher package。**注意（誠實邊界）**：本腳本直接 shell `adb shell dumpsys`，**未**經過 Swift `AdbClient.run()`/`dumpsysForegroundPackage()`（該函式在不可 import 的 MirageApp executable target，無單元亦無活體觸及——同 full app-path 之 pending-human 類別）。故此僅為**間接佐證**（raw adb dumpsys 仍回可解析輸出、`ForegroundParser` 純解析邏輯覆蓋不變）；Task 2 抽 `run` 的位元等價性由既有測試面 + Task 2 終審讀碼（同 argv、stderr→null、`packageOrNil` 轉換、簽名不變）佐證，**非本腳本活體證明** | ✅ PASS（間接佐證）|
 | 3 | 拖/指定 .apk → adb install -r → InstallResult 正確 | **機制活體**（本次真實執行，見下「活體輸出」節）：對真實下載的 APK 執行 `adb -s emulator-5554 install -r <apk>`，原始輸出 `Performing Streamed Install` / `Success`——即 `InstallResult.parse` 會吃到的確切輸入格式，對照 Task 1 `streamedSuccess()` 單元（同輸入 → `.success`）。**解析面**：Task 1 9 個單元窮舉 plain success／streamed success／failure 有無 bracket／adb 錯誤前綴／空字串／未知格式／progress bracket 誤判防呆，皆綠。**完整 app-path（拖放→dropDestination→installAPKs→banner）** 需真 GUI session，見下方 pending-human | ✅ 機制+解析 PASS／full-app pending-human |
 | 4 | 拖非 .apk / adb 不可用 → 不崩、明確回饋 | 結構驗證（讀碼確認，非本次新跑測試）：`.dropDestination` 先 `urls.filter { pathExtension == "apk" }`，過濾後為空即 `return false`（不觸發 `installAPKs`，也不崩）；`AppModel.installAPKs` 對 `AdbClient.standard()==nil` 逐一 URL 映射為 `.failure("adb 不可用")` 後直接 `finish`，不進入 `.installing` 狀態、不崩潰、`InstallBanner` 會呈現明確失敗文字。此路徑無獨立單元測試（SwiftUI glue，非 TDD 範圍，Task 3/4 已載明），正確性靠讀碼＋型別系統（無 force-unwrap／`fatalError`）佐證 | ✅ 結構 PASS／無獨立單元 |
 | 5 | pending-human：拖放 UI、拖曳高亮、大 APK 體感、完整 app-path | 見下「已知限制／移交」 | ⬜ pending-human |
@@ -82,11 +82,12 @@ $ swift test
 
 | 檔 | Line 覆蓋 |
 |---|---|
-| InstallResult.swift | 95.00%（20 行，1 行未執行；region 93.75%、function 100%） |
+| InstallResult.swift | **≥90%**（逐次浮動：觀察 90.00–95.00%，region 87.5–93.75%、function 100%）——並行 `@Test` 與 LLVM 非原子覆蓋計數器競態致精確值不可複現，每次取樣皆過 ≥80% 門檻；唯一未穩定執行的是 no-closing-bracket fallback 行 |
 
 ## 已知限制／移交
 
 - **完整 app-path pending-human**：拖放 `.apk` 到視窗 → `.dropDestination` → `AppModel.installAPKs` → `InstallBanner` 呈現，這條鏈需要真 GUI session（有顯示器、能實際拖檔案）才能端到端驗證；本機目前只能驗證「機制」（adb install -r 原始輸出）+ 「解析」（InstallResult.parse 單元）兩端，中間的 SwiftUI 拖放接線靠讀碼＋型別系統佐證，非活體跑過。
+- **Swift `AdbClient` 路徑無測試觸及（誠實邊界）**：`AdbClient.run()`/`install()`/`dumpsysForegroundPackage()` 皆在不可 import 的 MirageApp executable target，故本 feature 全鏈**無任何單元或活體實際執行到這些 Swift 函式**——install 機制由「腳本直接 shell `adb install -r`」佐證、dumpsys 由「腳本直接 shell `adb shell dumpsys`」佐證，兩者都繞過 Swift 程式碼。Task 2 重構的位元等價性靠既有測試面 + 終審讀碼（同 argv/stderr 處置/轉換/簽名）保證。若要真正活體覆蓋 Swift 路徑，需把 `AdbClient` 抽成可 import 的 library target（同 P1-d 交接對 `KeymapController` 的建議）。
 - **拖放 UI 手感 pending-human**：實際拖曳一個或多個 `.apk` 到視窗時的游標回饋、視窗是否正確接受 drop，需真 GUI session。
 - **`isTargeted` 拖曳高亮 pending-human**：Task 4 明確 scope 掉——拖曳懸停時視窗無視覺提示（僅 drop 後才有 `InstallBanner` 回饋），此為刻意的功能缺口而非 bug，留待後續體感打磨。
 - **大 APK banner 體感 pending-human**：`InstallBanner` 的 `.installing(done:total:)` 進度顯示與大檔案（例如百 MB 等級遊戲 APK）安裝耗時下的實際觀感，需真裝置＋真大檔測試；本次驗證用的 F-Droid.apk（12.4 MB）安裝很快，未觸及大檔案的體感問題。
@@ -94,5 +95,5 @@ $ swift test
 
 ## 判定
 
-- **APK 拖放安裝 GO（機制+解析層）**：`InstallResult.parse` 單元 9/9 全綠、覆蓋 95%（超過 ≥80% 門檻）；release build 零警告；既有 101/101 測試不回歸；`AdbClient` 重構後 dumpsys 前景解析活體驗證與 P1-d 一致、無回歸；`adb install -r` 機制以真實下載的 APK 活體驗證兩次（直接指定路徑 + 自動偵測既有第三方 app 兩條分支皆跑過），兩次皆得到真實 `Success`，未捏造任何輸出。
+- **APK 拖放安裝 GO（機制+解析層）**：`InstallResult.parse` 單元 9/9 全綠、覆蓋 ≥90%（逐次浮動，每次皆過 ≥80% 門檻）；release build 零警告；既有 101/101 測試不回歸；`AdbClient` 重構後 dumpsys 前景解析**間接佐證**與 P1-d 一致（raw adb dumpsys 仍可解析；Swift `dumpsysForegroundPackage` 路徑本身無單元/活體觸及，位元等價由既有測試+終審讀碼佐證）；`adb install -r` 機制以真實下載的 APK 活體驗證兩次（直接指定路徑 + 自動偵測既有第三方 app 兩條分支皆跑過），兩次皆得到真實 `Success`，未捏造任何輸出。
 - **移交 pending-human**：完整 app-path（拖放手勢→banner 呈現）、`isTargeted` 拖曳高亮、大 APK 體感，皆需真 GUI session 才能驗證，本次未跑；`adb 不可用`/非 `.apk` 拖放的不崩性靠讀碼佐證、未活體模擬。
