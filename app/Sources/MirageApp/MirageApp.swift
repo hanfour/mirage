@@ -164,7 +164,17 @@ final class AppModel {
 
     /// 啟動前景遊戲偵測（P1-d）。無 adb（找不到 SDK/非可執行檔）→ 靜默不偵測，維持
     /// 目前直接模式，對齊 spec 保守降級原則（同 loadKeymap 對「找不到 profile」的處理）。
+    ///
+    /// Task 6 偏離 brief 字面順序："尾綁" menuBar 回呼——這裡改成放在 adb guard 之前。
+    /// 原因：手動覆蓋（停用 keymap／套用指定 profile）跟有沒有 adb 偵測是兩件事，沒有 adb
+    /// 時使用者仍應該能從選單列手動套用 profile；若照原字面放在 guard 之後，無 adb 環境會
+    /// 直接 return，選單列的三個回呼永遠不會被綁定，變成「有 bug 而不是設計」的特殊情況。
     func startDetection() {
+        menuBar?.onDisable = { [weak self] in self?.setOverride(.disabled) }
+        menuBar?.onAuto = { [weak self] in self?.setOverride(.auto) }
+        menuBar?.onForce = { [weak self] gid in
+            if let p = try? self?.store.load(gameId: gid) { self?.setOverride(.force(p)) }
+        }
         guard let adb = AdbClient.standard() else { return }
         detector = GameDetector(adb: adb) { [weak self] pkg in
             self?.onForeground(pkg)
