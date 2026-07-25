@@ -61,6 +61,18 @@ App 合成層 fps（`MIRAGE_FPS_LOG=1`）、渲染中 CPU 佔用、App 層 `send
 - 活體多指：`ANDROID_SERIAL=emulator-5554 MIRAGE_LIVE=1 swift test --filter MultiTouchLiveTests`（配 `adb shell settings put system show_touches 1`，注入後 show_touches 見 `P: 0/2`）。
 - 驗收紀錄：`RESULTS-p1c.md`（authoritative）。
 
-**已知限制/移交**：真實觸點落點精度 pending-human（GUI/解鎖）；overlay 拖放存檔、look 手感、⌘E 即時行為 pending-human；`MouseCapture` 無失焦自動釋放；`gameId` 硬編碼待遊戲偵測（P1-d）。
+**已知限制/移交**：真實觸點落點精度 pending-human（GUI/解鎖）；overlay 拖放存檔、look 手感、⌘E 即時行為 pending-human；`gameId` 硬編碼待遊戲偵測（P1-d）。（`MouseCapture` 失焦自動釋放已於 P1-d 修復。）
 
 架構詳見 `../docs/specs/2026-07-24-p1c-keymap-engine-design.md`。
+
+# P1-d 遊戲偵測與 keymap 啟用
+
+讓 P1-c 的休眠 keymap 自動生效：偵測前景遊戲 → 載對應 profile → keymap 接管；無 profile 退 P1-a tap。
+
+- **偵測**：`GameDetector`（App）輪詢 `adb dumpsys activity activities`（~1.5s）→ `ForegroundParser`（**MirageCore 純函式**，逐行 100% 覆蓋）解析前景 package。emulator gRPC 無前景-app RPC，故走 adb。
+- **啟用決策**：`ActivationDecider`（**MirageCore 純 reducer**）——偵測 + 已載 profile + 手動覆蓋 → active/inactive；`AdbClient.standard()` 無 adb→靜默不偵測。
+- **選單列**：目前遊戲 + 手動「停用 keymap／恢復自動偵測／套用 profile ▸」（掃 `~/Library/Application Support/Mirage/profiles/*.json`）。
+- **MouseCapture 修正**（P1-c 交接）：焦點 gating（`hasProfile && !editing && keyWindow`）+ `didResignKeyNotification` 自動釋放，消除游標陷阱。
+- 活體：`scripts/verify_keymap_inject.sh`（引擎→注入 show_touches 佐證；擷圖見 P:1/2、座標數學正確）。
+- **已知限制**：完整 app-path（KeymapController+NSEvent）與真遊戲手感 pending-human；`AppModel.profile` 與偵測啟用不同步（overlay 上線前須讓 activation 回寫）；`gameId==package`（真遊戲 profile 內容留 Phase 1 三款遊戲）。
+- 驗收：`RESULTS-p1d.md`；架構詳見 `../docs/specs/2026-07-24-p1d-game-detection-design.md`。
