@@ -134,19 +134,34 @@ final class AppModel {
     func loadKeymap(guestSize: (w: Int, h: Int)) {
         profile = try? ProfileStore.standard().load(gameId: Self.gameId)
         keymap = KeymapController(client: client, profile: profile, guestSize: guestSize)
-        if keymap?.hasProfile == true { mouseCapture.capture() }
+        mouseCapture.updateCapture(shouldCapture: shouldCapture)
     }
 
     /// ⌘E：切換編輯模式。編輯時放開游標（要看得到、能拖拉调整 binding）；離開編輯時，
-    /// 如果有作用中 profile 就重新捕捉（回到 look 手感）。
+    /// 如果有作用中 profile 就重新捕捉（回到 look 手感）——實際捕捉與否交給
+    /// `shouldCapture` 統一判斷（見下方），不在這裡重複「有沒有 profile」的條件。
     func toggleEditing() {
         editing.toggle()
         keymap?.setEditing(editing)
-        if editing {
-            mouseCapture.release()
-        } else if keymap?.hasProfile == true {
-            mouseCapture.capture()
-        }
+        mouseCapture.updateCapture(shouldCapture: shouldCapture)
+    }
+
+    /// Task 7（P1-c 終審 Important：游標陷阱）：是否該捕捉游標的統一判斷式，供
+    /// `loadKeymap`/`toggleEditing`/`applyActivation` 共用，取代原本三處各自重複的
+    /// 「有 profile 就 capture」判斷。額外收緊兩個條件：
+    ///   - `NSApp.keyWindow != nil`——app 不在前景（被 alt-tab 切走、或背景啟動）時
+    ///     不該捕捉，否則使用者會被系統級鎖住游標、只剩 ⌘E/quit 能逃脫。
+    ///   - （ADAPTATION，見 task-7-report.md）brief 原文還要求 gate 在
+    ///     「目前 profile 的 bindings 是否含 .look」——但 AppModel 沒有能可靠代表
+    ///     「目前作用中 profile」的欄位：`profile` 只在 loadKeymap/saveProfile 賦值，
+    ///     Task 5 的 `applyActivation()`（GameDetector 觸發的啟用）直接呼叫
+    ///     `keymap?.reload(p)`，並未同步寫回 `profile`，兩者在偵測切換 profile 後會
+    ///     不一致。要正確算 look-only gating 得幫 KeymapController/KeymapEngine
+    ///     新增「目前 engine 是否有 look binding」的查詢，但本任務檔案範圍明確只列
+    ///     MouseCapture.swift/MirageApp.swift；比照 brief 明文允許的簡化版本，退回
+    ///     「有 profile 且非編輯且為 key window」，不含 look 檢查（pending-human 記錄）。
+    private var shouldCapture: Bool {
+        keymap?.hasProfile == true && !editing && NSApp.keyWindow != nil
     }
 
     /// OverlayEditorView 的「存檔」呼叫這裡：version+1 已在編輯器裡算好，這裡只管原子寫
@@ -205,6 +220,9 @@ final class AppModel {
         case .inactive:      keymap?.reload(nil)
         }
         menuBar?.updateGame(package: currentPackage, active: keymap?.hasProfile == true)
+        // Task 7：偵測切換 profile（含變成 .inactive）後，捕捉狀態也要跟著重新判斷——
+        // 否則例如「原本無 profile 未捕捉，偵測到遊戲切成 active」的情況會漏掉 capture()。
+        mouseCapture.updateCapture(shouldCapture: shouldCapture)
     }
 
     func startLifecycle() {
