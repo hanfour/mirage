@@ -205,8 +205,14 @@ final class AppModel {
     func installAPKs(_ urls: [URL]) async {
         guard !urls.isEmpty else { return }
         if case .installing = installState { return }   // 一次一批
+        // 每批一開始就 bump generation（一批遞增一次）：新批次進來會再 bump，使前一批
+        // 尚未觸發的自動消失 timer 的 gen 過時→no-op。這讓 token 真正守住其承諾——
+        // 前批 stale timer 不會在「.finished 4s 窗內拖入的新批仍安裝中」時把狀態閃回 .idle
+        //（終審 Minor：token 原本只在 finish 遞增，未涵蓋進入 .installing 的窗口）。
+        installGeneration += 1
+        let gen = installGeneration
         guard let adb = AdbClient.standard() else {
-            finish(urls.map { InstallItem(name: $0.lastPathComponent, result: .failure("adb 不可用")) })
+            finish(urls.map { InstallItem(name: $0.lastPathComponent, result: .failure("adb 不可用")) }, gen: gen)
             return
         }
         var items: [InstallItem] = []
@@ -215,13 +221,12 @@ final class AppModel {
             let r = await adb.install(apkURL: url)
             items.append(InstallItem(name: url.lastPathComponent, result: r))
         }
-        finish(items)
+        finish(items, gen: gen)
     }
 
-    /// 進 finished 並排程 ~4s 後自動回 idle（generation 令牌防舊 dismiss 清新批次）。
-    private func finish(_ items: [InstallItem]) {
-        installGeneration += 1
-        let gen = installGeneration
+    /// 進 finished 並排程 ~4s 後自動回 idle。gen 為本批開始時取得的 generation；期間若有
+    /// 新批次進來（會再 bump generation），此 timer 的 gen 已過時→no-op，不清新批次狀態。
+    private func finish(_ items: [InstallItem], gen: Int) {
         installState = .finished(items)
         Task {   // @MainActor 繼承：以下讀寫皆在 MainActor，無資料競爭。
             try? await Task.sleep(for: .seconds(4))
