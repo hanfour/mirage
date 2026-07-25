@@ -140,7 +140,16 @@ final class AppModel {
     /// ⌘E：切換編輯模式。編輯時放開游標（要看得到、能拖拉调整 binding）；離開編輯時，
     /// 如果有作用中 profile 就重新捕捉（回到 look 手感）——實際捕捉與否交給
     /// `shouldCapture` 統一判斷（見下方），不在這裡重複「有沒有 profile」的條件。
+    ///
+    /// AUTHORIZED FIX（P1-d 終審 Important：⌘E 在無 profile 時的行為）：`OverlayEditorView`
+    /// 吃的是非 optional 的 `KeymapProfile`（見 body 的 keymapOverlayLayer，需要
+    /// `let profile = model.profile` 才能顯示），沒有作用中 profile（偵測未啟用任何
+    /// keymap、或使用者手動 disable）時「沒東西可編」。guard 只擋「原本沒在編輯、且沒
+    /// profile」這一種情況──已經在編輯模式時 ⌘E 永遠允許切回去（例如編輯途中偵測把
+    /// 遊戲切到 .inactive，使用者仍要能用 ⌘E 離開編輯模式），不會卡死在 editing=true
+    /// 出不來。
     func toggleEditing() {
+        guard editing || profile != nil else { return }
         editing.toggle()
         keymap?.setEditing(editing)
         mouseCapture.updateCapture(shouldCapture: shouldCapture)
@@ -152,14 +161,14 @@ final class AppModel {
     ///   - `NSApp.keyWindow != nil`——app 不在前景（被 alt-tab 切走、或背景啟動）時
     ///     不該捕捉，否則使用者會被系統級鎖住游標、只剩 ⌘E/quit 能逃脫。
     ///   - （ADAPTATION，見 task-7-report.md）brief 原文還要求 gate 在
-    ///     「目前 profile 的 bindings 是否含 .look」——但 AppModel 沒有能可靠代表
-    ///     「目前作用中 profile」的欄位：`profile` 只在 loadKeymap/saveProfile 賦值，
-    ///     Task 5 的 `applyActivation()`（GameDetector 觸發的啟用）直接呼叫
-    ///     `keymap?.reload(p)`，並未同步寫回 `profile`，兩者在偵測切換 profile 後會
-    ///     不一致。要正確算 look-only gating 得幫 KeymapController/KeymapEngine
-    ///     新增「目前 engine 是否有 look binding」的查詢，但本任務檔案範圍明確只列
-    ///     MouseCapture.swift/MirageApp.swift；比照 brief 明文允許的簡化版本，退回
-    ///     「有 profile 且非編輯且為 key window」，不含 look 檢查（pending-human 記錄）。
+    ///     「目前 profile 的 bindings 是否含 .look」——但這裡仍用 `keymap?.hasProfile`
+    ///     而非 `profile != nil` 判斷，因為即使兩者現在同步（UPDATE，P1-d 終審
+    ///     Important 已修正：`applyActivation()` 現在會把 `keymap?.reload(p)` 套用的
+    ///     結果同步寫回 `profile`，見該函式），要正確算 look-only gating 仍得幫
+    ///     KeymapController/KeymapEngine 新增「目前 engine 是否有 look binding」的
+    ///     查詢，但本任務檔案範圍明確只列 MouseCapture.swift/MirageApp.swift；比照
+    ///     brief 明文允許的簡化版本，退回「有 profile 且非編輯且為 key window」，
+    ///     不含 look 檢查（pending-human 記錄）。
     private var shouldCapture: Bool {
         keymap?.hasProfile == true && !editing && NSApp.keyWindow != nil
     }
@@ -216,8 +225,13 @@ final class AppModel {
     private func applyActivation() {
         let loaded: KeymapProfile? = currentPackage.flatMap { try? store.load(gameId: $0) }
         switch ActivationDecider.decide(loadedProfile: loaded, override: override) {
-        case .active(let p): keymap?.reload(p)
-        case .inactive:      keymap?.reload(nil)
+        // AUTHORIZED FIX（P1-d 終審 Important：⌘E 編輯器讀到 stale profile）：
+        // 原本只呼叫 keymap?.reload(p) 套用到引擎，沒有同步寫回 `profile`——
+        // ⌘E 的 OverlayEditorView 讀的是 `profile`，偵測切換遊戲後編輯器仍會顯示
+        // 切換前（甚至啟動時）的舊 profile。這裡跟 saveProfile/loadKeymap 的既有
+        // 慣例對齊：套用引擎的同時也寫回 `profile`，兩者永遠同步。
+        case .active(let p): keymap?.reload(p); profile = p
+        case .inactive:      keymap?.reload(nil); profile = nil
         }
         menuBar?.updateGame(package: currentPackage, active: keymap?.hasProfile == true)
         // Task 7：偵測切換 profile（含變成 .inactive）後，捕捉狀態也要跟著重新判斷——
