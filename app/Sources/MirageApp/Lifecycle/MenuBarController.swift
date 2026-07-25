@@ -27,6 +27,11 @@ final class MenuBarController {
 
     func updateStatus(_ text: String) { statusMenuItem.title = "狀態：\(text)" }
 
+    /// STUB（P1-d task 5 → Task 6 補實作）：目前僅供 AppModel.applyActivation 呼叫端
+    /// 編譯通過，尚未反映到選單列 UI（不顯示 game/active 狀態）。Task 6 負責補上實際文字/
+    /// icon 呈現，這裡刻意留空、不做任何假設性 UI，避免搶 Task 6 的設計決定。
+    func updateGame(package: String?, active: Bool) {}
+
     @objc private func wakeTapped() { onWake() }
     @objc private func showTapped() { onShow() }
 }

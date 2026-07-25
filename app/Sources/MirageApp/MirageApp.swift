@@ -40,6 +40,7 @@ struct MirageApp: App {
                 await model.start()
                 model.startLifecycle()
                 model.loadKeymap(guestSize: AppModel.defaultGuestSize)
+                model.startDetection()
             }
         }
     }
@@ -83,6 +84,15 @@ final class AppModel {
     var profile: KeymapProfile?
     var editing = false
     let mouseCapture = MouseCapture()
+
+    // P1-d: 遊戲偵測→啟用接線。detector 輪詢前景 package（無 adb 時保持 nil，
+    // 靜默不偵測）；currentPackage/override 一起餵給 ActivationDecider 決定要不要
+    // 套用 keymap；store 獨立於 loadKeymap/saveProfile 既有的 ProfileStore.standard()
+    // 呼叫（未合併，避免動到既有 P1-c 路徑）。
+    private var detector: GameDetector?
+    private(set) var currentPackage: String?
+    private(set) var override: ManualOverride = .auto
+    private let store = ProfileStore.standard()
 
     /// 兩處共用（client.start 的初始尺寸、KeymapController 的初始 guestSize），避免同一組
     /// 數字散在兩個檔案裡各寫一份（原本 540/1200 只出現在 start() 一處，Task 7 新增第二個
@@ -146,10 +156,45 @@ final class AppModel {
         do {
             try ProfileStore.standard().save(p)
             profile = p
-            keymap?.reload(profile: p)
+            keymap?.reload(p)
         } catch {
             print("[keymap] profile save failed: \(error)")
         }
+    }
+
+    /// 啟動前景遊戲偵測（P1-d）。無 adb（找不到 SDK/非可執行檔）→ 靜默不偵測，維持
+    /// 目前直接模式，對齊 spec 保守降級原則（同 loadKeymap 對「找不到 profile」的處理）。
+    func startDetection() {
+        guard let adb = AdbClient.standard() else { return }
+        detector = GameDetector(adb: adb) { [weak self] pkg in
+            self?.onForeground(pkg)
+        }
+        detector?.start()
+    }
+
+    /// GameDetector 回呼：前景 package 變動（含變成 nil）時重新跑一次啟用決策。
+    private func onForeground(_ pkg: String?) {
+        currentPackage = pkg
+        applyActivation()
+    }
+
+    /// Task 6（選單列手動覆蓋 UI）呼叫：切換 auto/force/disabled 後立即重新決策。
+    func setOverride(_ o: ManualOverride) {
+        override = o
+        applyActivation()
+    }
+
+    /// 純決策與 I/O 的接合點：load profile（I/O，失敗吞成 nil）→ ActivationDecider（純函式）
+    /// →套用到 keymap engine →回報選單列。currentPackage 為 nil（無前景/adb 失敗）時
+    /// loadedProfile 自然是 nil，ActivationDecider 在 .auto 下會決成 .inactive——不需要
+    /// 額外的 nil 特例分支。
+    private func applyActivation() {
+        let loaded: KeymapProfile? = currentPackage.flatMap { try? store.load(gameId: $0) }
+        switch ActivationDecider.decide(loadedProfile: loaded, override: override) {
+        case .active(let p): keymap?.reload(p)
+        case .inactive:      keymap?.reload(nil)
+        }
+        menuBar?.updateGame(package: currentPackage, active: keymap?.hasProfile == true)
     }
 
     func startLifecycle() {

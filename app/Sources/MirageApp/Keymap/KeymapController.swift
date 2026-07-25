@@ -37,8 +37,11 @@ final class KeymapController {
     func setGuestSize(_ size: (w: Int, h: Int)) { guestSize = size }
     func setEditing(_ on: Bool) { editing = on }
 
-    /// 編輯器存檔後即時生效，不必重啟 app 才套用新 binding。
-    func reload(profile: KeymapProfile?) {
+    /// 編輯器存檔後即時生效，不必重啟 app 才套用新 binding；P1-d 啟用接線
+    /// （AppModel.applyActivation）也共用同一入口——nil 清空 engine（→ hasProfile==false）。
+    /// ADAPTATION（P1-d task-5 brief）：參數改為無 label（`reload(_:)`），對齊 brief 簽名
+    /// 與 ActivationDecider 呼叫慣例；唯一既有呼叫端（saveProfile）已同步更新，未新增重複方法。
+    func reload(_ profile: KeymapProfile?) {
         engine = profile.map(KeymapEngine.init(profile:))
     }
 
