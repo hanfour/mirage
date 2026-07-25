@@ -24,6 +24,12 @@ struct MirageApp: App {
                 // P1-c: model.keymap 起始為 nil（非同步載入），MirrorView.updateNSView 會在
                 // loadKeymap() 完成、@Observable 觸發重繪時把值同步進 Coordinator。
                 MirrorView(client: model.client, box: model.box, controller: model.keymap)
+                    .dropDestination(for: URL.self) { urls, _ in
+                        let apks = urls.filter { $0.pathExtension.lowercased() == "apk" }
+                        guard !apks.isEmpty else { return false }
+                        Task { await model.installAPKs(apks) }
+                        return true
+                    }
                 ConnectionBanner(state: model.connState)
                 keymapOverlayLayer
                 // 隱藏按鈕：⌘E 切換編輯模式。用 SwiftUI .keyboardShortcut 走標準
@@ -33,6 +39,9 @@ struct MirageApp: App {
                     .keyboardShortcut("e", modifiers: .command)
                     .frame(width: 0, height: 0)
                     .opacity(0)
+                InstallBanner(state: model.installState)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
+                    .allowsHitTesting(false)
             }
             .frame(minWidth: 270, minHeight: 600)
             .task {
