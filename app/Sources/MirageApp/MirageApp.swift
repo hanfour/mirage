@@ -94,6 +94,11 @@ final class AppModel {
     private(set) var override: ManualOverride = .auto
     private let store = ProfileStore.standard()
 
+    // APK 拖放安裝（Phase-1）：installState 供 InstallBanner 呈現；generation 令牌讓
+    // 自動消失只清掉「產生它的那一批」，避免舊 dismiss 清掉使用者剛拖入的新批次。
+    private(set) var installState: InstallState = .idle
+    private var installGeneration = 0
+
     /// 兩處共用（client.start 的初始尺寸、KeymapController 的初始 guestSize），避免同一組
     /// 數字散在兩個檔案裡各寫一份（原本 540/1200 只出現在 start() 一處，Task 7 新增第二個
     /// 消費者時順手收斂成常數，不算擴大改動範圍）。
@@ -183,6 +188,35 @@ final class AppModel {
             keymap?.reload(p)
         } catch {
             print("[keymap] profile save failed: \(error)")
+        }
+    }
+
+    /// 拖放安裝入口（Task 4 的 .dropDestination 呼叫，urls 已濾成 .apk）。
+    /// adb 不可用 → 每個檔案記成明確 failure，不崩。安裝中再拖入直接忽略（MVP）。
+    func installAPKs(_ urls: [URL]) async {
+        guard !urls.isEmpty else { return }
+        if case .installing = installState { return }   // 一次一批
+        guard let adb = AdbClient.standard() else {
+            finish(urls.map { InstallItem(name: $0.lastPathComponent, result: .failure("adb 不可用")) })
+            return
+        }
+        var items: [InstallItem] = []
+        for (i, url) in urls.enumerated() {
+            installState = .installing(done: i, total: urls.count)
+            let r = await adb.install(apkURL: url)
+            items.append(InstallItem(name: url.lastPathComponent, result: r))
+        }
+        finish(items)
+    }
+
+    /// 進 finished 並排程 ~4s 後自動回 idle（generation 令牌防舊 dismiss 清新批次）。
+    private func finish(_ items: [InstallItem]) {
+        installGeneration += 1
+        let gen = installGeneration
+        installState = .finished(items)
+        Task {   // @MainActor 繼承：以下讀寫皆在 MainActor，無資料競爭。
+            try? await Task.sleep(for: .seconds(4))
+            if self.installGeneration == gen { self.installState = .idle }
         }
     }
 
