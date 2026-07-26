@@ -1,8 +1,8 @@
 import Foundation
 import MirageCore
 
-/// adb 子行程薄封裝：跑 `adb -s <serial> shell dumpsys activity activities`，
-/// 逾時/失敗降級回 nil（AdbOutcome）。非 @MainActor——純執行。
+/// adb 子行程薄封裝：抽出共用 `run`（並發排空 pipe 避免大輸出死鎖、逾時砍行程），
+/// dumpsys 前景偵測與 APK 安裝各自轉換結果。非 @MainActor——純執行。
 struct AdbClient: Sendable {
     let adbPath: URL
     let serial: String
@@ -18,35 +18,47 @@ struct AdbClient: Sendable {
     }
 
     /// 回前景 package 或 nil（降級）。逾時內未完成 → 殺行程回 nil。
+    /// 語意/輸出與重構前位元等價（mergeStderr:false → stderr→nullDevice）。
     func dumpsysForegroundPackage(timeout: Duration = .seconds(2)) async -> String? {
+        guard let r = await run(
+            ["-s", serial, "shell", "dumpsys", "activity", "activities"], timeout: timeout
+        ) else { return nil }
+        return AdbOutcome.packageOrNil(exitCode: r.exit, stdout: r.stdout)
+    }
+
+    /// 安裝 APK：`adb -s <serial> install -r <path>`。失敗原因在 stderr，故合流。
+    /// run 回 nil（adb 無法啟動/逾時砍）→ 降級為明確 failure，不崩。
+    func install(apkURL: URL, timeout: Duration = .seconds(120)) async -> InstallResult {
+        guard let r = await run(
+            ["-s", serial, "install", "-r", apkURL.path], timeout: timeout, mergeStderr: true
+        ) else { return .failure("adb 執行失敗或逾時") }
+        return InstallResult.parse(r.stdout)
+    }
+
+    /// 跑 adb，背景並發排空 stdout（避免大輸出塞爆 pipe buffer 死鎖），逾時砍行程。
+    /// launch 失敗/逾時 → nil。mergeStderr:true 時 stderr 併入同一 pipe（等同 2>&1）。
+    private func run(
+        _ args: [String], timeout: Duration, mergeStderr: Bool = false
+    ) async -> (exit: Int32, stdout: String)? {
         let proc = Process()
         proc.executableURL = adbPath
-        proc.arguments = ["-s", serial, "shell", "dumpsys", "activity", "activities"]
+        proc.arguments = args
         let pipe = Pipe()
         proc.standardOutput = pipe
-        proc.standardError = FileHandle.nullDevice
+        proc.standardError = mergeStderr ? pipe : FileHandle.nullDevice
         let box = OutcomeBox(process: proc)
 
-        return await withCheckedContinuation { (cont: CheckedContinuation<String?, Never>) in
+        return await withCheckedContinuation {
+            (cont: CheckedContinuation<(exit: Int32, stdout: String)?, Never>) in
             box.attach(cont)
-
             do {
                 try proc.run()
             } catch {
                 box.finish(nil)
                 return
             }
-
-            // AUTHORIZED FIX（P1-d 終審 Important：pipe 死鎖）—— `dumpsys activity
-            // activities` 的輸出常態超過 macOS pipe buffer（16–64 KB）。原本只在
-            // terminationHandler 裡才讀 pipe：子行程一旦把 buffer 塞滿就卡在 write()
-            // 永遠不會結束，terminationHandler 因此永遠不會觸發，只能靠下面的 watchdog
-            // 逾時砍掉——偵測因而間歇性失效（2 秒逾時、悄悄降級回 nil）。改成
-            // box.drainAndFinish：在背景執行緒「邊跑邊讀」持續排空 pipe，子行程就不會
-            // 被 buffer 卡住；讀到 EOF（=子行程結束、關閉自己的 stdout）後再
-            // waitUntilExit() 拿真正的 terminationStatus 收尾。
+            // 邊跑邊讀持續排空 pipe，子行程才不會卡在 write()（見 OutcomeBox 註解）。
             box.drainAndFinish(pipe: pipe)
-
             let watchdog = Task {
                 try? await Task.sleep(for: timeout)
                 box.timeoutIfStillRunning()
@@ -57,59 +69,41 @@ struct AdbClient: Sendable {
 }
 
 /// 確保 continuation 只 resume 一次（逾時 vs 正常結束競態），並在逾時時終止子行程。
+/// 泛化為回 `(exit, stdout)?`，讓 dumpsys/install 各自轉換（原本烘死 AdbOutcome）。
 ///
-/// 設計備註（strict concurrency 適配）：`Process`／`DispatchWorkItem` 都不是 `Sendable`，
-/// 直接在 `terminationHandler`（`@Sendable` closure）或 `Task {}` 內捕捉會在
-/// `-strict-concurrency=complete` 下產生「非 Sendable 型別跨 Sendable 邊界捕捉」警告。
-/// 改用單一 `@unchecked Sendable` box、內部用鎖保護所有可變狀態（process 參照、逾時 task、
-/// 是否已完成），對外只暴露「完成一次」與「逾時終止」兩個動作，把非 Sendable 值鎖在
-/// box 內部而不外洩到多個 closure 的捕捉列表中。
+/// 設計備註（strict concurrency 適配）：`Process` 不是 `Sendable`，直接在
+/// `@Sendable` closure 捕捉會警告；改用單一 `@unchecked Sendable` box、內部用鎖
+/// 保護所有可變狀態，對外只暴露「完成一次」與「逾時終止」兩個動作。
 private final class OutcomeBox: @unchecked Sendable {
+    typealias Output = (exit: Int32, stdout: String)
     private let lock = NSLock()
     private let process: Process
-    private var continuation: CheckedContinuation<String?, Never>?
+    private var continuation: CheckedContinuation<Output?, Never>?
     private var watchdog: Task<Void, Never>?
     private var done = false
 
-    init(process: Process) {
-        self.process = process
-    }
+    init(process: Process) { self.process = process }
 
-    func attach(_ cont: CheckedContinuation<String?, Never>) {
+    func attach(_ cont: CheckedContinuation<Output?, Never>) {
         lock.lock(); defer { lock.unlock() }
         continuation = cont
     }
 
     func attach(_ task: Task<Void, Never>) {
         lock.lock(); defer { lock.unlock() }
-        if done {
-            task.cancel()
-        } else {
-            watchdog = task
-        }
+        if done { task.cancel() } else { watchdog = task }
     }
 
-    /// AUTHORIZED FIX（P1-d 終審 Important：pipe 死鎖）——並發排空 pipe，取代原本
-    /// 只在 terminationHandler 裡讀的作法（見 dumpsysForegroundPackage 內註解）。
-    ///
-    /// 放在 box 內部而不是呼叫端自己開一個外部獨立 closure，是因為要
-    /// 在背景執行緒的 `@Sendable` closure 裡用到 `process`——`Process` 本身不是
-    /// `Sendable`，若直接從外部捕捉會如上方類別註解所述產生「非 Sendable 型別跨
-    /// Sendable 邊界捕捉」警告；這裡改成讀取 box 內部既有的 `self.process`
-    /// （box 已經是 `@unchecked Sendable`），不需要新增一個外部捕捉點。
-    ///
-    /// `readToEnd()` 是同步阻塞呼叫，會一路擋到 EOF 才返回；EOF 代表子行程已經
-    /// 關閉自己的 stdout（正常結束、或被 timeoutIfStillRunning() 的 terminate()
-    /// 訊號殺掉都會關 fd 觸發 EOF），此時子行程要嘛已經結束要嘛正在結束，
-    /// waitUntilExit() 頂多再等一瞬間就能拿到真正的 terminationStatus。
-    /// 最終呼叫 finish(_:) 走跟 timeoutIfStillRunning() 完全相同的鎖保護 done 旗標，
-    /// 兩者哪個先到就贏、另一個變 no-op——resume-once 保證未變動。
+    /// 背景並發排空 pipe（取代只在 terminationHandler 裡讀的死鎖作法）。
+    /// `readToEnd()` 阻塞到 EOF（子行程關閉自己的 stdout）；隨後 waitUntilExit()
+    /// 拿真正的 terminationStatus。finish 走與 timeoutIfStillRunning 相同的鎖保護
+    /// done 旗標，兩者哪個先到就贏——resume-once 保證未變。
     func drainAndFinish(pipe: Pipe) {
         DispatchQueue.global(qos: .utility).async { [self] in
             let data = (try? pipe.fileHandleForReading.readToEnd()) ?? Data()
             process.waitUntilExit()
             let out = String(data: data, encoding: .utf8) ?? ""
-            finish(AdbOutcome.packageOrNil(exitCode: process.terminationStatus, stdout: out))
+            finish((exit: process.terminationStatus, stdout: out))
         }
     }
 
@@ -126,7 +120,7 @@ private final class OutcomeBox: @unchecked Sendable {
         cont?.resume(returning: nil)
     }
 
-    func finish(_ v: String?) {
+    func finish(_ v: Output?) {
         lock.lock()
         guard !done else { lock.unlock(); return }
         done = true

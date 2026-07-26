@@ -76,3 +76,15 @@ App 合成層 fps（`MIRAGE_FPS_LOG=1`）、渲染中 CPU 佔用、App 層 `send
 - 活體：`scripts/verify_keymap_inject.sh`（引擎→注入 show_touches 佐證；擷圖見 P:1/2、座標數學正確）。
 - **已知限制**：完整 app-path（KeymapController+NSEvent）與真遊戲手感 pending-human；`AppModel.profile` 與偵測啟用不同步（overlay 上線前須讓 activation 回寫）；`gameId==package`（真遊戲 profile 內容留 Phase 1 三款遊戲）。
 - 驗收：`RESULTS-p1d.md`；架構詳見 `../docs/specs/2026-07-24-p1d-game-detection-design.md`。
+
+## APK 拖放安裝
+
+把 sideload 一顆 APK 的手動 adb 指令變成拖放：
+
+- **拖放**：把一個或多個 `.apk` 檔拖到 App 視窗，逐個依序 `adb install -r` 安裝（非併發，一批跑完才輪下一個）；非 `.apk` 檔會被過濾掉，不觸發安裝。
+- **回饋**：底部 `InstallBanner`——安裝中顯示進度（n/total）；每個結果各自一顆膠囊（成功／失敗附原因），約 **4 秒後自動消失**（用 generation 令牌避免舊 dismiss 誤清剛拖入的新批次）。
+- **解析**：`InstallResult.parse` 把 `adb install` 的原始輸出（`Success` / `Failure [REASON]` / adb 執行失敗）轉成型別化結果，純函式、9 個單元窮舉格式（含 progress-bracket 不誤判為 failure）。
+- **adb 不可用**：偵測不到 `adb` 時每個檔案直接標記失敗，不嘗試安裝、不崩潰。
+- **活體驗證**：`scripts/verify_apk_install.sh`（需 `ANDROID_SERIAL=emulator-5554` 指向的模擬器正在跑）——先印 `dumpsys` 前景解析（佐證 P1-d 偵測未回歸），再對一個第三方 APK 跑真實 `adb install -r` 並印原始輸出。
+- **與遊戲安裝的關係**：本功能只做「sideload 機制」——把任意 `.apk` 裝進模擬器。**真遊戲要能跑，使用者仍需自行安裝 GApps**（母計畫 R1 範圍，非本功能負責）；APK 拖放安裝不含 Play 商店、不含 GApps 佈署。
+- 驗收：`RESULTS-apk-install.md`；架構詳見 `../docs/specs/2026-07-25-apk-install-design.md`。

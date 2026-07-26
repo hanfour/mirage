@@ -24,6 +24,12 @@ struct MirageApp: App {
                 // P1-c: model.keymap 起始為 nil（非同步載入），MirrorView.updateNSView 會在
                 // loadKeymap() 完成、@Observable 觸發重繪時把值同步進 Coordinator。
                 MirrorView(client: model.client, box: model.box, controller: model.keymap)
+                    .dropDestination(for: URL.self) { urls, _ in
+                        let apks = urls.filter { $0.pathExtension.lowercased() == "apk" }
+                        guard !apks.isEmpty else { return false }
+                        Task { await model.installAPKs(apks) }
+                        return true
+                    }
                 ConnectionBanner(state: model.connState)
                 keymapOverlayLayer
                 // 隱藏按鈕：⌘E 切換編輯模式。用 SwiftUI .keyboardShortcut 走標準
@@ -33,6 +39,9 @@ struct MirageApp: App {
                     .keyboardShortcut("e", modifiers: .command)
                     .frame(width: 0, height: 0)
                     .opacity(0)
+                InstallBanner(state: model.installState)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
+                    .allowsHitTesting(false)
             }
             .frame(minWidth: 270, minHeight: 600)
             .task {
@@ -93,6 +102,11 @@ final class AppModel {
     private(set) var currentPackage: String?
     private(set) var override: ManualOverride = .auto
     private let store = ProfileStore.standard()
+
+    // APK 拖放安裝（Phase-1）：installState 供 InstallBanner 呈現；generation 令牌讓
+    // 自動消失只清掉「產生它的那一批」，避免舊 dismiss 清掉使用者剛拖入的新批次。
+    private(set) var installState: InstallState = .idle
+    private var installGeneration = 0
 
     /// 兩處共用（client.start 的初始尺寸、KeymapController 的初始 guestSize），避免同一組
     /// 數字散在兩個檔案裡各寫一份（原本 540/1200 只出現在 start() 一處，Task 7 新增第二個
@@ -183,6 +197,40 @@ final class AppModel {
             keymap?.reload(p)
         } catch {
             print("[keymap] profile save failed: \(error)")
+        }
+    }
+
+    /// 拖放安裝入口（Task 4 的 .dropDestination 呼叫，urls 已濾成 .apk）。
+    /// adb 不可用 → 每個檔案記成明確 failure，不崩。安裝中再拖入直接忽略（MVP）。
+    func installAPKs(_ urls: [URL]) async {
+        guard !urls.isEmpty else { return }
+        if case .installing = installState { return }   // 一次一批
+        // 每批一開始就 bump generation（一批遞增一次）：新批次進來會再 bump，使前一批
+        // 尚未觸發的自動消失 timer 的 gen 過時→no-op。這讓 token 真正守住其承諾——
+        // 前批 stale timer 不會在「.finished 4s 窗內拖入的新批仍安裝中」時把狀態閃回 .idle
+        //（終審 Minor：token 原本只在 finish 遞增，未涵蓋進入 .installing 的窗口）。
+        installGeneration += 1
+        let gen = installGeneration
+        guard let adb = AdbClient.standard() else {
+            finish(urls.map { InstallItem(name: $0.lastPathComponent, result: .failure("adb 不可用")) }, gen: gen)
+            return
+        }
+        var items: [InstallItem] = []
+        for (i, url) in urls.enumerated() {
+            installState = .installing(done: i, total: urls.count)
+            let r = await adb.install(apkURL: url)
+            items.append(InstallItem(name: url.lastPathComponent, result: r))
+        }
+        finish(items, gen: gen)
+    }
+
+    /// 進 finished 並排程 ~4s 後自動回 idle。gen 為本批開始時取得的 generation；期間若有
+    /// 新批次進來（會再 bump generation），此 timer 的 gen 已過時→no-op，不清新批次狀態。
+    private func finish(_ items: [InstallItem], gen: Int) {
+        installState = .finished(items)
+        Task {   // @MainActor 繼承：以下讀寫皆在 MainActor，無資料競爭。
+            try? await Task.sleep(for: .seconds(4))
+            if self.installGeneration == gen { self.installState = .idle }
         }
     }
 
