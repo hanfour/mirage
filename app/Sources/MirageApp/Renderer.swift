@@ -4,9 +4,9 @@ import MirageCore
 
 /// vsync 拉取渲染：每次 draw 從 box 同步拉最新幀，replaceRegion 上傳後 blit。
 // ADAPTATION (compile-forced, strict concurrency): the installed SDK's
-// MetalKit/AppKit overlay marks MTKView/NSWindow properties touched below
-// (`delegate`, `preferredFramesPerSecond`, `drawableSize`, `window`,
-// `contentAspectRatio`) as `@MainActor`-isolated. `Renderer` was previously
+// MetalKit/AppKit overlay marks MTKView properties touched below
+// (`delegate`, `preferredFramesPerSecond`, `drawableSize`) as
+// `@MainActor`-isolated. `Renderer` was previously
 // unannotated, so `init`/`upload` (called on the main thread in practice —
 // SwiftUI's `makeNSView` and MTKView's own display-link callback both run on
 // main) tripped "main actor-isolated property ... can not be mutated from a
@@ -21,6 +21,8 @@ final class Renderer: NSObject, MTKViewDelegate {
     private var texture: MTLTexture?
     // AUTHORIZED FIX（Task 6 review CRITICAL：滑鼠映射採實際幀尺寸——proto 縮放合約 can-be-less）
     private(set) var lastFrameSize: (w: Int, h: Int)?
+    /// P1-e：幀尺寸變動時通知容器重算 letterbox（含遊戲轉向時的長寬比翻轉）。
+    var onFrameSize: ((Int, Int) -> Void)?
     private var fpsCount = 0
     private var fpsWindowStart = CFAbsoluteTimeGetCurrent()
     private let fpsLog = ProcessInfo.processInfo.environment["MIRAGE_FPS_LOG"] == "1"
@@ -66,17 +68,9 @@ final class Renderer: NSObject, MTKViewDelegate {
             texture = device.makeTexture(descriptor: desc)
             let size = CGSize(width: frame.width, height: frame.height)
             view.drawableSize = size
-            // AUTHORIZED FIX（使用者驗收回報：畫面變形——視窗長寬比鎖定）: kept, not
-            // removed. The initial-distortion bug is fixed in
-            // MirrorMTKView.viewDidMoveToWindow (fires before any frame
-            // exists, independent of `window` possibly being nil here on the
-            // first upload). This line still earns its keep as a safety net
-            // for later frames whose actual decoded size legitimately
-            // changes (e.g. after a resize round-trip) — it keeps the
-            // window's aspect ratio truthful to the *real* frame dimensions
-            // rather than only to the requested stream size.
-            view.window?.contentAspectRatio = NSSize(width: frame.width,
-                                                     height: frame.height)
+            // P1-e：長寬比的唯一權威改為 MirrorContainerView（原本此處與
+            // MirrorMTKView.viewDidMoveToWindow 兩邊各設一次，且後者硬編碼 9:20）。
+            onFrameSize?(frame.width, frame.height)
         }
         frame.rgba.withUnsafeBytes { raw in
             guard let base = raw.baseAddress else { return }
