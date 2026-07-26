@@ -64,11 +64,12 @@ struct MirageApp: App {
     private var keymapOverlayLayer: some View {
         if model.editing, let profile = model.profile {
             OverlayEditorView(
-                // SwiftUI.Binding 明確寫模組名——MirageCore.Binding（keymap 綁定列舉）撞名。
                 profile: SwiftUI.Binding(get: { profile }, set: { model.profile = $0 }),
                 onSave: { model.saveProfile($0) }
             )
-        } else {
+        } else if !model.isFullScreen {
+            // P1-e 遊戲模式：全螢幕時隱藏唯讀提示標記（純視覺噪音）。ConnectionBanner
+            // 與 InstallBanner 刻意保留——前者是必須知道的異常，後者是使用者主動觸發的回饋。
             KeymapOverlay(profile: model.profile)
         }
     }
@@ -93,6 +94,10 @@ final class AppModel {
     var profile: KeymapProfile?
     var editing = false
     let mouseCapture = MouseCapture()
+
+    /// P1-e：全螢幕（遊戲模式）狀態。**由系統通知驅動，不自行推測**——使用者可能用綠燈、
+    /// ⌃⌘F、Mission Control 或選單列任一途徑進出，只有 NSWindow 通知涵蓋全部。
+    var isFullScreen = false
 
     // P1-d: 遊戲偵測→啟用接線。detector 輪詢前景 package（無 adb 時保持 nil，
     // 靜默不偵測）；currentPackage/override 一起餵給 ActivationDecider 決定要不要
@@ -295,6 +300,9 @@ final class AppModel {
         )
         menuBar?.updateStatus(Self.label(connState))   // 補上 menuBar 建立前已錯過的狀態
 
+        menuBar?.onToggleFullScreen = { NSApp.keyWindow?.toggleFullScreen(nil) }
+        startFullScreenObserver()
+
         // guest→host 剪貼簿：經 bridge 防回音後寫 NSPasteboard
         Task { [weak self, client] in
             for await text in client.guestClipboard {
@@ -312,6 +320,20 @@ final class AppModel {
             await MainActor.run {
                 NSApp.windows.first?.delegate = self?.lifecycle
             }
+        }
+    }
+
+    /// 兩個通知都不帶我們需要的資訊，故忽略 Notification 本體（它非 Sendable，
+    /// 捕捉進 @Sendable 閉包會觸發 strict-concurrency 警告）。
+    private func startFullScreenObserver() {
+        let center = NotificationCenter.default
+        center.addObserver(forName: NSWindow.didEnterFullScreenNotification,
+                           object: nil, queue: .main) { [weak self] _ in
+            Task { @MainActor in self?.isFullScreen = true }
+        }
+        center.addObserver(forName: NSWindow.didExitFullScreenNotification,
+                           object: nil, queue: .main) { [weak self] _ in
+            Task { @MainActor in self?.isFullScreen = false }
         }
     }
 

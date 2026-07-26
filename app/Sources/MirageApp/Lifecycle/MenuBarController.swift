@@ -16,6 +16,9 @@ final class MenuBarController: NSObject, NSMenuDelegate {
     var onAuto: (() -> Void)?
     var onForce: ((String) -> Void)?
 
+    /// P1-e：AppModel.startLifecycle() 綁定 → NSApp.keyWindow?.toggleFullScreen(nil)。
+    var onToggleFullScreen: (() -> Void)?
+
     init(onWake: @escaping () -> Void, onShow: @escaping () -> Void) {
         self.onWake = onWake
         self.onShow = onShow
@@ -32,6 +35,8 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         menu.addItem(.separator())
         menu.addItem(withTitle: "喚醒", action: #selector(wakeTapped), keyEquivalent: "").target = self
         menu.addItem(withTitle: "顯示視窗", action: #selector(showTapped), keyEquivalent: "").target = self
+        menu.addItem(withTitle: "遊戲模式（全螢幕）", action: #selector(fullScreenTapped),
+                     keyEquivalent: "").target = self
         menu.addItem(.separator())
         menu.addItem(gameItem)
         menu.addItem(withTitle: "停用 keymap", action: #selector(disableTapped), keyEquivalent: "").target = self
@@ -67,6 +72,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
 
     @objc private func wakeTapped() { onWake() }
     @objc private func showTapped() { onShow() }
+    @objc private func fullScreenTapped() { onToggleFullScreen?() }
     @objc private func disableTapped() { onDisable?() }
     @objc private func autoTapped() { onAuto?() }
     @objc private func forceTapped(_ sender: NSMenuItem) {
