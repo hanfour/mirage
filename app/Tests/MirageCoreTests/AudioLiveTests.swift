@@ -23,9 +23,20 @@ private func drainRingAtRealTimeRate(_ ring: AudioRingBuffer) async {
 
 /// 活體：真模擬器 → streamAudio → 環形緩衝。預設 skip，MIRAGE_LIVE=1 開啟。
 /// guest 必須正在發聲才會有封包——由 scripts/verify_audio.sh 負責先觸發發聲。
+///
+/// **為什麼要多一道 `MIRAGE_LIVE_AUDIO` 閘門（比照既有 `MIRAGE_LIVE_MMAP` 慣例，
+/// 見 `EmulatorClientReconnectTests.liveUnaryMmapDeliversFrames`）**：本專案文件指定的
+/// 覆蓋率量測指令是 `MIRAGE_LIVE=1 MIRAGE_LIVE_MMAP=1 swift test --enable-code-coverage`
+/// （見 `RESULTS-p1a.md` 驗收 4 節）——這條指令會把所有活體測試（含本測試）一起跑，
+/// 但只有 `scripts/verify_audio.sh` 才會先觸發 guest 發聲；跟其他活體測試併發排隊時，
+/// 輪到本測試的 5 秒取樣窗口時鈴聲往往早已播畢，導致 `writes` 斷言不穩定失敗
+/// （實測量到 41、0），把「預期中沒觸發發聲」誤判成「真的壞了」。掛在通用的
+/// `MIRAGE_LIVE` 下會讓覆蓋率量測指令無謂地紅掉；只有明確知道前置條件已滿足的呼叫端
+/// （目前只有 `verify_audio.sh`）才會額外設 `MIRAGE_LIVE_AUDIO=1`。
 @Suite struct AudioLiveTests {
     @Test func realEmulatorDeliversAudioPackets() async throws {
-        guard ProcessInfo.processInfo.environment["MIRAGE_LIVE"] == "1" else { return }
+        let env = ProcessInfo.processInfo.environment
+        guard env["MIRAGE_LIVE"] == "1", env["MIRAGE_LIVE_AUDIO"] == "1" else { return }
         let ring = AudioRingBuffer()
         let client = EmulatorClient()
         await client.setAudioSink(ring)

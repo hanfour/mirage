@@ -27,7 +27,11 @@ for _ in $(seq 1 15); do "$ADB" shell input keyevent 24 > /dev/null; done
 echo ""
 echo "=== 量測：streamAudio → AudioRingBuffer（5 秒）==="
 cd "$(dirname "$0")/.." || exit 1
-MIRAGE_LIVE=1 swift test --filter AudioLiveTests 2>&1 | grep -E "\[audio-live\]|Test.*(passed|failed)"
+# MIRAGE_LIVE_AUDIO=1：這支腳本是唯一保證「guest 正在發聲」前置條件成立的呼叫端
+# （上面已把音量頂到最大並觸發播放），比照既有 MIRAGE_LIVE_MMAP 慣例，額外閘門避免
+# 本測試掛在通用 MIRAGE_LIVE 下把專案的覆蓋率量測指令
+# （MIRAGE_LIVE=1 MIRAGE_LIVE_MMAP=1 swift test --enable-code-coverage）無謂地紅掉。
+MIRAGE_LIVE=1 MIRAGE_LIVE_AUDIO=1 swift test --filter AudioLiveTests 2>&1 | grep -E "\[audio-live\]|Test.*(passed|failed)"
 
 echo ""
 echo "=== 判讀 ==="
