@@ -88,7 +88,6 @@ final class AppModel {
     var lifecycle: AppLifecycle?
     var watcher: ClipboardWatcher?
     private var bridge = ClipboardBridge()
-
     // P1-c: 鍵位映射——KeymapController 橋接輸入、profile 供 overlay/編輯器讀寫、
     // editing 由 ⌘E 切換、mouseCapture 管 look 模式的游標鎖定。
     var keymap: KeymapController?
@@ -96,6 +95,8 @@ final class AppModel {
     var editing = false
     let mouseCapture = MouseCapture()
     var isFullScreen = false  // P1-e: 系統通知驅動（涵蓋綠燈/⌃⌘F/選單列）
+    let audioRing = AudioRingBuffer()
+    var audioPlayer: AudioPlayer?
     // P1-d: 遊戲偵測→啟用接線。detector 輪詢前景 package（無 adb 時保持 nil，
     // 靜默不偵測）；currentPackage/override 一起餵給 ActivationDecider 決定要不要
     // 套用 keymap；store 獨立於 loadKeymap/saveProfile 既有的 ProfileStore.standard()
@@ -104,17 +105,14 @@ final class AppModel {
     private(set) var currentPackage: String?
     private(set) var override: ManualOverride = .auto
     private let store = ProfileStore.standard()
-
     // APK 拖放安裝（Phase-1）：installState 供 InstallBanner 呈現；generation 令牌讓
     // 自動消失只清掉「產生它的那一批」，避免舊 dismiss 清掉使用者剛拖入的新批次。
     private(set) var installState: InstallState = .idle
     private var installGeneration = 0
-
     /// 兩處共用（client.start 的初始尺寸、KeymapController 的初始 guestSize），避免同一組
     /// 數字散在兩個檔案裡各寫一份（原本 540/1200 只出現在 start() 一處，Task 7 新增第二個
     /// 消費者時順手收斂成常數，不算擴大改動範圍）。
     static let defaultGuestSize: (w: Int, h: Int) = (540, 1200)
-
     /// PLACEHOLDER：目前哪個 game 在跑（gameId）尚未有偵測機制，先寫死——與 Task 7 brief
     /// 一致，實際綁定留待後續任務（見 task-7-report.md pending-human 清單）。
     static let gameId = "com.example.game"
@@ -297,6 +295,7 @@ final class AppModel {
         )
         menuBar?.updateStatus(Self.label(connState))   // 補上 menuBar 建立前已錯過的狀態
         setupFullScreen()
+        startAudio()
         // guest→host 剪貼簿：經 bridge 防回音後寫 NSPasteboard
         Task { [weak self, client] in
             for await text in client.guestClipboard {
