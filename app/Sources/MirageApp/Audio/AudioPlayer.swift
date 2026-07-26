@@ -42,6 +42,11 @@ final class AudioPlayer {
             try engine.start()
         } catch {
             print("[audio] engine 啟動失敗，降級為無音訊：\(error)")
+            // 終審 Minor 5：失敗路徑必須 detach，否則 engine 留著一個已 attach/connect
+            // 但從未成功 start 的半掛載 node——若未來重試 start()，guard node == nil
+            // 這條早退會失效（node 早被設回 nil 了不是問題），但 engine 內部仍記著舊
+            // node 的 attach/connect 狀態，可能造成資源累積或重複 connect 的錯誤。
+            engine.detach(node)
             self.node = nil
         }
     }
@@ -52,8 +57,14 @@ final class AudioPlayer {
         engine.mainMixerNode.outputVolume = muted ? 0 : 1
     }
 
+    /// 終審 Minor 5：接上真實呼叫端（見 MirageApp.swift 的 AppDelegate.applicationWillTerminate），
+    /// 不再是死碼。停止 engine 並 detach node——對稱 start() 失敗路徑的 detach，避免任何
+    /// 「engine 記得一個已 attach 但邏輯上已停用的 node」的半掛載狀態。
     func stop() {
         engine.stop()
+        if let node {
+            engine.detach(node)
+        }
         node = nil
     }
 }
