@@ -118,7 +118,15 @@ public actor EmulatorClient {
     // MARK: - 電源（休眠/喚醒）：channelBox 維持不動，供 wake() 沿用同一連線
 
     public func suspend() async {
-        guard power == .active, channelBox != nil else { return }
+        // 終審 Important 1：不再看 channelBox != nil。原本這半條 guard 會在「dropChannel()
+        // 之後、下一次 ensureChannel() 之前」（重連退避期間，可達數秒）提早 return——此時
+        // channelBox 為 nil，但 AppLifecycle.windowShouldClose 已經把視窗 orderOut(nil)
+        // 隱藏了。power 因此卡在 .active，等重連成功 connectedRun() 照常呼叫
+        // attachStream()/attachAudio()，使用者會在看不到視窗的情況下聽到遊戲聲音，直接
+        // 違反 spec §4.7「休眠（關視窗）→ detachAudio()」的合約。拿掉這半條是安全的：
+        // pump.detach()/detachAudio()/setPower 在無 channel 時皆為 no-op，wake() 也已用
+        // `if state == .connected` 自行處理未連線的情形，不需要靠這裡的 guard 防呆。
+        guard power == .active else { return }
         setPower(.suspending)
         await pump.detach()                 // 停止拉幀（省 app 端 CPU；qemu 仍在跑）
         detachAudio()                       // 關視窗即靜音（音訊跟畫面走）
@@ -232,6 +240,17 @@ public actor EmulatorClient {
         // cancelStream() 就疊上第二個訂閱，舊 call 會被孤兒化（Task 6 審查發現的缺口，
         // GrpcAudioTransport.packets() 已在 transport 層加了重入保護；這裡加第二層防禦）。
         detachAudio()
+        // 終審 Minor 6（SPSC 單一生產者不變式，僅加註解不改碼）：AudioRingBuffer 是
+        // SPSC（單生產者單消費者），但「單一生產者」在這裡是靠時序維持，不是靠結構
+        // 保證——上面的 detachAudio() 只取消了「舊」Task（`audioTask?.cancel()`），
+        // Swift 的 Task 取消是協作式的：舊 Task 內部 `for try await chunk in stream`
+        // 迴圈要等下一次掛起點才會真正結束，理論上舊 Task 尾聲的 write() 可以跟下面
+        // 新建 Task 第一次的 write() 在時間上重疊，讓兩個生產者同時寫同一個 ring。
+        // 這在實務上不可達：舊 Task 停止寫入的時機是它自己的 gRPC stream 迭代器
+        // 收到取消訊號那一刻（µs 等級的 CPU 排程延遲），而新 Task 第一次 write()
+        // 之前必須先完成一次全新的 streamAudio RPC 往返（一次網路 RTT，數 ms 以上）；
+        // 兩個時間尺度差了至少三個數量級，經驗上不會重疊。維持這個不變式不需要額外
+        // 同步機制——但這是「靠時序」而非「靠結構」，值得對照它為何成立。
         let stream = audioTransport.packets(format: .standard)
         audioTask = Task { [audioRing] in
             do {
@@ -240,6 +259,11 @@ public actor EmulatorClient {
                     audioRing.write(chunk.samples)
                 }
             } catch {
+                // 終審 Important 2：診斷訊號——若音訊 RPC 單獨失敗而連線本身仍健康
+                // （health probe 不會因此觸發重連），少了這行音訊會永久靜默且沒有任何
+                // 除錯線索（MIRAGE_AUDIO_LOG 只會印 pkt=0，跟 guest 本來就靜音無法區分）。
+                // 刻意不在此自行重連——維持 spec 決策，重連只由畫面串流路徑驅動。
+                print("[audio] stream ended: \(error)")
                 // 串流斷屬正常（連線斷）；重連由既有連線迴圈負責，此處不自行重連。
                 // 注意：**無封包 ≠ 斷線**——guest 靜音時本來就沒有封包，
                 // 健康探測仍由 HealthProbe 獨佔負責。
