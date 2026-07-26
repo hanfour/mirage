@@ -36,7 +36,12 @@ private func drainRingAtRealTimeRate(_ ring: AudioRingBuffer) async {
 @Suite struct AudioLiveTests {
     @Test func realEmulatorDeliversAudioPackets() async throws {
         let env = ProcessInfo.processInfo.environment
-        guard env["MIRAGE_LIVE"] == "1", env["MIRAGE_LIVE_AUDIO"] == "1" else { return }
+        guard env["MIRAGE_LIVE"] == "1", env["MIRAGE_LIVE_AUDIO"] == "1" else {
+            // 終審 Minor 7：不再靜默 skip——沒有這行，測試回報「passed」但零驗證，
+            // 容易被誤判成「音訊活體真的驗過了」。
+            print("[audio-live] skipped: 需 MIRAGE_LIVE=1 且 MIRAGE_LIVE_AUDIO=1；請跑 scripts/verify_audio.sh")
+            return
+        }
         let ring = AudioRingBuffer()
         let client = EmulatorClient()
         await client.setAudioSink(ring)

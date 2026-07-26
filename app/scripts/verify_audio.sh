@@ -14,6 +14,16 @@ export ANDROID_SERIAL=emulator-5554
 ADB="$HOME/Library/Android/sdk/platform-tools/adb"
 SOUND="/product/media/audio/ringtones/Ring_Synth_04.ogg"   # 實測存在（Step 1 用 adb shell ls 確認）
 
+# 終審 Minor 8：這裡沒有 `-e`，前面幾步 adb 呼叫全靜默失敗也不會中止腳本——若 adb 根本
+# 不存在（路徑寫死、不在 PATH），觸發發聲那幾步會全部無聲失敗，測試照跑，最後只得到
+# 一個令人困惑的 writes=0 紅燈，看起來像產品碼壞了，其實只是環境沒裝好。加這道存在性/
+# 可執行檢查，缺失時給清楚訊息並直接 exit 1，不留給後面的紅燈去猜。
+if [ ! -x "$ADB" ]; then
+  echo "找不到可執行的 adb：$ADB"
+  echo "請確認 Android SDK platform-tools 已安裝於此路徑（本專案未把 adb 放進 PATH）。"
+  exit 1
+fi
+
 echo "=== 前置：模擬器是否在跑 ==="
 nc -z localhost 8554 && echo "gRPC 8554 ALIVE" || { echo "模擬器未啟動"; exit 1; }
 
