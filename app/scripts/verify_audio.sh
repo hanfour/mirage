@@ -1,0 +1,35 @@
+#!/usr/bin/env bash
+# P1-e 音訊活體驗證：把媒體音量開到最大 → 觸發 guest 發聲 → 量測封包率與緩衝健康。
+# 用法：verify_audio.sh    （需 emulator-5554 正在跑）
+#
+# Step 1 探測記錄（見 task-9-report.md 完整版）：
+#   - brief 假設的 /system/media/audio/{ringtones,notifications}/ 在本機映像上不存在
+#     （sdk_phone64_arm64, canary 37.2.1）；實際音檔在 /product/media/audio/ 底下。
+#   - `adb shell media volume ...` 二進位不存在（"inaccessible or not found"），
+#     改用 `input keyevent 24`（KEYCODE_VOLUME_UP）連按到頂當替代方案。
+#   - `am start -a VIEW -d file://... -t audio/ogg` 確認會叫起 com.android.music/.AudioPreview
+#     並讓 dumpsys audio 看到一個 MediaPlayer piid state:started（sampleRate=44100, stereo）。
+set -uo pipefail
+export ANDROID_SERIAL=emulator-5554
+ADB="$HOME/Library/Android/sdk/platform-tools/adb"
+SOUND="/product/media/audio/ringtones/Ring_Synth_04.ogg"   # 實測存在（Step 1 用 adb shell ls 確認）
+
+echo "=== 前置：模擬器是否在跑 ==="
+nc -z localhost 8554 && echo "gRPC 8554 ALIVE" || { echo "模擬器未啟動"; exit 1; }
+
+echo ""
+echo "=== 觸發 guest 發聲（媒體音量開最大 → 播放內建音檔）==="
+# `media` shell 指令在本機映像上不存在，改用連續按 15 次音量鍵頂到 STREAM_MUSIC 上限。
+for _ in $(seq 1 15); do "$ADB" shell input keyevent 24 > /dev/null; done
+"$ADB" shell dumpsys audio 2>&1 | grep -A3 "STREAM_MUSIC:" | grep streamVolume
+"$ADB" shell am start -a android.intent.action.VIEW -d "file://$SOUND" -t audio/ogg 2>&1 | tail -3
+
+echo ""
+echo "=== 量測：streamAudio → AudioRingBuffer（5 秒）==="
+cd "$(dirname "$0")/.." || exit 1
+MIRAGE_LIVE=1 swift test --filter AudioLiveTests 2>&1 | grep -E "\[audio-live\]|Test.*(passed|failed)"
+
+echo ""
+echo "=== 判讀 ==="
+echo "writes >= 75  → 驗收線 5 通過（5 秒 ≥ 150 包的一半裕度；proto 稱 20–30ms/包）"
+echo "under == 0    → 驗收線 6 的必要條件（完整 60 秒版本需在 GUI App 下用 MIRAGE_AUDIO_LOG=1 觀察）"
