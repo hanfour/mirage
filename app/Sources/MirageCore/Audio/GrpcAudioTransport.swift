@@ -25,7 +25,18 @@ public final class GrpcAudioTransport: AudioTransport, @unchecked Sendable {
         fmt.mode = .modeRealTime
 
         let call = channel.client.makeStreamAudioCall(fmt)
-        lock.lock(); self.call = call; lock.unlock()
+        // 重入保護：同一個 instance 再次呼叫 packets()（重連、喚醒、setAudioSink 二次呼叫都是
+        // 常態路徑，見 Task 7）時，若不先取消舊 call 就直接覆蓋，舊 RPC 連同它的背景消費 Task
+        // 會被孤兒化、cancelStream() 從此搆不到它。guest 靜音時 streamAudio 會無限阻塞，孤兒
+        // call 正好卡在這個情境，且 channel 拆除時它未解決的 NIO promise 就是 P1-b
+        // "leaking promise created" 致命錯誤的成因。取出舊值與存入新值都在鎖內完成，避免兩個
+        // 執行緒同時呼叫 packets() 時互相覆蓋；GRPCAsyncServerStreamingCall 是 struct，取出的
+        // 是值複本，鎖外對它呼叫 .cancel() 沒有 race。
+        lock.lock()
+        let previous = self.call
+        self.call = call
+        lock.unlock()
+        previous?.cancel()
 
         // 只捕捉 responseStream（grpc-swift 明確標 Sendable），不捕捉 call 本身，
         // 否則 Task 閉包跨隔離傳遞會觸發 strict-concurrency 資料競爭警告。
