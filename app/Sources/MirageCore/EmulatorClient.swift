@@ -8,6 +8,7 @@ public actor EmulatorClient {
     private let port: Int
     private let makeTransport: @Sendable (GrpcChannelBox) -> DisplayTransport
     private let makeHealthProbe: @Sendable (GrpcChannelBox) -> HealthProbe
+    private let makeAudioTransport: @Sendable (GrpcChannelBox) -> AudioTransport
     private let backoff: BackoffPolicy
     private let sleeper: @Sendable (Duration) async throws -> Void
     private let randomSource: @Sendable () -> Double
@@ -17,6 +18,11 @@ public actor EmulatorClient {
     private var channelBox: GrpcChannelBox?
     private var transport: DisplayTransport?
     private var probe: HealthProbe?
+    // P1-e 音訊：與 transport/pump 對稱——audioTransport 隨 channel 建立與拆除，
+    // audioTask 是消費 task，audioRing 是 App 端提供的 sink（nil = 不掛載）。
+    private var audioTransport: AudioTransport?
+    private var audioTask: Task<Void, Never>?
+    private var audioRing: AudioRingBuffer?
     private let pump = FramePump()
     private var box: LatestFrameBox?
     private var streamSize = (w: 540, h: 1200)
@@ -41,6 +47,8 @@ public actor EmulatorClient {
                     = { GrpcStreamTransport(channel: $0) },
                 makeHealthProbe: @escaping @Sendable (GrpcChannelBox) -> HealthProbe
                     = { GrpcHealthProbe(channel: $0) },
+                makeAudioTransport: @escaping @Sendable (GrpcChannelBox) -> AudioTransport
+                    = { GrpcAudioTransport(channel: $0) },
                 backoff: BackoffPolicy = .init(),
                 sleeper: @escaping @Sendable (Duration) async throws -> Void
                     = { try await Task.sleep(for: $0) },
@@ -51,6 +59,7 @@ public actor EmulatorClient {
         self.port = port
         self.makeTransport = makeTransport
         self.makeHealthProbe = makeHealthProbe
+        self.makeAudioTransport = makeAudioTransport
         self.backoff = backoff
         self.sleeper = sleeper
         self.randomSource = randomSource
@@ -72,11 +81,19 @@ public actor EmulatorClient {
         if state == .connected { attachStream() }   // 換源，共用當前 breakCont
     }
 
+    /// App 層（AudioPlayer）提供的音訊 sink。刻意用 setter 而非改 `start` 的簽章——
+    /// 改簽章會動到所有既有呼叫端與測試，憑空製造回歸風險。
+    public func setAudioSink(_ ring: AudioRingBuffer?) {
+        audioRing = ring
+        if state == .connected { attachAudio() }
+    }
+
     public func stop() async {
         running = false
         breakCont?.yield()          // 喚醒卡在 connectedRun 的迴圈
         loopTask?.cancel()          // 喚醒卡在 sleeper/probe 的迴圈
         await pump.detach()
+        detachAudio()
         _ = step(.stopRequested)    // → .disconnected
         dropChannel()
         loopTask = nil
@@ -101,9 +118,18 @@ public actor EmulatorClient {
     // MARK: - 電源（休眠/喚醒）：channelBox 維持不動，供 wake() 沿用同一連線
 
     public func suspend() async {
-        guard power == .active, channelBox != nil else { return }
+        // 終審 Important 1：不再看 channelBox != nil。原本這半條 guard 會在「dropChannel()
+        // 之後、下一次 ensureChannel() 之前」（重連退避期間，可達數秒）提早 return——此時
+        // channelBox 為 nil，但 AppLifecycle.windowShouldClose 已經把視窗 orderOut(nil)
+        // 隱藏了。power 因此卡在 .active，等重連成功 connectedRun() 照常呼叫
+        // attachStream()/attachAudio()，使用者會在看不到視窗的情況下聽到遊戲聲音，直接
+        // 違反 spec §4.7「休眠（關視窗）→ detachAudio()」的合約。拿掉這半條是安全的：
+        // pump.detach()/detachAudio()/setPower 在無 channel 時皆為 no-op，wake() 也已用
+        // `if state == .connected` 自行處理未連線的情形，不需要靠這裡的 guard 防呆。
+        guard power == .active else { return }
         setPower(.suspending)
         await pump.detach()                 // 停止拉幀（省 app 端 CPU；qemu 仍在跑）
+        detachAudio()                       // 關視窗即靜音（音訊跟畫面走）
         setPower(.suspended)
     }
 
@@ -114,7 +140,7 @@ public actor EmulatorClient {
         // 載入快照會 rewind、丟失 suspend 期間的 guest 狀態；且活體實測 loadSnapshot
         // 會使運行中的模擬器崩潰（canary 37.2.1，見 RESULTS-p1b §4）。save-on-suspend
         // 保留為磁碟檢查點（save 正常），但不在 wake 路徑載入。
-        if state == .connected { attachStream() }             // 恢復拉幀
+        if state == .connected { attachStream(); attachAudio() }             // 恢復拉幀/音訊
         setPower(.active)
     }
 
@@ -146,11 +172,13 @@ public actor EmulatorClient {
                 await connectedRun()                // 阻塞到串流斷或 stop
                 guard running else { break }
                 await pump.detach()
+                detachAudio()
                 dropChannel()                       // 斷線先 drop 舊 channel（spec §4.1）
                 let effect = step(.streamBroken)    // → .reconnecting(0)
                 await backoffDelay(effect)
             } else {
                 await pump.detach()
+                detachAudio()
                 dropChannel()                       // 探測失敗也 drop，下一圈重建
                 let effect = step(.connectFailed)   // → .reconnecting(n)（attempt 由 reducer 遞增）
                 await backoffDelay(effect)
@@ -166,6 +194,7 @@ public actor EmulatorClient {
                 channelBox = boxCh
                 transport = makeTransport(boxCh)
                 probe = makeHealthProbe(boxCh)
+                audioTransport = makeAudioTransport(boxCh)
             } catch {
                 return false
             }
@@ -178,6 +207,7 @@ public actor EmulatorClient {
         let (signal, cont) = AsyncStream<Void>.makeStream()
         breakCont = cont
         attachStream()
+        attachAudio()
         for await _ in signal { break }
         breakCont = nil
     }
@@ -200,6 +230,54 @@ public actor EmulatorClient {
     }
 
     private func signalBreak() { breakCont?.yield() }
+
+    /// 與 attachStream 對稱：休眠期間不掛載；無 sink（App 未接 AudioPlayer）時靜默不掛。
+    private func attachAudio() {
+        guard power != .suspended, power != .suspending else { return }
+        guard let audioTransport, let audioRing else { return }
+        // 先卸再掛（呼叫 detachAudio 而非只 audioTask?.cancel()）：只取消 Swift Task
+        // 中斷不了已 in-flight 的底層 gRPC next() ——guest 靜音時它會無限阻塞，若不顯式
+        // cancelStream() 就疊上第二個訂閱，舊 call 會被孤兒化（Task 6 審查發現的缺口，
+        // GrpcAudioTransport.packets() 已在 transport 層加了重入保護；這裡加第二層防禦）。
+        detachAudio()
+        // 終審 Minor 6（SPSC 單一生產者不變式，僅加註解不改碼）：AudioRingBuffer 是
+        // SPSC（單生產者單消費者），但「單一生產者」在這裡是靠時序維持，不是靠結構
+        // 保證——上面的 detachAudio() 只取消了「舊」Task（`audioTask?.cancel()`），
+        // Swift 的 Task 取消是協作式的：舊 Task 內部 `for try await chunk in stream`
+        // 迴圈要等下一次掛起點才會真正結束，理論上舊 Task 尾聲的 write() 可以跟下面
+        // 新建 Task 第一次的 write() 在時間上重疊，讓兩個生產者同時寫同一個 ring。
+        // 這在實務上不可達：舊 Task 停止寫入的時機是它自己的 gRPC stream 迭代器
+        // 收到取消訊號那一刻（µs 等級的 CPU 排程延遲），而新 Task 第一次 write()
+        // 之前必須先完成一次全新的 streamAudio RPC 往返（一次網路 RTT，數 ms 以上）；
+        // 兩個時間尺度差了至少三個數量級，經驗上不會重疊。維持這個不變式不需要額外
+        // 同步機制——但這是「靠時序」而非「靠結構」，值得對照它為何成立。
+        let stream = audioTransport.packets(format: .standard)
+        audioTask = Task { [audioRing] in
+            do {
+                for try await chunk in stream {
+                    if Task.isCancelled { return }
+                    audioRing.write(chunk.samples)
+                }
+            } catch {
+                // 終審 Important 2：診斷訊號——若音訊 RPC 單獨失敗而連線本身仍健康
+                // （health probe 不會因此觸發重連），少了這行音訊會永久靜默且沒有任何
+                // 除錯線索（MIRAGE_AUDIO_LOG 只會印 pkt=0，跟 guest 本來就靜音無法區分）。
+                // 刻意不在此自行重連——維持 spec 決策，重連只由畫面串流路徑驅動。
+                print("[audio] stream ended: \(error)")
+                // 串流斷屬正常（連線斷）；重連由既有連線迴圈負責，此處不自行重連。
+                // 注意：**無封包 ≠ 斷線**——guest 靜音時本來就沒有封包，
+                // 健康探測仍由 HealthProbe 獨佔負責。
+            }
+        }
+    }
+
+    /// 先取消 Swift Task，再顯式取消底層 RPC。後者不可省略：guest 靜音時
+    /// streamAudio 會無限阻塞，Task.cancel() 中斷不了已 in-flight 的 next()。
+    private func detachAudio() {
+        audioTask?.cancel()
+        audioTask = nil
+        audioTransport?.cancelStream()
+    }
 
     /// 於 step(.connectSucceeded) 後啟動（在 runConnectionLoop 的 .healthy 分支呼叫）；dropChannel 前取消。
     ///
@@ -254,6 +332,10 @@ public actor EmulatorClient {
     // resolves that promise synchronously up front, so the group's graceful shutdown has
     // nothing left dangling. dropChannel stays synchronous — no call-site changes needed.
     private func dropChannel() {
+        detachAudio()               // 必須在 channelBox = nil 之前：先解決 in-flight
+                                     // promise，NIO group 才不會帶著未解決 promise 關閉
+                                     // （P1-b 實證約 1/8 機率觸發 leaking promise 致命錯誤）
+        audioTransport = nil
         clipboardCall?.cancel()
         clipboardTask?.cancel()
         clipboardTask = nil

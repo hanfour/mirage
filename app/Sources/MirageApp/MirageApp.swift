@@ -68,7 +68,9 @@ struct MirageApp: App {
                 profile: SwiftUI.Binding(get: { profile }, set: { model.profile = $0 }),
                 onSave: { model.saveProfile($0) }
             )
-        } else {
+        } else if !model.isFullScreen {
+            // P1-e 遊戲模式：全螢幕時隱藏唯讀提示標記（純視覺噪音）。ConnectionBanner
+            // 與 InstallBanner 刻意保留——前者是必須知道的異常，後者是使用者主動觸發的回饋。
             KeymapOverlay(profile: model.profile)
         }
     }
@@ -93,7 +95,9 @@ final class AppModel {
     var profile: KeymapProfile?
     var editing = false
     let mouseCapture = MouseCapture()
-
+    var isFullScreen = false  // P1-e: 系統通知驅動（涵蓋綠燈/⌃⌘F/選單列）
+    let audioRing = AudioRingBuffer()
+    var audioPlayer: AudioPlayer?
     // P1-d: 遊戲偵測→啟用接線。detector 輪詢前景 package（無 adb 時保持 nil，
     // 靜默不偵測）；currentPackage/override 一起餵給 ActivationDecider 決定要不要
     // 套用 keymap；store 獨立於 loadKeymap/saveProfile 既有的 ProfileStore.standard()
@@ -105,8 +109,11 @@ final class AppModel {
 
     // APK 拖放安裝（Phase-1）：installState 供 InstallBanner 呈現；generation 令牌讓
     // 自動消失只清掉「產生它的那一批」，避免舊 dismiss 清掉使用者剛拖入的新批次。
-    private(set) var installState: InstallState = .idle
-    private var installGeneration = 0
+    // 兩者原本是 private(set)/private——Task 8 review 修正把讀寫邏輯搬進
+    // AppModel+Install.swift 後，SE-0169 的同檔 private 互通不再適用（不同檔案），
+    // 故放寬成預設 internal（比照 audioRing/audioPlayer 的既有先例）。
+    var installState: InstallState = .idle
+    var installGeneration = 0
 
     /// 兩處共用（client.start 的初始尺寸、KeymapController 的初始 guestSize），避免同一組
     /// 數字散在兩個檔案裡各寫一份（原本 540/1200 只出現在 start() 一處，Task 7 新增第二個
@@ -200,40 +207,6 @@ final class AppModel {
         }
     }
 
-    /// 拖放安裝入口（Task 4 的 .dropDestination 呼叫，urls 已濾成 .apk）。
-    /// adb 不可用 → 每個檔案記成明確 failure，不崩。安裝中再拖入直接忽略（MVP）。
-    func installAPKs(_ urls: [URL]) async {
-        guard !urls.isEmpty else { return }
-        if case .installing = installState { return }   // 一次一批
-        // 每批一開始就 bump generation（一批遞增一次）：新批次進來會再 bump，使前一批
-        // 尚未觸發的自動消失 timer 的 gen 過時→no-op。這讓 token 真正守住其承諾——
-        // 前批 stale timer 不會在「.finished 4s 窗內拖入的新批仍安裝中」時把狀態閃回 .idle
-        //（終審 Minor：token 原本只在 finish 遞增，未涵蓋進入 .installing 的窗口）。
-        installGeneration += 1
-        let gen = installGeneration
-        guard let adb = AdbClient.standard() else {
-            finish(urls.map { InstallItem(name: $0.lastPathComponent, result: .failure("adb 不可用")) }, gen: gen)
-            return
-        }
-        var items: [InstallItem] = []
-        for (i, url) in urls.enumerated() {
-            installState = .installing(done: i, total: urls.count)
-            let r = await adb.install(apkURL: url)
-            items.append(InstallItem(name: url.lastPathComponent, result: r))
-        }
-        finish(items, gen: gen)
-    }
-
-    /// 進 finished 並排程 ~4s 後自動回 idle。gen 為本批開始時取得的 generation；期間若有
-    /// 新批次進來（會再 bump generation），此 timer 的 gen 已過時→no-op，不清新批次狀態。
-    private func finish(_ items: [InstallItem], gen: Int) {
-        installState = .finished(items)
-        Task {   // @MainActor 繼承：以下讀寫皆在 MainActor，無資料競爭。
-            try? await Task.sleep(for: .seconds(4))
-            if self.installGeneration == gen { self.installState = .idle }
-        }
-    }
-
     /// 啟動前景遊戲偵測（P1-d）。無 adb（找不到 SDK/非可執行檔）→ 靜默不偵測，維持
     /// 目前直接模式，對齊 spec 保守降級原則（同 loadKeymap 對「找不到 profile」的處理）。
     ///
@@ -294,18 +267,17 @@ final class AppModel {
             onShow: { [weak self] in self?.wake() }
         )
         menuBar?.updateStatus(Self.label(connState))   // 補上 menuBar 建立前已錯過的狀態
-
+        setupFullScreen()
+        startAudio()
         // guest→host 剪貼簿：經 bridge 防回音後寫 NSPasteboard
         Task { [weak self, client] in
             for await text in client.guestClipboard {
                 await MainActor.run { self?.applyGuestClipboard(text) }
             }
         }
-
         // host→guest：watcher 輪詢 → 經 bridge → setGuestClipboard
         watcher = ClipboardWatcher { [weak self] text in self?.applyHostClipboard(text) }
         watcher?.start()
-
         // 視窗關閉→休眠、喚醒→load 交由 AppLifecycle 當 NSWindowDelegate；
         // 用 Task 讓出一輪 run loop，確保 WindowGroup 的視窗已完成建立掛載。
         Task { [weak self] in
@@ -390,6 +362,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationWillTerminate(_ notification: Notification) {
         guard let model else { return }
+        // 終審 Minor 5（AudioPlayer.stop() 死碼）：呼叫點刻意放在這裡、同步呼叫，
+        // 不是塞進下面 `model.shutdown()`（`nonisolated`，刻意設計成能在 MainActor 之外
+        // 的執行緒跑到完，因為呼叫端要在被 semaphore 卡住的主執行緒上等它，見該方法註解）。
+        // 若改成在 shutdown() 裡 `await MainActor.run { audioPlayer?.stop() }`，這一跳需要
+        // 排進 MainActor 的序列 executor——也就是主執行緒的 run loop；但主執行緒這時已經
+        // 被下面的 `sema.wait()` 同步卡住、不會再抽出時間處理任何排進來的工作，會造成
+        // 永久死鎖（quit 卡死、需強制結束），恰好加重 AppModel.shutdown() 註解記載的既有
+        // NIO teardown race 那類風險。改在這裡（AppKit 保證 applicationWillTerminate
+        // 跑在主執行緒、且此刻主執行緒還沒被 semaphore 卡住）用 assumeIsolated 同步呼叫，
+        // 完全不牽動 shutdown() 的既有路徑。
+        MainActor.assumeIsolated { model.audioPlayer?.stop() }
         let sema = DispatchSemaphore(value: 0)
         Task.detached {
             await model.shutdown()

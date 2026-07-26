@@ -9,12 +9,19 @@ final class MenuBarController: NSObject, NSMenuDelegate {
     private let onShow: () -> Void
     private let statusMenuItem: NSMenuItem
     private let gameItem: NSMenuItem
+    private let muteItem: NSMenuItem
     private let forceMenu: NSMenu
 
     /// Task 6：AppModel.startDetection() 綁定這三個回呼到 setOverride(.disabled/.auto/.force(profile))。
     var onDisable: (() -> Void)?
     var onAuto: (() -> Void)?
     var onForce: ((String) -> Void)?
+
+    /// P1-e：AppModel.startLifecycle() 綁定 → NSApp.keyWindow?.toggleFullScreen(nil)。
+    var onToggleFullScreen: (() -> Void)?
+
+    /// P1-e：AppModel.startAudio() 綁定 → AudioPlayer.setMuted。
+    var onToggleMute: (() -> Void)?
 
     init(onWake: @escaping () -> Void, onShow: @escaping () -> Void) {
         self.onWake = onWake
@@ -23,6 +30,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         statusItem.button?.title = "🪞"
         statusMenuItem = NSMenuItem(title: "狀態：—", action: nil, keyEquivalent: "")
         gameItem = NSMenuItem(title: "遊戲：—", action: nil, keyEquivalent: "")
+        muteItem = NSMenuItem(title: "靜音", action: nil, keyEquivalent: "")
         forceMenu = NSMenu()
         super.init()
         forceMenu.delegate = self
@@ -32,6 +40,11 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         menu.addItem(.separator())
         menu.addItem(withTitle: "喚醒", action: #selector(wakeTapped), keyEquivalent: "").target = self
         menu.addItem(withTitle: "顯示視窗", action: #selector(showTapped), keyEquivalent: "").target = self
+        menu.addItem(withTitle: "遊戲模式（全螢幕）", action: #selector(fullScreenTapped),
+                     keyEquivalent: "").target = self
+        muteItem.action = #selector(muteTapped)
+        muteItem.target = self
+        menu.addItem(muteItem)
         menu.addItem(.separator())
         menu.addItem(gameItem)
         menu.addItem(withTitle: "停用 keymap", action: #selector(disableTapped), keyEquivalent: "").target = self
@@ -52,6 +65,9 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         gameItem.title = "遊戲：\(pkg)　\(active ? "[keymap ✓]" : "[直接 tap]")"
     }
 
+    /// 勾選狀態反映目前是否靜音（AppKit 自動畫 ✓）。
+    func updateMute(_ muted: Bool) { muteItem.state = muted ? .on : .off }
+
     /// 每次「套用 profile」子選單要顯示前重新掃描，讓 saveProfile 新存的 profile
     /// 不需重開 App 就會出現——比起只在 init 建一次更貼近「選單即時反映磁碟狀態」。
     func menuNeedsUpdate(_ menu: NSMenu) {
@@ -67,6 +83,8 @@ final class MenuBarController: NSObject, NSMenuDelegate {
 
     @objc private func wakeTapped() { onWake() }
     @objc private func showTapped() { onShow() }
+    @objc private func fullScreenTapped() { onToggleFullScreen?() }
+    @objc private func muteTapped() { onToggleMute?() }
     @objc private func disableTapped() { onDisable?() }
     @objc private func autoTapped() { onAuto?() }
     @objc private func forceTapped(_ sender: NSMenuItem) {

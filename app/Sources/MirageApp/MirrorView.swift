@@ -20,32 +20,14 @@ final class MirrorMTKView: MTKView {
         onResize?(convertToBacking(bounds).size)
     }
 
-    // AUTHORIZED FIX（使用者驗收回報：畫面變形——視窗長寬比鎖定）
-    //
-    // Root cause: SwiftUI's WindowGroup gives the window an initial content
-    // size unrelated to the guest's 9:20 aspect ratio, and Renderer.upload()
-    // only assigns `view.window?.contentAspectRatio` when the *texture* size
-    // changes — at that point `window` can still be nil (first upload can
-    // race window attachment), so the assignment silently no-ops and the
-    // mismatched window stretches the CAMetalLayer's drawable, distorting
-    // the image from the very first frame.
-    //
-    // Fix: lock the aspect ratio — and immediately conform the window's
-    // *current* size to it — as soon as this view is attached to a window
-    // (`viewDidMoveToWindow` fires unconditionally at that point, unlike
-    // waiting on the first decoded frame), so the window is never shown
-    // undistorted-then-corrected; it's correct from the start.
+    /// 長寬比鎖定已移交 MirrorContainerView（P1-e：全螢幕下 macOS 忽略 contentAspectRatio，
+    /// 需要 letterbox 容器統一負責；順帶移除原本硬編碼的 9:20）。此處只保留輸入前置條件。
     override func viewDidMoveToWindow() {
         super.viewDidMoveToWindow()
         guard let window else { return }
-        let aspect = NSSize(width: 9, height: 20)
-        window.contentAspectRatio = aspect
-        let w = max(window.frame.width, 270)
-        window.setContentSize(NSSize(width: w, height: w * aspect.height / aspect.width))
-
         // P1-c：keyDown/keyUp 需要 first responder；mouseMoved（look）需要視窗開啟
         // acceptsMouseMovedEvents——AppKit 預設不投遞 mouseMoved，兩者缺一都會讓
-        // KeymapController 完全收不到輸入（無 profile 時不受影響，仍走既有 mouseDown/Dragged/Up）。
+        // KeymapController 完全收不到輸入。
         window.acceptsMouseMovedEvents = true
         window.makeFirstResponder(self)
     }
@@ -98,9 +80,14 @@ struct MirrorView: NSViewRepresentable {
 
     func makeCoordinator() -> Coordinator { Coordinator(client: client) }
 
-    func makeNSView(context: Context) -> MirrorMTKView {
-        let view = MirrorMTKView(frame: .zero)
-        context.coordinator.renderer = Renderer(view: view, box: box)
+    func makeNSView(context: Context) -> MirrorContainerView {
+        let container = MirrorContainerView(frame: .zero)
+        let view = container.mirror
+        let renderer = Renderer(view: view, box: box)
+        renderer?.onFrameSize = { [weak container] w, h in
+            container?.frameSize = (w: w, h: h)
+        }
+        context.coordinator.renderer = renderer
         context.coordinator.controller = controller
         view.onMouse = { nx, ny, down in
             context.coordinator.sendMouse(nx: nx, ny: ny, down: down)
@@ -118,10 +105,10 @@ struct MirrorView: NSViewRepresentable {
         view.onFlagsChanged = { event in
             context.coordinator.controller?.handleFlagsChanged(event)
         }
-        return view
+        return container
     }
 
-    func updateNSView(_ view: MirrorMTKView, context: Context) {
+    func updateNSView(_ view: MirrorContainerView, context: Context) {
         context.coordinator.controller = controller
     }
 
@@ -147,6 +134,9 @@ struct MirrorView: NSViewRepresentable {
         }
         private var resizeTask: Task<Void, Never>?
         private static let defaultGuestSize = (w: 540, h: 1200)
+        /// 全螢幕會把內容矩形放大到螢幕高度，4K 螢幕上直向遊戲可算出 ~880×1960；
+        /// 再往上會有掉 fps 風險（spec R4）。上限值可調，調整依據是 MIRAGE_FPS_LOG 實測。
+        private static let maxStreamWidth = 1080
         private var guestSize = Coordinator.defaultGuestSize
 
         init(client: EmulatorClient) { self.client = client }
@@ -166,12 +156,14 @@ struct MirrorView: NSViewRepresentable {
             resizeTask = Task {
                 try? await Task.sleep(for: .milliseconds(300))
                 guard !Task.isCancelled else { return }
-                // guest 長寬比 9:20 固定；以視窗像素寬換算串流尺寸（偶數對齊）
-                let w = max(Int(pixelSize.width) & ~1, 270)
-                let h = w * 20 / 9
+                // P1-e：長寬比改用實際解碼幀（原本硬編碼 h = w * 20 / 9，遊戲轉橫向就錯）。
+                let aspect = renderer?.lastFrameSize ?? Self.defaultGuestSize
+                let clamped = min(max(Int(pixelSize.width), 270), Self.maxStreamWidth)
+                let w = clamped & ~1                                   // 偶數對齊
+                let h = max(aspect.h * w / aspect.w, 2) & ~1
                 guestSize = (w, h)
                 await client.setStreamSize(width: w, height: h)
-                controller?.setGuestSize((w, h))   // 讓引擎輸出的觸控座標跟著新的串流尺寸換算
+                controller?.setGuestSize((w, h))   // 引擎觸控座標跟著新串流尺寸換算
             }
         }
     }
