@@ -88,3 +88,13 @@ App 合成層 fps（`MIRAGE_FPS_LOG=1`）、渲染中 CPU 佔用、App 層 `send
 - **活體驗證**：`scripts/verify_apk_install.sh`（需 `ANDROID_SERIAL=emulator-5554` 指向的模擬器正在跑）——先印 `dumpsys` 前景解析（佐證 P1-d 偵測未回歸），再對一個第三方 APK 跑真實 `adb install -r` 並印原始輸出。
 - **與遊戲安裝的關係**：本功能只做「sideload 機制」——把任意 `.apk` 裝進模擬器。**真遊戲要能跑，使用者仍需自行安裝 GApps**（母計畫 R1 範圍，非本功能負責）；APK 拖放安裝不含 Play 商店、不含 GApps 佈署。
 - 驗收：`RESULTS-apk-install.md`；架構詳見 `../docs/specs/2026-07-25-apk-install-design.md`。
+
+# P1-e 全螢幕與音訊
+
+補齊母計畫 Phase-1「鏡像視窗」尚缺的兩項：macOS 原生全螢幕遊戲模式、guest 音訊輸出到 Mac 喇叭。
+
+- **全螢幕**：三種入口——⌃⌘F、視窗綠燈、選單列「遊戲模式（全螢幕）」；由 `NSWindow.didEnterFullScreenNotification`／`didExitFullScreenNotification` 驅動 `AppModel.isFullScreen`（系統告知，不自行推測）。letterbox 由 `MirrorContainerView`（黑底 NSView）+ `ViewportFit`（`MirageCore` 純函式）負責——容器算好 aspect-fit 內容矩形，把 `MirrorMTKView` 佈局進去，黑邊是父 view 的背景色，`MirrorMTKView.bounds` 永遠等於內容矩形，座標數學（`normalized()`／`KeymapController`）零改動。**不綁 Esc**（Esc 在 guest 是返回鍵，搶了會壞遊戲輸入）。全螢幕時隱藏 keymap 唯讀提示 overlay（純視覺噪音），保留 `ConnectionBanner`／`InstallBanner`（斷線是必須知道的異常，安裝是使用者主動觸發的回饋）。串流解析度改用內容矩形寬 + 實際幀長寬比反推高度，設上限常數 `maxStreamWidth = 1080`（避免 4K 全螢幕請求過高解析度掉 fps）。
+- **橫向**：`ImageFormat.rotation` 是 `[Output Only]`，emulator 已把幀轉好；長寬比一律由 `Renderer.lastFrameSize` 驅動的實際解碼幀決定，原本散在 `MirrorMTKView.viewDidMoveToWindow`／`MirrorView.Coordinator.resizeDebounced` 兩處的 `9:20` 硬編碼已移除，橫向遊戲自動支援，無需獨立分支。
+- **音訊**：`EmulatorClient.attachAudio()`／`detachAudio()` 與既有 `FramePump` 對稱掛在同一條連線狀態機上（不新增第二條生命週期）——`streamAudio`（48000Hz／stereo／S16／`modeRealTime`，由 `GrpcAudioTransport` 封裝）→ `AudioRingBuffer`（SPSC 無鎖環形緩衝，容量 200ms／19_200 samples）→ `AudioPlayer`（`AVAudioEngine` + `AVAudioSourceNode`，render callback 只做一次 `memcpy`／補零，不配置不加鎖不 log）。關視窗即靜音，跟畫面同一條 `PowerState`。選單列「靜音」勾選（`engine.mainMixerNode.outputVolume = 0/1`，macOS 無原生 per-app 音量）。`MIRAGE_AUDIO_LOG=1` 每秒印一行 `[audio] pkt=N sr=48000 ch=2 under=N over=N depth=Nms` 健康摘要，是唯一能無頭驗證音訊健康的訊號。活體驗證：`scripts/verify_audio.sh`（用 `input keyevent 24` 頂音量 + `am start VIEW` 觸發內建鈴聲發聲，量測 `streamAudio → AudioRingBuffer` 5 秒封包率）。
+- **已知限制／移交**：完整 pending-human 清單（真實聽感、letterbox 目視、橫向全螢幕、遊戲模式 chrome 隱藏手感、全螢幕下 keymap/mouse capture 手感、驗收線 6 連續 60 秒 underruns==0、驗收線 7 fps≥55）見 `RESULTS-p1e.md`；`overruns` 歸因與緩衝深度逼近容量上限的 caveat 亦記錄於該文件。**`AudioRingBuffer` 是本專案唯一允許 mutate 的資料結構**（即時執行緒的硬性要求——render callback 不得配置記憶體、不得加鎖、不得 log，破例範圍嚴格限縮在這一個 type 內，對外只暴露不可變的 `AudioChunk`／`AudioStats` 快照）。
+- 驗收：`RESULTS-p1e.md`；架構詳見 `../docs/specs/2026-07-26-p1e-fullscreen-audio-design.md`。
