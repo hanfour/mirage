@@ -190,7 +190,11 @@ final class AppModel {
     ///     查詢，但本任務檔案範圍明確只列 MouseCapture.swift/MirageApp.swift；比照
     ///     brief 明文允許的簡化版本，退回「有 profile 且非編輯且為 key window」，
     ///     不含 look 檢查（pending-human 記錄）。
-    private var shouldCapture: Bool {
+    ///
+    /// P1-e fast-follow：可見度由 `private` 放寬為 internal——`AppModel+Focus.swift` 的
+    /// `didBecomeKey` 觀察者需要跨檔讀它（SE-0169：`private` 不跨檔），與
+    /// `startAudio()`／`setupFullScreen()` 抽 extension 時同一個理由。
+    var shouldCapture: Bool {
         keymap?.hasProfile == true && !editing && NSApp.keyWindow != nil
     }
 
@@ -268,6 +272,7 @@ final class AppModel {
         )
         menuBar?.updateStatus(Self.label(connState))   // 補上 menuBar 建立前已錯過的狀態
         setupFullScreen()
+        setupFocusTracking()
         startAudio()
         // guest→host 剪貼簿：經 bridge 防回音後寫 NSPasteboard
         Task { [weak self, client] in
