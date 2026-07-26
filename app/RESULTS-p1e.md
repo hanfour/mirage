@@ -126,20 +126,40 @@ P1-e 合併後把終審 parked 的殘留項與已知限制逐條收掉，並跑�
 | `swift test`（預設） | **137/137 綠** |
 | `MIRAGE_LIVE=1 MIRAGE_LIVE_MMAP=1 swift test` | **137/137 綠** |
 | `swift build -c release` | **0 警告**（含 deprecation） |
-| `./scripts/coverage.sh`（合併兩次執行） | **TOTAL line 95.72%**、region 88.69%、function 94.87%。`StreamSize` 100%、`ViewportFit` 100%、`AudioRingBuffer` 100% |
-| `./scripts/verify_audio.sh` | `writes=454 depth=0 under=391 over=0` → 5 秒 90.8 pkt/s，遠超 30 門檻 |
+| `./scripts/coverage.sh`（合併兩次執行） | 量了兩次：**95.72%** 與（全部修正後複驗）**95.62%** line。`StreamSize` 100%、`ViewportFit` 100%、`AudioRingBuffer` 100%（line）、`GrpcAudioTransport` 98.70% |
+| `./scripts/verify_audio.sh` | 三次：`writes=454 depth=0 under=391 over=0`、`writes=451 depth=0 under=395 over=0`、`writes=339 depth=18806 under=6 over=86` → 68–91 pkt/s，皆遠超 30 門檻 |
+| 完整 live 套件的穩定性 | 模擬器穩定時 **10/10** 通過；**剛重開後曾 3 次死鎖 2 次**——已定位並修正，見下節 |
 | `./scripts/verify_keymap_inject.sh` | PASS（引擎→多指注入活體） |
 | `./scripts/verify_apk_install.sh` | PASS（dumpsys 前景解析未回歸；`adb install -r` → `Success`） |
 | `./scripts/verify_snapshot.sh` + `SnapshotRoundTripLiveTests` | PASS |
 | `./scripts/verify_reconnect.sh`（殺掉並重開模擬器） | **PASS**——`BOOTED (attempt 1, 4s)`，開機完成後 **1 秒**恢復出幀（門檻 10 秒） |
 
-**覆蓋率數字會浮動**（比照 commit `7956c7c` 為同類問題加過的註記）：本次 95.72%、P1-e 當時 95.92%、終審 fix wave 後 95.55%——三者皆 ≥ ~94% 基準。**判定看的是有沒有跌破基準，不是有沒有對上某個特定小數**。浮動來源包括活體測試每次實際走到的分支不同、以及新增/移除敘述行。
+**覆蓋率數字會浮動**（比照 commit `7956c7c` 為同類問題加過的註記）：本次兩量得 95.72% 與 95.62%、P1-e 當時 95.92%、終審 fix wave 後 95.55%——四者皆 ≥ ~94% 基準。**判定看的是有沒有跌破基準，不是有沒有對上某個特定小數**。浮動來源包括活體測試每次實際走到的分支不同、以及新增/移除敘述行。
 
 ## 音訊 harness 兩極分佈：再添一筆極端資料點
 
 本次 `verify_audio.sh` 量到 `writes=454 depth=0 under=391 over=0`——**第二次**落在「消費端跑贏、緩衝近乎全空」那一端（第一次是 P1-e 期間的 `writes=450 depth=68 under=426 over=0`）。加上先前 6 次落在「逼近容量、overruns 主導」那一端，累計 **9 次獨立執行**的範圍是：`writes` **341–454**、`depth` **0%–99.74%**（占容量）、`underruns` **3–426**、`overruns` **0–87**。
 
 這進一步支持既有結論：決定 under/over 落在光譜哪一端的是 `Task.sleep` 驅動的**測試排空器**與 gRPC 送達之間的相對時序，不是任何產品邏輯缺陷。**仍未經計時佐證**（沒有人量排空迴圈的 wall-clock 漂移），這個歸因依舊是有機制支撐的推論而非證明。
+
+## 本次 e2e 撞出的新發現：NIO teardown 架構債有了可重現的觸發條件
+
+跑 `verify_reconnect.sh`（殺掉並重開模擬器）之後**立刻**跑完整 live 套件，測試行程**整個死鎖**——0% CPU、`sample` 顯示 stack 停在 `EmulatorClient.dropChannel` → `GrpcChannelBox`（deinit）→ `semaphore_wait_trap`，也就是阻塞的 `group.syncShutdownGracefully()`。
+
+**Bisect 結果（實測，非推論）**：
+
+| 情境 | 結果 |
+|---|---|
+| 模擬器穩定 + 帶新測試 | **10/10 通過**（5–8 秒） |
+| 模擬器剛重開 + 帶新測試 | **3 次 2 次死鎖**（>100 秒無回應） |
+| 模擬器剛重開 + 用 `BISECT_SKIP` 停掉新測試 | **3/3 通過** |
+| 模擬器剛重開 + 新測試改用慢探測後 | **4/4 通過** |
+
+**歸因**：新增的 `suspendBeforeFirstConnectStaysSilentUntilWake` 原本用 `ScriptedProbe([.failed])` 造出「尚未連上」的窗口——但探測失敗會走 `dropChannel()`，摧毀一條**真實的** `GrpcChannelBox` 並在 deinit 觸發阻塞式關閉。這條路徑本身是 P1-a/P1-b 的既有程式碼，也是既有已知的 [NIO teardown / 可注入 channel 架構債]；剛重開的模擬器讓它從「偶爾印一行 ERROR」升級成**硬死鎖**。
+
+**修法**（commit `a5e5ebf`）：測試改用 `SlowFirstProbe`（第一次探測延遲 250ms 後回 `.healthy`），取得同樣的窗口而**完全不涉及 channel 拆除**。回歸守門能力不變——把 `channelBox != nil` 半條 guard 加回去仍決定性地紅。
+
+**留給架構債的意義**：這是這筆債第一次有**可重現的觸發條件與硬性症狀**（先前只記錄為「重連時的 race，今非致命」）。抽可注入 channel 之後，應把「模擬器剛重開 + 強制 dropChannel」這個組合納入硬化驗證。
 
 ## GUI pending-human：診斷已收斂到「螢幕鎖定」
 
