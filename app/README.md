@@ -167,3 +167,91 @@ emulator build 發布並重新驗證確認凍結消失後，這條測試才應�
 `../docs/specs/2026-07-27-mmap-stream-transport-design.md`（其 §1 的「實測確認現有 emulator
 版本即可繞過」一句已知只對 Python client 成立，對產品 Swift client 不成立，更正說明見
 `RESULTS-mmap.md`與`../docs/upstream/2026-07-22-emulator-mmap-macos.md`的「後續更正」小節）。
+
+# App 層 library target（MirageShell）
+
+先前 `MirageApp` 是一個 `executableTarget`，21 檔、1668 行 App 層程式碼（`AppModel`、
+`KeymapController`、`AdbClient`、`GameDetector`、`MenuBarController`、`AudioPlayer`……）**無法被
+測試 target import**——這筆債跨 P1-c／P1-d／P1-e 三個階段被記錄，每次都以「App 層無法
+import，只能靠讀碼＋型別系統＋活體間接佐證」結案。現在打通。
+
+## 三層結構
+
+```
+MirageCore   純邏輯 library。禁止 import AppKit／SwiftUI／Metal／AVFoundation，逐行單元測試。
+    ↑
+MirageShell  App 層 library（新）。原本住在 MirageApp 的 21 檔原封搬入，可被 @testable import。
+    ↑
+MirageApp    executable。只剩一個檔案：一個轉呼叫的 @main 空殼。
+```
+
+## 為什麼要拆成三層，不是兩層
+
+測試 target 只能依賴 library target——SwiftPM 的 `executableTarget` 不能被其他 target
+import。但 `@main` 只能掛在 executable 身上，而 `App` 協定的 `static func main()` 一旦寫在
+library 裡的型別上，不會被自動呼叫。解法是讓 library side 提供一個 `public` 的轉呼叫函式：
+
+```swift
+// MirageShell（library）
+public enum MirageEntry {
+    public static func main() { MirageScene.main() }   // MirageScene 維持 internal
+}
+```
+```swift
+// MirageApp（executable，唯一內容）
+import MirageShell
+
+@main
+struct Main {
+    static func main() { MirageEntry.main() }
+}
+```
+
+`App` 協定的 extension 自帶 `public static func main()`，所以 `@main` 可以掛在一個純轉呼叫的
+空殼上——`MirageScene: App`（原 `MirageApp.swift` 改名）與 `AppDelegate` 都**不需要**變成
+`public` 就能被啟動。這個做法先在專案外的最小 spike package 驗證過（`internal struct
+SpikeScene: App` 經 `public enum SpikeEntry` 轉呼叫，行程存活 ≥5 秒），詳見
+`RESULTS-shell-target.md`「R1 的結論」一節。
+
+## 公開介面只有 `MirageEntry.main()`
+
+`MirageShell` 的全部 `public` 宣告只有一個型別、一個函式：
+
+```
+$ grep -rn "\bpublic\b" Sources/MirageShell/
+Sources/MirageShell/MirageEntry.swift:6:public enum MirageEntry {
+Sources/MirageShell/MirageEntry.swift:8:    public static func main() { MirageScene.main() }
+```
+
+**新增 App 層程式碼時不需要、也不應該加 `public`。** `MirageScene`、`AppModel`（及其 4 個
+extension）、`AppDelegate`、`KeymapController`、`AdbClient`、`GameDetector`、
+`MenuBarController`、`MouseCapture`……全部維持 `internal`；`MirageShellTests` 一律用
+`@testable import MirageShell` 觸及它們。若哪天發現需要把某個型別改 `public` 才能測試，先
+確認是不是測試寫法的問題（`@testable import` 本來就能看到 internal），而不是預設加
+`public`。
+
+## 覆蓋率：`scripts/coverage.sh` 分兩段看
+
+`MirageShell` 成為正式 target 後會出現在 `llvm-cov` 報表裡。跑 `./scripts/coverage.sh` 會看到
+**兩段**輸出，不要看合併後的 TOTAL：
+
+- **段 1（`MirageCore`）：判定依據。** 目前基準 87.80%（含 `MmapStreamTransport.swift` opt-in
+  路徑 0% 的已知扣分，見 `RESULTS-mmap.md`）。要求是「不因改動而下降」，不是某個絕對數字。
+- **段 2（`MirageShell`）：進度指標，不是門檻。** 目前只有 2.62%——這 1668 行 App 層程式碼的
+  覆蓋率一直是 0，只是重構前它住在 `executableTarget` 裡，結構上被排除在覆蓋率報告之外
+  （`RESULTS-p1e.md` 已明載）。**段 2 很低不代表退步，代表這筆債終於看得見了。** 本階段（見
+  `RESULTS-shell-target.md`）刻意只開路、不鋪路——只加了 3 個 smoke test 證明
+  `@testable import` 真的能觸及 internal 宣告（`MirrorContainerView` letterbox 佈局、
+  `AudioPlayer.setMuted`、`InstallState`），實際把 19 個仍是 0% 的檔案補上測試是**另一輪**的
+  事。`MouseCapture` 被刻意排除在這一輪之外——它的 `capture()` 有全域游標副作用
+  （`CGAssociateMouseAndMouseCursorPosition`／`NSCursor.hide()`），要測得先設計注入點。
+
+若合併後的單一 TOTAL 數字被拿來當證據，本次已重新驗證：那是 **43.59%**，比原設計文件估計的
+50–60% 還低——但合併 TOTAL 從來不是判定依據，段 1／段 2 分開看才是，細節見
+`RESULTS-shell-target.md`。
+
+## 驗收與設計文件
+
+完整驗收線裁決、R1 spike 驗證方式、公開介面 grep 佐證、覆蓋率兩段數字與更正說明見
+`RESULTS-shell-target.md`；架構設計見
+`../docs/specs/2026-07-27-app-layer-library-target-design.md`。
