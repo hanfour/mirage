@@ -25,9 +25,14 @@ let package = Package(
             ],
             swiftSettings: strict
         ),
+        .target(
+            name: "MirageShell",
+            dependencies: ["MirageCore"],
+            swiftSettings: strict
+        ),
         .executableTarget(
             name: "MirageApp",
-            dependencies: ["MirageCore"],
+            dependencies: ["MirageShell"],
             swiftSettings: strict
         ),
         .testTarget(

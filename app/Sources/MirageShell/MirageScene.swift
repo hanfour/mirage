@@ -2,8 +2,14 @@ import AppKit
 import MirageCore
 import SwiftUI
 
-@main
-struct MirageApp: App {
+/// SwiftUI 的 App 進入點。
+///
+/// **刻意保持 internal**：executable target 只有一個轉呼叫的 `@main`（見
+/// `Sources/MirageApp/Main.swift`），實際啟動經由 `MirageEntry.main()`。`App` 協定的
+/// extension 自帶 `public static func main()`，所以這個型別與 `AppDelegate` 都不必公開——
+/// `MirageShell` 的公開介面因此只有 `MirageEntry` 一個函式，其餘 21 檔的可見度一行未改，
+/// 測試用 `@testable import MirageShell` 即可觸及。
+struct MirageScene: App {
     @State private var model = AppModel()
     // AUTHORIZED ADDITION（Task 4 review: NIO teardown race）— see AppDelegate below.
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
