@@ -171,6 +171,7 @@ public actor EmulatorClient {
             if !running { break }
             if case .healthy(let version) = result {
                 emulatorVersion = version           // Task 6 會用到；此刻先存起來
+                makeDisplayTransport()
                 _ = step(.connectSucceeded)         // → .connected（gate：只有健康才連上）
                 startClipboardStream()
                 await connectedRun()                // 阻塞到串流斷或 stop
@@ -190,20 +191,46 @@ public actor EmulatorClient {
         }
     }
 
-    /// 確保 channel/transport/probe 存在；斷線後 channelBox 已被 dropChannel 清空，此處重建。
+    /// 確保 channel/probe 存在；斷線後 channelBox 已被 dropChannel 清空，此處重建。
+    ///
+    /// **transport 刻意不在這裡建立**：要建哪種（MMAP 或 raw RGBA）取決於 emulator 版本，
+    /// 而版本要等健康探測回報才知道。改由 makeDisplayTransport() 在探測成功後建立。
     private func ensureChannel() -> Bool {
         if channelBox == nil {
             do {
                 let boxCh = try GrpcChannelBox(host: host, port: port)
                 channelBox = boxCh
-                transport = makeTransport(boxCh)
                 probe = makeHealthProbe(boxCh)
                 audioTransport = makeAudioTransport(boxCh)
             } catch {
                 return false
             }
         }
-        return transport != nil && probe != nil
+        return probe != nil
+    }
+
+    /// 依探測回報的 emulator 版本決定 display transport，並印一次性觀測訊息。
+    ///
+    /// MMAP 需要 ≥37（36.x 收到 MMAP 請求會 SIGSEGV 弄死使用者的 VM，見 MmapVersionGate）。
+    /// 過關就用 FallbackTransport 包起來——MMAP 若實際不寫入（前 3 幀全零）會自動無縫
+    /// 降級到 raw RGBA，使用者不會看到黑畫面。
+    ///
+    /// **執行緒安全前提**：`EmulatorClient` 是 actor，本方法與 `attachStream()`（唯一讀取
+    /// `transport` 並呼叫 `frames()` 的地方）皆在 actor 隔離下序列執行——`transport` 不會
+    /// 被並發讀寫，`frames()` 也不會被並發呼叫。`FallbackTransport.frames()` 內部「是否已
+    /// 降級」的檢查在串流閉包外、非鎖保護，僅在「單一訂閱者」的使用契約下才無害；
+    /// 若未來有呼叫端脫離這條 actor 序列，需要重新檢視那個檢查。
+    private func makeDisplayTransport() {
+        guard let boxCh = channelBox else { return }
+        if MmapVersionGate.allows(versionString: emulatorVersion) {
+            transport = FallbackTransport(primary: MmapStreamTransport(channel: boxCh),
+                                          secondary: makeTransport(boxCh))
+            print("[transport] mmap enabled (emulator \(emulatorVersion))")
+        } else {
+            transport = makeTransport(boxCh)
+            let v = emulatorVersion.isEmpty ? "unknown" : emulatorVersion
+            print("[transport] raw rgba (emulator \(v) < 37)")
+        }
     }
 
     /// connected 期間：掛串流並阻塞到第一個斷線訊號（或 stop）。setStreamSize 換源共用同一 breakCont。

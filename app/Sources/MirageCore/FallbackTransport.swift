@@ -25,7 +25,11 @@ public final class FallbackTransport: DisplayTransport, @unchecked Sendable {
     }
 
     private func markFallenBack() {
-        lock.lock(); fellBack = true; lock.unlock()
+        lock.lock()
+        let first = !fellBack
+        fellBack = true
+        lock.unlock()
+        if first { print("[transport] mmap unusable, falling back to raw rgba") }
     }
 
     public func frames(width: Int, height: Int) -> AsyncThrowingStream<Frame, Error> {

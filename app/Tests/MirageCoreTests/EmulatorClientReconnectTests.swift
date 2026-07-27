@@ -93,7 +93,9 @@ actor SleepRecorder {
 @Suite struct EmulatorClientHealthGateTests {
     @Test func unhealthyProbeIncrementsAttemptThenConnects() async throws {
         // 探測劇本：失敗、逾時、健康 → 應走 reconnecting(0) → reconnecting(1) → connected
-        let probe = ScriptedProbe([.failed, .timedOut, .healthy(version: "37.2.1.0")])
+        // 版本用 <37（見 ScriptedProbe 說明）：本測試驗證重連狀態機，不是 MMAP 選路，
+        // 用 <37 讓 display transport 走 makeTransport(boxCh) 的假件，避免真實 gRPC 連線。
+        let probe = ScriptedProbe([.failed, .timedOut, .healthy(version: "36.6.11.0")])
         let mock = MockTransport([.yieldThenHang(9)])
         let recorder = SleepRecorder()
         let client = EmulatorClient(
@@ -159,7 +161,9 @@ actor SleepRecorder {
 
     @Test func loopNotRecursionUnderManyFailures() async throws {
         // 100 次失敗後健康：迴圈不堆積 async frame（能跑完且最終 connected 即證明）
-        let probe = ScriptedProbe(Array(repeating: .failed, count: 100) + [.healthy(version: "37.2.1.0")])
+        // 版本用 <37（見 ScriptedProbe 說明）：避免 makeDisplayTransport() 建立真實
+        // MmapStreamTransport 對著無 emulator 監聽的測試 channel 發真實 gRPC 呼叫。
+        let probe = ScriptedProbe(Array(repeating: .failed, count: 100) + [.healthy(version: "36.6.11.0")])
         let client = EmulatorClient(
             makeTransport: { _ in MockTransport([.yieldThenHang(1)]) },
             makeHealthProbe: { _ in probe },

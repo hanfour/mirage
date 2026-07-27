@@ -48,7 +48,12 @@ final class SlowFirstProbe: HealthProbe, @unchecked Sendable {
     func probe(timeout: Duration) async -> HealthResult {
         lock.lock(); let first = isFirst; isFirst = false; lock.unlock()
         if first { try? await Task.sleep(for: delay) }
-        return .healthy(version: "37.2.1.0")
+        // 版本用 <37（Task 6 調整，理由同 ScriptedProbe 的說明）：本測試組驗證音訊
+        // 訂閱/suspend-wake 時序，不是 MMAP 選路。<37 讓 makeDisplayTransport() 走
+        // makeTransport(boxCh) 假件，避免 MmapStreamTransport 對測試用、無 emulator
+        // 監聽的 channel 發真實 gRPC 呼叫（會在重連迴圈中反覆嘗試，疊加既有 NIO
+        // teardown 架構債，實測會讓整個 swift test 崩潰）。
+        return .healthy(version: "36.6.11.0")
     }
 }
 
