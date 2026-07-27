@@ -11,21 +11,22 @@ final class ScriptedProbe: HealthProbe, @unchecked Sendable {
     func probe(timeout: Duration) async -> HealthResult {
         lock.lock(); defer { lock.unlock() }
         calls += 1
-        return results.isEmpty ? .healthy : results.removeFirst()
+        return results.isEmpty ? .healthy(version: "37.2.1.0") : results.removeFirst()
     }
 }
 
 @Suite struct HealthProbeTests {
     @Test func scriptedProbeReplaysResults() async {
-        let p = ScriptedProbe([.failed, .timedOut, .healthy])
+        let p = ScriptedProbe([.failed, .timedOut, .healthy(version: "37.2.1.0")])
         #expect(await p.probe(timeout: .seconds(1)) == .failed)
         #expect(await p.probe(timeout: .seconds(1)) == .timedOut)
-        #expect(await p.probe(timeout: .seconds(1)) == .healthy)
+        #expect(await p.probe(timeout: .seconds(1)) == .healthy(version: "37.2.1.0"))
         #expect(p.calls == 3)
     }
 
     @Test func healthResultIsEquatable() {
-        #expect(HealthResult.healthy == .healthy)
-        #expect(HealthResult.healthy != .failed)
+        #expect(HealthResult.healthy(version: "1") == .healthy(version: "1"))
+        #expect(HealthResult.healthy(version: "1") != .healthy(version: "2"))
+        #expect(HealthResult.healthy(version: "1") != .failed)
     }
 }

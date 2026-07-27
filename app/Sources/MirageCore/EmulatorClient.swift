@@ -18,6 +18,9 @@ public actor EmulatorClient {
     private var channelBox: GrpcChannelBox?
     private var transport: DisplayTransport?
     private var probe: HealthProbe?
+    /// 最近一次健康探測回報的 emulator 版本字串；決定要建哪種 display transport。
+    /// 空字串代表未知 → MmapVersionGate 會拒絕 → 走 raw RGBA（保守）。
+    private var emulatorVersion = ""
     // P1-e 音訊：與 transport/pump 對稱——audioTransport 隨 channel 建立與拆除，
     // audioTask 是消費 task，audioRing 是 App 端提供的 sink（nil = 不掛載）。
     private var audioTransport: AudioTransport?
@@ -166,7 +169,8 @@ public actor EmulatorClient {
             let ready = ensureChannel()
             let result: HealthResult = ready ? await (probe?.probe(timeout: probeTimeout) ?? .failed) : .failed
             if !running { break }
-            if result == .healthy {
+            if case .healthy(let version) = result {
+                emulatorVersion = version           // Task 6 會用到；此刻先存起來
                 _ = step(.connectSucceeded)         // → .connected（gate：只有健康才連上）
                 startClipboardStream()
                 await connectedRun()                // 阻塞到串流斷或 stop

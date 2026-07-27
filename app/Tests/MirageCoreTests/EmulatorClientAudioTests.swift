@@ -48,7 +48,7 @@ final class SlowFirstProbe: HealthProbe, @unchecked Sendable {
     func probe(timeout: Duration) async -> HealthResult {
         lock.lock(); let first = isFirst; isFirst = false; lock.unlock()
         if first { try? await Task.sleep(for: delay) }
-        return .healthy
+        return .healthy(version: "37.2.1.0")
     }
 }
 
