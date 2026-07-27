@@ -43,5 +43,14 @@ let package = Package(
             ],
             swiftSettings: strict
         ),
+        .testTarget(
+            name: "MirageShellTests",
+            dependencies: [
+                "MirageShell",
+                "MirageCore",   // 測試會直接用 ViewportFit / AudioRingBuffer 等公開型別
+                .product(name: "Testing", package: "swift-testing"),
+            ],
+            swiftSettings: strict
+        ),
     ]
 )
