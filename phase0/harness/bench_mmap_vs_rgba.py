@@ -59,11 +59,20 @@ def self_cpu_seconds() -> float:
 
 
 def bench(mode: str, seconds: int, width: int, height: int) -> dict:
-    """mode: 'rgba' | 'mmap'。回傳量測結果 dict。"""
+    """mode: 'rgba' | 'mmap-copy' | 'mmap-touch'。回傳量測結果 dict。
+
+    **公平性**：三組都必須對「每一幀」做等量的資料消費工作，否則 MMAP 會因為
+    「根本沒讀資料」而顯得不合理地便宜（此腳本第一版就犯了這個錯，量出灌水的
+    94% CPU 降幅）。
+      - rgba       : protobuf 已把 payload 反序列化成 bytes，成本已計入
+      - mmap-copy  : 每幀把映射區複製出來（對應現行 `Frame.rgba: Data` 的設計）
+      - mmap-touch : 每幀只觸碰全部位元組不複製（對應「渲染端直接從映射區上傳」
+                     的零拷貝設計上限）
+    """
     path = None
     buf = None
     kwargs = {"format": ec.ImageFormat.RGBA8888, "width": width, "height": height}
-    if mode == "mmap":
+    if mode.startswith("mmap"):
         path = tempfile.mktemp(prefix="mirage_bench_", suffix=".bin")
         buf = open_frame_buffer(path, width, height)
         kwargs["transport"] = ec.ImageTransport(
@@ -84,9 +93,18 @@ def bench(mode: str, seconds: int, width: int, height: int) -> dict:
         for frame in stub.streamScreenshot(fmt):
             frames += 1
             grpc_bytes += len(frame.image)
-            if mode == "mmap" and frames <= 5:
+            if mode.startswith("mmap"):
                 arr = frame_array(buf, width, height)
-                distinct.add(hashlib.md5(arr.tobytes()).hexdigest()[:8])
+                if mode == "mmap-copy":
+                    payload = arr.tobytes()          # 完整複製，等同現行 Frame.rgba
+                    if frames <= 5:
+                        distinct.add(hashlib.md5(payload).hexdigest()[:8])
+                    del payload
+                else:                                 # mmap-touch：只觸碰不複製
+                    checksum = int(arr[::4099].sum())  # 跨頁取樣，強迫實際讀取分頁
+                    if frames <= 5:
+                        distinct.add(hashlib.md5(arr.tobytes()).hexdigest()[:8])
+                    _ = checksum
                 del arr
             if time.perf_counter() >= deadline:
                 break
@@ -129,19 +147,20 @@ def main() -> int:
     try:
         print(f"解析度 {args.width}x{args.height}，各跑 {args.seconds} 秒\n")
         results = [bench("rgba", args.seconds, args.width, args.height),
-                   bench("mmap", args.seconds, args.width, args.height)]
+                   bench("mmap-copy", args.seconds, args.width, args.height),
+                   bench("mmap-touch", args.seconds, args.width, args.height)]
     finally:
         anim.terminate()
 
-    hdr = f"{'模式':<6}{'fps':>8}{'gRPC MiB/s':>13}{'client CPU s':>14}{'qemu CPU s':>12}"
+    hdr = f"{'模式':<12}{'fps':>8}{'gRPC MiB/s':>13}{'client CPU s':>14}{'qemu CPU s':>12}"
     print(hdr)
     print("-" * len(hdr))
     for r in results:
         q = f"{r['qemu_cpu_s']:.2f}" if r["qemu_cpu_s"] >= 0 else "n/a"
-        print(f"{r['mode']:<6}{r['fps']:>8.1f}{r['grpc_MiB_s']:>13.1f}"
+        print(f"{r['mode']:<12}{r['fps']:>8.1f}{r['grpc_MiB_s']:>13.1f}"
               f"{r['client_cpu_s']:>14.2f}{q:>12}")
 
-    rgba, mmap_ = results
+    rgba, mmap_ = results[0], results[1]
     print("\n=== 判讀 ===")
     if mmap_["frames"] == 0:
         print("MMAP 未出幀——量測無效")
