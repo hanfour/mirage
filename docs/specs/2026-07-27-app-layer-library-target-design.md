@@ -2,7 +2,8 @@
 
 - **日期**：2026-07-27
 - **狀態**：待核准
-- **前置**：P1-a～P1-e 皆已合併（`main` @ `228116b`）
+- **前置**：P1-a～P1-e 與 streaming MMAP transport 皆已合併（`main` @ `ba42791`）
+- **數字已於 2026-07-27 MMAP 階段合併後校正**（測試數 137→170、覆蓋率基準 ~94%→87.80%）
 
 ## 1. 目標
 
@@ -112,15 +113,17 @@ public enum MirageEntry {
 
 ## 4. 覆蓋率的陷阱（本設計最重要的一節）
 
-`MirageShell` 一旦成為正式 target，就會出現在 `llvm-cov` 報告裡。App 層目前**幾乎零覆蓋**（1668 行），TOTAL line 會從 ~95.6% 掉到大約 60% 出頭。
+`MirageShell` 一旦成為正式 target，就會出現在 `llvm-cov` 報告裡。App 層目前**幾乎零覆蓋**（1668 行），TOTAL line 會從目前的 **87.80%** 再掉到大約 50–60%。
 
-**這不是回歸**——那 1668 行的覆蓋率一直是 0，只是先前根本沒被算進來（`RESULTS-p1e.md` 已明載 App 層「結構上被排除在覆蓋率報告之外」）。但下一個人跑 `coverage.sh` 看到「95% → 60%」必然誤判。這正是本專案踩過一次的坑（`RESULTS-p1a.md` 曾把不當數字當證據、後被撤回）。
+**注意基準本身已經不是 ~94% 了**：`RESULTS-mmap.md` 驗收線 4 記載，MMAP 階段把預設翻回 raw RGBA 後，`MmapStreamTransport.swift`（107 行）成為 opt-in 路徑、在 `coverage.sh` 的預設跑法下量到 **0.00%**，把 `MirageCore` 的 TOTAL 從約 94–96% 拉到 **87.80%**。那是已記錄的預期後果，不是回歸——但它意味著**本重構的驗收不能再用「≥94%」當門檻**。
+
+**這不是回歸**——那 1668 行的覆蓋率一直是 0，只是先前根本沒被算進來（`RESULTS-p1e.md` 已明載 App 層「結構上被排除在覆蓋率報告之外」）。但下一個人跑 `coverage.sh` 看到「87.80% → 50 幾%」必然誤判。這正是本專案踩過一次的坑（`RESULTS-p1a.md` 曾把不當數字當證據、後被撤回）。
 
 **修法**：`coverage.sh` 改成**分兩段報告**——
 
 | 段 | 意義 |
 |---|---|
-| `MirageCore` | 既有 ~94% 基準線，**判定用這一段** |
+| `MirageCore` | 目前基準 **87.80%**（含 MMAP opt-in 路徑 0% 的已知扣分），**判定用這一段**——要求是「不因本次重構下降」，不是某個絕對數字 |
 | `MirageShell` | 新的，從接近 0 起算，是**進度指標不是門檻** |
 
 合併的 TOTAL 不再作為判定依據。腳本輸出必須寫明這個區分與理由，不能只是換個數字。
@@ -146,17 +149,17 @@ public enum MirageEntry {
 每一步都必須跑，且貼真實輸出：
 
 1. `swift build` 成功
-2. `swift test` — **既有 137 個一個都不能少**，新增的另計
+2. `swift test` — **既有 170 個一個都不能少**，新增的另計
 3. `swift build -c release` 零非-deprecation 警告
-4. `./scripts/coverage.sh` — 兩段數字皆有輸出，`MirageCore` 段不低於 ~94%
+4. `./scripts/coverage.sh` — 兩段數字皆有輸出，`MirageCore` 段不低於**重構前實測的基準值**（開工第一步先量並記錄）
 5. **App 仍能啟動**：`./.build/release/MirageApp` 行程起得來且維持存活。螢幕鎖定時只能驗到這一步（`.task` 不觸發、無輸出，見 `RESULTS-p1e.md`），但這正好足以抓出 R1（`App.main()` 那條路是否行得通）
 
 ## 8. 驗收線
 
-1. `swift test` 全綠，既有 137 個 `@Test` 不回歸
+1. `swift test` 全綠，既有 170 個 `@Test` 不回歸
 2. 新增 3 個 smoke test 通過，且證明 `@testable import MirageShell` 可觸及 internal 宣告
 3. `swift build -c release` 零非-deprecation 警告
-4. `coverage.sh` 分兩段輸出；`MirageCore` 段 ≥ ~94% 基準
+4. `coverage.sh` 分兩段輸出；`MirageCore` 段**不低於重構前實測值**（開工前先量一次當基準，不用絕對門檻——見 §4）
 5. `MirageShell` 的公開宣告**只有 `MirageEntry`**（可用 `grep -c "^public" Sources/MirageShell/` 佐證；若走 R1 退路則為 `MirageScene` + `AppDelegate` 兩個型別，須在 RESULTS 說明）
 6. App 行程可啟動並存活 ≥5 秒
 7. `MirageScene.swift`、`AppModel.swift` 各自 < 400 行
@@ -168,7 +171,7 @@ public enum MirageEntry {
 | R1 | `App.main()` 從非 `@main` 位置呼叫不如預期 | **第一步就驗**；退路是 2 個型別改 public（見 §3.1） |
 | R2 | 21 檔搬移途中漏檔或 import 沒補 | 搬移與改寫**分成兩個 commit**，中間必須建置通過 |
 | R3 | 覆蓋率數字被誤判成回歸 | `coverage.sh` 分兩段 + 腳本內寫明理由 + RESULTS 記錄（§4） |
-| R4 | 新測試 target 打亂既有測試計數 | 驗收線 1 要求「既有 137 個一個不少」，新增的另計 |
+| R4 | 新測試 target 打亂既有測試計數 | 驗收線 1 要求「既有 170 個一個不少」，新增的另計 |
 | R5 | `strict-concurrency` 在跨模組邊界產生新警告（internal → 跨 module 的 Sendable 檢查較嚴） | 每步建置都檢查警告數；若出現，屬真實問題不得用 `@unchecked` 硬壓，回報裁決 |
 
 ## 10. 與既有階段的整合面
