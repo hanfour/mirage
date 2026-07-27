@@ -242,7 +242,7 @@ extension）、`AppDelegate`、`KeymapController`、`AdbClient`、`GameDetector`
   （`RESULTS-p1e.md` 已明載）。**段 2 很低不代表退步，代表這筆債終於看得見了。** 本階段（見
   `RESULTS-shell-target.md`）刻意只開路、不鋪路——只加了 3 個 smoke test 證明
   `@testable import` 真的能觸及 internal 宣告（`MirrorContainerView` letterbox 佈局、
-  `AudioPlayer.setMuted`、`InstallState`），實際把 19 個仍是 0% 的檔案補上測試是**另一輪**的
+  `AudioPlayer.setMuted`、`InstallState`），實際把 21 個仍是 0% 的檔案補上測試是**另一輪**的
   事。`MouseCapture` 被刻意排除在這一輪之外——它的 `capture()` 有全域游標副作用
   （`CGAssociateMouseAndMouseCursorPosition`／`NSCursor.hide()`），要測得先設計注入點。
 

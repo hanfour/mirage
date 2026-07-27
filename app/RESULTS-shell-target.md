@@ -65,7 +65,7 @@ Sources/MirageShell/MirageEntry.swift:8:    public static func main() { MirageSc
 Sources/MirageShell/MirageScene.swift:7:/// extension 自帶 `public static func main()`，所以這個型別與 `AppDelegate` 都不必公開——
 ```
 
-四行命中裡，兩行是**中文文件註解**提到「public」這個詞（描述設計意圖／`App` 協定行為，不是宣告本身），兩行是實際宣告：`public enum MirageEntry` 與其內的 `public static func main()`。**`MirageShell` 的 public 表面積是一個型別、一個函式**，其餘 22 個檔案（含 `MirageScene`、`AppModel` 及其 4 個 extension、`AppDelegate`、`KeymapController`、`AdbClient`、`GameDetector`、`MenuBarController`、`MouseCapture` 等）全部維持 `internal`，與設計文件 §3.1「其餘 21 檔的可見度一行都不改」的承諾一致。
+四行命中裡，兩行是**中文文件註解**提到「public」這個詞（描述設計意圖／`App` 協定行為，不是宣告本身），兩行是實際宣告：`public enum MirageEntry` 與其內的 `public static func main()`。**`MirageShell` 的 public 表面積是一個型別、一個函式**，其餘 23 個檔案（含 `MirageScene`、`AppModel` 及其 4 個 extension、`AppDelegate`、`KeymapController`、`AdbClient`、`GameDetector`、`MenuBarController`、`MouseCapture`、`Audio/AudioPlayer` 等）全部維持 `internal`，與設計文件 §3.1「其餘 21 檔的可見度一行都不改」的承諾一致。
 
 ---
 
@@ -108,7 +108,7 @@ TOTAL    998    526    47.29%    438    258    41.10%    2574    1452    43.59% 
 - **P1-d 交接**：「完整 app-path（KeymapController+NSEvent）與真遊戲手感 pending-human」——`GameDetector`／`AdbClient` 同樣無法單元測試。
 - **P1-e 終審**：明確寫出根因——「`MirageApp` 是 `executableTarget`，唯一測試 target 只依賴 `MirageCore`，**無法 import `MirageApp`**」，並在「未做，與理由」一節說「抽 App 層 library target……是架構重構而非缺陷修正……不適合夾帶在 fast-follow 裡」，把它列為獨立待辦。
 
-**本階段（Task 1–6）把這個獨立待辦做掉了——但刻意只開路，不鋪路。** 設計文件 §1「非目標」明講：「不補齊測試。本階段只『開路』——把 target 邊界打通並用少量 smoke test 證明這條路真的通。實際為各元件補測試是**另一輪**的事。」段 2 的 2.62% 正是這個範圍決策的直接量化結果：路通了（`@testable import` 證實可行，見驗收線 2），但補測試的工作量（1668 行、19 個仍是 0% 的檔案）留給下一輪。
+**本階段（Task 1–6）把這個獨立待辦做掉了——但刻意只開路，不鋪路。** 設計文件 §1「非目標」明講：「不補齊測試。本階段只『開路』——把 target 邊界打通並用少量 smoke test 證明這條路真的通。實際為各元件補測試是**另一輪**的事。」段 2 的 2.62% 正是這個範圍決策的直接量化結果：路通了（`@testable import` 證實可行，見驗收線 2），但補測試的工作量（1668 行、21 個仍是 0% 的檔案）留給下一輪。
 
 ---
 
@@ -132,7 +132,7 @@ TOTAL    998    526    47.29%    438    258    41.10%    2574    1452    43.59% 
 
 1. **驗收線 2 的紅/綠對照**：本次未重新執行「暫時破壞 `MirrorContainerView.layout()` 再還原」的過程（會短暫偏離目前 HEAD 的程式碼狀態），沿用 Task 4 report 記載的真實輸出作為證據。若需要在本次 HEAD 上重新做一次紅/綠對照，屬於可執行但本次判斷為不必要重複的驗證（三個 smoke test 本身已在本次重新確認全綠）。
 2. **驗收線 6 的畫面正確性**：本機螢幕全程鎖定（`CGSSessionScreenIsLocked=true`），只驗證了「行程起得來且存活 ≥5 秒」，未驗證任何實際渲染畫面（letterbox 目視、keymap overlay、選單列……）。這與 `RESULTS-p1e.md`／`RESULTS-mmap.md` 記載的既有限制一致——本階段不改變任何 UI 行為，故沒有新增 UI 層的 pending-human 項目，但沿用既有的「需真 GUI session 解鎖後驗證」限制。
-3. **App 層 19 個 0% 覆蓋檔案的正確性**：目前僅靠讀碼＋型別系統＋（部分元件的）既有活體驗證（如 `verify_keymap_inject.sh` 對鍵位注入引擎的活體佐證，但那驗的是 `MirageCore.KeymapEngine`，不是 App 層的 `KeymapController`）間接佐證，無單元測試直接驗證。這是本階段刻意選擇的範圍邊界（見上「這筆債的來歷」），非本階段的驗收缺口。
+3. **App 層 21 個 0% 覆蓋檔案的正確性**：目前僅靠讀碼＋型別系統＋（部分元件的）既有活體驗證（如 `verify_keymap_inject.sh` 對鍵位注入引擎的活體佐證，但那驗的是 `MirageCore.KeymapEngine`，不是 App 層的 `KeymapController`）間接佐證，無單元測試直接驗證。這是本階段刻意選擇的範圍邊界（見上「這筆債的來歷」），非本階段的驗收缺口。
 
 ---
 
