@@ -1,5 +1,4 @@
 import Foundation
-import SwiftProtobuf
 import Testing
 @testable import MirageCore
 
@@ -93,7 +92,9 @@ actor SleepRecorder {
 @Suite struct EmulatorClientHealthGateTests {
     @Test func unhealthyProbeIncrementsAttemptThenConnects() async throws {
         // 探測劇本：失敗、逾時、健康 → 應走 reconnecting(0) → reconnecting(1) → connected
-        let probe = ScriptedProbe([.failed, .timedOut, .healthy])
+        // 版本用 <37（見 ScriptedProbe 說明）：本測試驗證重連狀態機，不是 MMAP 選路，
+        // 用 <37 讓 display transport 走 makeTransport(boxCh) 的假件，避免真實 gRPC 連線。
+        let probe = ScriptedProbe([.failed, .timedOut, .healthy(version: "36.6.11.0")])
         let mock = MockTransport([.yieldThenHang(9)])
         let recorder = SleepRecorder()
         let client = EmulatorClient(
@@ -159,7 +160,9 @@ actor SleepRecorder {
 
     @Test func loopNotRecursionUnderManyFailures() async throws {
         // 100 次失敗後健康：迴圈不堆積 async frame（能跑完且最終 connected 即證明）
-        let probe = ScriptedProbe(Array(repeating: .failed, count: 100) + [.healthy])
+        // 版本用 <37（見 ScriptedProbe 說明）：避免 makeDisplayTransport() 建立真實
+        // MmapStreamTransport 對著無 emulator 監聽的測試 channel 發真實 gRPC 呼叫。
+        let probe = ScriptedProbe(Array(repeating: .failed, count: 100) + [.healthy(version: "36.6.11.0")])
         let client = EmulatorClient(
             makeTransport: { _ in MockTransport([.yieldThenHang(1)]) },
             makeHealthProbe: { _ in probe },
@@ -173,6 +176,15 @@ actor SleepRecorder {
         await client.stop()
     }
 }
+
+// 「makeDisplayTransport() 該選哪一種」的窮舉測試已搬到
+// DisplayTransportSelectorTests.swift（純函式 DisplayTransportSelector.choose，
+// 不碰 channel）。這裡曾經有兩個用真 GrpcChannelBox + 假 transport 驗證選路的
+// 測試（Task 6 審查 Important 1 的第一版修法），但把「選哪一種」跟「真 channel
+// 的建構」綁在一起測，讓完整套件並行執行時把既有 NIO teardown 競態的命中率從
+// 0% 推到約 75%（4 次跑 3 次卡死，實測數據見 task-6-report.md）。移除後，
+// 「選哪一種」由純函式測試窮舉覆蓋，「選出來後怎麼建構」在 makeDisplayTransport()
+// 裡退化成一個四行 switch，肉眼可驗證；端到端「真的走 MMAP」由 Task 8 活體驗證負責。
 
 @Suite struct LiveSmokeTests {
     @Test func liveStreamDeliversFrames() async throws {
@@ -193,22 +205,6 @@ actor SleepRecorder {
         await client.stop()
     }
 
-    @Test func liveUnaryMmapDeliversFrames() async throws {
-        // 修正案 A 對應：XCTSkipUnless → guard 提前 return（需要 canary 模擬器）。
-        // 執行：MIRAGE_LIVE_MMAP=1 swift test --filter LiveSmokeTests/liveUnaryMmapDeliversFrames
-        guard ProcessInfo.processInfo.environment["MIRAGE_LIVE_MMAP"] == "1" else { return }
-        let chBox = try GrpcChannelBox(host: "localhost", port: 8554)
-        let status = try await chBox.client.getStatus(Google_Protobuf_Empty())
-        let transport = UnaryMmapTransport(channel: chBox,
-                                           versionString: status.version)
-        let box = LatestFrameBox()
-        let pump = FramePump()
-        await pump.attach(transport.frames(width: 540, height: 1200),
-                          into: box, onEnd: { _ in })
-        try await Task.sleep(for: .seconds(2))
-        #expect(box.takeLatest() != nil)
-        await pump.detach()
-    }
 }
 
 // MARK: - suspend()/wake() 不變式回歸測試（Task 4 補審）

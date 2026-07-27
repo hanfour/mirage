@@ -9,15 +9,24 @@ public actor EmulatorClient {
     private let makeTransport: @Sendable (GrpcChannelBox) -> DisplayTransport
     private let makeHealthProbe: @Sendable (GrpcChannelBox) -> HealthProbe
     private let makeAudioTransport: @Sendable (GrpcChannelBox) -> AudioTransport
+    /// MMAP primary transport 的工廠——與 makeTransport（raw RGBA）對稱的注入點，讓
+    /// makeDisplayTransport() 的版本選路可以在單元測試中被驗證，不必碰真 channel。
+    private let makeMmapTransport: @Sendable (GrpcChannelBox) -> DisplayTransport
     private let backoff: BackoffPolicy
     private let sleeper: @Sendable (Duration) async throws -> Void
     private let randomSource: @Sendable () -> Double
     private let probeTimeout: Duration
 
     private var state: ConnState = .disconnected
-    private var channelBox: GrpcChannelBox?
+    // 非 private：EmulatorClient+Input.swift（同模組不同檔）的 sendTouches/sendKey 需要讀取
+    // channelBox?.client。Swift 的 `private` 是檔案級（含同檔 extension 特例），跨檔 extension
+    // 存取需要至少 internal（仍非 public，模組外不可見）。
+    var channelBox: GrpcChannelBox?
     private var transport: DisplayTransport?
     private var probe: HealthProbe?
+    /// 最近一次健康探測回報的 emulator 版本字串；決定要建哪種 display transport。
+    /// 空字串代表未知 → MmapVersionGate 會拒絕 → 走 raw RGBA（保守）。
+    private var emulatorVersion = ""
     // P1-e 音訊：與 transport/pump 對稱——audioTransport 隨 channel 建立與拆除，
     // audioTask 是消費 task，audioRing 是 App 端提供的 sink（nil = 不掛載）。
     private var audioTransport: AudioTransport?
@@ -30,8 +39,10 @@ public actor EmulatorClient {
     private var loopTask: Task<Void, Never>?
     private var breakCont: AsyncStream<Void>.Continuation?
     private var power: PowerState = .active
-    private var clipboardTask: Task<Void, Never>?
-    private var clipboardCall: GRPCAsyncServerStreamingCall<
+    // 非 private（同理見上方 channelBox 的說明）：EmulatorClient+Lifecycle.swift 的
+    // startClipboardStream() 需要讀寫 clipboardTask/clipboardCall，讀取 guestClipCont。
+    var clipboardTask: Task<Void, Never>?
+    var clipboardCall: GRPCAsyncServerStreamingCall<
         SwiftProtobuf.Google_Protobuf_Empty, Android_Emulation_Control_ClipData
     >?
 
@@ -40,7 +51,7 @@ public actor EmulatorClient {
     public nonisolated let powerStates: AsyncStream<PowerState>
     private let powerCont: AsyncStream<PowerState>.Continuation
     public nonisolated let guestClipboard: AsyncStream<String>
-    private let guestClipCont: AsyncStream<String>.Continuation
+    let guestClipCont: AsyncStream<String>.Continuation
 
     public init(host: String = "localhost", port: Int = 8554,
                 makeTransport: @escaping @Sendable (GrpcChannelBox) -> DisplayTransport
@@ -49,6 +60,8 @@ public actor EmulatorClient {
                     = { GrpcHealthProbe(channel: $0) },
                 makeAudioTransport: @escaping @Sendable (GrpcChannelBox) -> AudioTransport
                     = { GrpcAudioTransport(channel: $0) },
+                makeMmapTransport: @escaping @Sendable (GrpcChannelBox) -> DisplayTransport
+                    = { MmapStreamTransport(channel: $0) },
                 backoff: BackoffPolicy = .init(),
                 sleeper: @escaping @Sendable (Duration) async throws -> Void
                     = { try await Task.sleep(for: $0) },
@@ -60,6 +73,7 @@ public actor EmulatorClient {
         self.makeTransport = makeTransport
         self.makeHealthProbe = makeHealthProbe
         self.makeAudioTransport = makeAudioTransport
+        self.makeMmapTransport = makeMmapTransport
         self.backoff = backoff
         self.sleeper = sleeper
         self.randomSource = randomSource
@@ -166,7 +180,9 @@ public actor EmulatorClient {
             let ready = ensureChannel()
             let result: HealthResult = ready ? await (probe?.probe(timeout: probeTimeout) ?? .failed) : .failed
             if !running { break }
-            if result == .healthy {
+            if case .healthy(let version) = result {
+                emulatorVersion = version           // Task 6 會用到；此刻先存起來
+                makeDisplayTransport()
                 _ = step(.connectSucceeded)         // → .connected（gate：只有健康才連上）
                 startClipboardStream()
                 await connectedRun()                // 阻塞到串流斷或 stop
@@ -186,20 +202,60 @@ public actor EmulatorClient {
         }
     }
 
-    /// 確保 channel/transport/probe 存在；斷線後 channelBox 已被 dropChannel 清空，此處重建。
+    /// 確保 channel/probe 存在；斷線後 channelBox 已被 dropChannel 清空，此處重建。
+    ///
+    /// **transport 刻意不在這裡建立**：要建哪種（MMAP 或 raw RGBA）取決於 emulator 版本，
+    /// 而版本要等健康探測回報才知道。改由 makeDisplayTransport() 在探測成功後建立。
     private func ensureChannel() -> Bool {
         if channelBox == nil {
             do {
                 let boxCh = try GrpcChannelBox(host: host, port: port)
                 channelBox = boxCh
-                transport = makeTransport(boxCh)
                 probe = makeHealthProbe(boxCh)
                 audioTransport = makeAudioTransport(boxCh)
             } catch {
                 return false
             }
         }
-        return transport != nil && probe != nil
+        return probe != nil
+    }
+
+    /// 依探測回報的 emulator 版本與 `MIRAGE_TRANSPORT` 環境變數決定 display transport，
+    /// 並印一次性觀測訊息。
+    ///
+    /// 「該選哪一種」交給 `DisplayTransportSelector.choose(...)`（純函式，逐行單元測試
+    /// 窮舉覆蓋，見 DisplayTransportSelectorTests）；這裡只剩下「讀環境變數 + 選出來之後
+    /// 怎麼建構」，退化成一個純 switch，肉眼即可驗證，不需要再為了測選路而建真 channel。
+    /// 環境變數在此讀取（而非傳給選擇器內部讀取）是刻意的：讓 `choose` 保持純函式、
+    /// 可窮舉測試，副作用留在呼叫端。
+    ///
+    /// MMAP 預設關閉，需同時滿足兩個條件（見 DisplayTransportSelector 上的裁決說明）：
+    /// `MIRAGE_TRANSPORT=mmap`（使用者主動選擇加入）**且**版本 ≥37（36.x 收到 MMAP 請求
+    /// 會 SIGSEGV 弄死使用者的 VM，見 MmapVersionGate）。過關就用 FallbackTransport
+    /// 包起來——MMAP 若實際不寫入（前 3 幀全零）會自動無縫降級到 raw RGBA。
+    ///
+    /// **執行緒安全前提**：`EmulatorClient` 是 actor，本方法與 `attachStream()`（唯一讀取
+    /// `transport` 並呼叫 `frames()` 的地方）皆在 actor 隔離下序列執行——`transport` 不會
+    /// 被並發讀寫，`frames()` 也不會被並發呼叫。`FallbackTransport.frames()` 內部「是否已
+    /// 降級」的檢查在串流閉包外、非鎖保護，僅在「單一訂閱者」的使用契約下才無害；
+    /// 若未來有呼叫端脫離這條 actor 序列，需要重新檢視那個檢查。
+    private func makeDisplayTransport() {
+        guard let boxCh = channelBox else { return }
+        let mmapOptIn = ProcessInfo.processInfo.environment["MIRAGE_TRANSPORT"] == "mmap"
+        switch DisplayTransportSelector.choose(emulatorVersion: emulatorVersion, mmapOptIn: mmapOptIn) {
+        case .mmapWithRawFallback:
+            transport = FallbackTransport(primary: makeMmapTransport(boxCh),
+                                          secondary: makeTransport(boxCh))
+            print("[transport] mmap enabled (experimental, emulator \(emulatorVersion))")
+        case .rawOnly:
+            transport = makeTransport(boxCh)
+            if mmapOptIn {
+                let v = emulatorVersion.isEmpty ? "unknown" : emulatorVersion
+                print("[transport] raw rgba (emulator \(v) < 37, mmap unavailable)")
+            } else {
+                print("[transport] raw rgba (default; set MIRAGE_TRANSPORT=mmap to try mmap)")
+            }
+        }
     }
 
     /// connected 期間：掛串流並阻塞到第一個斷線訊號（或 stop）。setStreamSize 換源共用同一 breakCont。
@@ -279,41 +335,7 @@ public actor EmulatorClient {
         audioTransport?.cancelStream()
     }
 
-    /// 於 step(.connectSucceeded) 後啟動（在 runConnectionLoop 的 .healthy 分支呼叫）；dropChannel 前取消。
-    ///
-    /// ADAPTATION (found during Task 5 verification, see task-5-report.md): the brief uses
-    /// `client.streamClipboard(.init())`, the `EmulatorControllerAsyncClientProtocol` convenience
-    /// method that returns only `GRPCAsyncResponseStream<ClipData>` — it discards the underlying
-    /// `GRPCAsyncServerStreamingCall`. That response stream's `next()` only checks
-    /// `Task.isCancelled` synchronously at the start of each call (see grpc-swift's
-    /// GRPCAsyncResponseStream.swift); it never calls `.cancel()` on the real call. So cancelling
-    /// `clipboardTask` does NOT interrupt an already in-flight `next()` await and does NOT resolve
-    /// the pending NIO promise — verified empirically: with a real emulator holding the stream
-    /// open (nothing else yields further clipboard events), `clipboardTask` never completes on its
-    /// own. Using `makeStreamClipboardCall(_:)` instead returns the full `GRPCAsyncServerStreamingCall`,
-    /// which has a genuine `.cancel()` (calls `self.call.cancel(promise: nil)`, resolving the
-    /// in-flight promise). Storing that call lets `dropChannel()` cancel the real RPC before
-    /// tearing down the channel's event-loop group, avoiding both a hang (task never finishing)
-    /// and the NIO "leaking promise created" fatal crash (group shut down while a promise is
-    /// still outstanding).
-    private func startClipboardStream() {
-        guard let client = channelBox?.client else { return }
-        clipboardTask?.cancel()
-        let call = client.makeStreamClipboardCall(.init())
-        clipboardCall = call
-        // Capture only `responseStream` (explicitly `Sendable` in grpc-swift), not `call`
-        // itself (non-Sendable — a data-race warning otherwise, since `Task { }` sends its
-        // closure across `self`'s actor isolation).
-        let stream = call.responseStream
-        clipboardTask = Task { [guestClipCont] in
-            do {
-                for try await clip in stream {
-                    if Task.isCancelled { return }
-                    guestClipCont.yield(clip.text)
-                }
-            } catch { /* 串流斷屬正常（連線斷）；由重連迴圈處理，不在此重連 */ }
-        }
-    }
+    // startClipboardStream() 搬到 EmulatorClient+Lifecycle.swift（終審 Minor 3：檔案行數約束）。
 
     private func backoffDelay(_ effect: ConnEffect) async {
         guard case .scheduleReconnect(let attempt) = effect, running else { return }
@@ -343,46 +365,5 @@ public actor EmulatorClient {
         transport = nil
         probe = nil
         channelBox = nil            // deinit → group.syncShutdownGracefully()
-    }
-}
-
-// MARK: - 多指觸控 / 鍵盤注入（Task 6：消費 Task 4 TouchSpec、Task 1 KeyCode）
-
-extension EmulatorClient {
-    /// 純建構——供單元測試，不需 channel。
-    static func buildTouchEvent(_ touches: [TouchSpec], width: Int, height: Int)
-        -> Android_Emulation_Control_TouchEvent
-    {
-        var event = Android_Emulation_Control_TouchEvent()
-        event.touches = touches.map { spec in
-            let (gx, gy) = spec.point.guestPixel(width: width, height: height)
-            var t = Android_Emulation_Control_Touch()
-            t.x = Int32(gx); t.y = Int32(gy)
-            t.identifier = Int32(spec.identifier)
-            t.pressure = spec.down ? 1024 : 0
-            return t
-        }
-        return event
-    }
-
-    /// 純建構——`.mouse` 無對應 KeyboardEvent，回 nil（呼叫端忽略）。
-    static func buildKeyEvent(_ code: KeyCode, down: Bool)
-        -> Android_Emulation_Control_KeyboardEvent?
-    {
-        guard case .key(let w3c) = code else { return nil }
-        var ev = Android_Emulation_Control_KeyboardEvent()
-        ev.eventType = down ? .keydown : .keyup
-        ev.key = w3c
-        return ev
-    }
-
-    public func sendTouches(_ touches: [TouchSpec], width: Int, height: Int) async {
-        guard let client = channelBox?.client else { return }
-        _ = try? await client.sendTouch(Self.buildTouchEvent(touches, width: width, height: height))
-    }
-
-    public func sendKey(_ code: KeyCode, down: Bool) async {
-        guard let client = channelBox?.client, let ev = Self.buildKeyEvent(code, down: down) else { return }
-        _ = try? await client.sendKey(ev)
     }
 }

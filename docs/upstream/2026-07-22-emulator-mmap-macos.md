@@ -1,5 +1,11 @@
 # [FIXED UPSTREAM] Issue Tracker — Emulator MMAP ImageTransport broken on macOS
 
+> **⚠️ 2026-07-27 後續更正**：本文件下方「明確帶尺寸即可繞過，現有 emulator 版本就能走
+> MMAP 串流」一句，**只對 Python（grpcio）client 成立，對產品實際使用的 Swift
+> （grpc-swift）client 不成立**——`MmapStreamTransport` 活體驗證發現串流會凍結。原文
+> **保留不刪**（見下方相關段落），更正說明見文末「後續更正（2026-07-27）」小節與
+> `app/RESULTS-mmap.md`。
+
 **已提交（2026-07-23）**: https://issuetracker.google.com/issues/537802959
 **提交當日狀態**: Assigned（Google 工程師）、P3/S3、2 hotlists。實際提交於 component Android Studio（192708，Emulator 子元件不開放外部直接建立），內文含 triage 轉派註記。
 
@@ -35,6 +41,44 @@ Mirage 實際上不會送的請求形狀去探測，據此判定「MMAP 串流�
 
 **教訓**：探測外部 API 的可用性時，請求形狀必須與產品實際會送的形狀一致；否則結論只對
 探測腳本成立，不對產品成立。
+
+## 後續更正（2026-07-27，Task 8/9 活體驗證）
+
+**上面這句教訓本身還不夠——它只解決了「請求形狀」這一個變數，遺漏了另一個更根本的變數：
+用哪個 client 實作去驗證。**
+
+上面「明確帶尺寸即可繞過，現有 emulator 版本就能走 MMAP 串流」的結論，全程只用 Python
+（grpcio）驗證過。`docs/specs/2026-07-27-mmap-stream-transport-design.md` §1 據此判定
+「上游 bug 已修，且實測確認現有 emulator 版本即可繞過」，於是啟動了 `MmapStreamTransport`
+的實作（Task 1–7，基礎建設本身審查全部乾淨）。
+
+但 Task 8 活體驗證改用**產品實際使用的** grpc-swift client 測試同一個 `streamScreenshot`
++ MMAP 呼叫時，發現完全不同的行為：**`MmapStreamTransport` 在同一台、同一時刻、同尺寸
+（540×1200）的 emulator 37.2.1.0 上只完成一次真實寫入，之後映射區凍結不再更新**——3 幀
+（甚至拉到 30 幀、跨 480ms）內容逐位元組相同。同一時刻用 Python 對照腳本重跑，仍穩定拿到
+5 個相異幀。三輪排查推翻了 8 個以上假設（protobuf 編碼、暖機、執行緒數、檔案建立語意、
+API 選擇、讀取端快取、畫面尺寸、guest 動畫是否在跑），根因收斂到「emulator 對 grpc-swift
+連線與 grpcio 連線行為不同」，但**確切機制未鎖定**。完整排查過程見
+`.superpowers/sdd/2026-07-27-mmap-stream-transport/mmap-freeze-investigation.md` 與
+`task-8-report.md`；裁決與驗收結果見 `app/RESULTS-mmap.md`。
+
+**更正**：「實測確認現有 emulator 版本即可繞過」這句話，**應理解為「只對 Python client
+成立」**，不能推論到「產品的 Swift client 也能走 MMAP 串流」。上面的原文與量化收益數字
+（qemu CPU −8~9%、client CPU −91% 等）本身沒有錯——它們如實描述了 Python 實作量到的
+主機能力上限——錯的是把這個結論**不經產品 client 驗證就套用到 Mirage 產品本身**，並以此
+作為「現在就做 MMAP 串流實作」的立論基礎之一。
+
+**最終處置**（使用者裁決，見 `app/RESULTS-mmap.md`）：display transport 預設改回 raw
+RGBA，MMAP 改為 `MIRAGE_TRANSPORT=mmap` 環境變數主動選擇加入，且仍需版本 ≥37（獨立安全
+互鎖，與此凍結問題無關，36.x 收到 MMAP 請求會 SIGSEGV）。Task 1–7 的基礎建設（純函式、
+`MmapBuffer`、`FallbackTransport`、`HealthResult` 帶版本等）保留，供未來在含上游修正的
+emulator build 上重新驗證時直接沿用。
+
+**再次教訓（本次更正的核心）**：探測外部 API 的可用性時，不只請求形狀要與產品一致，**驗證
+用的 client 實作本身也必須是產品實際會用的那一個**（或至少要交叉驗證兩者行為一致）；用
+「行為上看起來等價」的替代實作（哪怕是同一份 proto、同一種呼叫慣例）驗證出的結論，只對
+那個替代實作成立，不能自動套用到產品——這正是本文件第一次教訓沒有寫全、被 Task 8 活體
+驗證抓出來的部分。
 
 ### 收益量化（2026-07-27，`phase0/harness/bench_mmap_vs_rgba.py`）
 

@@ -2,10 +2,14 @@ import Foundation
 import GRPC
 
 /// 健康探測結果：驅動連線 reducer 的 connectSucceeded / connectFailed。
+///
+/// `.healthy` 帶出 emulator 版本字串——`getStatus` 本來就回傳它，之前被丟棄。
+/// 由連線層決定要建哪種 transport（MMAP 需 ≥37，見 MmapVersionGate）需要這個資訊，
+/// 讓探測順手帶出比另外打一次 RPC 便宜。
 public enum HealthResult: Equatable, Sendable {
-    case healthy    // getStatus 回覆且 booted
-    case timedOut   // 逾時未回覆
-    case failed     // 回覆錯誤或未 booted
+    case healthy(version: String)   // getStatus 回覆且 booted，帶版本字串
+    case timedOut                   // 逾時未回覆
+    case failed                     // 回覆錯誤或未 booted
 }
 
 /// 探測抽象：以 protocol 注入，單元測試用假探測，不碰網路。
@@ -40,7 +44,7 @@ public struct GrpcHealthProbe: HealthProbe {
             group.addTask {
                 do {
                     let status = try await client.getStatus(.init())
-                    return status.booted ? .healthy : .failed
+                    return status.booted ? .healthy(version: status.version) : .failed
                 } catch {
                     return .failed
                 }
