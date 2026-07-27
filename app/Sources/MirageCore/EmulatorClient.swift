@@ -220,6 +220,10 @@ public actor EmulatorClient {
 
     /// 依探測回報的 emulator 版本決定 display transport，並印一次性觀測訊息。
     ///
+    /// 「該選哪一種」交給 `DisplayTransportSelector.choose(...)`（純函式，逐行單元測試
+    /// 窮舉覆蓋，見 DisplayTransportSelectorTests）；這裡只剩下「選出來之後怎麼建構」，
+    /// 退化成一個純 switch，肉眼即可驗證，不需要再為了測選路而建真 channel。
+    ///
     /// MMAP 需要 ≥37（36.x 收到 MMAP 請求會 SIGSEGV 弄死使用者的 VM，見 MmapVersionGate）。
     /// 過關就用 FallbackTransport 包起來——MMAP 若實際不寫入（前 3 幀全零）會自動無縫
     /// 降級到 raw RGBA，使用者不會看到黑畫面。
@@ -231,11 +235,12 @@ public actor EmulatorClient {
     /// 若未來有呼叫端脫離這條 actor 序列，需要重新檢視那個檢查。
     private func makeDisplayTransport() {
         guard let boxCh = channelBox else { return }
-        if MmapVersionGate.allows(versionString: emulatorVersion) {
+        switch DisplayTransportSelector.choose(emulatorVersion: emulatorVersion) {
+        case .mmapWithRawFallback:
             transport = FallbackTransport(primary: makeMmapTransport(boxCh),
                                           secondary: makeTransport(boxCh))
             print("[transport] mmap enabled (emulator \(emulatorVersion))")
-        } else {
+        case .rawOnly:
             transport = makeTransport(boxCh)
             let v = emulatorVersion.isEmpty ? "unknown" : emulatorVersion
             print("[transport] raw rgba (emulator \(v) < 37)")

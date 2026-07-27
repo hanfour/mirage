@@ -178,50 +178,14 @@ actor SleepRecorder {
     }
 }
 
-// MARK: - makeDisplayTransport() 版本選路（Task 6 審查 Important 1）
-//
-// makeDisplayTransport() 依 emulatorVersion 決定要建哪種 display transport：
-// >=37 用 FallbackTransport(makeMmapTransport, makeTransport) 包起來；<37 直接用
-// makeTransport。這裡用兩個不同的 MockTransport 實例（mmap 版／raw 版）分別注入
-// makeMmapTransport／makeTransport，靠各自的 subscribeCount 驗證「究竟哪一個被
-// 訂閱」——完全不碰真 channel（這正是新增 makeMmapTransport 注入點的意義）。
-@Suite struct EmulatorClientDisplayTransportSelectionTests {
-    @Test func versionAtOrAbove37SubscribesMmapTransportOnly() async throws {
-        let mmapMock = MockTransport([.yieldThenHang(37)])
-        let rawMock = MockTransport([.yieldThenHang(0)])
-        let client = EmulatorClient(
-            makeTransport: { _ in rawMock },
-            makeHealthProbe: { _ in ScriptedProbe([.healthy(version: "37.2.1.0")]) },
-            makeMmapTransport: { _ in mmapMock },
-            sleeper: { _ in },
-            randomSource: { 0.5 }
-        )
-        let box = LatestFrameBox()
-        await client.start(box: box, width: 540, height: 1200)
-        #expect(await waitUntil { mmapMock.subscribeCount == 1 })
-        #expect(box.takeLatest()?.rgba.first == 37)   // 幀確實來自 mmap 假件
-        #expect(rawMock.subscribeCount == 0)           // primary 健康、從未降級到 secondary
-        await client.stop()
-    }
-
-    @Test func versionBelow37SubscribesRawTransportOnly() async throws {
-        let mmapMock = MockTransport([.yieldThenHang(37)])
-        let rawMock = MockTransport([.yieldThenHang(0)])
-        let client = EmulatorClient(
-            makeTransport: { _ in rawMock },
-            makeHealthProbe: { _ in ScriptedProbe([.healthy(version: "36.6.11.0")]) },
-            makeMmapTransport: { _ in mmapMock },
-            sleeper: { _ in },
-            randomSource: { 0.5 }
-        )
-        let box = LatestFrameBox()
-        await client.start(box: box, width: 540, height: 1200)
-        #expect(await waitUntil { rawMock.subscribeCount == 1 })
-        #expect(box.takeLatest()?.rgba.first == 0)     // 幀確實來自 raw 假件
-        #expect(mmapMock.subscribeCount == 0)          // <37：makeMmapTransport 從未被呼叫
-        await client.stop()
-    }
-}
+// 「makeDisplayTransport() 該選哪一種」的窮舉測試已搬到
+// DisplayTransportSelectorTests.swift（純函式 DisplayTransportSelector.choose，
+// 不碰 channel）。這裡曾經有兩個用真 GrpcChannelBox + 假 transport 驗證選路的
+// 測試（Task 6 審查 Important 1 的第一版修法），但把「選哪一種」跟「真 channel
+// 的建構」綁在一起測，讓完整套件並行執行時把既有 NIO teardown 競態的命中率從
+// 0% 推到約 75%（4 次跑 3 次卡死，實測數據見 task-6-report.md）。移除後，
+// 「選哪一種」由純函式測試窮舉覆蓋，「選出來後怎麼建構」在 makeDisplayTransport()
+// 裡退化成一個四行 switch，肉眼可驗證；端到端「真的走 MMAP」由 Task 8 活體驗證負責。
 
 @Suite struct LiveSmokeTests {
     @Test func liveStreamDeliversFrames() async throws {

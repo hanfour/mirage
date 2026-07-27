@@ -89,3 +89,21 @@ public enum MmapVersionGate {
         return n >= 37
     }
 }
+
+/// `EmulatorClient.makeDisplayTransport()` 該建哪種 display transport 的**決策結果**。
+public enum DisplayTransportChoice: Equatable, Sendable {
+    case mmapWithRawFallback     // >=37：MMAP 為主、raw RGBA 為降級後備
+    case rawOnly                 // <37 或版本未知：只用 raw RGBA（36.x 收 MMAP 會 SIGSEGV）
+}
+
+/// 依 emulator 版本決定 display transport 的種類。純決策，不建構任何東西、不碰 gRPC，
+/// 故可完整單元測試——選路邏輯不該為了被測而去建真 channel（Task 6 審查 Important 1
+/// 教訓：先前把選路跟真 `MmapStreamTransport`/`GrpcChannelBox` 的建構綁在一起測，逼得
+/// 單元測試建立真實 channel，在完整套件並行執行時把既有 NIO teardown 競態的命中率從
+/// 0% 推到約 75%）。`EmulatorClient.makeDisplayTransport()` 呼叫本函式取得結果後，
+/// 建構部分退化成一個純 switch。
+public enum DisplayTransportSelector {
+    public static func choose(emulatorVersion: String) -> DisplayTransportChoice {
+        MmapVersionGate.allows(versionString: emulatorVersion) ? .mmapWithRawFallback : .rawOnly
+    }
+}
