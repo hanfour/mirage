@@ -57,7 +57,7 @@ final class AudioPlayer {
         engine.mainMixerNode.outputVolume = muted ? 0 : 1
     }
 
-    /// 終審 Minor 5：接上真實呼叫端（見 MirageApp.swift 的 AppDelegate.applicationWillTerminate），
+    /// 終審 Minor 5：接上真實呼叫端（見 AppDelegate.swift 的 AppDelegate.applicationWillTerminate），
     /// 不再是死碼。停止 engine 並 detach node——對稱 start() 失敗路徑的 detach，避免任何
     /// 「engine 記得一個已 attach 但邏輯上已停用的 node」的半掛載狀態。
     func stop() {

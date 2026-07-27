@@ -15,8 +15,8 @@ import AppKit
 //
 // Fix: on quit, explicitly `await client.stop()` then sleep ~200ms (empirically
 // generous headroom for gRPC/NIO to finish unwinding the cancelled stream)
-// before allowing the process to actually exit. `AppModel.shutdown()` above
-// does exactly that.
+// before allowing the process to actually exit. `AppModel.shutdown()`
+// (Sources/MirageShell/AppModel.swift) does exactly that.
 //
 // Wiring: NSApplicationDelegateAdaptor + `applicationWillTerminate` +
 // a semaphore, not WindowGroup's `.onDisappear`. `.onDisappear` only fires
@@ -34,7 +34,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationWillTerminate(_ notification: Notification) {
         guard let model else { return }
         // 終審 Minor 5（AudioPlayer.stop() 死碼）：呼叫點刻意放在這裡、同步呼叫，
-        // 不是塞進下面 `model.shutdown()`（`nonisolated`，刻意設計成能在 MainActor 之外
+        // 不是塞進 `AppModel.swift` 的 `model.shutdown()`（`nonisolated`，刻意設計成能在 MainActor 之外
         // 的執行緒跑到完，因為呼叫端要在被 semaphore 卡住的主執行緒上等它，見該方法註解）。
         // 若改成在 shutdown() 裡 `await MainActor.run { audioPlayer?.stop() }`，這一跳需要
         // 排進 MainActor 的序列 executor——也就是主執行緒的 run loop；但主執行緒這時已經

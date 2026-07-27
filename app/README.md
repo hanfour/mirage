@@ -180,7 +180,8 @@ import，只能靠讀碼＋型別系統＋活體間接佐證」結案。現在�
 ```
 MirageCore   純邏輯 library。禁止 import AppKit／SwiftUI／Metal／AVFoundation，逐行單元測試。
     ↑
-MirageShell  App 層 library（新）。原本住在 MirageApp 的 21 檔原封搬入，可被 @testable import。
+MirageShell  App 層 library（新）。24 檔 = 20 檔原封搬入 + MirageApp.swift 拆出的 3 檔
+             （MirageScene／AppModel／AppDelegate）+ 新增的 MirageEntry.swift；可被 @testable import。
     ↑
 MirageApp    executable。只剩一個檔案：一個轉呼叫的 @main 空殼。
 ```
@@ -237,14 +238,18 @@ extension）、`AppDelegate`、`KeymapController`、`AdbClient`、`GameDetector`
 
 - **段 1（`MirageCore`）：判定依據。** 目前基準 87.80%（含 `MmapStreamTransport.swift` opt-in
   路徑 0% 的已知扣分，見 `RESULTS-mmap.md`）。要求是「不因改動而下降」，不是某個絕對數字。
-- **段 2（`MirageShell`）：進度指標，不是門檻。** 目前只有 2.62%——這 1668 行 App 層程式碼的
+- **段 2（`MirageShell`）：進度指標，不是門檻。** 目前只有 2.62%——這批 App 層程式碼的
   覆蓋率一直是 0，只是重構前它住在 `executableTarget` 裡，結構上被排除在覆蓋率報告之外
   （`RESULTS-p1e.md` 已明載）。**段 2 很低不代表退步，代表這筆債終於看得見了。** 本階段（見
   `RESULTS-shell-target.md`）刻意只開路、不鋪路——只加了 3 個 smoke test 證明
   `@testable import` 真的能觸及 internal 宣告（`MirrorContainerView` letterbox 佈局、
   `AudioPlayer.setMuted`、`InstallState`），實際把 21 個仍是 0% 的檔案補上測試是**另一輪**的
-  事。`MouseCapture` 被刻意排除在這一輪之外——它的 `capture()` 有全域游標副作用
-  （`CGAssociateMouseAndMouseCursorPosition`／`NSCursor.hide()`），要測得先設計注入點。
+  事。**動手前務必先讀 `RESULTS-shell-target.md`「刻意排除在 smoke test 之外的全域副作用清單」
+  一節**——`MouseCapture`（游標鎖定）只是其中一項，`AppModel`／`MenuBarController`／
+  `ClipboardWatcher` 建構或呼叫起來也會動到開發機的真實剪貼簿、選單列、keymap profile 檔案。
+  另外，`KeymapController`／`AppModel` 的**輸出**（實際送出什麼觸點）仍驗不到——那條路徑
+  最終要建真 `EmulatorClient` NIO channel，屬既有 NIO teardown 架構債，不在本階段範圍，
+  詳見該文件 pending-human 清單。
 
 若合併後的單一 TOTAL 數字被拿來當證據，本次已重新驗證：那是 **43.59%**，比原設計文件估計的
 50–60% 還低——但合併 TOTAL 從來不是判定依據，段 1／段 2 分開看才是，細節見

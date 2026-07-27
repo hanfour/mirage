@@ -9,7 +9,7 @@ import SwiftUI
 /// 測試用 `@testable import MirageShell` 即可觸及。
 struct MirageScene: App {
     @State private var model = AppModel()
-    // AUTHORIZED ADDITION（Task 4 review: NIO teardown race）— see AppDelegate below.
+    // AUTHORIZED ADDITION（Task 4 review: NIO teardown race）— see AppDelegate.swift.
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
 
     // AUTHORIZED ADDITION (phase0 lesson — see phase0/swift-poc task-8-report.md's

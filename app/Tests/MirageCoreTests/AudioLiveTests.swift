@@ -3,7 +3,7 @@ import Testing
 @testable import MirageCore
 
 /// 以 48kHz/stereo 的真實節奏排空環形緩衝——複製 `AudioPlayer` 的 `AVAudioSourceNode`
-/// render callback 行為（見 `Sources/MirageApp/Audio/AudioPlayer.swift`），只是這裡用
+/// render callback 行為（見 `Sources/MirageShell/Audio/AudioPlayer.swift`），只是這裡用
 /// `Task.sleep` 節流取代即時執行緒回呼。960 samples／10ms = 96,000 samples/秒，精確
 /// 對齊 `AudioStreamFormat.standard` 的 48kHz × 2ch。
 ///

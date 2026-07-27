@@ -112,7 +112,7 @@ final class AppModel {
     ///     Important 已修正：`applyActivation()` 現在會把 `keymap?.reload(p)` 套用的
     ///     結果同步寫回 `profile`，見該函式），要正確算 look-only gating 仍得幫
     ///     KeymapController/KeymapEngine 新增「目前 engine 是否有 look binding」的
-    ///     查詢，但本任務檔案範圍明確只列 MouseCapture.swift/MirageApp.swift；比照
+    ///     查詢，但本任務檔案範圍明確只列 MouseCapture.swift/AppModel.swift；比照
     ///     brief 明文允許的簡化版本，退回「有 profile 且非編輯且為 key window」，
     ///     不含 look 檢查（pending-human 記錄）。
     ///
@@ -247,8 +247,8 @@ final class AppModel {
         }
     }
 
-    // AUTHORIZED ADDITION（Task 4 review: NIO teardown race）— see AppDelegate
-    // below for the full rationale. `nonisolated` on purpose: it only touches
+    // AUTHORIZED ADDITION（Task 4 review: NIO teardown race）— see AppDelegate.swift
+    // for the full rationale. `nonisolated` on purpose: it only touches
     // `client`, a `let`-bound Sendable actor reference, so it can run to
     // completion off the main thread/MainActor executor — required because
     // the caller (AppDelegate.applicationWillTerminate) blocks the main

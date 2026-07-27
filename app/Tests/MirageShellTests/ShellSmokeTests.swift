@@ -21,7 +21,7 @@ import Testing
         #expect(Int(container.mirror.frame.height) == expected.height)
         #expect(Int(container.mirror.frame.origin.x) == expected.x)
         #expect(Int(container.mirror.frame.origin.y) == expected.y)
-        #expect(expected.height < 1000)               // 確實有黑邊，不是退化成滿版
+        #expect(container.mirror.frame.height < container.bounds.height)   // 確實有黑邊
     }
 
     /// 證明碰 AVFoundation 的型別也在可測範圍內（不啟動 engine，只驗狀態切換）。

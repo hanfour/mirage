@@ -72,13 +72,27 @@ xcrun llvm-profdata merge -sparse "$RUN1_PROFDATA" "$RUN2_PROFDATA" -o "$MERGED_
 echo ""
 echo "=== 覆蓋率（分兩段報告）==="
 echo ""
+# 終審 Minor 3：改用 include 式的位置參數（直接點名 Sources/MirageCore 或
+# Sources/MirageShell）決定「這段算哪個 target」，取代原本純靠 -ignore-filename-regex
+# 排除對方 target 名稱的寫法。純排除法會靜默吸收未來新增的 target——哪天多一個 MirageFoo
+# target，它同時滿足兩段各自的排除規則（因為兩段都沒點名它），會兩段都算進去而沒有任何提醒。
+# include 式沒有這個問題：新 target 預設不出現在任何一段，除非有人明確把它加進某一段的位置
+# 參數。若路徑打錯，llvm-cov 會直接報錯（非 0 exit）而非印出一張空表，比純排除法的失敗模式
+# 更安全。
+#
+# 仍保留 `Generated|Tests|\.build` 這三個詞的排除：它們與「這段算哪個 target」是正交的兩件
+# 事——這三個詞排除的是「不算數的程式碼」（自動產生的 protobuf 樁碼、測試自己的程式碼、
+# build 產物），不是「另一個 target」。實測驗證過：若只留位置參數、拿掉這三個詞，
+# Sources/MirageCore/Generated/*.pb.swift 這些手寫覆蓋率原本就很低的產生檔會被算進 TOTAL，
+# 把段 1 從 87.80% 拉低到 20.80%——這不是本次修法要改變的行為，純粹是遺漏了這三個詞的副作用，
+# 因此保留。
 echo "--- 段 1：MirageCore（判定用這一段）---"
 xcrun llvm-cov report "$TEST_BIN" -instr-profile "$MERGED_PROFDATA" \
-  -ignore-filename-regex 'Generated|Tests|\.build|MirageShell'
+  -ignore-filename-regex 'Generated|Tests|\.build' Sources/MirageCore
 echo ""
 echo "--- 段 2：MirageShell（App 層，進度指標不是門檻）---"
 xcrun llvm-cov report "$TEST_BIN" -instr-profile "$MERGED_PROFDATA" \
-  -ignore-filename-regex 'Generated|Tests|\.build|MirageCore'
+  -ignore-filename-regex 'Generated|Tests|\.build' Sources/MirageShell
 
 echo ""
 echo "=== 判讀 ==="
@@ -90,8 +104,11 @@ echo "  本腳本不設 MIRAGE_TRANSPORT=mmap，故一行都不會執行到）�
 echo "  見 app/RESULTS-mmap.md 驗收線 4，不是回歸。"
 echo ""
 echo "段 2（MirageShell）：App 層，從接近 0 起算，是**進度指標不是門檻**。"
-echo "  這 1668 行的覆蓋率一直是 0，只是在抽成 library target 之前結構上被排除在報告外。"
+echo "  這批 App 層程式碼的覆蓋率一直是 0，只是在抽成 library target 之前結構上被排除在報告外。"
 echo "  看到它很低不代表退步——代表這筆債現在終於**看得見**了。"
+echo "  唯一的棘輪：段 2 的 TOTAL line 不得低於上次記錄值（目前是 2.62%）——這不是門檻，"
+echo "  只是最低限度的『不能悄悄變更差』。低於上次記錄值時，代表新增了 App 層程式碼卻沒有"
+echo "  補對應測試，值得在 PR 說明。"
 echo ""
 echo "若段 1 明顯低於基準，先確認上面兩次 swift test 是否皆全綠、以及 Run 2 前的"
 echo "發聲觸發是否成功（Run 2 的 [audio-live] writes 應 >= 75）——單獨漏跑 Run 2"
