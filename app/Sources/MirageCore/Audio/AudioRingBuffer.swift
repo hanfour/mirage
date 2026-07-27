@@ -45,8 +45,13 @@ public final class AudioRingBuffer: @unchecked Sendable {
     deinit { storage.deallocate() }
 
     public var stats: AudioStats {
-        let w = writeIndex.load(ordering: .acquiring)
+        // 讀取順序是刻意的：**先 read 後 write**。兩個索引都單調遞增，且不變式 w >= r
+        // 在任何瞬間都成立（write 只在有空間時前進、read 取 min(count, w - r)）。先取
+        // r(t1) 再取 w(t2)（t2 > t1）時 w(t2) >= w(t1) >= r(t1)，故 depthSamples 永不為負。
+        // 反過來（先 w 後 r）則會在兩次 load 之間發生消費時算出負值——P1-e 曾以此形式
+        // 讓 MIRAGE_AUDIO_LOG 印出負的 depth。用順序消除特殊情況，不加 max(0,) 分支。
         let r = readIndex.load(ordering: .acquiring)
+        let w = writeIndex.load(ordering: .acquiring)
         return AudioStats(underruns: underrunCount.load(ordering: .relaxed),
                           overruns: overrunCount.load(ordering: .relaxed),
                           depthSamples: w - r,

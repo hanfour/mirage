@@ -85,9 +85,9 @@ P1-e 新增檔案的個別數字（合併後的完整量測）：
 - **驗收線 6/7 需 GUI，本次已如實列 pending-human**（見上）。
 - **overruns/underruns 的歸因是合理推論、非已證明（本次校正：先前版本的彙總範圍有事實錯誤，已修正）**：先前版本宣稱「overruns 落在 83–86、underruns 落在 3–6、underruns 從未量到 0」——這條彙總被一筆同批工作產出的真實資料反駁：`task-9-report.md`「審查回應」記錄的一次獨立執行量到 `writes=450 depth=68 under=426 over=0`，`over=0` 確實被量到過，`under=426` 遠在「3–6」之外。逐筆核對兩份報告的全部 7 次獨立執行（清單見「Task 9 Step 1 的發聲手段結論」）後，正確範圍是 `underruns` **3–426**、`overruns` **0–87**。**這筆資料點不是要被藏起來的例外，反而是支持「harness 排空節奏不穩」假說最直接的證據**：同一份測試程式碼、同一套 `drainRingAtRealTimeRate` 背景排空器，在 6 次執行中呈現「buffer 常態逼近容量、overruns 主導（83–87）、underruns 個位數（3–5）」的體制，卻在這一次執行中呈現完全相反的體制——「buffer 幾乎全空（depth=68／容量 0.35%）、underruns 高達 426、overruns 掉到 0」。同一段程式碼在不同排程條件下量到光譜兩端，正說明 `Task.sleep` 驅動的排空器與 gRPC 送達之間的相對時序（哪一方先跑、跑得多穩）才是決定 under/over 落在哪一端的關鍵變因，而非任何產品邏輯缺陷；真正的 `AVAudioSourceNode` render callback 由 CoreAudio 硬體時脈驅動，不會有這種跨越整個光譜的擺盪。**這個推論仍有機制支撐但非已證明**——沒有人實際量測排空迴圈的 wall-clock 漂移來精確解釋為何某次執行會落在光譜的哪一端；維護者不應把「harness 侷限」這個歸因當作已證實的結論，但這筆極端資料點是目前為止最有力的間接佐證。
 - **緩衝深度並非「常態逼近容量上限」，而是兩極分佈（本次校正：先前版本的彙總範圍有事實錯誤，已修正）**：先前版本宣稱「深度常態逼近容量上限」並列出 4 筆全部落在 89.5–99.7% 區間的數字——這條彙總同樣被上述 `depth=68`（容量的 0.35%，幾乎全空）反駁。7 次獨立執行的完整 `depth` 分佈是：6 次落在 **89.50%–99.74%**（逼近容量上限），1 次落在 **0.35%**（幾乎全空）。正確的描述是「多數執行中緩衝逼近容量上限（消費端跟不上、由 `overruns` 顯現），但至少 1 次執行呈現相反的近乎全空狀態（消費端跑贏、由 `underruns` 顯現）」——兩極分佈本身就是 harness 排空節奏不穩定的又一佐證（見上一條）。未來任何人只看 `writes=344` 這類 headline 數字、或只看多數執行的「逼近容量」印象，會漏掉這個兩極分佈，故在此明確記錄兩端數字，不只記錄多數情況。
-- **`AudioStats.depthSamples` 可能為負**：由 `writeIndex`/`readIndex` 兩次獨立 atomic load 相減得出，兩次讀取之間可能被寫入，瞬時可能為負。`MIRAGE_AUDIO_LOG=1` 印出的 `depth=Nms`（`AppModel+Audio.swift` 的 `depthMs = s.depthSamples * 1000 / (48_000 * 2)`）偶爾會因此出現負值，屬觀測用途下可接受的既有設計，非本次改動引入。
-- **`AudioPlayer.start()` 的 catch 分支未 `engine.detach(node)`**：`engine.start()` 失敗時只把 `self.node = nil`，先前 `attach(node)` 未撤銷。目前這個分支不可達（`engine.start()` 在正常開發機上不會失敗），但若未來重試 `start()` 邏輯會留下半掛載的 node。
-- **`AudioRingBufferTests.concurrentProducerConsumerKeepsDataIntact` 的提早結束路徑無下限斷言**：`overruns > 0 → break` 提早結束時對 `collected.count` 沒有下限要求，理論上可以在幾乎沒驗到任何資料時仍然綠燈（連跑 15+ 次未觀察到此現象，屬理論風險而非已重現的問題）。
+- ~~**`AudioStats.depthSamples` 可能為負**~~ → **已修（fast-follow）**，見文末「P1-e fast-follow」。
+- ~~**`AudioPlayer.start()` 的 catch 分支未 `engine.detach(node)`**~~ → **已於 P1-e 終審修正**（commit `da9a6aa`）：失敗路徑與 `stop()` 皆會 `engine.detach(node)`。本條為文件過期，已校正。
+- ~~**`concurrentProducerConsumerKeepsDataIntact` 的提早結束路徑無下限斷言**~~ → **已修（fast-follow）**，見文末。
 - **App 層架構債（既有，非本階段引入，但本階段持續往裡面加程式碼）**：`MirageApp` 是 `executableTarget`，唯一測試 target 只依賴 `MirageCore`，**無法 import `MirageApp`**。故 `AudioPlayer`、`MirrorContainerView`、`AppModel+FullScreen`、`AppModel+Audio`、`MenuBarController` 全螢幕/靜音項目——本階段新增的 App 層程式碼——皆無單元測試覆蓋，正確性靠讀碼＋型別系統＋活體佐證，與 P1-c/P1-d 交接時記載的 `KeymapController`/`AdbClient` 同一類缺口。若要讓這些程式碼可測，需把它們抽成可 import 的 library target（後續選項，本階段未做）。
 - **完整 live 測試套件中 `AudioLiveTests` 的觸發時序不穩定——已修正**：本任務原本回報 `MIRAGE_LIVE=1 MIRAGE_LIVE_MMAP=1 swift test`（全套，非 `--filter`）跑法下，`AudioLiveTests` 的 `writes` 斷言可能因為與其他活體測試併發、鈴聲已播畢而不穩定（曾量到 41、0）。使用者已裁決修法並完成（commit `8a1b694`）：新增 `MIRAGE_LIVE_AUDIO` 閘門（比照既有 `MIRAGE_LIVE_MMAP` 慣例），只有 `verify_audio.sh` 會設定它；`AudioLiveTests` 在通用 `MIRAGE_LIVE` 套件呼叫下改為 early return，不再參與斷言。本任務重新驗證：`MIRAGE_LIVE=1 MIRAGE_LIVE_MMAP=1 swift test`（含／不含 `--enable-code-coverage`）皆穩定 **127/127 全綠**。**正確的音訊活體執行方式是跑 `./scripts/verify_audio.sh`**（會設定 `MIRAGE_LIVE_AUDIO=1` 並先觸發發聲），不是 `MIRAGE_LIVE=1 swift test --filter AudioLiveTests`（後者現在會因缺 `MIRAGE_LIVE_AUDIO=1` 而 early return，得到看似通過但實際什麼都沒驗的 `Test run with 1 test passed`）。
 - **修法的副作用——本次新發現，非阻塞但需誠實記錄**：這道閘門解決了紅燈問題，但代價是「一般 live 套件」與「音訊活體」變成兩個必須分別觸發的入口。單獨執行文件既有的覆蓋率量測指令（`MIRAGE_LIVE=1 MIRAGE_LIVE_MMAP=1 swift test --enable-code-coverage`）**不再涵蓋 `GrpcAudioTransport`**（該檔 line coverage 從約 94.81–98.70% 掉到 **11.69%**），把 MirageCore TOTAL line coverage 拉到 **89.25%**——**低於 ~94% 基準**。若要拿到符合基準的完整數字（**95.92% line**），現在需要額外執行 `MIRAGE_LIVE=1 MIRAGE_LIVE_AUDIO=1 swift test --filter AudioLiveTests --enable-code-coverage`（觸發發聲後），並用 `xcrun llvm-profdata merge -sparse` 把兩次的 `.profraw` 合併，再對合併後的 `.profdata` 跑 `llvm-cov report`。**這是本階段量測方法論的一項新增步驟，未來任何人只跑單一指令量覆蓋率，會得到一個看起來低於基準、但其實只是漏了音訊活體貢獻的數字**——值得在此明確記錄，避免未來被誤判為真的覆蓋率回歸。
@@ -99,3 +99,84 @@ P1-e 新增檔案的個別數字（合併後的完整量測）：
 - **spec §9 五項 pending-human** 全數列出，皆需真 GUI session。
 - **overruns/underruns 歸因與緩衝深度兩極分佈**（含本次校正後的完整範圍與反例資料點）已在「已知限制」明確記錄為 caveat，未包裝成已證實的結論。
 - **App 層測試覆蓋缺口**（既有架構債）、**計畫原始活體測試碼缺消費者排空的發現**（本次補齊收錄）、**`AudioLiveTests` 併發時序問題已修正**（commit `8a1b694`）、以及**修法引入的覆蓋率量測新步驟（需合併兩條指令的 `.profraw`）**皆已記錄，供 Phase-1 後續 fast-follow 或架構調整參考。
+
+---
+
+# P1-e fast-follow（2026-07-27）
+
+P1-e 合併後把終審 parked 的殘留項與已知限制逐條收掉，並跑一次完整 e2e。
+
+## 修了什麼
+
+| 項目 | 修法 | 回歸守門 |
+|---|---|---|
+| `AudioStats.depthSamples` 瞬時可為負 | `stats` 改**先讀 `readIndex` 再讀 `writeIndex`**。兩索引皆單調遞增且 `w >= r` 恆成立，故 `w(t2) - r(t1)` 永不為負——用順序消除特殊情況，**不加** `max(0,)` 分支 | `depthNeverGoesNegativeUnderThreadedContention`（真實 OS 執行緒）。**偵測率實測**：把順序改回錯的寫法 5 次中 4 次紅；修正版連跑 8 次全綠。**cooperative `Task` 版本 0/5 抓不到**——排程粒度遠大於兩個相鄰 atomic load 之間的窗口，那種寫法是什麼都沒驗到的假測試 |
+| 視窗焦點恢復時不重新捕捉游標 | 新增 `AppModel+Focus.swift`：`didBecomeKeyNotification` → `mouseCapture.updateCapture(shouldCapture:)`。`MouseCapture` 自 P1-c 就有 `didResignKey → release`，一直缺對稱的另一半，失焦後捕捉掉了不會自動恢復（體感是「look 突然不動了」）。終審點名此缺口在進出全螢幕時更易被踩到 | 無自動測試（App 層不可 import，見既有架構債）。列入 pending-human |
+| 串流尺寸上限只限寬 | 加**總像素預算** `maxPixels = 1.8 MP`。原本 9:20 直向在 `maxWidth = 1080` 下算到 1080×2400 ≈ **2.6 MP**，比 spec §4.3 論證所用的 880×1960（≈1.7 MP）多 50%。現在直向全螢幕為 **900×2000 = 1.80 MP**；橫向仍由寬度上限主導（1080×486）；小視窗完全不受影響 | `StreamSizeTests` 7 項（上下限、偶數對齊、退化 aspect、任意長寬比的像素預算不變式） |
+| 「未連線就先 suspend」零測試覆蓋 | 補 `suspendBeforeFirstConnectStaysSilentUntilWake` | **決定性**守門：把終審拿掉的 `channelBox != nil` 半條 guard 加回去，測試立刻紅（power 未進 `.suspended` 且 `subscribeCount == 1`——視窗隱藏卻訂閱了音訊） |
+| `ViewportFit` 極端比例截斷為 0 無測項 | 補 `extremeRatioTruncatingToZeroStaysInBounds` | 釘住「函式在此輸入下仍不為負、不超界」，避免日後有人在函式內加特例（呼叫端 `MirrorContainerView.layout()` 已有 guard） |
+| 併發測試可能偽陽性綠燈 | 加 `collected.count >= 64` 下限斷言 | — |
+
+**順帶**：`StreamSize` 的算術從 `MirrorView.Coordinator`（困在不可測的 executable target）抽到 `MirageCore/Viewport/StreamSize.swift`，讓它真的能被單元測試——App 層架構債往回收了一小塊。
+
+## e2e 實測（2026-07-27，全部親跑，非引用先前數字）
+
+| 項目 | 結果 |
+|---|---|
+| `swift test`（預設） | **137/137 綠** |
+| `MIRAGE_LIVE=1 MIRAGE_LIVE_MMAP=1 swift test` | **137/137 綠** |
+| `swift build -c release` | **0 警告**（含 deprecation） |
+| `./scripts/coverage.sh`（合併兩次執行） | 量了兩次：**95.72%** 與（全部修正後複驗）**95.62%** line。`StreamSize` 100%、`ViewportFit` 100%、`AudioRingBuffer` 100%（line）、`GrpcAudioTransport` 98.70% |
+| `./scripts/verify_audio.sh` | 三次：`writes=454 depth=0 under=391 over=0`、`writes=451 depth=0 under=395 over=0`、`writes=339 depth=18806 under=6 over=86` → 68–91 pkt/s，皆遠超 30 門檻 |
+| 完整 live 套件的穩定性 | 模擬器穩定時 **10/10** 通過；**剛重開後曾 3 次死鎖 2 次**——已定位並修正，見下節 |
+| `./scripts/verify_keymap_inject.sh` | PASS（引擎→多指注入活體） |
+| `./scripts/verify_apk_install.sh` | PASS（dumpsys 前景解析未回歸；`adb install -r` → `Success`） |
+| `./scripts/verify_snapshot.sh` + `SnapshotRoundTripLiveTests` | PASS |
+| `./scripts/verify_reconnect.sh`（殺掉並重開模擬器） | **PASS**——`BOOTED (attempt 1, 4s)`，開機完成後 **1 秒**恢復出幀（門檻 10 秒） |
+
+**覆蓋率數字會浮動**（比照 commit `7956c7c` 為同類問題加過的註記）：本次兩量得 95.72% 與 95.62%、P1-e 當時 95.92%、終審 fix wave 後 95.55%——四者皆 ≥ ~94% 基準。**判定看的是有沒有跌破基準，不是有沒有對上某個特定小數**。浮動來源包括活體測試每次實際走到的分支不同、以及新增/移除敘述行。
+
+## 音訊 harness 兩極分佈：再添一筆極端資料點
+
+本次 `verify_audio.sh` 量到 `writes=454 depth=0 under=391 over=0`——**第二次**落在「消費端跑贏、緩衝近乎全空」那一端（第一次是 P1-e 期間的 `writes=450 depth=68 under=426 over=0`）。加上先前 6 次落在「逼近容量、overruns 主導」那一端，累計 **9 次獨立執行**的範圍是：`writes` **341–454**、`depth` **0%–99.74%**（占容量）、`underruns` **3–426**、`overruns` **0–87**。
+
+這進一步支持既有結論：決定 under/over 落在光譜哪一端的是 `Task.sleep` 驅動的**測試排空器**與 gRPC 送達之間的相對時序，不是任何產品邏輯缺陷。**仍未經計時佐證**（沒有人量排空迴圈的 wall-clock 漂移），這個歸因依舊是有機制支撐的推論而非證明。
+
+## 本次 e2e 撞出的新發現：NIO teardown 架構債有了可重現的觸發條件
+
+跑 `verify_reconnect.sh`（殺掉並重開模擬器）之後**立刻**跑完整 live 套件，測試行程**整個死鎖**——0% CPU、`sample` 顯示 stack 停在 `EmulatorClient.dropChannel` → `GrpcChannelBox`（deinit）→ `semaphore_wait_trap`，也就是阻塞的 `group.syncShutdownGracefully()`。
+
+**Bisect 結果（實測，非推論）**：
+
+| 情境 | 結果 |
+|---|---|
+| 模擬器穩定 + 帶新測試 | **10/10 通過**（5–8 秒） |
+| 模擬器剛重開 + 帶新測試 | **3 次 2 次死鎖**（>100 秒無回應） |
+| 模擬器剛重開 + 用 `BISECT_SKIP` 停掉新測試 | **3/3 通過** |
+| 模擬器剛重開 + 新測試改用慢探測後 | **4/4 通過** |
+
+**歸因**：新增的 `suspendBeforeFirstConnectStaysSilentUntilWake` 原本用 `ScriptedProbe([.failed])` 造出「尚未連上」的窗口——但探測失敗會走 `dropChannel()`，摧毀一條**真實的** `GrpcChannelBox` 並在 deinit 觸發阻塞式關閉。這條路徑本身是 P1-a/P1-b 的既有程式碼，也是既有已知的 [NIO teardown / 可注入 channel 架構債]；剛重開的模擬器讓它從「偶爾印一行 ERROR」升級成**硬死鎖**。
+
+**修法**（commit `a5e5ebf`）：測試改用 `SlowFirstProbe`（第一次探測延遲 250ms 後回 `.healthy`），取得同樣的窗口而**完全不涉及 channel 拆除**。回歸守門能力不變——把 `channelBox != nil` 半條 guard 加回去仍決定性地紅。
+
+**留給架構債的意義**：這是這筆債第一次有**可重現的觸發條件與硬性症狀**（先前只記錄為「重連時的 race，今非致命」）。抽可注入 channel 之後，應把「模擬器剛重開 + 強制 dropChannel」這個組合納入硬化驗證。
+
+## GUI pending-human：診斷已收斂到「螢幕鎖定」
+
+先前記載為「headless 不驅動 SwiftUI `.task`」，本次取得更精確的證據：
+
+1. 直接從 shell 跑 `./.build/release/MirageApp` → 行程存活但 **0 行輸出**
+2. `launchctl asuser 501` → 同樣 **0 行輸出**
+3. 包成 `.app` bundle 用 `open` 走 LaunchServices → **成功 check-in**（`lsappinfo` 顯示 `type="Foreground"`、`launch to checkin time: 2.41s`），但仍 **0 行輸出**
+4. `ioreg -n Root -d1 -a` → **`CGSSessionScreenIsLocked = true`**
+
+即：`.app` bundle 這條路**確實**能讓 App 進入使用者的 Aqua session（前兩種方式連 check-in 都做不到），真正的阻礙是**螢幕鎖定時 WindowServer 不合成畫面**，`WindowGroup` 的 `.task` 因此不觸發。
+
+**所以先前 7 項 pending-human 全數維持 pending-human，但阻礙是可解的**：螢幕解鎖後，用同樣的 `.app` bundle 手法即可一次驗完。新增第 8 項：進出全螢幕時游標捕捉的恢復行為（本次新修的 `didBecomeKey` 路徑）。
+
+驗收線 7（fps ≥55）仍無數字，因此 **`StreamSize.maxPixels = 1.8 MP` 這個值尚未經 fps 校準**——它是照 spec 自己的論證基礎取的保守值，拿到真實 fps 後應回頭調整。
+
+## 未做，與理由
+
+- **`AppModel` 的通知 observer token 未保存/未 `removeObserver`**：`AppModel` 與行程同生命週期、且閉包皆為 `[weak self]`，沒有洩漏或懸掛後果。要補得在類別本體加 `nonisolated(unsafe)` 儲存屬性（extension 不能有儲存屬性）——**為了一個不存在的問題引入 unsafe 標註是負收益**，故維持現狀。
+- **抽 App 層 library target**：這是跨 P1-c/P1-d/P1-e 三個階段反覆出現的同一筆架構債，也是 `AudioPlayer`／`MirrorContainerView`／`AppModel` 全部 extension 無單元測試的根因。但它是**架構重構**而非缺陷修正，會動到十餘個檔案的可見度與 target 邊界，應有自己的設計與審查循環，不適合夾帶在 fast-follow 裡。本次僅把 `StreamSize` 這段純算術先撈出來，作為方向示範。

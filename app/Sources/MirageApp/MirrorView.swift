@@ -134,9 +134,8 @@ struct MirrorView: NSViewRepresentable {
         }
         private var resizeTask: Task<Void, Never>?
         private static let defaultGuestSize = (w: 540, h: 1200)
-        /// 全螢幕會把內容矩形放大到螢幕高度，4K 螢幕上直向遊戲可算出 ~880×1960；
-        /// 再往上會有掉 fps 風險（spec R4）。上限值可調，調整依據是 MIRAGE_FPS_LOG 實測。
-        private static let maxStreamWidth = 1080
+        /// 目前請求中的串流尺寸（供 sendMouse 在還沒有解碼幀時換算座標用）。
+        /// 上限規則本身在 `MirageCore.StreamSize`。
         private var guestSize = Coordinator.defaultGuestSize
 
         init(client: EmulatorClient) { self.client = client }
@@ -158,9 +157,9 @@ struct MirrorView: NSViewRepresentable {
                 guard !Task.isCancelled else { return }
                 // P1-e：長寬比改用實際解碼幀（原本硬編碼 h = w * 20 / 9，遊戲轉橫向就錯）。
                 let aspect = renderer?.lastFrameSize ?? Self.defaultGuestSize
-                let clamped = min(max(Int(pixelSize.width), 270), Self.maxStreamWidth)
-                let w = clamped & ~1                                   // 偶數對齊
-                let h = max(aspect.h * w / aspect.w, 2) & ~1
+                // 上限與偶數對齊的算術在 MirageCore.StreamSize（純函式、有單元測試）。
+                let w = StreamSize.width(forContentWidth: Int(pixelSize.width), aspect: aspect)
+                let h = StreamSize.height(forWidth: w, aspect: aspect)
                 guestSize = (w, h)
                 await client.setStreamSize(width: w, height: h)
                 controller?.setGuestSize((w, h))   // 引擎觸控座標跟著新串流尺寸換算
