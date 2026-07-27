@@ -32,6 +32,51 @@ public enum MmapSupport {
     }
 }
 
+/// MMAP 探測狀態機：前 `frameBudget` 幀若皆全零則判定不可用。純邏輯、不碰 gRPC，故可完整
+/// 單元測試（`MmapStreamTransport` 沒有單元測試網——正是這個狀態機被抽出來的理由）。
+///
+/// 涵蓋兩個事件：
+/// - `observe(isBlank:)`：探測期間逐幀呼叫。
+/// - `endedWithoutContent()`：底層串流**自然結束**時呼叫一次。
+///
+/// 第二個事件補的是一個真實漏洞：若 RPC 在探測窗口跑完之前就自然結束（伺服器只送了
+/// 少於 `frameBudget` 個全零通知就收攤），單靠 `observe` 永遠不會走到「已看滿 frameBudget
+/// 幀」那個判定分支，呼叫端會誤以為這是乾淨結束。而 `FallbackTransport` 把乾淨結束視為
+/// 「primary 正常，不降級」——兩者疊加，一條真的壞掉的 MMAP 路徑只要提早收攤 RPC，就會
+/// 落得「無畫面、無降級、無恢復路徑」，比設計刻意偏向的「寧可誤降級」更糟。
+public struct MmapBlankProbe {
+    public enum Decision: Equatable {
+        case stillProbing   // 探測中且本幀全零——不得 yield（避免黑畫面閃爍）
+        case deliver        // 送出這一幀
+        case unusable       // 判定不可用——呼叫端應丟 .mmapUnusable
+    }
+
+    private let frameBudget: Int
+    private var seen = 0
+    private var sawContent = false
+
+    public init(frameBudget: Int = 3) {
+        self.frameBudget = frameBudget
+    }
+
+    /// 每收到一幀呼叫一次。判定完成（`sawContent`）後不再檢查——穩態零開銷。
+    public mutating func observe(isBlank: Bool) -> Decision {
+        if sawContent { return .deliver }
+        guard isBlank else {
+            sawContent = true
+            return .deliver
+        }
+        seen += 1
+        return seen >= frameBudget ? .unusable : .stillProbing
+    }
+
+    /// 底層串流自然結束時呼叫一次。`true` 代表探測完成前從未看到內容——呼叫端應把這視同
+    /// `.unusable`（丟 `.mmapUnusable`），不能放行成乾淨結束。
+    public func endedWithoutContent() -> Bool {
+        !sawContent
+    }
+}
+
 /// MMAP 版本安全閘：穩定版 emulator（36.x）收到 MMAP 請求會 SIGSEGV
 /// （phase0/RESULTS-0b.md，2/2 確定性重現），主版號 ≥37 才允許。解析失敗一律拒絕。
 ///
