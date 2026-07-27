@@ -25,8 +25,11 @@ sleep 4
 
 echo ""
 echo "=== 量測：MmapStreamTransport 活體 ==="
+echo "注意：MMAP 現在預設關閉（見 DisplayTransportSelector 裁決），本測試需 MIRAGE_TRANSPORT=mmap"
+echo "才會實際執行；在 emulator 37.2.1.0 上已知會失敗（凍結，上游 b/537802959 尚未有可用修正版），"
+echo "這是預期中的已知缺陷，等含修正的 emulator 發布後才應該轉綠。"
 cd "$(dirname "$0")/.." || exit 1
-MIRAGE_LIVE=1 MIRAGE_LIVE_MMAP=1 swift test --filter MmapStreamLiveTests 2>&1 \
+MIRAGE_TRANSPORT=mmap MIRAGE_LIVE=1 MIRAGE_LIVE_MMAP=1 swift test --filter MmapStreamLiveTests 2>&1 \
   | grep -E "\[mmap-live\]|Test run with|✘"
 
 echo ""

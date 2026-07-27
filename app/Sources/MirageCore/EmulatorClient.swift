@@ -218,15 +218,19 @@ public actor EmulatorClient {
         return probe != nil
     }
 
-    /// 依探測回報的 emulator 版本決定 display transport，並印一次性觀測訊息。
+    /// 依探測回報的 emulator 版本與 `MIRAGE_TRANSPORT` 環境變數決定 display transport，
+    /// 並印一次性觀測訊息。
     ///
     /// 「該選哪一種」交給 `DisplayTransportSelector.choose(...)`（純函式，逐行單元測試
-    /// 窮舉覆蓋，見 DisplayTransportSelectorTests）；這裡只剩下「選出來之後怎麼建構」，
-    /// 退化成一個純 switch，肉眼即可驗證，不需要再為了測選路而建真 channel。
+    /// 窮舉覆蓋，見 DisplayTransportSelectorTests）；這裡只剩下「讀環境變數 + 選出來之後
+    /// 怎麼建構」，退化成一個純 switch，肉眼即可驗證，不需要再為了測選路而建真 channel。
+    /// 環境變數在此讀取（而非傳給選擇器內部讀取）是刻意的：讓 `choose` 保持純函式、
+    /// 可窮舉測試，副作用留在呼叫端。
     ///
-    /// MMAP 需要 ≥37（36.x 收到 MMAP 請求會 SIGSEGV 弄死使用者的 VM，見 MmapVersionGate）。
-    /// 過關就用 FallbackTransport 包起來——MMAP 若實際不寫入（前 3 幀全零）會自動無縫
-    /// 降級到 raw RGBA，使用者不會看到黑畫面。
+    /// MMAP 預設關閉，需同時滿足兩個條件（見 DisplayTransportSelector 上的裁決說明）：
+    /// `MIRAGE_TRANSPORT=mmap`（使用者主動選擇加入）**且**版本 ≥37（36.x 收到 MMAP 請求
+    /// 會 SIGSEGV 弄死使用者的 VM，見 MmapVersionGate）。過關就用 FallbackTransport
+    /// 包起來——MMAP 若實際不寫入（前 3 幀全零）會自動無縫降級到 raw RGBA。
     ///
     /// **執行緒安全前提**：`EmulatorClient` 是 actor，本方法與 `attachStream()`（唯一讀取
     /// `transport` 並呼叫 `frames()` 的地方）皆在 actor 隔離下序列執行——`transport` 不會
@@ -235,15 +239,20 @@ public actor EmulatorClient {
     /// 若未來有呼叫端脫離這條 actor 序列，需要重新檢視那個檢查。
     private func makeDisplayTransport() {
         guard let boxCh = channelBox else { return }
-        switch DisplayTransportSelector.choose(emulatorVersion: emulatorVersion) {
+        let mmapOptIn = ProcessInfo.processInfo.environment["MIRAGE_TRANSPORT"] == "mmap"
+        switch DisplayTransportSelector.choose(emulatorVersion: emulatorVersion, mmapOptIn: mmapOptIn) {
         case .mmapWithRawFallback:
             transport = FallbackTransport(primary: makeMmapTransport(boxCh),
                                           secondary: makeTransport(boxCh))
-            print("[transport] mmap enabled (emulator \(emulatorVersion))")
+            print("[transport] mmap enabled (experimental, emulator \(emulatorVersion))")
         case .rawOnly:
             transport = makeTransport(boxCh)
-            let v = emulatorVersion.isEmpty ? "unknown" : emulatorVersion
-            print("[transport] raw rgba (emulator \(v) < 37)")
+            if mmapOptIn {
+                let v = emulatorVersion.isEmpty ? "unknown" : emulatorVersion
+                print("[transport] raw rgba (emulator \(v) < 37, mmap unavailable)")
+            } else {
+                print("[transport] raw rgba (default; set MIRAGE_TRANSPORT=mmap to try mmap)")
+            }
         }
     }
 

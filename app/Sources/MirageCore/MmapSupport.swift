@@ -96,14 +96,39 @@ public enum DisplayTransportChoice: Equatable, Sendable {
     case rawOnly                 // <37 或版本未知：只用 raw RGBA（36.x 收 MMAP 會 SIGSEGV）
 }
 
-/// 依 emulator 版本決定 display transport 的種類。純決策，不建構任何東西、不碰 gRPC，
-/// 故可完整單元測試——選路邏輯不該為了被測而去建真 channel（Task 6 審查 Important 1
-/// 教訓：先前把選路跟真 `MmapStreamTransport`/`GrpcChannelBox` 的建構綁在一起測，逼得
-/// 單元測試建立真實 channel，在完整套件並行執行時把既有 NIO teardown 競態的命中率從
+/// 依 emulator 版本與使用者是否選擇加入決定 display transport 的種類。純決策，不建構任何
+/// 東西、不碰 gRPC，故可完整單元測試——選路邏輯不該為了被測而去建真 channel（Task 6 審查
+/// Important 1 教訓：先前把選路跟真 `MmapStreamTransport`/`GrpcChannelBox` 的建構綁在一起測，
+/// 逼得單元測試建立真實 channel，在完整套件並行執行時把既有 NIO teardown 競態的命中率從
 /// 0% 推到約 75%）。`EmulatorClient.makeDisplayTransport()` 呼叫本函式取得結果後，
 /// 建構部分退化成一個純 switch。
+///
+/// **預設為 raw RGBA、MMAP 需顯式選擇加入（2026-07-27 裁決）**：
+///
+/// 活體驗證發現 MMAP 在 emulator 37.2.1.0 上會凍結——Swift client 只收到映射區的**一次**
+/// 寫入，之後畫面不再更新；而同一時刻、同尺寸的 Python client 完全正常（連續 5 幀相異、
+/// 相隔約 15ms）。三輪排查推翻了 8 個以上假設（protobuf 編碼、暖機、執行緒數、檔案建立
+/// 語意、gRPC API 選擇、讀取端快取、畫面尺寸、guest 動畫是否在跑），根因尚未鎖定。
+///
+/// 更關鍵的是，現有降級機制**攔不住**這個失敗模式：`MmapBlankProbe`／`FallbackTransport`
+/// 的判定依據是「前幾幀全零」，但凍結畫面通常不是全零（例如黑色像素的 RGBA 是
+/// `00 00 00 FF`，非全零），會直接通過探測。使用者看到的是一張永遠凍結、卻沒有任何降級
+/// 或錯誤訊號的畫面——比乾脆不支援 MMAP 更糟。
+///
+/// 上游 b/537802959 已於 2026-07-25 標記 fixed，但**含修正的 emulator build 尚未發布**
+/// （aarch64 可取得的最新版仍是我們驗證時用的 37.2.1.0）。修正版存在與否目前無法驗證，
+/// 所以先把預設收回 raw、MMAP 留著但要靠環境變數 `MIRAGE_TRANSPORT=mmap` 主動選擇加入
+/// 才會啟用——啟用仍需**兩個條件同時成立**：`mmapOptIn == true` **且**版本 ≥37
+/// （版本閘是獨立的安全互鎖，36.x 收到 MMAP 請求會 SIGSEGV，見 MmapVersionGate，
+/// 與「MMAP 在 37.x 上是否真的可用」無關，故不可移除）。
+///
+/// **未來若要把預設改回 MMAP**：必須先在含上游修正的 emulator 版本上重新做一次活體驗證，
+/// 確認凍結問題確實消失，不能只憑上游 issue 狀態變成 fixed 就恢復預設。
 public enum DisplayTransportSelector {
-    public static func choose(emulatorVersion: String) -> DisplayTransportChoice {
-        MmapVersionGate.allows(versionString: emulatorVersion) ? .mmapWithRawFallback : .rawOnly
+    public static func choose(emulatorVersion: String, mmapOptIn: Bool) -> DisplayTransportChoice {
+        guard mmapOptIn, MmapVersionGate.allows(versionString: emulatorVersion) else {
+            return .rawOnly
+        }
+        return .mmapWithRawFallback
     }
 }
