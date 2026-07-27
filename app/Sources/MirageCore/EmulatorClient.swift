@@ -9,13 +9,19 @@ public actor EmulatorClient {
     private let makeTransport: @Sendable (GrpcChannelBox) -> DisplayTransport
     private let makeHealthProbe: @Sendable (GrpcChannelBox) -> HealthProbe
     private let makeAudioTransport: @Sendable (GrpcChannelBox) -> AudioTransport
+    /// MMAP primary transport 的工廠——與 makeTransport（raw RGBA）對稱的注入點，讓
+    /// makeDisplayTransport() 的版本選路可以在單元測試中被驗證，不必碰真 channel。
+    private let makeMmapTransport: @Sendable (GrpcChannelBox) -> DisplayTransport
     private let backoff: BackoffPolicy
     private let sleeper: @Sendable (Duration) async throws -> Void
     private let randomSource: @Sendable () -> Double
     private let probeTimeout: Duration
 
     private var state: ConnState = .disconnected
-    private var channelBox: GrpcChannelBox?
+    // 非 private：EmulatorClient+Input.swift（同模組不同檔）的 sendTouches/sendKey 需要讀取
+    // channelBox?.client。Swift 的 `private` 是檔案級（含同檔 extension 特例），跨檔 extension
+    // 存取需要至少 internal（仍非 public，模組外不可見）。
+    var channelBox: GrpcChannelBox?
     private var transport: DisplayTransport?
     private var probe: HealthProbe?
     /// 最近一次健康探測回報的 emulator 版本字串；決定要建哪種 display transport。
@@ -52,6 +58,8 @@ public actor EmulatorClient {
                     = { GrpcHealthProbe(channel: $0) },
                 makeAudioTransport: @escaping @Sendable (GrpcChannelBox) -> AudioTransport
                     = { GrpcAudioTransport(channel: $0) },
+                makeMmapTransport: @escaping @Sendable (GrpcChannelBox) -> DisplayTransport
+                    = { MmapStreamTransport(channel: $0) },
                 backoff: BackoffPolicy = .init(),
                 sleeper: @escaping @Sendable (Duration) async throws -> Void
                     = { try await Task.sleep(for: $0) },
@@ -63,6 +71,7 @@ public actor EmulatorClient {
         self.makeTransport = makeTransport
         self.makeHealthProbe = makeHealthProbe
         self.makeAudioTransport = makeAudioTransport
+        self.makeMmapTransport = makeMmapTransport
         self.backoff = backoff
         self.sleeper = sleeper
         self.randomSource = randomSource
@@ -223,7 +232,7 @@ public actor EmulatorClient {
     private func makeDisplayTransport() {
         guard let boxCh = channelBox else { return }
         if MmapVersionGate.allows(versionString: emulatorVersion) {
-            transport = FallbackTransport(primary: MmapStreamTransport(channel: boxCh),
+            transport = FallbackTransport(primary: makeMmapTransport(boxCh),
                                           secondary: makeTransport(boxCh))
             print("[transport] mmap enabled (emulator \(emulatorVersion))")
         } else {
@@ -374,46 +383,5 @@ public actor EmulatorClient {
         transport = nil
         probe = nil
         channelBox = nil            // deinit → group.syncShutdownGracefully()
-    }
-}
-
-// MARK: - 多指觸控 / 鍵盤注入（Task 6：消費 Task 4 TouchSpec、Task 1 KeyCode）
-
-extension EmulatorClient {
-    /// 純建構——供單元測試，不需 channel。
-    static func buildTouchEvent(_ touches: [TouchSpec], width: Int, height: Int)
-        -> Android_Emulation_Control_TouchEvent
-    {
-        var event = Android_Emulation_Control_TouchEvent()
-        event.touches = touches.map { spec in
-            let (gx, gy) = spec.point.guestPixel(width: width, height: height)
-            var t = Android_Emulation_Control_Touch()
-            t.x = Int32(gx); t.y = Int32(gy)
-            t.identifier = Int32(spec.identifier)
-            t.pressure = spec.down ? 1024 : 0
-            return t
-        }
-        return event
-    }
-
-    /// 純建構——`.mouse` 無對應 KeyboardEvent，回 nil（呼叫端忽略）。
-    static func buildKeyEvent(_ code: KeyCode, down: Bool)
-        -> Android_Emulation_Control_KeyboardEvent?
-    {
-        guard case .key(let w3c) = code else { return nil }
-        var ev = Android_Emulation_Control_KeyboardEvent()
-        ev.eventType = down ? .keydown : .keyup
-        ev.key = w3c
-        return ev
-    }
-
-    public func sendTouches(_ touches: [TouchSpec], width: Int, height: Int) async {
-        guard let client = channelBox?.client else { return }
-        _ = try? await client.sendTouch(Self.buildTouchEvent(touches, width: width, height: height))
-    }
-
-    public func sendKey(_ code: KeyCode, down: Bool) async {
-        guard let client = channelBox?.client, let ev = Self.buildKeyEvent(code, down: down) else { return }
-        _ = try? await client.sendKey(ev)
     }
 }

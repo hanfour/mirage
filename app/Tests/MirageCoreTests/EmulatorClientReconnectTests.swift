@@ -178,6 +178,51 @@ actor SleepRecorder {
     }
 }
 
+// MARK: - makeDisplayTransport() 版本選路（Task 6 審查 Important 1）
+//
+// makeDisplayTransport() 依 emulatorVersion 決定要建哪種 display transport：
+// >=37 用 FallbackTransport(makeMmapTransport, makeTransport) 包起來；<37 直接用
+// makeTransport。這裡用兩個不同的 MockTransport 實例（mmap 版／raw 版）分別注入
+// makeMmapTransport／makeTransport，靠各自的 subscribeCount 驗證「究竟哪一個被
+// 訂閱」——完全不碰真 channel（這正是新增 makeMmapTransport 注入點的意義）。
+@Suite struct EmulatorClientDisplayTransportSelectionTests {
+    @Test func versionAtOrAbove37SubscribesMmapTransportOnly() async throws {
+        let mmapMock = MockTransport([.yieldThenHang(37)])
+        let rawMock = MockTransport([.yieldThenHang(0)])
+        let client = EmulatorClient(
+            makeTransport: { _ in rawMock },
+            makeHealthProbe: { _ in ScriptedProbe([.healthy(version: "37.2.1.0")]) },
+            makeMmapTransport: { _ in mmapMock },
+            sleeper: { _ in },
+            randomSource: { 0.5 }
+        )
+        let box = LatestFrameBox()
+        await client.start(box: box, width: 540, height: 1200)
+        #expect(await waitUntil { mmapMock.subscribeCount == 1 })
+        #expect(box.takeLatest()?.rgba.first == 37)   // 幀確實來自 mmap 假件
+        #expect(rawMock.subscribeCount == 0)           // primary 健康、從未降級到 secondary
+        await client.stop()
+    }
+
+    @Test func versionBelow37SubscribesRawTransportOnly() async throws {
+        let mmapMock = MockTransport([.yieldThenHang(37)])
+        let rawMock = MockTransport([.yieldThenHang(0)])
+        let client = EmulatorClient(
+            makeTransport: { _ in rawMock },
+            makeHealthProbe: { _ in ScriptedProbe([.healthy(version: "36.6.11.0")]) },
+            makeMmapTransport: { _ in mmapMock },
+            sleeper: { _ in },
+            randomSource: { 0.5 }
+        )
+        let box = LatestFrameBox()
+        await client.start(box: box, width: 540, height: 1200)
+        #expect(await waitUntil { rawMock.subscribeCount == 1 })
+        #expect(box.takeLatest()?.rgba.first == 0)     // 幀確實來自 raw 假件
+        #expect(mmapMock.subscribeCount == 0)          // <37：makeMmapTransport 從未被呼叫
+        await client.stop()
+    }
+}
+
 @Suite struct LiveSmokeTests {
     @Test func liveStreamDeliversFrames() async throws {
         // 修正案 A 對應：XCTSkipUnless → guard 提前 return（需要活模擬器）。
