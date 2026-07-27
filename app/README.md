@@ -101,3 +101,69 @@ App 合成層 fps（`MIRAGE_FPS_LOG=1`）、渲染中 CPU 佔用、App 層 `send
 - **覆蓋率量測**：跑 `scripts/coverage.sh`（兩次 `swift test` + `llvm-profdata merge`）。**不要**只跑 `MIRAGE_LIVE=1 MIRAGE_LIVE_MMAP=1 swift test --enable-code-coverage`——那條指令因 `MIRAGE_LIVE_AUDIO` 閘門不會涵蓋 `GrpcAudioTransport`，只得 ~89%，會被誤判成覆蓋率回歸。實測值會逐次浮動（95.55%／95.72%／95.92% 皆量過），判定看的是有沒有跌破 ~94% 基準，不是有沒有對上某個特定小數。
 - **GUI 驗證的實際障礙是「螢幕鎖定」，不是 headless**：`.app` bundle + `open` 能讓 App 進入使用者的 Aqua session（`lsappinfo` 可見 `type="Foreground"` check-in），但 `CGSSessionScreenIsLocked = true` 時 WindowServer 不合成畫面，`WindowGroup` 的 `.task` 不觸發，`MIRAGE_FPS_LOG`／`MIRAGE_AUDIO_LOG` 皆 0 行輸出。**螢幕解鎖後**用同樣手法即可一次驗完所有 pending-human 項目。
 - 驗收：`RESULTS-p1e.md`；架構詳見 `../docs/specs/2026-07-26-p1e-fullscreen-audio-design.md`。
+
+# Display Transport：raw RGBA（預設）／MMAP（環境變數 opt-in）
+
+畫面串流走哪條 transport，由連線建立時 `getStatus` 回報的 emulator 版本，加上
+`MIRAGE_TRANSPORT` 環境變數共同決定：
+
+- **預設（不設 `MIRAGE_TRANSPORT`）**：一律走 `GrpcStreamTransport`（raw RGBA，protobuf
+  payload），不論 emulator 版本為何。
+- **`MIRAGE_TRANSPORT=mmap`（opt-in，實驗性）**：需**同時**滿足兩個條件才會啟用
+  `FallbackTransport(primary: MmapStreamTransport, secondary: GrpcStreamTransport)`——
+  (a) 這個環境變數本身，(b) emulator 版本 ≥37。任一條件不滿足，仍然走 raw RGBA。
+
+## 為什麼預設不是 MMAP
+
+活體驗證發現 `MmapStreamTransport` 在 emulator canary 37.2.1.0 上會**凍結**：Swift client
+只收到映射區的一次真實寫入，之後畫面不再更新，而現有降級機制（只認「前 3 幀全零」）攔不住
+這個「凍結但非全零」的失敗模式——使用者會看到一張永遠凍結的畫面，且沒有任何降級或錯誤訊號。
+三輪排查未能鎖定根因，上游 bug（b/537802959）雖已標記 fixed，但含修正的 emulator build
+尚未發布，無法驗證是否已解決。完整細節見 `RESULTS-mmap.md`。**因此預設收回 raw RGBA，MMAP
+需主動選擇加入才會啟用**，供未來在含修正的 emulator 上重新驗證用。
+
+## 版本閘為何不放寬
+
+`MmapVersionGate.allows(...)`（≥37 才允許）是一道**獨立於凍結缺陷之外**的安全互鎖：
+穩定版 emulator（36.x）收到 MMAP 請求會直接 **SIGSEGV**，把使用者正在跑的整台 VM 弄死
+（2/2 確定性重現）。即使 `MIRAGE_TRANSPORT=mmap` 主動選擇加入，版本 <37 一律強制走
+raw RGBA——opt-in 不能繞過版本閘，兩者是正交的兩道判斷。
+
+## 三種一次性觀測訊息
+
+連線建立時各印一次（不做每幀日誌）：
+
+```
+[transport] mmap enabled (experimental, emulator 37.2.1.0 (37.2.1-15875889))
+[transport] mmap unusable, falling back to raw rgba
+[transport] raw rgba (default; set MIRAGE_TRANSPORT=mmap to try mmap)
+```
+
+第一種：opt-in 且版本 ≥37，選中 MMAP 為主、raw RGBA 為降級後備。第二種：`FallbackTransport`
+判定 MMAP 前 3 幀皆全零（或串流提早結束）而實際降級時印出，只印一次。第三種：**新預設**，
+未設 `MIRAGE_TRANSPORT` 時的行為（若 opt-in 但版本 <37，訊息改為
+`raw rgba (emulator <版本> < 37, mmap unavailable)`）。
+
+## 為什麼 `Frame` 是複製而非映射區的 view
+
+`MmapStreamTransport` 每收到一則通知就把映射區內容**複製**成 `Frame.rgba: Data`，而非直接
+用 `Data(bytesNoCopy:)` 指向映射區——emulator 會**原地覆寫**同一塊映射區來寫下一幀，而
+`LatestFrameBox` 持有最新幀、`Renderer` 在 vsync 才讀取它。若 `Frame` 直接指向映射區，
+渲染器有機會讀到正在被覆寫的記憶體，畫面撕裂。複製是把該幀從持續變動的緩衝區裡快照出來，
+成本經量測可忽略（`mmap-copy` 與 `mmap-touch` 只差 0.2 ms/幀），不是可優化掉的浪費。
+
+## 活體驗證：`./scripts/verify_mmap.sh`
+
+需要一個正在跑的 emulator 與動畫供應器（畫面需要在變動，`streamScreenshot` 是變化驅動，
+靜止畫面不出幀）。腳本本身已加上 `MIRAGE_TRANSPORT=mmap` 觸發 opt-in 路徑。
+
+**目前預期會紅**：在 emulator 37.2.1.0 上，`MmapStreamLiveTests` 會因凍結缺陷而失敗
+（收到的幀非零但互異數不足），這是已知產品缺陷，不是測試腳本或環境問題。等含上游修正的
+emulator build 發布並重新驗證確認凍結消失後，這條測試才應該轉綠。
+
+## 驗收與設計文件
+
+完整驗收線裁決、凍結缺陷排查歷程、覆蓋率變化說明見 `RESULTS-mmap.md`；架構設計見
+`../docs/specs/2026-07-27-mmap-stream-transport-design.md`（其 §1 的「實測確認現有 emulator
+版本即可繞過」一句已知只對 Python client 成立，對產品 Swift client 不成立，更正說明見
+`RESULTS-mmap.md`與`../docs/upstream/2026-07-22-emulator-mmap-macos.md`的「後續更正」小節）。
