@@ -1,15 +1,5 @@
 import Foundation
 
-/// MMAP 版本安全閘：穩定版 emulator（36.x）收到 MMAP 請求會 SIGSEGV
-/// （phase0/RESULTS-0b.md），主版號 ≥37 才允許。解析失敗一律拒絕。
-public enum MmapVersionGate {
-    public static func allows(versionString: String) -> Bool {
-        guard let major = versionString.split(separator: ".").first,
-              let n = Int(major) else { return false }
-        return n >= 37
-    }
-}
-
 /// 實驗性傳輸：輪詢 unary getScreenshot + MMAP 檔案（零拷貝資料面）。
 /// 僅 MIRAGE_TRANSPORT=unary-mmap 時由 App 層選用；預設不啟用。
 public struct UnaryMmapTransport: DisplayTransport {
