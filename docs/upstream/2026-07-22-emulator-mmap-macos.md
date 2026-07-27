@@ -36,9 +36,30 @@ Mirage 實際上不會送的請求形狀去探測，據此判定「MMAP 串流�
 **教訓**：探測外部 API 的可用性時，請求形狀必須與產品實際會送的形狀一致；否則結論只對
 探測腳本成立，不對產品成立。
 
+### 收益量化（2026-07-27，`phase0/harness/bench_mmap_vs_rgba.py`）
+
+在 Mirage 的實際操作點 **900×2000**（`StreamSize.maxPixels` 上限下的直向全螢幕尺寸）
+各跑 10 秒，連測三次：
+
+| 指標 | raw RGBA | MMAP | 變化 |
+|---|---|---|---|
+| 經 gRPC 的位元組 | 313–354 MiB/s | **0** | 完全消滅 |
+| client CPU（10 秒窗口） | 3.65–3.75 s | **0.19–0.22 s** | **−94～95%**（三次皆然） |
+| qemu CPU（10 秒窗口） | 20.65–20.74 s | 18.69–18.89 s | −約 9% |
+| fps | 45.6 / 48.9 / 51.5 | 46.6 / 55.9 / 55.9 | MMAP 三次皆 ≥ |
+
+**限制（誠實記錄）**：client CPU 以 **Python** client 量測，Swift／grpc-swift 的絕對值必然
+不同；但「消滅 313–354 MiB/s 的 protobuf payload」與「qemu 端 −9%」兩項與 client 語言無關。
+fps 的優勢真實但較小且有雜訊（第三次兩條路徑同時下降，研判為主機競用）。
+
+**與驗收線的關係**：母計畫驗收線 7 要求 App 合成層 fps ≥ 55。MMAP 在三次中有兩次量到
+55.9，raw RGBA 則從未達 55——這可能正好是那條線過與不過的差別（但該驗收線量的是 App
+合成層，本基準量的是傳輸層，兩者不可直接等同）。
+
 **後續**（尚未執行，需各自決策）：
-1. 量化收益——MMAP 串流 vs 現行 raw RGBA 的 CPU／吞吐差距（`phase0/harness/stream_bench.py` 可改）
-2. 若收益如預期，在 `MirageCore` 實作 streaming MMAP transport
+1. ~~量化收益~~ → 已完成，見上表
+2. 在 `MirageCore` 實作 streaming MMAP transport（`GrpcStreamTransport` 已帶明確尺寸，
+   只需加上 `ImageTransport{MMAP, handle}` 與 client 端的緩衝區生命週期管理）
 3. `UnaryMmapTransport`（108 行、版本閘、從未接上 App 執行期）屆時可正式退場——它同時是
    MirageCore 覆蓋率的長期拖累（見架構債記錄）
 
