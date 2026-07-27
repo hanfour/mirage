@@ -92,7 +92,7 @@ public enum MmapVersionGate {
 
 /// `EmulatorClient.makeDisplayTransport()` 該建哪種 display transport 的**決策結果**。
 public enum DisplayTransportChoice: Equatable, Sendable {
-    case mmapWithRawFallback     // >=37：MMAP 為主、raw RGBA 為降級後備
+    case mmapWithRawFallback     // >=37 且 MIRAGE_TRANSPORT=mmap opt-in：MMAP 為主、raw RGBA 為降級後備
     case rawOnly                 // <37 或版本未知：只用 raw RGBA（36.x 收 MMAP 會 SIGSEGV）
 }
 

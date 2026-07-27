@@ -5,6 +5,18 @@
 - **前置**：P1-a～P1-e 與 P1-e fast-follow 皆已合併（`main` @ `4e26902`）
 - **緣起**：上游 b/537802959 已修，且實測確認**現有 emulator 版本即可繞過**
 
+> **⚠️ 2026-07-27 後續更正**：活體驗證發現 `MmapStreamTransport` 在真模擬器（37.2.1.0）上
+> 會凍結——Swift client 只收到映射區的一次寫入，之後畫面不再更新（同一時刻的 Python client
+> 完全正常）。因此：
+> - 上方「緣起」與 §1 的「實測確認現有 emulator 版本即可繞過」**只對 Python（grpcio）
+>   client 成立，對產品實際使用的 Swift（grpc-swift）client 不成立**。
+> - §8 驗收線 5 尚未提到之後新增的 `MIRAGE_TRANSPORT=mmap` opt-in 閘門——**預設已改回
+>   raw RGBA**，MMAP 需顯式選擇加入才會啟用，兩者皆通過版本閘（≥37）才生效。
+> - §11 提到的 `UnaryMmapTransport` 行數為誤植，實際是 **56 行**（非 108 行）。
+>
+> 原文**保留不刪**（見下方相關段落），完整交叉驗證、根治排查與最終裁決見
+> `app/RESULTS-mmap.md`。
+
 ## 1. 目標
 
 讓 `streamScreenshot` 走共享記憶體（MMAP `ImageTransport`）取代目前的 raw RGBA protobuf
@@ -235,6 +247,7 @@ case mmapUnusable(String)   // MMAP 掛載成功但 host 寫入端無作用 → 
 - **`EmulatorClient`**：`HealthResult` 解構改動 + `ensureChannel()` 依版本選 transport。
 - **既有 `GrpcStreamTransport`**：零改動（成為 fallback 的 secondary）。
 - **`Frame`／`LatestFrameBox`／`Renderer`**：零改動。
-- **`UnaryMmapTransport`**：刪除（108 行低覆蓋死碼一併退場，順帶改善 MirageCore 覆蓋率分母）。
+- **`UnaryMmapTransport`**：刪除（56 行低覆蓋死碼一併退場，順帶改善 MirageCore 覆蓋率分母；
+  本行原誤植為 108 行，2026-07-27 更正，見檔頭 banner）。
 - **腳本**：`verify_*.sh` 不改；`coverage.sh` 不改。
 - **文件**：`app/README.md` 補 transport 選擇邏輯與觀測訊息說明。

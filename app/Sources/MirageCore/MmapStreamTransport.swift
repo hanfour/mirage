@@ -4,12 +4,21 @@ import GRPC
 
 /// `streamScreenshot` + MMAP 共享記憶體的 DisplayTransport。
 ///
+/// **實驗性、預設關閉**：需 `MIRAGE_TRANSPORT=mmap` 主動選擇加入（見
+/// `DisplayTransportSelector`）。**已知在 emulator 37.2.1.0 上會凍結**——Swift client 只收到
+/// 映射區的一次寫入，之後畫面不再更新（同一時刻的 Python client 完全正常，根因未鎖定）。
+/// 完整交叉驗證與裁決過程見 `app/RESULTS-mmap.md`。
+///
 /// 相對於 `GrpcStreamTransport`（raw RGBA payload 走 protobuf），本實作讓 emulator 直接把
-/// 像素寫進我們提供的映射區，通知訊息的 payload 為空。實測收益（900×2000，spec §1.1）：
-/// client 每幀 CPU 8.0 → 0.7 ms、經 gRPC 的位元組 272 → 0 MiB/s。
+/// 像素寫進我們提供的映射區，通知訊息的 payload 為空。**下面這組數字是 Python harness
+/// （grpcio 直連，不經過本型別）量到的主機能力上限，不是本型別的實測收益**——本型別的
+/// 活體驗證顯示它在真實環境下拿不到持續更新的畫面，見上段「已知凍結」：client 每幀
+/// CPU 8.0 → 0.7 ms、經 gRPC 的位元組 272 → 0 MiB/s（900×2000，spec §1.1）。
 public struct MmapStreamTransport: DisplayTransport {
     /// 前幾幀若映射區全零就判定 host 寫入端無作用 → 丟 .mmapUnusable 讓上層降級。
     /// 偏誤方向刻意：寧可誤降級（只是多花 CPU、畫面正確）也不要誤啟用（黑畫面）。
+    /// **已知的凍結失敗模式不會被這個探測攔下**——凍結的幀是重複寫入前的最後一次真實內容，
+    /// 不是全零（黑色像素的 RGBA 是 `00 00 00 FF`），會直接通過探測、判定為可用。
     /// 探測本體（含「串流提早結束」這條路徑）在 `MmapSupport.swift` 的 `MmapBlankProbe`，
     /// 拆成純狀態機是因為它可以完整單元測試，而本檔案（需要真 channel）不行。
     static let blankProbeFrames = 3

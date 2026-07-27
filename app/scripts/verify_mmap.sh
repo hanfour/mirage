@@ -9,7 +9,7 @@ echo "=== 前置：模擬器是否在跑 ==="
 nc -z localhost 8554 && echo "gRPC 8554 ALIVE" || { echo "模擬器未啟動"; exit 1; }
 
 echo ""
-echo "=== 前置：動畫供應器（streamScreenshot 是變化驅動，靜止畫面不出幀）==="
+echo "=== 前置：具備 grpc+protobuf 的 python ==="
 PY=""
 for cand in "$HARNESS/.venv/bin/python" "$(command -v python3)"; do
   [ -x "$cand" ] && "$cand" -c "import grpc, google.protobuf" 2>/dev/null && { PY="$cand"; break; }
@@ -20,6 +20,26 @@ if [ -z "$PY" ]; then
   echo "（系統 python 的 protobuf 版本過舊，會讓 animate.py 匯入失敗）"
   exit 1
 fi
+
+echo ""
+echo "=== 前置：偵測 emulator 版本（決定下方活體測試會不會被版本閘擋下）==="
+( cd "$HARNESS" && "$PY" - <<'PYEOF'
+import sys
+sys.path.insert(0, "gen")
+import grpc
+from google.protobuf import empty_pb2
+import emulator_controller_pb2_grpc as ecg
+try:
+    stub = ecg.EmulatorControllerStub(grpc.insecure_channel("localhost:8554"))
+    status = stub.getStatus(empty_pb2.Empty(), timeout=5)
+    print(f"偵測到 emulator 版本：{status.version}")
+except grpc.RpcError as err:
+    print(f"版本偵測失敗：{err.code().name}: {err.details()}")
+PYEOF
+) || echo "版本偵測失敗（不影響下方測試本身的版本閘，測試會自行再查一次）"
+
+echo ""
+echo "=== 前置：動畫供應器（streamScreenshot 是變化驅動，靜止畫面不出幀）==="
 ( cd "$HARNESS" && "$PY" animate.py --seconds 40 >/tmp/mirage_anim.log 2>&1 & )
 sleep 4
 
