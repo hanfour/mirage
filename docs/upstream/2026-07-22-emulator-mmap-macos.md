@@ -1,8 +1,48 @@
-# [SUBMITTED] Issue Tracker — Emulator MMAP ImageTransport broken on macOS
+# [FIXED UPSTREAM] Issue Tracker — Emulator MMAP ImageTransport broken on macOS
 
 **已提交（2026-07-23）**: https://issuetracker.google.com/issues/537802959
 **提交當日狀態**: Assigned（Google 工程師）、P3/S3、2 hotlists。實際提交於 component Android Studio（192708，Emulator 子元件不開放外部直接建立），內文含 triage 轉派註記。
-**追蹤**: 上游若要求 crashpad dumps / repro script，素材見 phase0/ 與 .superpowers 診斷紀錄。
+
+## 上游結案（2026-07-25 Marked as fixed）
+
+Google 工程師接受並定位根因，原文：
+
+> At the beginning of streamScreenshot, the server attempted to pre-borrow the shared
+> memory region using `request->width() * request->height()`, which can be **0 when
+> requesting the device width and height**, poisoning the cache.
+
+並補充：**qemu-next 不存在此問題**。
+
+### ⚠️ 對 Mirage 的關鍵發現：不需要等新版，我們也從來不該受影響
+
+本報告的 repro（下方 Steps to reproduce 第 3 點）建構的 `ImageFormat` **不帶 width/height**
+——即請求裝置原生尺寸，兩者為 0，正好踩中上述根因。
+
+**2026-07-27 對照實驗**（`phase0/harness/probe_mmap_explicit.py`，在**同一個 canary
+37.2.1.0**、即早於上游修正的 build 上執行）：
+
+| 請求形狀 | 幀數 | 相異雜湊 | 緩衝區內容 |
+|---|---|---|---|
+| 不帶 width/height（原 repro） | 5 | 1 | 全零 |
+| **明確帶 width/height** | 5 | **5** | **真實像素** |
+
+→ **明確帶尺寸即可繞過，現有 emulator 版本就能走 MMAP 串流。**
+
+而 **Mirage 的 `GrpcStreamTransport.frames(width:height:)` 一直都帶明確尺寸**
+（`format.width = UInt32(width)`，由 `setStreamSize` 驅動）。也就是說：Phase-0 用了一個
+Mirage 實際上不會送的請求形狀去探測，據此判定「MMAP 串流在 macOS 壞掉」，並為此建了
+`UnaryMmapTransport` workaround——**那個 workaround 是為一個我們不會踩到的 bug 而建的**。
+
+**教訓**：探測外部 API 的可用性時，請求形狀必須與產品實際會送的形狀一致；否則結論只對
+探測腳本成立，不對產品成立。
+
+**後續**（尚未執行，需各自決策）：
+1. 量化收益——MMAP 串流 vs 現行 raw RGBA 的 CPU／吞吐差距（`phase0/harness/stream_bench.py` 可改）
+2. 若收益如預期，在 `MirageCore` 實作 streaming MMAP transport
+3. `UnaryMmapTransport`（108 行、版本閘、從未接上 App 執行期）屆時可正式退場——它同時是
+   MirageCore 覆蓋率的長期拖累（見架構債記錄）
+
+---
 
 ---
 
