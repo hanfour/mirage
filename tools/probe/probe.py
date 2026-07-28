@@ -8,7 +8,7 @@ import sys
 
 import _bootstrap  # noqa: F401  設定 sys.path 讓 lib/ 與 gen/ 可 import
 
-from lib import adb, emulator, overlay_state, png
+from lib import adb, coords, emulator, overlay_state, png
 from lib.targets import TARGETS, resolve_target
 
 
@@ -75,6 +75,28 @@ def cmd_overlay(target, args) -> int:
     return 0
 
 
+def cmd_tap(target, args) -> int:
+    with emulator.connect(target.grpc_port) as emu:
+        w, h = emu.display_size()
+        x, y = coords.to_guest_pixel(args.nx, args.ny, w, h)
+        emu.send_touch(x, y, down=True)
+        emu.send_touch(x, y, down=False)
+    print(f"tap ({args.nx}, {args.ny}) → guest ({x}, {y})  [{w}x{h}]")
+    return 0
+
+
+def cmd_swipe(target, args) -> int:
+    with emulator.connect(target.grpc_port) as emu:
+        w, h = emu.display_size()
+        steps = max(2, args.ms // 20)
+        norm = coords.lerp_path((args.nx1, args.ny1), (args.nx2, args.ny2), steps)
+        path = [coords.to_guest_pixel(nx, ny, w, h) for nx, ny in norm]
+        emu.send_swipe(path, step_ms=args.ms // steps)
+    print(f"swipe ({args.nx1},{args.ny1}) → ({args.nx2},{args.ny2}) "
+          f"guest {path[0]} → {path[-1]}  {steps} 點 / {args.ms}ms")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="probe.py", description=__doc__)
     p.add_argument("--target", required=True, choices=sorted(TARGETS),
@@ -91,6 +113,15 @@ def build_parser() -> argparse.ArgumentParser:
 
     p_ovl = sub.add_parser("overlay", help="pointer_location 疊層")
     p_ovl.add_argument("action", choices=("on", "off", "restore"))
+
+    p_tap = sub.add_parser("tap", help="normalized 座標點擊")
+    p_tap.add_argument("nx", type=float)
+    p_tap.add_argument("ny", type=float)
+
+    p_swp = sub.add_parser("swipe", help="normalized 座標拖曳")
+    for name in ("nx1", "ny1", "nx2", "ny2"):
+        p_swp.add_argument(name, type=float)
+    p_swp.add_argument("ms", type=int, nargs="?", default=300)
     return p
 
 
@@ -98,7 +129,7 @@ def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     target = resolve_target(args.target)
     handlers = {"fg": cmd_fg, "shot": cmd_shot, "compare": cmd_compare,
-                "overlay": cmd_overlay}
+                "overlay": cmd_overlay, "tap": cmd_tap, "swipe": cmd_swipe}
     try:
         return handlers[args.command](target, args)
     except (adb.AdbError, emulator.EmulatorError, ValueError) as e:

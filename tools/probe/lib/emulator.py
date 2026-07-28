@@ -1,5 +1,6 @@
 """gRPC 操作。畫面與輸入都走這條——也就是 Mirage 產品走的同一條路徑。"""
 import contextlib
+import time
 
 import grpc
 
@@ -52,6 +53,17 @@ class Emulator:
             self._stub.sendTouch(pb.TouchEvent(touches=[touch]), timeout=10)
         except grpc.RpcError as e:
             raise EmulatorError(f"sendTouch 失敗：{e.code().name}") from None
+
+    def send_swipe(self, path: list[tuple[int, int]], step_ms: int) -> None:
+        """連續觸點構成的拖曳。頭尾分別是 down 與 up。"""
+        if len(path) < 2:
+            raise EmulatorError(f"swipe 至少需要 2 個點，實得 {len(path)}")
+        for i, (x, y) in enumerate(path):
+            self.send_touch(x, y, down=True)
+            if i < len(path) - 1:
+                time.sleep(step_ms / 1000.0)
+        last_x, last_y = path[-1]
+        self.send_touch(last_x, last_y, down=False)
 
 
 @contextlib.contextmanager
