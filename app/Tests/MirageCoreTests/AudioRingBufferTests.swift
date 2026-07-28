@@ -12,6 +12,19 @@ private func readSamples(_ ring: AudioRingBuffer, count: Int) -> (got: Int, valu
     return (got, out)
 }
 
+/// 同上，供 `readStereo` 用：一次配好兩個聲道緩衝。
+private func readStereoSamples(_ ring: AudioRingBuffer, frames: Int)
+    -> (got: Int, left: [Float], right: [Float]) {
+    var l = [Float](repeating: .nan, count: frames)
+    var r = [Float](repeating: .nan, count: frames)
+    let got = l.withUnsafeMutableBufferPointer { lb in
+        r.withUnsafeMutableBufferPointer { rb in
+            ring.readStereo(left: lb.baseAddress!, right: rb.baseAddress!, frames: frames)
+        }
+    }
+    return (got, l, r)
+}
+
 @Suite struct AudioRingBufferTests {
     @Test func writeThenReadRoundTripsValues() {
         let ring = AudioRingBuffer(capacitySamples: 16)
@@ -104,6 +117,65 @@ private func readSamples(_ ring: AudioRingBuffer, count: Int) -> (got: Int, valu
         // 讀到的值必須嚴格遞增——任何撕裂或索引錯亂都會破壞這個性質。
         #expect(collected == collected.sorted())
         #expect(Set(collected).count == collected.count)
+    }
+
+    // MARK: - readStereo（拆交錯）
+    //
+    // 為什麼需要它：`AVAudioEngine` 的節點連接**只接受 deinterleaved 格式**，用
+    // interleaved 呼叫 `connect(_:to:format:)` 會丟 NSException（見
+    // docs/specs/2026-07-28-mirror-never-rendered-investigation.md）。而環形緩衝存的是
+    // guest 送來的交錯樣本，拆交錯這一步無法避免；它必須發生在即時執行緒上，
+    // 所以放在這裡——零配置、零鎖，和既有的 `read` 同一套不變式。
+
+    @Test func readStereoSplitsInterleavedIntoChannels() {
+        let ring = AudioRingBuffer(capacitySamples: 16)
+        ring.write([1, -1, 2, -2, 3, -3])          // L,R,L,R,L,R
+        let (got, left, right) = readStereoSamples(ring, frames: 3)
+        #expect(got == 3)
+        #expect(Array(left.prefix(3)) == [1, 2, 3])
+        #expect(Array(right.prefix(3)) == [-1, -2, -3])
+    }
+
+    /// 消費快於生產：只回傳完整 frame 數，餘下由呼叫端補靜音（與 `read` 同語意）。
+    @Test func readStereoPartialReturnsWholeFramesAndCountsUnderrun() {
+        let ring = AudioRingBuffer(capacitySamples: 16)
+        ring.write([1, -1, 2, -2])
+        let (got, left, right) = readStereoSamples(ring, frames: 5)
+        #expect(got == 2)
+        #expect(Array(left.prefix(2)) == [1, 2])
+        #expect(Array(right.prefix(2)) == [-1, -2])
+        #expect(ring.stats.underruns == 1)
+    }
+
+    /// 半個 frame（樣本數為奇數）不得被當成完整 frame 讀出去——那會讓左右聲道錯位，
+    /// 之後每一個 frame 都反相。緩衝裡本來就該永遠是偶數個樣本，這條守的是防禦性下限。
+    @Test func readStereoLeavesDanglingHalfFrameInBuffer() {
+        let ring = AudioRingBuffer(capacitySamples: 16)
+        ring.write([1, -1, 2])                     // 一個完整 frame + 半個
+        let (got, left, right) = readStereoSamples(ring, frames: 2)
+        #expect(got == 1)
+        #expect(left[0] == 1)
+        #expect(right[0] == -1)
+        #expect(ring.stats.depthSamples == 1)      // 落單的那個仍留在緩衝裡
+    }
+
+    @Test func readStereoOnEmptyReturnsZeroAndCountsUnderrun() {
+        let ring = AudioRingBuffer(capacitySamples: 16)
+        let (got, _, _) = readStereoSamples(ring, frames: 4)
+        #expect(got == 0)
+        #expect(ring.stats.underruns == 1)
+    }
+
+    /// 環繞：讀寫位置跨越實體陣列尾端時，左右聲道仍須各自保持順序且不互相汙染。
+    @Test func readStereoWrapAroundPreservesChannelOrder() {
+        let ring = AudioRingBuffer(capacitySamples: 6)
+        ring.write([1, -1, 2, -2])
+        _ = readStereoSamples(ring, frames: 2)
+        ring.write([3, -3, 4, -4])                 // 寫入位置跨過陣列尾端
+        let (got, left, right) = readStereoSamples(ring, frames: 2)
+        #expect(got == 2)
+        #expect(Array(left.prefix(2)) == [3, 4])
+        #expect(Array(right.prefix(2)) == [-3, -4])
     }
 
     /// P1-e fast-follow：`stats` 先讀 readIndex 再讀 writeIndex，故 depthSamples 永不為負。

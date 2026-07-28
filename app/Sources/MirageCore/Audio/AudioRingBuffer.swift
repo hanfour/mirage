@@ -74,6 +74,41 @@ public final class AudioRingBuffer: @unchecked Sendable {
         writeCount.wrappingIncrement(ordering: .relaxed)
     }
 
+    /// 即時執行緒（`AVAudioSourceNode` render block）呼叫。從交錯緩衝讀出最多 `frames`
+    /// 個立體聲 frame，左右聲道**分別**寫入兩個連續 buffer；回傳實際寫入的 frame 數，
+    /// 不足時 underruns += 1、餘下由呼叫端補靜音（與 `read` 同語意）。
+    /// 不配置、不加鎖、不 log。
+    ///
+    /// **為什麼拆交錯這一步無法省略**：`AVAudioEngine.connect(_:to:format:)` 只接受
+    /// deinterleaved 格式，傳 interleaved 會讓它丟出 `kAudioUnitErr_FormatNotSupported`
+    /// (-10868) 的 **NSException**——Obj-C 例外，Swift 的 `do/catch` 攔不到。它曾在
+    /// `@MainActor` 上把 App 的啟動流程整個扯斷，使 Mirage 的畫面與連線狀態自 P1-a 起
+    /// 從未真正顯示過（見 `docs/specs/2026-07-28-mirror-never-rendered-investigation.md`）。
+    /// 而生產端存進來的是 guest 送來的交錯樣本（`AudioChunk` 的合約），轉換總得有人做；
+    /// 放在這裡是因為它必須發生在即時執行緒上，而這裡是唯一保證零配置零鎖的地方。
+    ///
+    /// **只讀完整 frame**：緩衝裡剩單數個樣本時把落單的那個留著不動。少讀半個 frame
+    /// 只是晚一個 render 週期補上，錯開一個樣本卻會讓其後每一個 frame 的左右聲道永久反相。
+    public func readStereo(left: UnsafeMutablePointer<Float>,
+                           right: UnsafeMutablePointer<Float>,
+                           frames: Int) -> Int {
+        guard frames > 0 else { return 0 }
+        let r = readIndex.load(ordering: .relaxed)
+        let w = writeIndex.load(ordering: .acquiring)
+        let n = min(frames, (w - r) / 2)
+        guard n > 0 else {
+            underrunCount.wrappingIncrement(ordering: .relaxed)
+            return 0
+        }
+        for i in 0..<n {
+            left[i] = storage[(r + i * 2) % capacity]
+            right[i] = storage[(r + i * 2 + 1) % capacity]
+        }
+        readIndex.store(r + n * 2, ordering: .releasing)
+        if n < frames { underrunCount.wrappingIncrement(ordering: .relaxed) }
+        return n
+    }
+
     /// 即時執行緒（AVAudioSourceNode render block）呼叫。
     /// 回傳實際寫入 `dst` 的樣本數；不足 `count` 時 underruns += 1，餘下由呼叫端補靜音。
     /// 不配置、不加鎖、不 log。

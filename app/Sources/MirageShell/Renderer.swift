@@ -39,6 +39,16 @@ final class Renderer: NSObject, MTKViewDelegate {
         view.framebufferOnly = false
         view.isPaused = false                  // 內建 display link 驅動
         view.enableSetNeedsDisplay = false     // 每 vsync 呼叫 draw（勿走 needsDisplay 路徑）
+        // **drawable 的尺寸權威是解碼幀，不是視窗**。預設的 `autoResizeDrawable = true`
+        // 會在每次 layout 把 drawableSize 拉回 `bounds × contentScale`，覆蓋掉 upload()
+        // 依幀尺寸設的值；而 draw() 的 blit 要求 texture 與 drawable 尺寸完全相等，
+        // 一不相等就整幀跳過——`fps=` 照樣有數字（upload 在 guard 之前），畫面卻全黑。
+        // 那等於把「畫面出不出得來」押在 resizeDebounced 請求的串流尺寸有沒有剛好等於
+        // 視窗 backing 尺寸上，而上限 clamp、偶數對齊、letterbox 捨入、debounce 期間
+        // 任一個都會讓它不等。關掉它，讓兩條尺寸路徑合而為一：drawable 永遠等於幀。
+        // 顯示端的縮放由 CAMetalLayer 免費完成（長寬比已由 MirrorContainerView 的
+        // letterbox 保證與幀一致，不會變形）。
+        view.autoResizeDrawable = false
         view.preferredFramesPerSecond = 60
         view.delegate = self
     }
