@@ -11,6 +11,10 @@ from google.protobuf import empty_pb2
 # 1080x2400 RGBA = 10.4 MB，遠超 gRPC 預設的 4 MB 上限。
 _MAX_MESSAGE = 64 * 1024 * 1024
 
+# tap 的預設按壓時間。60ms 約等於 60fps 下的 4 幀——足夠 Unity 的輸入系統
+# 在兩次 Update 之間看到「按下」與「放開」兩個狀態。實測 0ms 不被認成 click。
+DEFAULT_TAP_HOLD_MS = 60
+
 
 class EmulatorError(RuntimeError):
     pass
@@ -54,9 +58,18 @@ class Emulator:
         except grpc.RpcError as e:
             raise EmulatorError(f"sendTouch 失敗：{e.code().name}") from None
 
-    def send_tap(self, x: int, y: int) -> None:
-        """單點點擊。就是只有一個點的 stroke——down/up 的配對關係只存在一處。"""
-        self._stroke([(x, y)])
+    def send_tap(self, x: int, y: int, hold_ms: int = DEFAULT_TAP_HOLD_MS) -> None:
+        """單點點擊。就是只有一個點的 stroke——down/up 的配對關係只存在一處。
+
+        **`hold_ms` 不能是 0。** 2026-07-28 首次拿這支工具去點真遊戲時發現：
+        down 與 up 之間零延遲，Unity 收得到觸控（按鈕會顯示按下的視覺回饋）
+        但不認成一次 click，畫面停在原地。同一個座標改用 `adb shell input tap`
+        （它內建按壓時間）立刻就進關卡了。
+
+        零延遲的 tap 是「看起來有送出、實際上沒作用」——比完全沒送更難查，
+        因為視覺回饋會讓人以為座標或注入有問題。
+        """
+        self._stroke([(x, y)], hold_ms=hold_ms)
 
     def send_swipe(self, path: list[tuple[int, int]], step_ms: int) -> None:
         """連續觸點構成的拖曳。頭尾分別是 down 與 up。"""
@@ -64,8 +77,9 @@ class Emulator:
             raise EmulatorError(f"swipe 至少需要 2 個點，實得 {len(path)}")
         self._stroke(path, step_ms)
 
-    def _stroke(self, path: list[tuple[int, int]], step_ms: int = 0) -> None:
-        """沿 path 送出一連串 down，結束時送出 up。
+    def _stroke(self, path: list[tuple[int, int]], step_ms: int = 0,
+                hold_ms: int = 0) -> None:
+        """沿 path 送出一連串 down，`hold_ms` 之後送出 up。
 
         **不變式：一旦送出過任何一個 down，就一定會送出 up。**
 
@@ -88,6 +102,10 @@ class Emulator:
                 down_sent = True
                 if i < len(path) - 1:
                     time.sleep(step_ms / 1000.0)
+            # 放開前的按壓時間。必須在 try 內——負值會讓 sleep 拋例外，
+            # 而那時 down 已經送出去了，up 得照樣補上。
+            if hold_ms > 0:
+                time.sleep(hold_ms / 1000.0)
         except BaseException:
             if down_sent:
                 with contextlib.suppress(EmulatorError):

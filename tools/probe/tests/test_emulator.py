@@ -258,3 +258,68 @@ def test_swipe_rejects_paths_shorter_than_two_points():
     with pytest.raises(EmulatorError, match="2 個點"):
         emu.send_swipe([(1, 1)], step_ms=0)
     assert stub.touch_calls == []
+
+
+def _pressures(stub) -> list[int]:
+    """把 stub 收到的每個 TouchEvent 攤成 pressure 序列（1024=down、0=up）。"""
+    return [e.touches[0].pressure for e in stub.touch_calls]
+
+
+def test_send_tap_holds_before_releasing(monkeypatch):
+    """tap 的 down 與 up 之間必須有按壓時間。
+
+    2026-07-28 首次拿這支工具點真遊戲時，Unity 收得到觸控（Play 按鈕出現了按下
+    的視覺回饋）卻不認成一次 click，畫面停在原地；同一個座標改用 adb 的
+    `input tap`（內建按壓時間）立刻就進關卡。零延遲的 tap 是「看起來有送出、
+    實際上沒作用」——比完全沒送更難查，因為視覺回饋會讓人以為是座標錯了。
+    """
+    import lib.emulator as emulator_mod
+
+    slept: list[float] = []
+    monkeypatch.setattr(emulator_mod.time, "sleep", slept.append)
+    stub = _FakeStub()
+    Emulator(stub, port=8556).send_tap(100, 200)
+
+    assert _pressures(stub) == [1024, 0], "必須剛好是一組 down/up"
+    assert slept == [emulator_mod.DEFAULT_TAP_HOLD_MS / 1000.0], \
+        f"down 與 up 之間應睡 {emulator_mod.DEFAULT_TAP_HOLD_MS}ms，實得 {slept}"
+
+
+def test_send_tap_still_releases_when_hold_sleep_fails(monkeypatch):
+    """按壓時間的 sleep 若失敗，up 仍然要送出。
+
+    hold 的 sleep 發生在 down **之後**——它若拋例外而沒補上 up，裝置上就留著
+    一根按著的手指，後續所有輸入都失準且從外面完全看不出來。這是 `_stroke`
+    那條不變式（送出 down 就一定送出 up）必須涵蓋的第三條入口。
+
+    用會拋的 sleep 而非負的 hold_ms 來觸發：負值被 `if hold_ms > 0` 擋成
+    no-op（那是刻意的——不 hold 比拋例外合理），走不到這條路徑。
+    """
+    import lib.emulator as emulator_mod
+
+    def boom(_seconds):
+        raise KeyboardInterrupt("使用者中斷")
+
+    monkeypatch.setattr(emulator_mod.time, "sleep", boom)
+    stub = _FakeStub()
+    with pytest.raises(KeyboardInterrupt):
+        Emulator(stub, port=8556).send_tap(100, 200, hold_ms=50)
+
+    assert _pressures(stub) == [1024, 0], "失敗路徑上仍須送出 up"
+
+
+def test_negative_hold_is_a_noop_not_an_error(monkeypatch):
+    """負的 hold_ms 不 sleep、也不報錯——就是不按住直接放開。
+
+    這條釘住上一條測試依賴的前提：負值走不到 sleep。若哪天改成對負值拋例外，
+    上一條會沉默地失去它要測的路徑。
+    """
+    import lib.emulator as emulator_mod
+
+    slept: list[float] = []
+    monkeypatch.setattr(emulator_mod.time, "sleep", slept.append)
+    stub = _FakeStub()
+    Emulator(stub, port=8556).send_tap(100, 200, hold_ms=-1)
+
+    assert slept == [], "負的 hold_ms 不該 sleep"
+    assert _pressures(stub) == [1024, 0]
