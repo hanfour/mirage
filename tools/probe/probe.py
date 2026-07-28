@@ -5,11 +5,10 @@
 """
 import argparse
 import sys
-import time
 
 import _bootstrap  # noqa: F401  設定 sys.path 讓 lib/ 與 gen/ 可 import
 
-from lib import adb, coords, emulator, overlay_state, png
+from lib import adb, coords, emulator, launch, overlay_state, png
 from lib.targets import TARGETS, resolve_target
 
 
@@ -103,21 +102,23 @@ def cmd_launch(target, args) -> int:
 
     **只確認 activity 到前景，不等遊戲載完。** Pixel Flow 在 game 機上光是過
     splash 就要好幾分鐘——2026-07-28 那輪 45 秒還在 splash，差點被當成卡死。
+
+    輪詢／逾時／前綴比對的邏輯在 lib.launch.poll_until_foreground（測試見
+    tests/test_launch.py）；這裡只負責組裝真正的 adb 呼叫與時鐘餵進去。
     """
     adb.ensure_online(target.serial)
     if not target.playable:
         print(f"warning: target {target.name!r} — {target.note}", file=sys.stderr)
     adb.start_package(target.serial, args.package)
 
-    deadline = time.monotonic() + 30.0
-    while time.monotonic() < deadline:
-        fg = adb.foreground_activity(target.serial)
-        if fg and fg.startswith(args.package + "/"):
-            print(f"launched, foreground={fg} ({30.0 - (deadline - time.monotonic()):.1f}s)")
-            return 0
-        time.sleep(1.0)
+    ok, fg, elapsed = launch.poll_until_foreground(
+        check_fn=lambda: adb.foreground_activity(target.serial),
+        match_prefix=args.package,
+    )
+    if ok:
+        print(f"launched, foreground={fg} ({elapsed:.1f}s)")
+        return 0
 
-    fg = adb.foreground_activity(target.serial)
     print(f"error: {args.package} 未在 30s 內到前景；目前前景={fg or '(查不到)'}",
           file=sys.stderr)
     return 1
