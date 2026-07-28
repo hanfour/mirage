@@ -4,17 +4,17 @@ import Foundation
 /// 結果經 `finish(_:gen:)` 進 `.finished` 並排程自動回 `.idle`。
 ///
 /// 獨立成 extension 檔（比照 `AppModel+FullScreen.swift`／`AppModel+Audio.swift` 的既有前例，
-/// 為 Task 8 review Important finding 的修正）：`MirageApp.swift` 本體職責過多，把這叢 APK
+/// 為 Task 8 review Important finding 的修正）：`AppModel.swift` 本體職責過多，把這叢 APK
 /// 安裝邏輯搬出來才是結構性改善，而非用刪空行湊行數。儲存屬性 `installState`／
-/// `installGeneration` 留在 `MirageApp.swift`（Swift extension 不能宣告儲存屬性）。
+/// `installGeneration` 留在 `AppModel.swift`（Swift extension 不能宣告儲存屬性）。
 ///
 /// 兩處存取層級調整（皆為 SE-0169 的直接後果——`private`/`private(set)` 只在同一檔案內的
 /// extension 之間互通，跨檔案不適用）：
 /// - `installState`/`installGeneration`：原本是 `private(set)`/`private`，搬出本檔後
-///   `installAPKs(_:)`/`finish(_:gen:)` 需要跨檔讀寫，已在 `MirageApp.swift` 放寬成預設
+///   `installAPKs(_:)`/`finish(_:gen:)` 需要跨檔讀寫，已在 `AppModel.swift` 放寬成預設
 ///   internal（比照 `audioRing`/`audioPlayer` 的既有先例）。
 /// - `finish(_:gen:)`：仍標 `private`——它只被本檔內的 `installAPKs(_:)` 呼叫，兩者現在同檔，
-///   `private` 依然合法且更精確（不像 `startAudio()` 需要被 `MirageApp.swift` 的
+///   `private` 依然合法且更精確（不像 `startAudio()` 需要被 `AppModel.swift` 的
 ///   `startLifecycle()` 跨檔呼叫，才被迫放寬成 internal）。
 extension AppModel {
     /// 拖放安裝入口（Task 4 的 .dropDestination 呼叫，urls 已濾成 .apk）。

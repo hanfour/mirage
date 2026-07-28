@@ -1,80 +1,5 @@
 import AppKit
 import MirageCore
-import SwiftUI
-
-@main
-struct MirageApp: App {
-    @State private var model = AppModel()
-    // AUTHORIZED ADDITION（Task 4 review: NIO teardown race）— see AppDelegate below.
-    @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
-
-    // AUTHORIZED ADDITION (phase0 lesson — see phase0/swift-poc task-8-report.md's
-    // `setvbuf` deviation): stdout is block-buffered whenever it isn't a TTY
-    // (e.g. redirected to a log file, as the smoke-test harness does), so the
-    // `[app] fps=N` lines Renderer prints would sit in the buffer until
-    // process exit and be lost entirely on a hard `pkill`. Force line
-    // buffering so each fps line flushes as soon as it's printed.
-    init() {
-        setvbuf(stdout, nil, _IOLBF, 0)
-    }
-
-    var body: some Scene {
-        WindowGroup("Mirage") {
-            ZStack(alignment: .top) {
-                // P1-c: model.keymap 起始為 nil（非同步載入），MirrorView.updateNSView 會在
-                // loadKeymap() 完成、@Observable 觸發重繪時把值同步進 Coordinator。
-                MirrorView(client: model.client, box: model.box, controller: model.keymap)
-                    .dropDestination(for: URL.self) { urls, _ in
-                        let apks = urls.filter { $0.pathExtension.lowercased() == "apk" }
-                        guard !apks.isEmpty else { return false }
-                        Task { await model.installAPKs(apks) }
-                        return true
-                    }
-                ConnectionBanner(state: model.connState)
-                keymapOverlayLayer
-                // 隱藏按鈕：⌘E 切換編輯模式。用 SwiftUI .keyboardShortcut 走標準
-                // performKeyEquivalent 路徑，不需要額外的 NSEvent monitor 生命週期管理，
-                // 也不會和 MirrorMTKView.keyDown（一般字元鍵）互相搶事件。
-                Button("") { model.toggleEditing() }
-                    .keyboardShortcut("e", modifiers: .command)
-                    .frame(width: 0, height: 0)
-                    .opacity(0)
-                InstallBanner(state: model.installState)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
-                    .allowsHitTesting(false)
-            }
-            .frame(minWidth: 270, minHeight: 600)
-            .task {
-                appDelegate.model = model   // 供 applicationWillTerminate 使用
-                await model.start()
-                model.startLifecycle()
-                model.loadKeymap(guestSize: AppModel.defaultGuestSize)
-                model.startDetection()
-            }
-        }
-    }
-
-    // P1-c：編輯模式顯示陽春編輯器，否則顯示唯讀提示 overlay；兩者都在無 profile 時
-    // 優雅退化（OverlayEditorView 需要非 nil profile 才有東西可編，KeymapOverlay 本身
-    // 就接受 nil 直接不畫任何標記）。獨立成 @MainActor computed var 而非塞進 body 是因為
-    // MirrorView 那行已經夠長；標 @MainActor 是因為它讀取的是 model 的 MainActor-isolated
-    // 屬性（editing/profile），不像 body 本身有 App 協定的 @MainActor 需求可以白拿。
-    @MainActor
-    @ViewBuilder
-    private var keymapOverlayLayer: some View {
-        if model.editing, let profile = model.profile {
-            OverlayEditorView(
-                // SwiftUI.Binding 明確寫模組名——MirageCore.Binding（keymap 綁定列舉）撞名。
-                profile: SwiftUI.Binding(get: { profile }, set: { model.profile = $0 }),
-                onSave: { model.saveProfile($0) }
-            )
-        } else if !model.isFullScreen {
-            // P1-e 遊戲模式：全螢幕時隱藏唯讀提示標記（純視覺噪音）。ConnectionBanner
-            // 與 InstallBanner 刻意保留——前者是必須知道的異常，後者是使用者主動觸發的回饋。
-            KeymapOverlay(profile: model.profile)
-        }
-    }
-}
 
 @MainActor
 @Observable
@@ -187,7 +112,7 @@ final class AppModel {
     ///     Important 已修正：`applyActivation()` 現在會把 `keymap?.reload(p)` 套用的
     ///     結果同步寫回 `profile`，見該函式），要正確算 look-only gating 仍得幫
     ///     KeymapController/KeymapEngine 新增「目前 engine 是否有 look binding」的
-    ///     查詢，但本任務檔案範圍明確只列 MouseCapture.swift/MirageApp.swift；比照
+    ///     查詢，但本任務檔案範圍明確只列 MouseCapture.swift/AppModel.swift；比照
     ///     brief 明文允許的簡化版本，退回「有 profile 且非編輯且為 key window」，
     ///     不含 look 檢查（pending-human 記錄）。
     ///
@@ -322,8 +247,8 @@ final class AppModel {
         }
     }
 
-    // AUTHORIZED ADDITION（Task 4 review: NIO teardown race）— see AppDelegate
-    // below for the full rationale. `nonisolated` on purpose: it only touches
+    // AUTHORIZED ADDITION（Task 4 review: NIO teardown race）— see AppDelegate.swift
+    // for the full rationale. `nonisolated` on purpose: it only touches
     // `client`, a `let`-bound Sendable actor reference, so it can run to
     // completion off the main thread/MainActor executor — required because
     // the caller (AppDelegate.applicationWillTerminate) blocks the main
@@ -331,58 +256,5 @@ final class AppModel {
     nonisolated func shutdown() async {
         await client.stop()
         try? await Task.sleep(for: .milliseconds(200))
-    }
-}
-
-// AUTHORIZED ADDITION（Task 4 review: NIO teardown race）
-//
-// task-4-report.md Concern 1: EmulatorClient.stop() cancels the frame pump
-// and applies `.stopRequested` but does not wait for the underlying gRPC
-// stream's cancellation to propagate through NIO before
-// GrpcChannelBox.deinit's blocking `group.syncShutdownGracefully()` runs.
-// Today this races and prints "Cannot schedule tasks on an EventLoop that
-// has already shut down" on stderr; SwiftNIO's own message says this will
-// be upgraded to a forced crash in a future release. On quit, AppModel and
-// its EmulatorClient/GrpcChannelBox become eligible for deallocation as
-// soon as the process starts tearing down — nothing today drains the
-// in-flight stream cancellation first.
-//
-// Fix: on quit, explicitly `await client.stop()` then sleep ~200ms (empirically
-// generous headroom for gRPC/NIO to finish unwinding the cancelled stream)
-// before allowing the process to actually exit. `AppModel.shutdown()` above
-// does exactly that.
-//
-// Wiring: NSApplicationDelegateAdaptor + `applicationWillTerminate` +
-// a semaphore, not WindowGroup's `.onDisappear`. `.onDisappear` only fires
-// when a window closes and macOS does not terminate the app when its last
-// window closes by default — so it would never fire on Cmd+Q / dock "Quit"
-// while the window is still open, which is the common quit path. In
-// contrast `applicationWillTerminate(_:)` is NSApplication's synchronous,
-// always-called pre-exit hook: returning from it is what allows the process
-// to actually exit, so blocking it on a semaphore until the async drain
-// finishes is the simplest way to guarantee the drain runs to completion
-// before teardown.
-final class AppDelegate: NSObject, NSApplicationDelegate {
-    var model: AppModel?
-
-    func applicationWillTerminate(_ notification: Notification) {
-        guard let model else { return }
-        // 終審 Minor 5（AudioPlayer.stop() 死碼）：呼叫點刻意放在這裡、同步呼叫，
-        // 不是塞進下面 `model.shutdown()`（`nonisolated`，刻意設計成能在 MainActor 之外
-        // 的執行緒跑到完，因為呼叫端要在被 semaphore 卡住的主執行緒上等它，見該方法註解）。
-        // 若改成在 shutdown() 裡 `await MainActor.run { audioPlayer?.stop() }`，這一跳需要
-        // 排進 MainActor 的序列 executor——也就是主執行緒的 run loop；但主執行緒這時已經
-        // 被下面的 `sema.wait()` 同步卡住、不會再抽出時間處理任何排進來的工作，會造成
-        // 永久死鎖（quit 卡死、需強制結束），恰好加重 AppModel.shutdown() 註解記載的既有
-        // NIO teardown race 那類風險。改在這裡（AppKit 保證 applicationWillTerminate
-        // 跑在主執行緒、且此刻主執行緒還沒被 semaphore 卡住）用 assumeIsolated 同步呼叫，
-        // 完全不牽動 shutdown() 的既有路徑。
-        MainActor.assumeIsolated { model.audioPlayer?.stop() }
-        let sema = DispatchSemaphore(value: 0)
-        Task.detached {
-            await model.shutdown()
-            sema.signal()
-        }
-        sema.wait()
     }
 }

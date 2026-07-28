@@ -8,7 +8,7 @@ import CoreGraphics
 /// Task 7 fast-follow（P1-c 終審 Important：游標陷阱）：P1-c 版本無視窗焦點 gating，
 /// profile 一載入就 app-wide 捕捉，若 app 不在前景（alt-tab 切走）使用者會被鎖住游標、
 /// 只剩 ⌘E/quit 能逃脫。修法：呼叫端改用 `updateCapture(shouldCapture:)`（見
-/// MirageApp.AppModel）依「視窗是否為 key window」等條件決定捕捉與否；本類另外主動監聽
+/// `AppModel.swift`）依「視窗是否為 key window」等條件決定捕捉與否；本類另外主動監聽
 /// `NSWindow.didResignKeyNotification`——失去 key window（alt-tab、其他 app 搶焦點）時
 /// 立即 release()，不必等呼叫端下次呼叫，把「游標陷阱」的視窗補起來。
 @MainActor
