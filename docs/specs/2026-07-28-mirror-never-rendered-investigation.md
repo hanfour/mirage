@@ -181,11 +181,11 @@ MainActor 死、其他一切正常——這個對比立刻把嫌疑範圍從「�
 2. **必須用 release build。** debug 比 release 慢 3–4 倍（13 vs 50），拿 debug 的數字
    推論架構瓶頸會得到完全錯誤的圖像。
 
-解析度的影響是**線性的**：面積 ×2.7（540×1200 → 888×1972）對應 fps ÷2.5，就是 raw RGBA
-的資料量本身，沒有非線性的快速路徑之類的東西（曾假設「整數倍縮放走快速路徑」，
-用上表推翻）。視窗開大要維持高 fps 才需要 MMAP transport
-（見 `mmap-transport-blocked-upstream`：已建好、預設關閉、上游修正未發布）；
-**在 540×1200 這個預設請求尺寸下不需要它。**
+解析度的影響在 **launcher 上**近似線性：面積 ×2.7（540×1200 → 888×1972）對應 fps ÷2.5。
+
+> ⚠️ **這個結論在真實遊戲上不成立**，見 §11。上面這組數字量的是 launcher，
+> 它的 guest 端畫面產生很快，所以瓶頸落在傳輸；換成 Unity 遊戲之後瓶頸就換人了。
+> 別把 launcher 的量測外推到遊戲。
 
 ---
 
@@ -295,3 +295,77 @@ texture=540x1200 drawable=918x1976 drawableSize=(540.0,1200.0) autoResize=true �
 `Cannot schedule tasks on an EventLoop that has already shut down` 是同一條線索。
 新增的 Metal 迴歸測試被執行時觸發機率明顯升高，故先以 `MIRAGE_LIVE_METAL=1` gate 起來；
 **那是權宜，不是根治**。根治要處理那筆 NIO 債（可注入 channel）。
+
+## 10. 觸控座標用錯了尺寸（已修，commit `0cae17e`）
+
+顯示修好之後第一次真正「用滑鼠玩」，症狀是**點擊不準**——十字線有出現（注入是通的），
+但落在目標位置的**左上一半處**。
+
+**根因**：`sendTouch` 的座標系是 guest 的**實體螢幕**（proto 明載 "physical location on
+the screen"，本機 1080×2400），而 App 層拿**串流幀尺寸**（540×1200）換算。
+
+實測（`phase0/harness/probe_touch_coords.py`）：送 `Touch(270, 600)`，`pointer_location`
+疊層的十字線精確落在 **(270, 599)**。若座標系是串流影像，該落在 (540, 1200)。
+
+> 第一版探測用 `getevent` 讀 raw 值，沒有換算該裝置的 ABS 範圍（max=32767），
+> 把 raw 8191 誤讀成「滿值」而得出**相反**的結論；而且重跑兩次都抓不到事件，
+> 才發現第一次那筆很可能是先前 swipe 的殘留。改用「疊層 + 抓幀讀十字線」才拿到可信結果。
+
+同一個錯誤也在 keymap 路徑：`sendTouches(_:width:height:)` 的唯一呼叫端
+`KeymapController` 傳的一樣是幀尺寸，所以 **P1-c 起所有鍵位映射觸點都是偏的**。
+記憶中那句「引擎→多指注入活體通過」驗的是 harness 直接呼叫並自行傳尺寸，
+沒有經過 App 層這段傳遞。
+
+**修法是消除傳錯的可能，不是改對那個數字**：`sendTap(x:y:)` → `sendTap(nx:ny:)`、
+`sendTouches(_:width:height:)` → `sendTouches(_:)`，換算收進 `EmulatorClient`（唯一
+知道 guest 實體解析度的地方，由健康探測順手帶出）。拿掉參數後編譯器擋住每一個舊呼叫點，
+`KeymapController` 的 `guestSize`/`frameSizeProvider` 整套佈線因此消失。
+
+**活體驗證**：使用者實測點擊位置正確，Pixel Flow 可正常操作。
+
+## 11. fps 的瓶頸不在 Mirage（實測定位）
+
+Phase-1「1 款指標遊戲開箱即玩」走通後的第一次體感回報：**會頓、fps 20–35**。
+
+### 11.1 對照組證明瓶頸不在 Mirage
+
+用 Python harness 直接量**同一條串流**（不經過 Mirage）：
+
+```
+fps=30.4  p50=28.8ms  p95=78.2ms  avg_frame=2.47MiB  throughput=75MiB/s  (540x1200)
+```
+
+Mirage 側是 20–35 fps。**兩者一致 → Mirage 的顯示路徑沒有額外損失**。
+而 `p95=78.2ms` 對比 `p50=28.8ms` 就是「頓」的來源：長尾幀要等 78ms（瞬間 12.8 fps）。
+
+### 11.2 也不是頻寬瓶頸
+
+同機同內容掃描解析度：
+
+| 解析度 | fps | p50 | p95 | 每幀 | 吞吐 |
+|---|---|---|---|---|---|
+| 270×600 | 32.3 | 22.0ms | 72.0ms | 0.62 MiB | 20 MiB/s |
+| 540×1200 | 30.4 | 28.8ms | 78.2ms | 2.47 MiB | 75 MiB/s |
+| 1080×2400 | 22.0 | 37.2ms | 101.7ms | 9.89 MiB | 218 MiB/s |
+
+**解析度降到 1/4，fps 只從 30.4 升到 32.3。** 頻寬瓶頸不會長這樣（那會近似線性）。
+只有到 1080×2400（218 MiB/s）傳輸才開始成為限制。
+
+**推論**：瓶頸在 guest 端的畫面產生速率（Unity 遊戲在 ARM 模擬器上的 render fps），
+不在我們的傳輸或渲染。**這也意味著 MMAP transport 幫不上這個忙**——它省的是傳輸成本，
+而傳輸不是瓶頸。
+
+> ⚠️ 這條推論**尚未直接量到 guest 端的 render fps**。試過 `dumpsys SurfaceFlinger
+> --latency`（這版 Android 拿不到資料）與 `getevent`（時序不可靠）。要坐實它，
+> 下一輪需要一個能直接讀 guest render 速率的方法。**在那之前這是推論，不是結論。**
+
+### 11.3 量 fps 的三個陷阱（踩滿了才記下來）
+
+1. **guest 畫面必須持續變化**——`streamScreenshot` 是變化驅動的。本輪拿 launcher 當
+   對照組量到 12.7 fps，那量的是「swipe 之間的靜止期」，不是效能。
+2. **必須用 release build**——debug 慢 3–4 倍。
+3. **必須量 `present` 不是 `upload`**——見 §8。
+
+以及一個機器層面的：**`verify_game_fps.sh` 預設的 5558 是 AOSP bench 機，沒有 Google
+帳號，Pixel Flow 在上面進不了遊戲**（卡在載入畫面）。能玩的是 5556（Play Store 已登入）。
+量 fps 用 5558 沒問題，但任何「能不能玩」的驗證都必須用 5556。
