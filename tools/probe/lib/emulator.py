@@ -54,16 +54,46 @@ class Emulator:
         except grpc.RpcError as e:
             raise EmulatorError(f"sendTouch 失敗：{e.code().name}") from None
 
+    def send_tap(self, x: int, y: int) -> None:
+        """單點點擊。就是只有一個點的 stroke——down/up 的配對關係只存在一處。"""
+        self._stroke([(x, y)])
+
     def send_swipe(self, path: list[tuple[int, int]], step_ms: int) -> None:
         """連續觸點構成的拖曳。頭尾分別是 down 與 up。"""
         if len(path) < 2:
             raise EmulatorError(f"swipe 至少需要 2 個點，實得 {len(path)}")
-        for i, (x, y) in enumerate(path):
-            self.send_touch(x, y, down=True)
-            if i < len(path) - 1:
-                time.sleep(step_ms / 1000.0)
-        last_x, last_y = path[-1]
-        self.send_touch(last_x, last_y, down=False)
+        self._stroke(path, step_ms)
+
+    def _stroke(self, path: list[tuple[int, int]], step_ms: int = 0) -> None:
+        """沿 path 送出一連串 down，結束時送出 up。
+
+        **不變式：一旦送出過任何一個 down，就一定會送出 up。**
+
+        缺這條不變式時有兩條入口會在裝置上留下一根按著的手指：中途任一
+        `sendTouch` RPC 失敗（3 個 down、0 個 up），以及負的 `step_ms` 讓
+        `time.sleep()` 丟 ValueError（1 個 down、0 個 up）。殘留的觸點會讓
+        guest 端後續所有輸入都失準，而且從外面完全看不出來——比原本的錯誤
+        本身更難查。所以擋在這裡，而不是在每個呼叫端加 if：呼叫端會漏，
+        `cmd_tap` 當初就漏了。
+
+        失敗路徑上的 up 是 best-effort：它自己再失敗時必須**吞掉**，否則會
+        蓋掉真正的失敗原因。正常路徑上的 up 失敗則照常往外拋——那時它就是
+        使用者唯一該知道的事。
+        """
+        last = path[-1]
+        down_sent = False
+        try:
+            for i, (x, y) in enumerate(path):
+                self.send_touch(x, y, down=True)
+                down_sent = True
+                if i < len(path) - 1:
+                    time.sleep(step_ms / 1000.0)
+        except BaseException:
+            if down_sent:
+                with contextlib.suppress(EmulatorError):
+                    self.send_touch(last[0], last[1], down=False)
+            raise
+        self.send_touch(last[0], last[1], down=False)
 
 
 @contextlib.contextmanager
