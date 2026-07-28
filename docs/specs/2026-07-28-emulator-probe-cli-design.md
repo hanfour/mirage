@@ -78,10 +78,41 @@ probe.py --target {game|bench|poc} <command> [args]
 來自兩條路徑的對照：
 
 - guest 端是純藍 splash（adb），而我一直盯著 Mirage 看 → 才知道遊戲卡在 guest
-- `adb screencap` **不含** `pointer_location` 疊層、gRPC **含** → 才找到驗證觸控座標的方法
+- `overlay on` 之後抓圖讀得到十字線 → 才找到驗證觸控座標的方法
 - Python harness 量到 30.4 fps vs Mirage 側 20–35 → 才排除 Mirage 是效能瓶頸
 
-輸出必須明講「含／不含 overlay」，不要讓下一個人重新發現這個差異。
+> ⚠️ **2026-07-28 實測推翻的前提（本節原文已更正）。**
+>
+> 本節原本把「`adb screencap` **不含** `pointer_location` 疊層、gRPC **含**」
+> 列為 `compare` 存在的理由之一，並要求「輸出必須明講含／不含 overlay」。
+> **那個前提是錯的**，而工具照著它在輸出上蓋了一個從來沒被觀察過的斷言。
+>
+> 在 `bench` 上以**同一條路徑切換疊層**實測（`overlay off` → 抓圖 →
+> `overlay on` → 抓圖，逐列比對）：
+>
+> | 路徑 | 切換疊層後出現差異的列 |
+> |---|---|
+> | `adb exec-out screencap` | row 136–167 |
+> | gRPC `getScreenshot` | row 136–167 |
+>
+> **兩條路徑都含疊層**，位置還一模一樣。畫面靜止時，兩條路徑真正的差異只有一個：
+> gRPC 幀在頂端中央 **row 34–101 有一個黑色圓形**（螢幕挖孔遮罩），adb 那張沒有。
+>
+> 所以 `compare` 仍然值得獨立成一個指令，只是價值不在它原本宣稱的地方。修正後的
+> 做法是：**工具不再印任何關於內容差異的信念，改成當場比一次再報告**——尺寸是否
+> 相同、有沒有像素差異、差在哪些列。標籤只描述**路徑**
+> （`grpc: getScreenshot` / `adb: exec-out screencap`），不描述內容。
+>
+> 為了讓「比一次」成立，adb 那條改抓 **raw framebuffer**（`exec-out screencap`，
+> **不帶 `-p`**）而不是裝置自己編的 PNG：兩條路徑一律得到 RGBA、一律用同一支
+> encoder 寫檔，像素差異才是唯一的變因。（否則要比對就得自己寫一支 PNG 解碼器，
+> 而寫半套只會製造新的錯誤結論。）代價是 raw 要搬 10.4 MB、`exec-out` 約 3–5 秒，
+> 裝置自編的 PNG 約 1 秒——**刻意接受**：`shot` 預設走 gRPC（約 0.6 秒），adb 這條
+> 是 gRPC 出問題時的備援與 `compare` 的對照組，不是熱路徑。
+>
+> ⚠️ 兩張圖**不是同時抓的**（前後相隔數秒），畫面在動時內容本來就會不同，輸出會
+> 註明這件事。這不是理論顧慮：實測時 `overlay on` 之後立刻跑 `compare`，疊層剛好
+> 在兩次抓取之間才畫上去，row 136–167 就多出一段看起來像「路徑差異」的假差異。
 
 ## 4. 硬性約束（全部來自本輪的實際失誤）
 
@@ -106,9 +137,14 @@ $ probe.py --target game launch com.loomgames.pixelflow
 launched, foreground=com.loomgames.pixelflow/com.scopely.unity.ScopelyUnityActivity (3.2s)
 
 $ probe.py --target game compare /tmp/x
-grpc → /tmp/x-grpc.png  1080x2400  (含系統 overlay)
-adb  → /tmp/x-adb.png   1080x2400  (不含 overlay)
+grpc: getScreenshot → /tmp/x-grpc.png  1080x2400  16559 bytes
+adb: exec-out screencap → /tmp/x-adb.png  1080x2400  15543 bytes
+diff: 68/2400 列有像素差異，落在 row 34–101
+note: 兩張圖非同時抓取（前後相隔 6.1s 內），畫面在動時內容本來就會不同
 ```
+
+標籤描述的是**取得畫面的路徑**，不是畫面內容有什麼差別——內容差異由 `diff` 那行報告，
+而那行是當場量出來的。理由見 §3 那段實測更正。
 
 ## 6. 錯誤處理
 
@@ -161,7 +197,15 @@ gRPC 需要 pb2 生成碼，`phase0/harness/gen/` 已有，`phase0/harness/.venv
 ## 9. 驗收
 
 1. 能在 `game` 上啟動 Pixel Flow 並確認前景
-2. `compare` 產出的兩張圖能看出 overlay 的有無差異
+2. `compare` 能報出兩條路徑的**實測**差異（而不是宣稱差異）：畫面靜止時只差
+   **row 34–101**——gRPC 幀有螢幕挖孔的黑色圓形遮罩，adb 那張沒有
 3. `tap` 送出的座標，在 `overlay on` 下用 `shot` 讀到的十字線位置與送出值相符
 4. 三種錯誤情況各自給出可分辨的訊息
 5. target 解析與座標換算兩塊有單元測試
+
+> ⚠️ **第 2 條已於 2026-07-28 更正。** 原文是「`compare` 產出的兩張圖能看出
+> overlay 的有無差異」，而當初拿來當證據的是**檔案大小差 19.2%**（疊層全關時
+> grpc 132 KB vs adb 162 KB）。那不是內容差異，是**編碼器差異**——一邊是我們自己
+> 的 `png.encode_rgba`、另一邊是裝置上的 PNG 編碼器，差異連正負號都不固定。
+> 兩條路徑其實**都含**疊層（見 §3 的實測表）。現在兩條路徑共用同一支 encoder，
+> 檔案大小才可比，而驗收改以逐列比對的結果為準。
