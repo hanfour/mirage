@@ -83,7 +83,8 @@ def test_unknown_target_raises_with_valid_names():
 
 
 def test_targets_are_immutable():
-    with pytest.raises(Exception):
+    from dataclasses import FrozenInstanceError
+    with pytest.raises(FrozenInstanceError):
         resolve_target("game").serial = "x"
 ```
 
@@ -309,7 +310,7 @@ git commit -m "feat(probe): CLI 骨架與 target 解析
 import struct
 import zlib
 
-from lib.png import encode_rgba
+from lib.png import encode_rgba, read_size
 
 
 def _chunks(data: bytes):
@@ -355,12 +356,10 @@ def test_rejects_wrong_buffer_length():
 
 def test_read_size_roundtrips():
     """adb screencap 直接回 PNG，要印出尺寸就得從 header 讀。"""
-    from lib.png import read_size
     assert read_size(encode_rgba(7, 11, b"\x00" * (7 * 11 * 4))) == (7, 11)
 
 
 def test_read_size_rejects_non_png():
-    from lib.png import read_size
     try:
         read_size(b"not a png at all")
     except ValueError:
@@ -805,12 +804,11 @@ Expected: PASS（9 passed，含 parametrize 展開）
 
 - [ ] **Step 5: 在 `lib/emulator.py` 新增 `send_swipe`**
 
-加在 `send_touch` 之後：
+檔案頂端的 import 加上 `import time`，然後加在 `send_touch` 之後：
 
 ```python
     def send_swipe(self, path: list[tuple[int, int]], step_ms: int) -> None:
         """連續觸點構成的拖曳。頭尾分別是 down 與 up。"""
-        import time
         if len(path) < 2:
             raise EmulatorError(f"swipe 至少需要 2 個點，實得 {len(path)}")
         for i, (x, y) in enumerate(path):
