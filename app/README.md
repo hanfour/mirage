@@ -245,11 +245,14 @@ extension）、`AppDelegate`、`KeymapController`、`AdbClient`、`GameDetector`
   `@testable import` 真的能觸及 internal 宣告（`MirrorContainerView` letterbox 佈局、
   `AudioPlayer.setMuted`、`InstallState`），實際把 21 個仍是 0% 的檔案補上測試是**另一輪**的
   事。**動手前務必先讀 `RESULTS-shell-target.md`「刻意排除在 smoke test 之外的全域副作用清單」
-  一節**——`MouseCapture`（游標鎖定）只是其中一項，`AppModel`／`MenuBarController`／
-  `ClipboardWatcher` 建構或呼叫起來也會動到開發機的真實剪貼簿、選單列、keymap profile 檔案。
-  另外，`KeymapController`／`AppModel` 的**輸出**（實際送出什麼觸點）仍驗不到——那條路徑
-  最終要建真 `EmulatorClient` NIO channel，屬既有 NIO teardown 架構債，不在本階段範圍，
-  詳見該文件 pending-human 清單。
+  一節**——目前列出 **8 項**，`MouseCapture`（游標鎖定）只是其中一項；`AppModel`／
+  `MenuBarController`／`ClipboardWatcher` 建構或呼叫起來也會動到開發機的真實剪貼簿、選單列、
+  keymap profile 檔案（`AppModel()` 光是建構就會在開發機建一個 profile 目錄）；`AdbClient`／
+  `GameDetector` 會對共享模擬器跑真的 `adb` 子行程（含安裝 APK、每 1.5 秒 `dumpsys` 輪詢）；
+  `AudioPlayer.start()` 會啟動真實的 CoreAudio 音訊引擎；`AppModel.start()` 會對共享模擬器
+  `localhost:8554` 建立真實 gRPC 連線，直接踩進既有的 NIO teardown 架構債（`swift test`
+  偶爾卡死的來源之一）。清單的掃法是逃逸路徑分類（子行程/檔案系統/系統單例/網路/UI狀態/
+  持久化偏好），不是關鍵字列舉——後者曾經漏掉整個 `Process` 子行程類，細節與掃法見該文件。
 
 若合併後的單一 TOTAL 數字被拿來當證據，本次已重新驗證：那是 **43.59%**，比原設計文件估計的
 50–60% 還低——但合併 TOTAL 從來不是判定依據，段 1／段 2 分開看才是，細節見
