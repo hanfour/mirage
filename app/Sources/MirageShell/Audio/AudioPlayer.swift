@@ -18,20 +18,34 @@ final class AudioPlayer {
     /// 啟動失敗一律降級為「無音訊」——音訊絕不可拖垮鏡像主功能（畫面與輸入不受影響）。
     func start() {
         guard node == nil else { return }
+        // `interleaved: false` 是硬性要求，不是偏好：`engine.connect(_:to:format:)`（見下方）
+        // 只接受 deinterleaved，傳 interleaved 會讓它丟 `kAudioUnitErr_FormatNotSupported`
+        // (-10868) 的 **NSException**。那是 Obj-C 例外，下面那個 `do/catch` 攔不到（它本來
+        // 也只包住 `engine.start()`）——例外會在 `@MainActor` 上把呼叫端 `startLifecycle()`
+        // 的執行整個扯斷，MainActor 自此不再 drain，於是 `client.states` 的消費者永遠收不到
+        // 值（橫幅卡在「未連線」）、MTKView 的 draw 停止（`fps=` 恆為 0）。這正是 Mirage 的
+        // 鏡像顯示自 P1-a 起從未運作過的原因，而它被誤記為「螢幕鎖定」達三個階段。
+        // 完整證據見 `docs/specs/2026-07-28-mirror-never-rendered-investigation.md`。
         guard let format = AVAudioFormat(commonFormat: .pcmFormatFloat32,
-                                         sampleRate: 48_000, channels: 2, interleaved: true) else {
+                                         sampleRate: 48_000, channels: 2, interleaved: false) else {
             print("[audio] 無法建立 48k/stereo/Float32 格式，降級為無音訊")
             return
         }
         let ring = self.ring   // 只捕捉 sink（@unchecked Sendable），不捕捉 self
         let node = AVAudioSourceNode(format: format) { _, _, frameCount, audioBufferList in
             let buffers = UnsafeMutableAudioBufferListPointer(audioBufferList)
-            guard let first = buffers.first,
-                  let dst = first.mData?.assumingMemoryBound(to: Float.self) else { return noErr }
-            let wanted = Int(frameCount) * 2                 // interleaved stereo
-            let got = ring.read(into: dst, count: wanted)
+            // deinterleaved：左右聲道各自一個 buffer。取不到就整塊不動（維持 CoreAudio
+            // 給的靜音內容）——寧可沒聲音，也不對著未知佈局寫入。宣告的格式是 2ch
+            // deinterleaved，這條 guard 在實務上不可達，留作防禦下限。
+            guard buffers.count >= 2,
+                  let left = buffers[0].mData?.assumingMemoryBound(to: Float.self),
+                  let right = buffers[1].mData?.assumingMemoryBound(to: Float.self)
+            else { return noErr }
+            let wanted = Int(frameCount)
+            let got = ring.readStereo(left: left, right: right, frames: wanted)
             if got < wanted {
-                dst.advanced(by: got).update(repeating: 0, count: wanted - got)
+                left.advanced(by: got).update(repeating: 0, count: wanted - got)
+                right.advanced(by: got).update(repeating: 0, count: wanted - got)
             }
             return noErr
         }

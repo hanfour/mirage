@@ -18,9 +18,9 @@ import Testing
         try await Task.sleep(for: .seconds(2))
         _ = engine.apply(.keyDown(.key("w")))                 // joystick
         let frame = engine.apply(.keyDown(.key("j")))         // + 技能 → 兩觸點
-        await client.sendTouches(frame.touches, width: 540, height: 1200)
+        await client.sendTouches(frame.touches)
         try await Task.sleep(for: .seconds(1))
-        await client.sendTouches(engine.apply(.keyUp(.key("j"))).touches, width: 540, height: 1200)
+        await client.sendTouches(engine.apply(.keyUp(.key("j"))).touches)
         await client.stop()
         #expect(frame.touches.filter { $0.down }.count == 2)  // 引擎產兩 down 觸點
     }

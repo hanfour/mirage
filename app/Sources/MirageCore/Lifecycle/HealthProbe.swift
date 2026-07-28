@@ -3,13 +3,18 @@ import GRPC
 
 /// 健康探測結果：驅動連線 reducer 的 connectSucceeded / connectFailed。
 ///
-/// `.healthy` 帶出 emulator 版本字串——`getStatus` 本來就回傳它，之前被丟棄。
-/// 由連線層決定要建哪種 transport（MMAP 需 ≥37，見 MmapVersionGate）需要這個資訊，
-/// 讓探測順手帶出比另外打一次 RPC 便宜。
+/// `.healthy` 帶出 `EmulatorInfo`——`getStatus` 本來就回傳版本與 hardwareConfig，之前只
+/// 取了版本。兩個消費者都需要它：transport 選路要版本（MMAP 需 ≥37，見 MmapVersionGate），
+/// 觸控座標換算要 guest 實體解析度。讓探測順手帶出，比為了同一批資料另外打 RPC 便宜。
 public enum HealthResult: Equatable, Sendable {
-    case healthy(version: String)   // getStatus 回覆且 booted，帶版本字串
+    case healthy(EmulatorInfo)      // getStatus 回覆且 booted
     case timedOut                   // 逾時未回覆
     case failed                     // 回覆錯誤或未 booted
+
+    /// 便利建構——既有測試多半只關心版本，不必每處都寫出 display。
+    public static func healthy(version: String) -> HealthResult {
+        .healthy(EmulatorInfo(version: version, display: nil))
+    }
 }
 
 /// 探測抽象：以 protocol 注入，單元測試用假探測，不碰網路。
@@ -44,7 +49,15 @@ public struct GrpcHealthProbe: HealthProbe {
             group.addTask {
                 do {
                     let status = try await client.getStatus(.init())
-                    return status.booted ? .healthy(version: status.version) : .failed
+                    guard status.booted else { return .failed }
+                    // hardwareConfig 是 key/value 陣列；重複鍵取後者（實務上不會有，
+                    // 但 `uniqueKeysWithValues` 遇到重複會直接 trap，不值得為此冒險）。
+                    let config = Dictionary(
+                        status.hardwareConfig.entry.map { ($0.key, $0.value) },
+                        uniquingKeysWith: { _, latest in latest })
+                    return .healthy(EmulatorInfo(
+                        version: status.version,
+                        display: EmulatorInfo.displaySize(hardwareConfig: config)))
                 } catch {
                     return .failed
                 }

@@ -8,9 +8,17 @@
 # 所以直接開著遊戲量會得到 0 fps，那不是效能問題。本腳本開 `pointer_location` 疊層並
 # 持續注入滑動，保證每一幀都有像素變化。
 #
-# 為什麼要你從自己的終端機跑：Mirage 是 GUI app。從非互動 session 啟動的 bare executable
-# 會被 macOS 視為 background-only，視窗存在但 render loop 不被驅動，fps 恆為 0
-# （見 `docs/specs/2026-07-28-phase1-game-recon.md`）。**這個腳本必須在你的終端機執行。**
+# ⚠️ 2026-07-28 更正：本檔原本寫著「必須從你自己的終端機跑，否則 bare executable 會被
+# macOS 視為 background-only、render loop 不被驅動、fps 恆為 0」。**那個歸因是錯的**，
+# 而且它跟 RESULTS-p1a.md 的「螢幕鎖定」是同一個誤診的不同說法。真正讓 `fps=` 恆為 0 的是
+# `AudioPlayer` 用 interleaved 格式呼叫 `AVAudioEngine.connect` 丟出 NSException 打死
+# MainActor（見 `docs/specs/2026-07-28-mirror-never-rendered-investigation.md` §6）。
+# 修好之後本腳本在非互動 session 一樣量得到 fps，不需要人守著。
+#
+# 為什麼要印串流尺寸：fps 對串流解析度高度敏感（540x1200 約 50fps、888x1972 約 20fps，
+# 面積與 fps 近似成反比——raw RGBA 的資料量本身）。而串流尺寸由視窗大小經
+# `resizeDebounced` 決定，所以**沒有附上尺寸的 fps 數字無法解讀**。本腳本因此固定開
+# `MIRAGE_CONN_LOG=1` 並把實際請求的尺寸印進結果。
 #
 # 用法：
 #   ./scripts/verify_game_fps.sh                        # 預設 5558 / 8558，量 30 秒
@@ -89,7 +97,7 @@ echo "[fps] 開啟 pointer_location 疊層並持續注入滑動（保證畫面�
 ANIM_PID=$!
 
 echo "[fps] 啟動 Mirage → localhost:${GRPC_PORT}，量測 ${DURATION}s"
-MIRAGE_PORT="$GRPC_PORT" MIRAGE_FPS_LOG=1 "$APP" > "$LOG" 2>&1 &
+MIRAGE_PORT="$GRPC_PORT" MIRAGE_FPS_LOG=1 MIRAGE_CONN_LOG=1 "$APP" > "$LOG" 2>&1 &
 sleep "$DURATION"
 
 # grep -c 沒命中時**已經會印出 0**、同時回傳 1。寫成 `|| echo 0` 會再補一個 0，
@@ -110,5 +118,10 @@ fi
 grep 'fps=' "$LOG" | sed 's/.*fps=//' | awk -v n="$SAMPLES" '
   { s += $1; if (min == "" || $1 < min) min = $1; if ($1 > max) max = $1 }
   END { printf "取樣 %d 筆　平均 %.1f fps　最低 %d　最高 %d\n", n, s/n, min, max }'
+# 沒有串流尺寸就無法解讀 fps（見檔頭）。實際請求的尺寸由視窗大小經 resizeDebounced 決定，
+# 可能與初始的 540x1200 不同；全部列出來，換源過就看得見。
+echo -n "串流尺寸："
+grep 'attachStream' "$LOG" | sed 's/.*請求 //' | sort -u | tr '\n' ' '
+echo ""
 echo "驗收線：60fps 穩定（母計畫 §7 Phase-1）"
 echo "log：$LOG"

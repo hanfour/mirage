@@ -196,8 +196,8 @@ actor SleepRecorder {
         await client.start(box: box, width: 540, height: 1200)
         try await Task.sleep(for: .seconds(3))
         // 戳一下讓 change-driven 串流出幀
-        await client.sendTap(x: 540, y: 1200, down: true)
-        await client.sendTap(x: 540, y: 1200, down: false)
+        await client.sendTap(nx: 0.5, ny: 0.5, down: true)
+        await client.sendTap(nx: 0.5, ny: 0.5, down: false)
         try await Task.sleep(for: .seconds(2))
         let frame = box.takeLatest()
         #expect(frame != nil, "5 秒內應收到至少一幀")
@@ -205,6 +205,28 @@ actor SleepRecorder {
         await client.stop()
     }
 
+    /// 觸控座標換算的前提：健康探測必須帶回 guest 的**實體螢幕解析度**，而它與我們請求的
+    /// 串流尺寸是兩回事（本機 1080x2400 vs 540x1200，差兩倍）。
+    ///
+    /// 這條守的是整個 §10 bug 的根：`Touch.x/y` 是 "physical location on the screen"，
+    /// 拿串流尺寸換算會讓每次點擊都落在目標的左上一半處。換算本身是純函式
+    /// （`NormPoint.guestPixel`，已有單元測試），這裡驗的是「乘數來源正確」。
+    ///
+    /// 刻意斷言「解析度與串流尺寸不同」而非寫死 1080x2400——後者會綁死在特定 AVD 上。
+    @Test func liveHealthProbeCarriesGuestPhysicalResolution() async throws {
+        guard ProcessInfo.processInfo.environment["MIRAGE_LIVE"] == "1" else { return }
+        let client = EmulatorClient()
+        await client.start(box: LatestFrameBox(), width: 540, height: 1200)
+        try await Task.sleep(for: .seconds(3))
+        let display = await client.displaySize
+        #expect(display != nil, "健康探測必須帶回 hw.lcd.* —— 否則觸控注入會靜默放棄")
+        if let display {
+            #expect(display.w > 0 && display.h > 0)
+            #expect(display.w != 540 || display.h != 1200,
+                    "解析度看起來等於串流尺寸(540x1200)，很可能又拿錯了來源")
+        }
+        await client.stop()
+    }
 }
 
 // MARK: - suspend()/wake() 不變式回歸測試（Task 4 補審）

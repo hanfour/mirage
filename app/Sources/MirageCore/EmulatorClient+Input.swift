@@ -34,9 +34,17 @@ extension EmulatorClient {
         return ev
     }
 
-    public func sendTouches(_ touches: [TouchSpec], width: Int, height: Int) async {
-        guard let client = channelBox?.client else { return }
-        _ = try? await client.sendTouch(Self.buildTouchEvent(touches, width: width, height: height))
+    /// 多指觸控注入。`TouchSpec.point` 已經是正規化座標，換算用的尺寸由本 actor 從健康
+    /// 探測取得的 guest 實體解析度提供——**不再由呼叫端傳入**。
+    ///
+    /// 原本的簽章是 `sendTouches(_:width:height:)`，而唯一的呼叫端（KeymapController）
+    /// 傳的是串流幀尺寸，不是 guest 實體解析度。兩者在本機相差兩倍，所以 P1-c 起所有
+    /// 鍵位映射的觸點都落在目標的左上一半處。拿掉這兩個參數之後，呼叫端沒有機會再傳錯
+    /// （見 §10 的調查記錄）。`guestDisplay` 未知時靜默不送，理由同 `sendTap`。
+    public func sendTouches(_ touches: [TouchSpec]) async {
+        guard let client = channelBox?.client, let display = guestDisplay else { return }
+        _ = try? await client.sendTouch(
+            Self.buildTouchEvent(touches, width: display.w, height: display.h))
     }
 
     public func sendKey(_ code: KeyCode, down: Bool) async {

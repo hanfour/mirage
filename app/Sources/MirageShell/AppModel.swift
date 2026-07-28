@@ -45,10 +45,13 @@ final class AppModel {
     var installState: InstallState = .idle
     var installGeneration = 0
 
-    /// 兩處共用（client.start 的初始尺寸、KeymapController 的初始 guestSize），避免同一組
-    /// 數字散在兩個檔案裡各寫一份（原本 540/1200 只出現在 start() 一處，Task 7 新增第二個
-    /// 消費者時順手收斂成常數，不算擴大改動範圍）。
-    static let defaultGuestSize: (w: Int, h: Int) = (540, 1200)
+    /// `client.start` 的**初始串流尺寸**——要求 emulator 送多大的畫面，之後由
+    /// `resizeDebounced` 依視窗大小調整。
+    ///
+    /// 名字裡的 "guest" 容易誤導，但它**不是** guest 的實體螢幕解析度，也絕不能拿來換算
+    /// 觸控座標——那是 `EmulatorClient` 從健康探測取得的另一組數字（本機 1080x2400，
+    /// 與這裡的 540x1200 差兩倍）。混淆這兩者正是 §10 那個 bug 的成因。
+    static let defaultStreamSize: (w: Int, h: Int) = (540, 1200)
 
     /// PLACEHOLDER：目前哪個 game 在跑（gameId）尚未有偵測機制，先寫死——與 Task 7 brief
     /// 一致，實際綁定留待後續任務（見 task-7-report.md pending-human 清單）。
@@ -84,15 +87,15 @@ final class AppModel {
                 }
             }
         }
-        await client.start(box: box, width: Self.defaultGuestSize.w, height: Self.defaultGuestSize.h)
+        await client.start(box: box, width: Self.defaultStreamSize.w, height: Self.defaultStreamSize.h)
     }
 
     /// 啟動時載入 profile；找不到／解析失敗一律吞成 nil（直接模式），對齊 spec §5「無 profile
     /// 不得崩潰」——與 loadKeymap 呼叫端（body 的 .task）同一批啟動流程，但獨立成一步，
     /// 這樣往後要換成「偵測目前遊戲」時只需要改這一個函式。
-    func loadKeymap(guestSize: (w: Int, h: Int)) {
+    func loadKeymap() {
         profile = try? ProfileStore.standard().load(gameId: Self.gameId)
-        keymap = KeymapController(client: client, profile: profile, guestSize: guestSize)
+        keymap = KeymapController(client: client, profile: profile)
         mouseCapture.updateCapture(shouldCapture: shouldCapture)
     }
 

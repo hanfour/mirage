@@ -27,6 +27,12 @@ public actor EmulatorClient {
     /// 最近一次健康探測回報的 emulator 版本字串；決定要建哪種 display transport。
     /// 空字串代表未知 → MmapVersionGate 會拒絕 → 走 raw RGBA（保守）。
     private var emulatorVersion = ""
+    /// 同一次探測帶出的 guest 實體螢幕解析度，觸控座標換算的唯一權威。
+    /// nil = 探測沒帶出可用的 hw.lcd.*，此時觸控注入一律放棄（見 sendTap）。
+    ///
+    /// 非 private（同 channelBox 的理由）：`EmulatorClient+Input.swift`（同模組不同檔）的
+    /// `sendTouches` 需要讀它，而 Swift 的 `private` 是檔案級的。
+    var guestDisplay: (w: Int, h: Int)?
     // P1-e 音訊：與 transport/pump 對稱——audioTransport 隨 channel 建立與拆除，
     // audioTask 是消費 task，audioRing 是 App 端提供的 sink（nil = 不掛載）。
     private var audioTransport: AudioTransport?
@@ -119,14 +125,30 @@ public actor EmulatorClient {
         loopTask = nil
     }
 
-    public func sendTap(x: Int, y: Int, down: Bool) async {
-        guard let client = channelBox?.client else { return }
+    /// 直接注入單點觸控，座標為**正規化的 0–1**（左上原點）。
+    ///
+    /// **刻意不接受絕對像素**：`Touch.x/y` 的座標系是 guest 的實體螢幕（proto 明載
+    /// "physical location on the screen"），而 App 層手上只有串流幀尺寸與視窗尺寸，
+    /// 兩者都不是它。原本由呼叫端自行換算，結果整條路徑一直乘錯數字——串流 540x1200
+    /// 對 guest 1080x2400，每一次點擊都落在目標的左上一半處。把換算收進這裡之後，
+    /// 呼叫端**沒有機會**再傳錯尺寸（見 §10 的調查記錄）。
+    ///
+    /// `guestDisplay` 未知時**靜默不送**：送一個用錯尺寸算出的座標比不送更糟——
+    /// 畫面會有反應但點在錯的地方，而使用者會以為是遊戲的問題。
+    public func sendTap(nx: Double, ny: Double, down: Bool) async {
+        guard let client = channelBox?.client, let display = guestDisplay else { return }
+        let point = NormPoint(x: nx, y: ny)
+        let (gx, gy) = point.guestPixel(width: display.w, height: display.h)
         var t = Android_Emulation_Control_Touch()
-        t.x = Int32(x); t.y = Int32(y); t.identifier = 0; t.pressure = down ? 1024 : 0
+        t.x = Int32(gx); t.y = Int32(gy); t.identifier = 0; t.pressure = down ? 1024 : 0
         var event = Android_Emulation_Control_TouchEvent()
         event.touches = [t]
         _ = try? await client.sendTouch(event)
     }
+
+    /// guest 的實體螢幕解析度（健康探測帶出）。供 App 層在需要真實尺寸時查詢——
+    /// 但**觸控注入不需要它**，換算已收進 sendTap/sendTouches。
+    public var displaySize: (w: Int, h: Int)? { guestDisplay }
 
     public func setGuestClipboard(_ text: String) async {
         guard let client = channelBox?.client else { return }
@@ -188,8 +210,9 @@ public actor EmulatorClient {
             let result: HealthResult = ready ? await (probe?.probe(timeout: probeTimeout) ?? .failed) : .failed
             if connLog { print("[conn] ensureChannel=\(ready) probe=\(result)") }
             if !running { break }
-            if case .healthy(let version) = result {
-                emulatorVersion = version           // Task 6 會用到；此刻先存起來
+            if case .healthy(let info) = result {
+                emulatorVersion = info.version      // transport 選路用
+                guestDisplay = info.display         // 觸控座標換算用
                 makeDisplayTransport()
                 _ = step(.connectSucceeded)         // → .connected（gate：只有健康才連上）
                 startClipboardStream()
