@@ -4,7 +4,12 @@ import MirageCore
 @MainActor
 @Observable
 final class AppModel {
-    let client = EmulatorClient()
+    /// 連線目標可用 `MIRAGE_HOST` / `MIRAGE_PORT` 覆寫（預設仍是 `localhost:8554`）。
+    /// 需要它是因為量測與多實例都不可能只面對一台模擬器——見 `EmulatorEndpoint`。
+    private static let endpoint = EmulatorEndpoint.resolve(
+        environment: ProcessInfo.processInfo.environment)
+
+    let client = EmulatorClient(host: endpoint.host, port: endpoint.port)
     let box = LatestFrameBox()
     var connState: ConnState = .disconnected
 
@@ -50,6 +55,14 @@ final class AppModel {
     static let gameId = "com.example.game"
 
     func start() async {
+        // 端點無論如何都印一行：「連到另一台模擬器」的症狀（畫面不是預期的那台）跟
+        // 「連不上」長得完全不一樣，沒有這行就只能靠猜。壞掉的覆寫更要印——靜默退回
+        // 預設會讓人盯著錯的畫面卻毫無線索。
+        print("[app] endpoint=\(Self.endpoint.host):\(Self.endpoint.port)")
+        if let problem = Self.endpoint.overrideProblem {
+            print("[app] 環境變數覆寫無效：\(problem)")
+        }
+
         // RECONCILIATION (Task 6 brief vs. this file): the brief's `startLifecycle()`
         // snippet spins up a SECOND `for await s in client.states` loop to feed
         // `menuBar?.updateStatus`. `client.states` is a plain single-continuation
