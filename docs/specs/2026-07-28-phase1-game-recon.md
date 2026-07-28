@@ -183,6 +183,18 @@ Fault address falls at 00102d66'37a429e0 after any mapped regions
 2. 新 AVD 在 `-gpu host` 下的實際 fps 表現（現有 AVD 的 `config.ini` 是 `hw.gpu.enabled = no`，但執行中的行程帶 `-gpu host` 覆蓋）。
 3. 現有 AVD 規格 `hw.ramSize = 2G` / data partition 6 GB 是否足夠——建新 AVD 時應重新設定。
 
+## 6.1 偵察之後發現的前置阻礙（2026-07-28 同日）
+
+本文件的結論（點擊型遊戲可跑、模擬器能以 46–59 fps 串流）**仍然成立**——那些量的是模擬器
+與環境，用的是 Python harness，不經過 Mirage。
+
+但接著要量「Mirage 顯示遊戲時的 fps」時發現：**Mirage 的鏡像顯示自 P1-a 起從未運作過**。
+連線成功、幀確實進來，但狀態傳不到 UI（橫幅顯示「未連線」）、畫面全黑，且在有真實合成視窗
+的環境會 SIGSEGV。`fps=` 恆為 0 先前被歸因於螢幕鎖定，該歸因已被推翻。
+
+→ **Phase-1 驗收線 1（60fps 穩定）在修好那個問題之前無法量。**
+完整證據與已推翻的六個假設見 `docs/specs/2026-07-28-mirror-never-rendered-investigation.md`。
+
 ## 7. 相關文件
 
 - 母計畫：`docs/specs/2026-07-22-mirage-project-plan.md` §7（已修訂）、§8 R2
