@@ -39,6 +39,12 @@ public actor EmulatorClient {
     private var loopTask: Task<Void, Never>?
     private var breakCont: AsyncStream<Void>.Continuation?
     private var power: PowerState = .active
+
+    /// 連線路徑診斷。這條路徑先前沒有任何可觀測性——App 層唯一的訊號是
+    /// `MIRAGE_FPS_LOG` 的 `fps=`，而它同時受渲染與收幀影響，兩者都沒發生時
+    /// 分不出是「沒連上」「連上但沒拉幀」還是「拉到幀但沒畫」。P1-a 到 P1-e
+    /// 三個階段都卡在這個盲區（見 RESULTS-p1a.md「pending-unlock」）。
+    private let connLog = ProcessInfo.processInfo.environment["MIRAGE_CONN_LOG"] == "1"
     // 非 private（同理見上方 channelBox 的說明）：EmulatorClient+Lifecycle.swift 的
     // startClipboardStream() 需要讀寫 clipboardTask/clipboardCall，讀取 guestClipCont。
     var clipboardTask: Task<Void, Never>?
@@ -167,6 +173,7 @@ public actor EmulatorClient {
 
     private func step(_ event: ConnEvent) -> ConnEffect {
         let (next, effect) = ConnReducer.reduce(state, event)
+        if connLog { print("[conn] \(state) --\(event)--> \(next)") }
         state = next
         stateCont.yield(next)
         return effect
@@ -179,6 +186,7 @@ public actor EmulatorClient {
         while running {
             let ready = ensureChannel()
             let result: HealthResult = ready ? await (probe?.probe(timeout: probeTimeout) ?? .failed) : .failed
+            if connLog { print("[conn] ensureChannel=\(ready) probe=\(result)") }
             if !running { break }
             if case .healthy(let version) = result {
                 emulatorVersion = version           // Task 6 會用到；此刻先存起來
@@ -274,8 +282,15 @@ public actor EmulatorClient {
         // consumer task，其 onEnd（唯一會 yield breakCont 的來源，見 signalBreak()）
         // 因此永不觸發，connectedRun() 會一直卡在 suspended 期間收不到斷線訊號。仍保留
         // 此 guard 作為未來重構的安全網。
-        guard power != .suspended, power != .suspending else { return }
-        guard let transport, let box else { return }
+        guard power != .suspended, power != .suspending else {
+            if connLog { print("[conn] attachStream 略過：power=\(power)") }
+            return
+        }
+        guard let transport, let box else {
+            if connLog { print("[conn] attachStream 略過：transport=\(transport == nil ? "nil" : "有") box=\(box == nil ? "nil" : "有")") }
+            return
+        }
+        if connLog { print("[conn] attachStream 掛上，請求 \(streamSize.w)x\(streamSize.h)") }
         let stream = transport.frames(width: streamSize.w, height: streamSize.h)
         Task {
             await pump.attach(stream, into: box) { [weak self] err in

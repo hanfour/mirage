@@ -44,18 +44,29 @@ public struct GrpcStreamTransport: DisplayTransport {
         format.format = .rgba8888
         format.width = UInt32(width)
         format.height = UInt32(height)
+        let log = ProcessInfo.processInfo.environment["MIRAGE_CONN_LOG"] == "1"
         let call = channel.client.streamScreenshot(format)
         return AsyncThrowingStream { continuation in
             let task = Task {
                 do {
+                    if log { print("[conn] streamScreenshot 已送出，等第一幀…") }
+                    var n = 0
                     for try await img in call {
+                        n += 1
+                        // 只印前兩幀與每 120 幀一次：要的是「有沒有開始流」與「有沒有停」，
+                        // 不是逐幀噪音。
+                        if log, n <= 2 || n % 120 == 0 {
+                            print("[conn] 幀 #\(n) \(img.format.width)x\(img.format.height) bytes=\(img.image.count)")
+                        }
                         continuation.yield(Frame(
                             width: Int(img.format.width),
                             height: Int(img.format.height),
                             rgba: img.image))
                     }
+                    if log { print("[conn] 串流自然結束，共 \(n) 幀") }
                     continuation.finish()
                 } catch {
+                    if log { print("[conn] 串流錯誤：\(error)") }
                     continuation.finish(throwing: error)
                 }
             }
