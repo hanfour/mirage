@@ -245,3 +245,53 @@ texture=540x1200 drawable=918x1976 drawableSize=(540.0,1200.0) autoResize=true �
 同一份調查記錄裡連續兩次「一個症狀、多個根因」，值得記住的判準是：
 **`fps=` 量的是 `upload()`，不是 `present()`。它證明幀有進來並上傳到 texture，
 不證明任何一個像素被畫到螢幕上。** 要證明後者只有一個辦法——看畫面。
+
+### 7.4 §7.2 的修法不完整，真正的修法是取樣繪製
+
+`autoResizeDrawable = false` 只是把 drawable 綁到幀尺寸，**仍然依賴「綁定能精確成立」**。
+而幀尺寸根本不受我們控制：proto 的縮放合約是 can-be-less，實測請求 `562x1248` 會回
+`561x1248`（**奇數**）。症狀重演——30 秒收到 1080 幀、`fps=` 一行都沒有、畫面全黑。
+
+真正的修法是**消除「尺寸必須相等」這個要求本身**：`blit.copy` 換成 render pass 取樣繪製
+（`MirrorShaders` 的全螢幕三角形 + linear sampler，`MirrorBlitter` 負責編碼）。來源與目的
+尺寸從此無關，縮放由 GPU 取樣器免費完成，長寬比仍由 `MirrorContainerView` 的 letterbox
+保證。`drawableSize` 因此交回 MTKView 自己管（`autoResizeDrawable` 回到預設）。
+
+**教訓**：§7.2 那一版是「把兩條路徑綁在一起」，本質上還是在賭一個外部變數的值。
+消除特殊情況跟「讓特殊情況剛好不發生」是兩回事。
+
+## 8. `fps=` 指標本身是錯的（已修）
+
+計數點原本在 `upload()` 裡，位於 `draw()` 的早退 guard **之前**。所以「幀進得來但一個
+像素都沒畫上螢幕」時，`fps=` 照樣是漂亮的兩位數——**這個落差先後兩次讓「畫面全黑」被
+誤判成已修好**（第一次是 §7 的 blit 尺寸，第二次是 §7.4 的奇數尺寸）。
+
+已改為在 `present(drawable)` 之後計數，且只在「這一輪確實取到新幀」時計——重畫同一張不是
+畫面更新，否則量出來的會恆等於螢幕更新率，看起來永遠達標。
+
+**修正前後的數字不可比較**。Pixel Flow @ 540x1200 的實測：舊指標（upload）26.9–37.7 fps，
+新指標（present）在同樣條件下 17.9 fps；而在**真實合成視窗**下（`.app` bundle + 前景 +
+小視窗）是 **29–44 fps**。三個數字的差異全部來自量測條件，不是效能波動：
+
+| 量測條件 | present fps |
+|---|---|
+| bare executable（視窗未真正合成，`currentDrawable` 常為 nil） | 17.9 平均 |
+| `.app` bundle + 前景 + 小視窗（串流 540x1200） | **29–44** |
+| `.app` bundle + 前景 + 大視窗（串流 887x1972） | 15–20 |
+
+`app/scripts/verify_game_fps.sh` 目前用 bare executable，因此它報的數字**偏低且不可信**；
+要它可信必須改成 `.app` bundle 啟動（本輪已驗證這條路可行）。**這一項尚未修。**
+
+## 9. 測試套件本身是 flaky 的（既有問題，非本輪引入）
+
+追 §7.4 的迴歸測試時發現：完整 `swift test` 會機率性停擺——26–30 條 async 測試 started
+之後永遠不 complete，主執行緒閒置在 run loop。
+
+**基準實測**：把本輪**所有**改動 stash 掉、回到 `6056dbd` 連跑四次 → **2 次卡住、2 次通過**。
+所以這與本輪的改動無關，而且意味著**先前每一次「189 tests passed」都有約一半機率只是運氣**，
+包括本文件 §6.5 引用的那一次。
+
+嫌疑指向 `nio-teardown-injectable-channel-debt` 那筆既有的債——完整套件 log 裡的
+`Cannot schedule tasks on an EventLoop that has already shut down` 是同一條線索。
+新增的 Metal 迴歸測試被執行時觸發機率明顯升高，故先以 `MIRAGE_LIVE_METAL=1` gate 起來；
+**那是權宜，不是根治**。根治要處理那筆 NIO 債（可注入 channel）。

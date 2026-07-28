@@ -61,33 +61,70 @@ import Testing
         #expect(!player.isMuted)
     }
 
-    /// 迴歸測試（2026-07-28）：**drawable 的尺寸權威是解碼幀，不是視窗**。
+    /// 迴歸測試（2026-07-28 第二輪）：**任意來源尺寸都必須畫得出來**。
     ///
-    /// `draw(in:)` 用 `blit.copy` 把 texture 整塊搬進 drawable，blit 要求兩者尺寸完全相等，
-    /// 不相等就整幀跳過——畫面全黑。而 texture 尺寸來自 guest 幀、drawable 尺寸來自視窗，
-    /// 是兩條獨立演化的路徑：`MTKView.autoResizeDrawable` 預設為 `true`，每次 layout 都會
-    /// 把 `drawableSize` 拉回 `bounds × contentScale`，覆蓋掉 `upload()` 依幀尺寸設的值。
-    /// 於是「畫面出不出得來」取決於 `resizeDebounced` 請求的串流尺寸有沒有剛好等於視窗的
-    /// backing 尺寸——上限 clamp、偶數對齊、letterbox 捨入、debounce 期間任一個都會讓它
-    /// 不相等，結果就是 `fps=` 有數字（`upload` 照跑）但畫面全黑。
+    /// 前一版用 `blit.copy` 搬運，blit 要求來源與目的尺寸完全相等，於是整條顯示路徑的
+    /// 正確性被押在「emulator 回傳的幀尺寸剛好等於 drawable 尺寸」上。但幀尺寸**根本不受
+    /// 我們控制**——proto 的縮放合約是 can-be-less，實測請求 562x1248 會回 561x1248
+    /// （奇數）。當時的症狀是 30 秒收到 1080 幀、`fps=` 卻一行都沒有、畫面全黑。
     ///
-    /// 修正是關掉 `autoResizeDrawable`，讓 drawable 尺寸只由幀決定；顯示端的縮放由
-    /// CAMetalLayer 免費完成，長寬比已由 `MirrorContainerView` 的 letterbox 保證一致。
-    /// 這消除了「兩條尺寸路徑必須精確收斂」這個特殊情況，而不是再加一層條件判斷。
+    /// 改用 render pass 取樣繪製之後，來源與目的尺寸再無任何關係。這條測試直接驗那件事：
+    /// 用一個奇數寬的來源（重現當時的 561）畫進尺寸完全不同的目標，讀回像素確認畫上去了。
+    ///
+    /// ⚠️ **預設不跑，需 `MIRAGE_LIVE_METAL=1`**（比照 `MIRAGE_LIVE_MMAP` / `MIRAGE_LIVE_AUDIO`
+    /// 的既有慣例）。這是降低觸發機率的權宜，不是修好了什麼——歸因要寫對：
+    ///
+    /// **這個測試套件本身就是 flaky 的，與本測試無關。** 症狀是 26–30 條 async 測試
+    /// started 之後永遠不 complete、主執行緒閒置在 run loop。實測基準：把本輪**所有**改動
+    /// stash 掉、回到 `6056dbd` 跑四次，**2 次卡住 2 次通過**。也就是說先前每一次
+    /// 「189 tests passed」都有約一半機率只是運氣。嫌疑指向
+    /// `nio-teardown-injectable-channel-debt` 那筆既有的債（完整套件 log 裡的
+    /// `Cannot schedule tasks on an EventLoop that has already shut down` 是同一條線索）。
+    ///
+    /// 本測試被執行時觸發機率明顯升高（樣本小，但四次修隔離都無效正是因為問題不在這裡），
+    /// 所以先 gate 起來。**這不是根治**——根治要處理那筆 NIO 債。
+    /// 單獨跑：`MIRAGE_LIVE_METAL=1 swift test --filter rendersAnySource`。
     @MainActor
-    @Test func drawableSizeFollowsFrameNotViewBounds() throws {
-        let view = MTKView(frame: NSRect(x: 0, y: 0, width: 100, height: 200))
-        let box = LatestFrameBox()
-        let renderer = try #require(Renderer(view: view, box: box))
+    @Test(.enabled(if: ProcessInfo.processInfo.environment["MIRAGE_LIVE_METAL"] == "1",
+                   "需 MIRAGE_LIVE_METAL=1——見上方說明"))
+    func rendersAnySourceSizeIntoAnyTargetSize() async throws {
+        let device = try #require(MTLCreateSystemDefaultDevice())
+        let blitter = try #require(MirrorBlitter(device: device))
 
-        box.put(Frame(width: 540, height: 1200, rgba: Data(count: 540 * 1200 * 4)))
-        renderer.draw(in: view)
-        #expect(view.drawableSize == CGSize(width: 540, height: 1200))
+        // 來源：561x1248（實測會觸發黑畫面的那個奇數尺寸），填成已知的純紅。
+        // 用 stride 就地寫入而非 `.enumerated().map`——後者要為 280 萬個元素各跑一次
+        // closure 並配置第二個陣列，在 -Onone 的測試 build 下慢到像卡死。
+        let src = try #require(Self.makeTexture(device, width: 561, height: 1248, usage: [.shaderRead]))
+        var red = [UInt8](repeating: 0, count: 561 * 1248 * 4)
+        for i in stride(from: 0, to: red.count, by: 4) {
+            red[i] = 255          // R
+            red[i + 3] = 255      // A
+        }
+        red.withUnsafeBytes { raw in
+            src.replace(region: MTLRegionMake2D(0, 0, 561, 1248), mipmapLevel: 0,
+                        withBytes: raw.baseAddress!, bytesPerRow: 561 * 4)
+        }
 
-        // 視窗尺寸變動不得把 drawable 拉離幀尺寸——否則 blit 的相等前提就此破裂。
-        view.frame = NSRect(x: 0, y: 0, width: 377, height: 811)
-        view.layoutSubtreeIfNeeded()
-        #expect(view.drawableSize == CGSize(width: 540, height: 1200))
+        // 目標：尺寸與來源毫無關係（更小、長寬比也不同）。
+        let dst = try #require(Self.makeTexture(device, width: 320, height: 200,
+                                                usage: [.renderTarget, .shaderRead]))
+        await blitter.render(src, into: dst)
+
+        var pixel = [UInt8](repeating: 0, count: 4)
+        pixel.withUnsafeMutableBytes { raw in
+            dst.getBytes(raw.baseAddress!, bytesPerRow: 4,
+                         from: MTLRegionMake2D(160, 100, 1, 1), mipmapLevel: 0)
+        }
+        #expect(pixel[0] > 200, "目標中心應該被來源的紅色填上，實得 RGBA=\(pixel)")
+        #expect(pixel[1] < 60)
+    }
+
+    private static func makeTexture(_ device: MTLDevice, width: Int, height: Int,
+                                    usage: MTLTextureUsage) -> MTLTexture? {
+        let d = MTLTextureDescriptor.texture2DDescriptor(
+            pixelFormat: .rgba8Unorm, width: width, height: height, mipmapped: false)
+        d.usage = usage
+        return device.makeTexture(descriptor: d)
     }
 
     /// 純值型別，證明最基本的 import 路徑通（`InstallItem` 內含 MirageCore 的 `InstallResult`，
