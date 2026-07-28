@@ -24,10 +24,6 @@ def encode_rgba(width: int, height: int, rgba: bytes) -> bytes:
             + chunk(b"IDAT", zlib.compress(raw, 6))
             + chunk(b"IEND", b""))
 
-
-def read_size(data: bytes) -> tuple[int, int]:
-    """從 PNG header 讀寬高。adb screencap 直接回 PNG，印尺寸需要它。"""
-    if data[:8] != b"\x89PNG\r\n\x1a\n" or data[12:16] != b"IHDR":
-        raise ValueError("不是有效的 PNG（缺少 signature 或 IHDR）")
-    width, height = struct.unpack(">II", data[16:24])
-    return width, height
+# 曾經有一支 read_size()：adb 那條路徑回 adb 自己編的 PNG，要印尺寸就得從
+# header 讀。改抓 raw framebuffer（見 lib/framebuffer.py）之後，兩條路徑都直接
+# 拿到 (w, h, rgba)，沒有任何呼叫端需要它了，所以移除，不留死碼。

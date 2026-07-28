@@ -1,7 +1,7 @@
 import struct
 import zlib
 
-from lib.png import encode_rgba, read_size
+from lib.png import encode_rgba
 
 
 def _chunks(data: bytes):
@@ -43,17 +43,3 @@ def test_rejects_wrong_buffer_length():
         assert "16" in str(e)
     else:
         raise AssertionError("長度不符時必須 raise")
-
-
-def test_read_size_roundtrips():
-    """adb screencap 直接回 PNG，要印出尺寸就得從 header 讀。"""
-    assert read_size(encode_rgba(7, 11, b"\x00" * (7 * 11 * 4))) == (7, 11)
-
-
-def test_read_size_rejects_non_png():
-    try:
-        read_size(b"not a png at all")
-    except ValueError:
-        pass
-    else:
-        raise AssertionError("非 PNG 必須 raise")
