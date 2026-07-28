@@ -41,3 +41,20 @@ def foreground_activity(serial: str) -> str | None:
                 if "/" in p:
                     return p
     return None
+
+
+def screencap_png(serial: str) -> bytes:
+    """guest 畫面。注意：**不含** pointer_location 這類系統 overlay。"""
+    proc = subprocess.run([adb_path(), "-s", serial, "exec-out", "screencap", "-p"],
+                          capture_output=True, timeout=30)
+    if proc.returncode != 0 or not proc.stdout:
+        raise AdbError(f"screencap 失敗：{proc.stderr.decode(errors='replace').strip()}")
+    return proc.stdout
+
+
+def get_setting(serial: str, key: str) -> str:
+    return run(serial, ["shell", "settings", "get", "system", key]).strip()
+
+
+def put_setting(serial: str, key: str, value: str) -> None:
+    run(serial, ["shell", "settings", "put", "system", key, value])
