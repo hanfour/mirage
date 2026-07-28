@@ -106,7 +106,7 @@ probe.py --target {game|bench|poc} <command> [args]
 > 為了讓「比一次」成立，adb 那條改抓 **raw framebuffer**（`exec-out screencap`，
 > **不帶 `-p`**）而不是裝置自己編的 PNG：兩條路徑一律得到 RGBA、一律用同一支
 > encoder 寫檔，像素差異才是唯一的變因。（否則要比對就得自己寫一支 PNG 解碼器，
-> 而寫半套只會製造新的錯誤結論。）代價是 raw 要搬 10.4 MB、`exec-out` 約 3–5 秒，
+> 而寫半套只會製造新的錯誤結論。）代價是 raw 要搬 10.4 MB、`exec-out` 實測 5.3–6.2 秒（三次量測），
 > 裝置自編的 PNG 約 1 秒——**刻意接受**：`shot` 預設走 gRPC（約 0.6 秒），adb 這條
 > 是 gRPC 出問題時的備援與 `compare` 的對照組，不是熱路徑。
 >
@@ -136,7 +136,7 @@ probe.py --target {game|bench|poc} <command> [args]
 $ probe.py --target game launch com.loomgames.pixelflow
 launched, foreground=com.loomgames.pixelflow/com.scopely.unity.ScopelyUnityActivity (3.2s)
 
-$ probe.py --target game compare /tmp/x
+$ probe.py --target bench compare /tmp/x
 grpc: getScreenshot → /tmp/x-grpc.png  1080x2400  16559 bytes
 adb: exec-out screencap → /tmp/x-adb.png  1080x2400  15543 bytes
 diff: 68/2400 列有像素差異，落在 row 34–101
