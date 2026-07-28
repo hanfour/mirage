@@ -58,3 +58,8 @@ def get_setting(serial: str, key: str) -> str:
 
 def put_setting(serial: str, key: str, value: str) -> None:
     run(serial, ["shell", "settings", "put", "system", key, value])
+
+
+def start_package(serial: str, package: str) -> None:
+    run(serial, ["shell", "monkey", "-p", package,
+                 "-c", "android.intent.category.LAUNCHER", "1"], timeout=30)

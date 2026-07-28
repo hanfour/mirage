@@ -5,6 +5,7 @@
 """
 import argparse
 import sys
+import time
 
 import _bootstrap  # noqa: F401  設定 sys.path 讓 lib/ 與 gen/ 可 import
 
@@ -97,6 +98,31 @@ def cmd_swipe(target, args) -> int:
     return 0
 
 
+def cmd_launch(target, args) -> int:
+    """啟動並輪詢至前景確認。逾時 30 秒。
+
+    **只確認 activity 到前景，不等遊戲載完。** Pixel Flow 在 game 機上光是過
+    splash 就要好幾分鐘——2026-07-28 那輪 45 秒還在 splash，差點被當成卡死。
+    """
+    adb.ensure_online(target.serial)
+    if not target.playable:
+        print(f"warning: target {target.name!r} — {target.note}", file=sys.stderr)
+    adb.start_package(target.serial, args.package)
+
+    deadline = time.monotonic() + 30.0
+    while time.monotonic() < deadline:
+        fg = adb.foreground_activity(target.serial)
+        if fg and fg.startswith(args.package + "/"):
+            print(f"launched, foreground={fg} ({30.0 - (deadline - time.monotonic()):.1f}s)")
+            return 0
+        time.sleep(1.0)
+
+    fg = adb.foreground_activity(target.serial)
+    print(f"error: {args.package} 未在 30s 內到前景；目前前景={fg or '(查不到)'}",
+          file=sys.stderr)
+    return 1
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="probe.py", description=__doc__)
     p.add_argument("--target", required=True, choices=sorted(TARGETS),
@@ -122,6 +148,9 @@ def build_parser() -> argparse.ArgumentParser:
     for name in ("nx1", "ny1", "nx2", "ny2"):
         p_swp.add_argument(name, type=float)
     p_swp.add_argument("ms", type=int, nargs="?", default=300)
+
+    p_launch = sub.add_parser("launch", help="啟動套件並等到前景確認")
+    p_launch.add_argument("package")
     return p
 
 
@@ -129,7 +158,8 @@ def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     target = resolve_target(args.target)
     handlers = {"fg": cmd_fg, "shot": cmd_shot, "compare": cmd_compare,
-                "overlay": cmd_overlay, "tap": cmd_tap, "swipe": cmd_swipe}
+                "overlay": cmd_overlay, "tap": cmd_tap, "swipe": cmd_swipe,
+                "launch": cmd_launch}
     try:
         return handlers[args.command](target, args)
     except (adb.AdbError, emulator.EmulatorError, ValueError) as e:
