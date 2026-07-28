@@ -137,9 +137,49 @@ Unable to locate a Java Runtime.
 ~/Library/Android/sdk/emulator/emulator -avd mirage-game -port 5556 -grpc 8556 -gpu host
 ```
 
+## 5.2 三款實測結果（2026-07-28，使用者登入 Play Store 後）
+
+**偵察的核心問題「點擊型遊戲跑不跑得起來」已回答：可以。**
+
+| 遊戲 | 套件 | 引擎 | 結果 |
+|---|---|---|---|
+| **Pixel Flow** | `com.loomgames.pixelflow` | Unity | ✅ **可遊玩**（RSS 115 MB） |
+| Pikmin Bloom | `com.nianticlabs.pikmin` | Unity | 畫面停住（非崩潰） |
+| Pokémon TCG Pocket | `jp.pokemon.pokemontcgp` | Unity | ❌ 確定性 SIGSEGV |
+
+**三款皆為 Unity，其中一款可玩** → Unity 在此模擬器上無普遍性問題；TCG Pocket 的崩潰是該遊戲特有的。
+
+### TCG Pocket 崩潰（根因未確立，且刻意不再往下追）
+
+崩潰前它其實跑得很好：`Fully drawn +3s857ms`，且 `exportSyncFdForQSRILocked` 每 ~16.6 ms 一次（20 幀 / 0.315 s）——**約 60 fps**。Vulkan（`Created VkDevice … ASTC emulation:on`）、音訊、網路 HTTP handler 皆正常載入。
+
+崩潰形態：
+
+```
+pc = lr = x8 = 0x00102d66'37a429e0
+Fault address falls at 00102d66'37a429e0 after any mapped regions
+2 total frames，皆 <unknown>（無符號）
+```
+
+正常指標全在 `0x73`–`0x79` 開頭。兩次獨立執行（pid 8829 / 9152）的 `x9 = 0x2359`、`x15 = 0xffffd52a`、`x17 = 0x791a29fbc0` **完全相同**——**確定性路徑，非隨機記憶體損毀**。
+
+**停止追查的理由**：再往下就是分析該遊戲被剝除符號的保護機制；若根因是完整性檢查，「修好」等同繞過它。母計畫 §8 R2 明定「不做核心層反偵測軍備競賽」。**且不得宣稱這是反作弊**——系統中 SafetyNet 服務的綁定／解綁時間點與兩次崩潰對不上，無證據可歸因。
+
+### Pikmin Bloom 畫面停住（根因未查，非目標）
+
+已確立的事實：行程存活、`UnityGfxDeviceW` 20% CPU、`UnityMain` 10% CPU，但 **3 秒內 0 次 present**。無 ANR、無 OOM kill。GPS 有 fix（預設的 37.421998,-122.084000）。
+
+**排除了記憶體**：guest 顯示 3633/3920 MB used 看似吃緊，但 `top` 顯示其中 1.86 GB 是 page cache，非壓力。Pikmin RSS 僅 625 MB。
+
+### 觸控板的畫面亂跳
+
+模擬器自身的 Qt UI 把觸控板多指手勢當成多點觸控，log 中大量 `skipping QEventPoint … no target window`。與閃退無關。
+
+**這一項有產品意涵**：那正是 Mirage 要取代的東西——用原生 macOS 前端與正確的輸入映射取代模擬器自己的 UI（母計畫 §4.1）。
+
 ## 6. 尚未驗證，且需要使用者參與
 
-1. **Pokémon TCG Pocket 是否真能在 Play Store 映像上安裝並執行**——需 Google 帳號登入，屬使用者的步驟。點擊型遊戲通常不掛重度反作弊，但**本次未驗證**，不得當作已知事實。
+1. ~~**Pokémon TCG Pocket 是否真能在 Play Store 映像上安裝並執行**~~ — **已驗（見 §5.2）**：可安裝，但啟動約 12–32 秒後確定性崩潰。改以 **Pixel Flow** 作為 Phase-1 的點擊型指標遊戲候選。
 2. 新 AVD 在 `-gpu host` 下的實際 fps 表現（現有 AVD 的 `config.ini` 是 `hw.gpu.enabled = no`，但執行中的行程帶 `-gpu host` 覆蓋）。
 3. 現有 AVD 規格 `hw.ramSize = 2G` / data partition 6 GB 是否足夠——建新 AVD 時應重新設定。
 
