@@ -41,12 +41,12 @@ import Testing
         await client.sendTouches([
             TouchSpec(identifier: 1, point: NormPoint(x: 0.25, y: 0.7), down: true),
             TouchSpec(identifier: 2, point: NormPoint(x: 0.85, y: 0.8), down: true),
-        ], width: 540, height: 1200)
+        ])
         try await Task.sleep(for: .seconds(1))
         await client.sendTouches([
             TouchSpec(identifier: 1, point: NormPoint(x: 0.25, y: 0.7), down: false),
             TouchSpec(identifier: 2, point: NormPoint(x: 0.85, y: 0.8), down: false),
-        ], width: 540, height: 1200)
+        ])
         await client.stop()
         // 佐證：adb shell settings put system show_touches 1 後截圖見兩觸點（pending-human/腳本擷取）
     }

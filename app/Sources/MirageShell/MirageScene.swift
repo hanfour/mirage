@@ -52,7 +52,7 @@ struct MirageScene: App {
                 appDelegate.model = model   // 供 applicationWillTerminate 使用
                 await model.start()
                 model.startLifecycle()
-                model.loadKeymap(guestSize: AppModel.defaultGuestSize)
+                model.loadKeymap()
                 model.startDetection()
             }
         }

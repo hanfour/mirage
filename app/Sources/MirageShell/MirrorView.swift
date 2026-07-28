@@ -119,35 +119,22 @@ struct MirrorView: NSViewRepresentable {
         // P1-c：無 profile（nil 或 hasProfile==false，例如編輯模式中）時 sendMouse 退回直接
         // tap——spec §7 驗收 4，P1-a 行為不回歸。
         //
-        // AUTHORIZED FIX（Task 7 終審 Important：KeymapController 觸點座標對齊 sendMouse 的
-        // 實際幀尺寸換算）。controller 由 AppModel 非同步載入後透過 MirrorView.updateNSView
-        // 逐次指派進來（makeNSView 只跑一次），因此用 didSet 而非在各賦值點手動重複佈線——
-        // 不論 controller 何時被設定（makeNSView 或 updateNSView），都會即時取得同一份
-        // frameSizeProvider，讀取 renderer?.lastFrameSize ?? guestSize，與 sendMouse 完全一致。
-        var controller: KeymapController? {
-            didSet {
-                controller?.frameSizeProvider = { [weak self] in
-                    guard let self else { return Self.defaultGuestSize }
-                    return self.renderer?.lastFrameSize ?? self.guestSize
-                }
-            }
-        }
+        // 原本這裡有一個 `frameSizeProvider` 的 didSet 佈線，把 renderer.lastFrameSize
+        // 餵給 KeymapController 做觸點換算。整套已移除——換算收進 EmulatorClient 之後，
+        // App 層不再需要（也不應該）知道該乘什麼尺寸。
+        var controller: KeymapController?
         private var resizeTask: Task<Void, Never>?
-        private static let defaultGuestSize = (w: 540, h: 1200)
-        /// 目前請求中的串流尺寸（供 sendMouse 在還沒有解碼幀時換算座標用）。
-        /// 上限規則本身在 `MirageCore.StreamSize`。
-        private var guestSize = Coordinator.defaultGuestSize
+        private static let defaultStreamSize = (w: 540, h: 1200)
 
         init(client: EmulatorClient) { self.client = client }
 
         func sendMouse(nx: Double, ny: Double, down: Bool) {
             // 有作用中 profile 時鍵鼠改走 KeymapController → KeymapEngine，這裡不再重複送 tap。
             guard controller?.hasProfile != true else { return }
-            // AUTHORIZED FIX（Task 6 review CRITICAL：滑鼠映射採實際幀尺寸——proto 縮放合約 can-be-less）
-            let size = renderer?.lastFrameSize ?? guestSize
-            let gx = Int(nx * Double(size.w))
-            let gy = Int(ny * Double(size.h))
-            Task { await client.sendTap(x: gx, y: gy, down: down) }
+            // 直接送正規化座標：換算成 guest 像素需要**實體螢幕解析度**，那是
+            // EmulatorClient 才知道的事（來自健康探測）。這裡原本用 lastFrameSize（串流
+            // 幀尺寸）自行換算，而兩者在本機相差兩倍，所以每次點擊都偏到左上一半處。
+            Task { await client.sendTap(nx: nx, ny: ny, down: down) }
         }
 
         func resizeDebounced(to pixelSize: CGSize) {
@@ -156,13 +143,13 @@ struct MirrorView: NSViewRepresentable {
                 try? await Task.sleep(for: .milliseconds(300))
                 guard !Task.isCancelled else { return }
                 // P1-e：長寬比改用實際解碼幀（原本硬編碼 h = w * 20 / 9，遊戲轉橫向就錯）。
-                let aspect = renderer?.lastFrameSize ?? Self.defaultGuestSize
+                let aspect = renderer?.lastFrameSize ?? Self.defaultStreamSize
                 // 上限與偶數對齊的算術在 MirageCore.StreamSize（純函式、有單元測試）。
                 let w = StreamSize.width(forContentWidth: Int(pixelSize.width), aspect: aspect)
                 let h = StreamSize.height(forWidth: w, aspect: aspect)
-                guestSize = (w, h)
+                // 只換串流解析度。觸控座標**不隨它改變**——那是 guest 實體螢幕的事，
+                // 由 EmulatorClient 從健康探測取得，與我們請求多大的畫面無關。
                 await client.setStreamSize(width: w, height: h)
-                controller?.setGuestSize((w, h))   // 引擎觸控座標跟著新串流尺寸換算
             }
         }
     }
