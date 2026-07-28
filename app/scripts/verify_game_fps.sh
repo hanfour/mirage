@@ -15,6 +15,8 @@
 # 用法：
 #   ./scripts/verify_game_fps.sh                        # 預設 5558 / 8558，量 30 秒
 #   ./scripts/verify_game_fps.sh -s emulator-5558 -p 8558 -g com.loomgames.pixelflow -d 60
+#   ./scripts/verify_game_fps.sh -s emulator-5554 -p 8554 -g ""   # 不開 App，只量 launcher
+#   ./scripts/verify_game_fps.sh -a /path/to/other/MirageApp      # 指定二進位（做版本對照用）
 set -uo pipefail
 
 SERIAL="emulator-5558"
@@ -22,14 +24,17 @@ GRPC_PORT="8558"
 PACKAGE="com.loomgames.pixelflow"
 DURATION=30
 
-while getopts "s:p:g:d:h" opt; do
+APP_OVERRIDE=""
+
+while getopts "s:p:g:d:a:h" opt; do
   case "$opt" in
     s) SERIAL="$OPTARG" ;;
     p) GRPC_PORT="$OPTARG" ;;
     g) PACKAGE="$OPTARG" ;;
     d) DURATION="$OPTARG" ;;
+    a) APP_OVERRIDE="$OPTARG" ;;
     h) sed -n '2,20p' "$0"; exit 0 ;;
-    *) echo "用法：$0 [-s serial] [-p grpc_port] [-g package] [-d seconds]" >&2; exit 2 ;;
+    *) echo "用法：$0 [-s serial] [-p grpc_port] [-g package] [-d seconds] [-a app_path]" >&2; exit 2 ;;
   esac
 done
 
@@ -38,7 +43,7 @@ SDK="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-$HOME/Library/Android/sdk}}"
 ADB="$SDK/platform-tools/adb"
 [ -x "$ADB" ] || { echo "找不到可執行的 adb：$ADB" >&2; exit 1; }
 
-APP="$(cd "$(dirname "$0")/.." && pwd)/.build/release/MirageApp"
+APP="${APP_OVERRIDE:-$(cd "$(dirname "$0")/.." && pwd)/.build/release/MirageApp}"
 [ -x "$APP" ] || { echo "找不到 ${APP}——請先跑 swift build -c release" >&2; exit 1; }
 
 "$ADB" -s "$SERIAL" get-state >/dev/null 2>&1 \
@@ -59,17 +64,24 @@ cleanup() {
 }
 trap cleanup EXIT INT TERM
 
-echo "[fps] 啟動 $PACKAGE 於 $SERIAL"
-"$ADB" -s "$SERIAL" shell monkey -p "$PACKAGE" -c android.intent.category.LAUNCHER 1 >/dev/null 2>&1
-sleep 8
+echo "[fps] 二進位：$APP"
+if [ -n "$PACKAGE" ]; then
+  echo "[fps] 啟動 $PACKAGE 於 $SERIAL"
+  "$ADB" -s "$SERIAL" shell monkey -p "$PACKAGE" -c android.intent.category.LAUNCHER 1 >/dev/null 2>&1
+  sleep 8
+else
+  echo "[fps] 未指定套件——量當前前景（對照組用）"
+fi
 
 FG=$("$ADB" -s "$SERIAL" shell dumpsys activity activities 2>/dev/null \
      | grep topResumedActivity | tr -d '\r' | head -1)
 echo "[fps] 前景：${FG:-（查不到）}"
-case "$FG" in
-  *"$PACKAGE"*) ;;
-  *) echo "[fps] 警告：$PACKAGE 不在前景，量到的不是它的 fps" >&2 ;;
-esac
+if [ -n "$PACKAGE" ]; then
+  case "$FG" in
+    *"$PACKAGE"*) ;;
+    *) echo "[fps] 警告：$PACKAGE 不在前景，量到的不是它的 fps" >&2 ;;
+  esac
+fi
 
 echo "[fps] 開啟 pointer_location 疊層並持續注入滑動（保證畫面變化）"
 "$ADB" -s "$SERIAL" shell settings put system pointer_location 1 >/dev/null 2>&1
@@ -91,8 +103,8 @@ if [ "$SAMPLES" -eq 0 ]; then
   echo "取樣數 0——Mirage 沒有畫任何一幀。前兩行輸出："
   head -2 "$LOG"
   echo ""
-  echo "最常見原因：這個腳本不是從互動式終端機跑的（GUI app 變成 background-only，"
-  echo "render loop 不被驅動）。請在你自己的終端機視窗執行。log：$LOG"
+  echo "已知：探測與連線是成功的（上面印出 [transport] 就代表健康探測通過、狀態已連上），"
+  echo "所以問題在「串流不出幀」而非「連不上」。log：$LOG"
   exit 1
 fi
 grep 'fps=' "$LOG" | sed 's/.*fps=//' | awk -v n="$SAMPLES" '
