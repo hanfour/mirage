@@ -15,9 +15,11 @@
 # MainActor（見 `docs/specs/2026-07-28-mirror-never-rendered-investigation.md` §6）。
 # 修好之後本腳本在非互動 session 一樣量得到 fps，不需要人守著。
 #
-# 為什麼要印串流尺寸：fps 對串流解析度高度敏感（540x1200 約 50fps、888x1972 約 20fps，
-# 面積與 fps 近似成反比——raw RGBA 的資料量本身）。而串流尺寸由視窗大小經
-# `resizeDebounced` 決定，所以**沒有附上尺寸的 fps 數字無法解讀**。本腳本因此固定開
+# 為什麼要印串流尺寸：fps 對串流解析度敏感（launcher 上 540x1200 約 50fps、888x1972
+# 約 20fps）。⚠️ 但「面積與 fps 成反比」這個推論**只在 launcher 上成立**——在真實遊戲
+# 上實測降到 1/4 解析度，fps 只從 30.4 升到 32.3，瓶頸不在傳輸（見調查記錄 §11）。
+# 無論如何，**沒有附上尺寸的 fps 數字無法解讀**。而串流尺寸由視窗大小經
+# `resizeDebounced` 決定，會隨視窗變動。本腳本因此固定開
 # `MIRAGE_CONN_LOG=1` 並把實際請求的尺寸印進結果。
 #
 # 用法：
@@ -25,6 +27,13 @@
 #   ./scripts/verify_game_fps.sh -s emulator-5558 -p 8558 -g com.loomgames.pixelflow -d 60
 #   ./scripts/verify_game_fps.sh -s emulator-5554 -p 8554 -g ""   # 不開 App，只量 launcher
 #   ./scripts/verify_game_fps.sh -a /path/to/other/MirageApp      # 指定二進位（做版本對照用）
+#   ./scripts/verify_game_fps.sh -n -g "" -s emulator-5556 -p 8556 # 不注入，量遊戲自己的畫面
+#
+# `-n`（不注入動畫）：關掉疊層與滑動注入器。**量關卡內的 fps 必須用它**——遊戲進行中
+# 畫面本來就不停變化，不需要人造動畫源；而注入器會真的去點畫面，可能退出關卡或叫出
+# 暫停選單，量到的變成「關卡內＋機器人亂點」。注入器存在的理由只是對付靜止的主選單／
+# launcher，那是它唯一該用的場合。搭配 `-g ""`（不重新啟動 App）就能量當下已經在跑的
+# 畫面，不會把遊戲重啟回主選單。
 set -uo pipefail
 
 SERIAL="emulator-5558"
@@ -33,16 +42,18 @@ PACKAGE="com.loomgames.pixelflow"
 DURATION=30
 
 APP_OVERRIDE=""
+INJECT=1
 
-while getopts "s:p:g:d:a:h" opt; do
+while getopts "s:p:g:d:a:nh" opt; do
   case "$opt" in
     s) SERIAL="$OPTARG" ;;
     p) GRPC_PORT="$OPTARG" ;;
     g) PACKAGE="$OPTARG" ;;
     d) DURATION="$OPTARG" ;;
     a) APP_OVERRIDE="$OPTARG" ;;
-    h) sed -n '2,20p' "$0"; exit 0 ;;
-    *) echo "用法：$0 [-s serial] [-p grpc_port] [-g package] [-d seconds] [-a app_path]" >&2; exit 2 ;;
+    n) INJECT=0 ;;
+    h) sed -n '2,32p' "$0"; exit 0 ;;
+    *) echo "用法：$0 [-s serial] [-p grpc_port] [-g package] [-d seconds] [-a app_path] [-n]" >&2; exit 2 ;;
   esac
 done
 
@@ -91,10 +102,14 @@ if [ -n "$PACKAGE" ]; then
   esac
 fi
 
-echo "[fps] 開啟 pointer_location 疊層並持續注入滑動（保證畫面變化）"
-"$ADB" -s "$SERIAL" shell settings put system pointer_location 1 >/dev/null 2>&1
-( while :; do "$ADB" -s "$SERIAL" shell input swipe 400 900 700 1500 250 >/dev/null 2>&1; done ) &
-ANIM_PID=$!
+if [ "$INJECT" -eq 1 ]; then
+  echo "[fps] 開啟 pointer_location 疊層並持續注入滑動（保證畫面變化）"
+  "$ADB" -s "$SERIAL" shell settings put system pointer_location 1 >/dev/null 2>&1
+  ( while :; do "$ADB" -s "$SERIAL" shell input swipe 400 900 700 1500 250 >/dev/null 2>&1; done ) &
+  ANIM_PID=$!
+else
+  echo "[fps] -n：不注入動畫，量畫面自己的變化率（關卡內請用這個）"
+fi
 
 echo "[fps] 啟動 Mirage → localhost:${GRPC_PORT}，量測 ${DURATION}s"
 MIRAGE_PORT="$GRPC_PORT" MIRAGE_FPS_LOG=1 MIRAGE_CONN_LOG=1 "$APP" > "$LOG" 2>&1 &
@@ -123,5 +138,10 @@ grep 'fps=' "$LOG" | sed 's/.*fps=//' | awk -v n="$SAMPLES" '
 echo -n "串流尺寸："
 grep 'attachStream' "$LOG" | sed 's/.*請求 //' | sort -u | tr '\n' ' '
 echo ""
+if [ "$INJECT" -eq 1 ]; then
+  echo "動畫來源：注入（疊層＋持續滑動）——這是人造負載，不代表真實遊玩"
+else
+  echo "動畫來源：無注入，畫面自己的變化率"
+fi
 echo "驗收線：60fps 穩定（母計畫 §7 Phase-1）"
 echo "log：$LOG"
