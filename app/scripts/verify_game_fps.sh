@@ -39,7 +39,7 @@ ADB="$SDK/platform-tools/adb"
 [ -x "$ADB" ] || { echo "找不到可執行的 adb：$ADB" >&2; exit 1; }
 
 APP="$(cd "$(dirname "$0")/.." && pwd)/.build/release/MirageApp"
-[ -x "$APP" ] || { echo "找不到 $APP——請先跑 swift build -c release" >&2; exit 1; }
+[ -x "$APP" ] || { echo "找不到 ${APP}——請先跑 swift build -c release" >&2; exit 1; }
 
 "$ADB" -s "$SERIAL" get-state >/dev/null 2>&1 \
   || { echo "裝置 $SERIAL 不在線上（adb devices 看看）" >&2; exit 1; }
@@ -76,11 +76,13 @@ echo "[fps] 開啟 pointer_location 疊層並持續注入滑動（保證畫面�
 ( while :; do "$ADB" -s "$SERIAL" shell input swipe 400 900 700 1500 250 >/dev/null 2>&1; done ) &
 ANIM_PID=$!
 
-echo "[fps] 啟動 Mirage → localhost:$GRPC_PORT，量測 ${DURATION}s"
+echo "[fps] 啟動 Mirage → localhost:${GRPC_PORT}，量測 ${DURATION}s"
 MIRAGE_PORT="$GRPC_PORT" MIRAGE_FPS_LOG=1 "$APP" > "$LOG" 2>&1 &
 sleep "$DURATION"
 
-SAMPLES=$(grep -c 'fps=' "$LOG" 2>/dev/null || echo 0)
+# grep -c 沒命中時**已經會印出 0**、同時回傳 1。寫成 `|| echo 0` 會再補一個 0，
+# 讓 SAMPLES 變成兩行、後面的 -eq 直接爆掉——而那正是沒量到幀時必然走到的路徑。
+SAMPLES=$(grep -c 'fps=' "$LOG" 2>/dev/null || true)
 echo ""
 echo "===== 結果 ====="
 grep 'fps=' "$LOG" | tail -20
