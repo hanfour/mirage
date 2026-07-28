@@ -96,6 +96,10 @@ P1-e 新增檔案的個別數字（合併後的完整量測）：
 
 - **P1-e GO（可量測部分）**：驗收線 1–5 全數 **PASS**，附真實輸出（測試 127/127（一般套件與 live 套件皆全綠，`MIRAGE_LIVE_AUDIO` 閘門修法後確認）、`ViewportFit`/`AudioRingBuffer` 逐行 100%、MirageCore 合併覆蓋率 95.92%（高於 ~94% 基準，方法論見上）、release 零警告、活體封包率 68.8 pkt/s／48k/stereo/S16 格式確認）。
 - **驗收線 6、7 誠實列 pending-human**：現有 harness（測試專用背景排空器、headless App）無法判定，需真 `AudioPlayer` + 真 GUI session；本次已附上實際嘗試的證據（fps 日誌 0 行輸出、underruns 累計 7 次獨立執行範圍 3–426、從未量到 0）而非僅憑印象標註。
+  > **⚠️ 2026-07-28 更正**：此處引為證據的「fps 日誌 0 行輸出」，其原因**不是**「需要真 GUI session」。
+  > 在真 GUI session、螢幕未鎖、使用者自己的終端機執行的條件下仍是 0 行——鏡像顯示自 P1-a 起
+  > 從未運作過（連線成功、幀有進來，但狀態傳不到 UI，且有合成視窗時會 SIGSEGV）。
+  > 見 `docs/specs/2026-07-28-mirror-never-rendered-investigation.md`。這條不是 pending-human，是 pending-fix。
 - **spec §9 五項 pending-human** 全數列出，皆需真 GUI session。
 - **overruns/underruns 歸因與緩衝深度兩極分佈**（含本次校正後的完整範圍與反例資料點）已在「已知限制」明確記錄為 caveat，未包裝成已證實的結論。
 - **App 層測試覆蓋缺口**（既有架構債）、**計畫原始活體測試碼缺消費者排空的發現**（本次補齊收錄）、**`AudioLiveTests` 併發時序問題已修正**（commit `8a1b694`）、以及**修法引入的覆蓋率量測新步驟（需合併兩條指令的 `.profraw`）**皆已記錄，供 Phase-1 後續 fast-follow 或架構調整參考。
