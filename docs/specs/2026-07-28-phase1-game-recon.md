@@ -68,11 +68,35 @@ ro.build.fingerprint       Android/sdk_phone64_arm64/emu64a:15/AE3A.240806.019/1
 /system/lib/libc_malloc_debug_qemu.so  無
 ```
 
-**判定**：property 層面完全沒有遮掩。`ro.kernel.qemu=1` 是反作弊的第一個檢查點，`ro.build.characteristics` 字面上就寫著 `emulator`。帶反作弊的遊戲會在啟動的前幾秒擋下——**這不是機率問題，是這組 property 的必然結果**。
-
-`test-keys` 簽章加上 `ro.kernel.qemu=1`，Play Integrity 亦不可能給出 device integrity 判定。
+**判定**：property 層面完全沒有遮掩。`ro.kernel.qemu=1` 是反作弊的第一個檢查點，`ro.build.characteristics` 字面上就寫著 `emulator`。
 
 要繞過需做 build.prop 層級的裝置識別調校——母計畫 §8 R2 已明定**那是 Phase 2 的工作**，且明確不做核心層反偵測軍備競賽。
+
+### 3.1 更正：上述指紋量自 AOSP 映像，Play Store 映像明顯較好（同日稍後實測）
+
+本節原本寫下「帶反作弊的遊戲會在啟動的前幾秒擋下——**這不是機率問題**」。**那句話下得太重，依據不足**：它量的是 AOSP（`default` tag）映像，而 Phase-1 實際要用的是 Play Store 映像。建立 `mirage-game` AVD（`android-35;google_apis_playstore;arm64-v8a`）後重量，差異是實質的：
+
+| property | AOSP 映像 | Play Store 映像 |
+|---|---|---|
+| `ro.build.tags` | `test-keys` | **`release-keys`** |
+| `ro.build.flavor` | `sdk_phone64_arm64-**userdebug**` | `sdk_gphone64_arm64-**user**` |
+| `ro.product.manufacturer` | `unknown` | **`Google`** |
+| `ro.build.fingerprint` | `Android/sdk_phone64_arm64/…:userdebug/test-keys` | `google/sdk_gphone64_arm64/emu64a:15/AE3A.240806.036/12592187:user/release-keys` |
+| `ro.kernel.qemu` | `1` | `1`（未變） |
+| `ro.boot.qemu` | `1` | `1`（未變） |
+| `ro.build.characteristics` | `emulator` | `emulator`（未變） |
+| `ro.hardware` | `ranchu` | `ranchu`（未變） |
+| `ro.product.model` | `Android SDK built for arm64` | `sdk_gphone64_arm64`（仍寫著 sdk） |
+
+`test-keys` → `release-keys` 與 `userdebug` → `user` 這兩項改變了 Play Integrity 的前提——Google 的 Play Store 模擬器映像本就是 Play 認證過的。**所以「必然被擋」這個結論不成立。**
+
+修正後的判定：
+- **直接讀 property 的反作弊**（檢查 `ro.kernel.qemu`／`ro.hardware`／`ro.build.characteristics`）——仍然一驗就中，這幾項在 Play Store 映像上完全沒變。多數重度反作弊屬此類。
+- **靠 Play Integrity 判定的**——basic integrity 有機會通過，device integrity 不會。實際結果取決於個別遊戲要求哪一級。
+
+**這不改變「驗收線縮為 1 款」的決定**（磁碟對 3D 大作仍是硬牆，直接讀 property 的反作弊仍然擋得住），但**確定性的措辭要收回**：哪些遊戲會被擋，是要逐款實測的事，不是能從這組 property 推導出來的。
+
+方法論教訓與 §0 同源：**探測條件必須與產品實際會用的一致。** 我用 AOSP 映像量指紋、卻對 Play Store 映像下結論，犯的是跟 Phase-0 MMAP 那次同一類的錯。
 
 ## 4. F3：`sdkmanager` 目前不可用，且這影響 Phase-1 的設計（實測）
 
@@ -92,6 +116,26 @@ Unable to locate a Java Runtime.
 原驗收線把**「我們的軟體行不行」跟「別人讓不讓我們跑」綁在同一個閘門上**。鍵位引擎、串流、輸入注入可能全都正確，驗收卻因反作弊而不過——那不是在量本專案的工程品質。
 
 母計畫 §7 已修訂：Phase 1 驗 1 款點擊型遊戲；MOBA 與 3D 大作移入 Phase 2，與裝置識別調校同批驗（兩者成敗本就綁在一起）。
+
+## 5.1 已建立的偵察環境（2026-07-28）
+
+為封死 §6 的最後一個未知，已建立**第二台**模擬器，不影響共享的 `emulator-5554`：
+
+| 項目 | 值 |
+|---|---|
+| AVD | `mirage-game`（`~/.android/avd/mirage-game.avd`） |
+| 映像 | `system-images;android-35;google_apis_playstore;arm64-v8a`（1.67 GB 下載、2.2 GB 解開，SHA1 已驗） |
+| 裝置 | `emulator-5556`，gRPC `8556` |
+| 規格 | RAM 4096 MB、data partition 8 GB（實測 `/data` 7.7 G，可用 6.9 G）、`hw.gpu.mode = host`、`PlayStore.enabled = yes`、device profile `pixel_7` |
+| Play Store | ✅ `com.android.vending`、`com.google.android.gms`、`com.google.android.gsf` 皆在 |
+
+**建立方式全程未用 `sdkmanager`／`avdmanager`（見 F3）**：直讀 Google 的 `sys-img2-3.xml` 取得 URL 與 SHA1 → `curl` → `unzip` 到 `system-images/` → 手寫 `mirage-game.ini` 與 `config.ini`（以既有 AVD 的 config 為範本）→ `emulator -avd`。**這證明 Phase-1 那段「下載映像 → 建立」可以做成不依賴 JDK 的產品功能。**
+
+啟動指令：
+
+```bash
+~/Library/Android/sdk/emulator/emulator -avd mirage-game -port 5556 -grpc 8556 -gpu host
+```
 
 ## 6. 尚未驗證，且需要使用者參與
 
