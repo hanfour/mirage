@@ -6,8 +6,9 @@ fps/延遲量測都需要搭配持續的動畫來源（見 RESULTS.md「Change-d
 guest 螢幕中央持續畫圓，供 `stream_bench.py` 等量測腳本在另一終端使用。
 
 用法：
-  python animate.py                 # 執行到 Ctrl-C
-  python animate.py --seconds 30    # 執行 30 秒後自動停止
+  python animate.py                                    # 5554，執行到 Ctrl-C
+  python animate.py --seconds 30                       # 執行 30 秒後自動停止
+  python animate.py --serial emulator-5556 --port 8556 # 指定機台
 """
 import argparse
 import math
@@ -22,7 +23,6 @@ import grpc
 import emulator_controller_pb2 as ec
 import emulator_controller_pb2_grpc as ecg
 
-TARGET = "localhost:8554"
 CENTER_X, CENTER_Y = 540, 1200
 RADIUS = 300
 ANGULAR_STEP = 0.15  # 弧度／步
@@ -40,10 +40,13 @@ def resolve_adb() -> str:
     return os.path.join(sdk_root, "platform-tools", "adb")
 
 
-def set_pointer_location(adb: str, enabled: bool) -> None:
+def set_pointer_location(adb: str, serial: str, enabled: bool) -> None:
+    """`-s serial` 不可省略。本機同時跑三台模擬器（見 phase1-game-recon），
+    不指定裝置時 adb 直接以 "more than one device/emulator" 失敗——而這個
+    失敗會讓整支腳本掛掉、量測端卻只看到「串流無幀」，往完全錯的方向查。"""
     subprocess.run(
-        [adb, "shell", "settings", "put", "system", "pointer_location",
-         "1" if enabled else "0"],
+        [adb, "-s", serial, "shell", "settings", "put", "system",
+         "pointer_location", "1" if enabled else "0"],
         check=True,
     )
 
@@ -83,6 +86,10 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--seconds", type=float, default=0,
                          help="執行秒數；0（預設）= 執行到 Ctrl-C")
+    parser.add_argument("--serial", default="emulator-5554",
+                         help="adb 裝置序號（本機有三台，必須指定；預設 emulator-5554）")
+    parser.add_argument("--port", type=int, default=8554,
+                         help="emulator 的 gRPC 連接埠（預設 8554）")
     args = parser.parse_args()
     if args.seconds < 0:
         parser.error("--seconds 不可為負數")
@@ -92,10 +99,10 @@ def parse_args() -> argparse.Namespace:
 def main() -> int:
     args = parse_args()
     adb = resolve_adb()
-    channel = grpc.insecure_channel(TARGET)
+    channel = grpc.insecure_channel(f"localhost:{args.port}")
     stub = ecg.EmulatorControllerStub(channel)
 
-    set_pointer_location(adb, enabled=True)
+    set_pointer_location(adb, args.serial, enabled=True)
     try:
         dropped = run_animation(stub, args.seconds)
         print(f"animate: 結束，丟棄 RPC 次數={dropped}")
@@ -105,7 +112,7 @@ def main() -> int:
         except grpc.RpcError as err:
             print(f"animate: 收尾 touch-up 失敗：{err.code().name}",
                   file=sys.stderr)
-        set_pointer_location(adb, enabled=False)
+        set_pointer_location(adb, args.serial, enabled=False)
     return 0
 
 
