@@ -3,7 +3,12 @@ import Testing
 @testable import MirageCore
 
 /// App-path 活體（Core 範圍，spec §4.7）：引擎狀態序列 → sendTouches → 真模擬器。
-/// `KeymapController`+NSEvent 抽取在不可 import 的 executable target/GUI，列 pending-human。
+///
+/// > **更正（2026-07-29）**：本行原本寫「`KeymapController`+NSEvent 抽取在不可 import 的
+/// > executable target/GUI，列 pending-human」。**兩個宣稱都不成立**：
+/// > `Tests/MirageShellTests/KeymapControllerRoutingTests.swift` 以 `@testable import MirageShell`
+/// > 直接單元測試 `KeymapController`（8 條），其中一條還用 `NSEvent.keyEvent(with: .flagsChanged, …)`
+/// > 在 headless 下合成真事件驗修飾鍵。這裡真正只能靠活體驗的是「注入到真模擬器」那一段。
 @Suite struct KeymapInjectLiveTests {
     @Test(.enabled(if: LiveGate.live, "需 MIRAGE_LIVE=1 與真模擬器；請跑 scripts/verify_keymap_inject.sh"))
     func engineDrivenMultiTouchInjects() async throws {

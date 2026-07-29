@@ -23,6 +23,14 @@ final class MenuBarController: NSObject, NSMenuDelegate {
     /// P1-e：AppModel.startAudio() 綁定 → AudioPlayer.setMuted。
     var onToggleMute: (() -> Void)?
 
+    /// D2：Android 實體鍵。參數是 W3C key 字串（"GoBack"／"GoHome"／"AppSwitch"），
+    /// 由 AppModel 綁定到 `client.sendKey`。
+    ///
+    /// 走選單列而不綁快速鍵是刻意的：⌘ 組合一律不直通給 guest（見 KeyTranslate），
+    /// F1–F3 在 macOS 預設是亮度／音量，⌃A／⌃E 在文字欄位有既有語意——每個候選鍵
+    /// 都有衝突。選單列零衝突且可被發現。Esc→GoBack 另外由 KeyTranslate 直接處理。
+    var onAndroidKey: ((String) -> Void)?
+
     init(onWake: @escaping () -> Void, onShow: @escaping () -> Void) {
         self.onWake = onWake
         self.onShow = onShow
@@ -45,6 +53,10 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         muteItem.action = #selector(muteTapped)
         muteItem.target = self
         menu.addItem(muteItem)
+        menu.addItem(.separator())
+        menu.addItem(withTitle: "返回", action: #selector(backTapped), keyEquivalent: "").target = self
+        menu.addItem(withTitle: "主畫面", action: #selector(homeTapped), keyEquivalent: "").target = self
+        menu.addItem(withTitle: "最近任務", action: #selector(recentsTapped), keyEquivalent: "").target = self
         menu.addItem(.separator())
         menu.addItem(gameItem)
         menu.addItem(withTitle: "停用 keymap", action: #selector(disableTapped), keyEquivalent: "").target = self
@@ -85,6 +97,9 @@ final class MenuBarController: NSObject, NSMenuDelegate {
     @objc private func showTapped() { onShow() }
     @objc private func fullScreenTapped() { onToggleFullScreen?() }
     @objc private func muteTapped() { onToggleMute?() }
+    @objc private func backTapped() { onAndroidKey?("GoBack") }
+    @objc private func homeTapped() { onAndroidKey?("GoHome") }
+    @objc private func recentsTapped() { onAndroidKey?("AppSwitch") }
     @objc private func disableTapped() { onDisable?() }
     @objc private func autoTapped() { onAuto?() }
     @objc private func forceTapped(_ sender: NSMenuItem) {

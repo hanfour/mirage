@@ -84,14 +84,57 @@ P1-a 迴歸的證據，改列為未量測（**當時記為 pending-unlock，該�
   > 這一行是本檔最危險的一處過時記載：它座落在最可能被當作寫碼依據的檔案裡，
   > 照著寫等於**重新製造一個剛修好的 bug**。
 
-- **`sendKey`**：API 存在（`EmulatorClient.sendKey(_:down:)`），但**目前全碼庫零呼叫端**——
-  鍵盤直通尚未接線，使用者在視窗裡打字 guest 收不到。見債務清單 D2。
+- **鍵盤直通（D2，2026-07-29）**：keymap profile **沒綁到**的鍵直接送給 guest 鍵盤
+  （`EmulatorClient.sendKey`），綁到的維持觸控路徑——使用者可以一邊用搖桿一邊在遊戲
+  聊天框打字。換算在 `MirageCore.KeyTranslate`（純函式、逐行單元測試）：特殊鍵用
+  macOS 虛擬鍵碼查表（`charactersIgnoringModifiers` 對 Enter 給 `"\r"`、對方向鍵給
+  私用區字元，emulator 不認得），可列印字元仍走字元路徑以保持版面感知。
+  **帶 ⌘ 的組合一律不直通**（Android 沒有 ⌘；⌘C/⌘V 已有剪貼簿橋接，送了會貼兩次）。
+  Esc → Android 返回鍵；主畫面／最近任務在選單列。
+  傳輸只用 `KeyboardEvent.key`——實測十個鍵全通，見設計文件 §2。
+  活體驗證：`./scripts/verify_keyboard.sh`（儀器是 `getevent`，不是目視）。
+
+  修飾鍵（⇧⌃⌥⌘）走 `KeymapController.handleFlagsChanged`，**只餵引擎、一律不直通**。
+  這條旁路是「帶 ⌘ 的組合一律不直通」唯一擋得住 ⌘ 鍵**本身**的地方——`KeyTranslate`
+  擋的是字元那半邊。有測試守著（`modifierKeysNeverPassThroughToGuest`）。
+
+  > **殘餘涵蓋面（未被自動化涵蓋，2026-07-29 修訂）**。三項，逐項說明現況：
+  >
+  > 1. **`MirrorMTKView.keyCode(from:)`（三行 `NSEvent` 取值）、`keyDown`/`keyUp` 覆寫、
+  >    `onKey` 閉包接線** — **仍零涵蓋**。業務邏輯已抽進純函式 `KeyTranslate`
+  >    （`KeyTranslateTests` 5 條逐行覆蓋），分流邏輯有 `KeymapControllerRoutingTests`
+  >    （8 條），`buildKeyEvent` 有 `EmulatorClientTouchTests`——殘餘面因此很薄，但不是零：
+  >    三個參數若「標籤對但來源錯」——例如 `hasCommand:` 誤傳
+  >    `event.modifierFlags.contains(.option)`、或 `characters:` 誤傳 `event.characters`
+  >    （該用 `charactersIgnoringModifiers`）——型別仍吻合、編譯器不會擋、219 條測試也不會紅，
+  >    因為它們測的是 `KeyTranslate` 本身，不是這個呼叫端。
+  > 2. **`KeymapController.handleFlagsChanged`（NSEvent → 四顆修飾鍵）** — **已涵蓋**
+  >    （2026-07-29 補）。`KeymapControllerRoutingTests.modifierKeysNeverPassThroughToGuest`
+  >    用 `NSEvent.keyEvent(with: .flagsChanged, …)` 合成真事件（該 factory 在 headless
+  >    `swift test` 下實測可用），斷言按住 ⌘/⇧ 期間零 `sendKey`。這條是回歸測試：分流上線後
+  >    `handleFlagsChanged` 曾繞經 `route()`，讓引擎不認識的 `Meta`/`Shift`/`Control`/`Alt`
+  >    整顆送給 guest。**剩下的接線**——`MirrorMTKView.flagsChanged(with:)` 覆寫 →
+  >    `onFlagsChanged` 閉包 → `Coordinator.controller` — 與第 1 項同性質，仍零涵蓋。
+  > 3. **`MenuBarController` 的「返回／主畫面／最近任務」→ `onAndroidKey` →
+  >    `AppModel.startLifecycle()` 的綁定** — **單元測試仍零涵蓋**（選單項的 `@objc` 動作
+  >    需要 GUI）。傳輸那一段已補進活體清單：`KeyboardLiveTests.sequence` 與
+  >    `verify_keyboard.sh` 的 `EXPECTED` 於 2026-07-29 加入 `GoHome`/`AppSwitch`
+  >    （`KEY_HOME`/`KEY_APPSELECT`）——先前三顆 Android 實體鍵只驗了 `GoBack` 一顆，
+  >    另外兩顆是使用者可見功能卻兩邊都沒有。
+  >
+  > 第 1 項與第 3 項的選單接線屬於 `../docs/specs/2026-07-29-project-review.md` §8 D 節
+  > 點名的**第三類：可以驗了，但沒人回頭驗**——不是「待人眼確認」，也不是根本沒做。
+  > 阻礙（`AVAudioEngine` 的 NSException 打死 MainActor）已於 2026-07-28 修復，GUI 現在
+  > 開得起來、鍵盤事件現在收得到，只是還沒有人回頭用 App 實際按過。驗法：`open` 開 `.app`
+  > bundle（不要從 shell 直接跑 executable）→ 在鏡像視窗按幾個鍵、並從選單列點「主畫面」
+  > 與「最近任務」→ 同時 `adb -s <serial> shell getevent -l` 觀察是否出現對應的 `KEY_*`
+  > 事件（`KEY_A`… / `KEY_HOME` / `KEY_APPSELECT`）。
 - **無 profile 退回**：`MirrorView` 在無 active profile 時仍走 P1-a 直接 mouse→tap（不回歸）。
 - **App 整合**：`KeymapController`（NSEvent→引擎→注入）、`MouseCapture`（look 游標鎖定）、overlay 提示與陽春編輯器、⌘E 進編輯。
 - 活體多指：`ANDROID_SERIAL=emulator-5554 MIRAGE_LIVE=1 swift test --filter MultiTouchLiveTests`（配 `adb shell settings put system show_touches 1`，注入後 show_touches 見 `P: 0/2`）。
 - 驗收紀錄：`RESULTS-p1c.md`（authoritative）。
 
-**已知限制/移交**：真實觸點落點精度未驗（換算路徑已修，見上方多指注入的更正）；look 手感、⌘E 即時行為未驗；`gameId` 仍硬編碼 `com.example.game`。（`MouseCapture` 失焦自動釋放已於 P1-d 修復。）
+**已知限制/移交**：真實觸點落點精度未驗（換算路徑已修，見上方多指注入的更正）；look 手感、⌘E 即時行為未驗；`gameId` 仍硬編碼 `com.example.game`；鍵盤直通的膠水層（`keyCode(from:)`／`keyDown`/`keyUp`／`onKey`／`flagsChanged` 接線）與選單列三顆 Android 實體鍵的接線可以驗了但沒人回頭驗，見上方鍵盤直通說明的殘餘涵蓋面三項。（`MouseCapture` 失焦自動釋放已於 P1-d 修復。）
 
 > **⚠️ 更正（2026-07-29）**：本行原本把「overlay 拖放存檔」列為 **pending-human**，讀起來像
 > 「做好了待人眼確認」。**實際是根本沒做**：`Sources/MirageShell/Keymap/OverlayEditorView.swift`
@@ -135,7 +178,7 @@ P1-a 迴歸的證據，改列為未量測（**當時記為 pending-unlock，該�
 
 補齊母計畫 Phase-1「鏡像視窗」尚缺的兩項：macOS 原生全螢幕遊戲模式、guest 音訊輸出到 Mac 喇叭。
 
-- **全螢幕**：三種入口——⌃⌘F、視窗綠燈、選單列「遊戲模式（全螢幕）」；由 `NSWindow.didEnterFullScreenNotification`／`didExitFullScreenNotification` 驅動 `AppModel.isFullScreen`（系統告知，不自行推測）。letterbox 由 `MirrorContainerView`（黑底 NSView）+ `ViewportFit`（`MirageCore` 純函式）負責——容器算好 aspect-fit 內容矩形，把 `MirrorMTKView` 佈局進去，黑邊是父 view 的背景色，`MirrorMTKView.bounds` 永遠等於內容矩形，座標數學（`normalized()`／`KeymapController`）零改動。**不綁 Esc**（Esc 在 guest 是返回鍵，搶了會壞遊戲輸入）。全螢幕時隱藏 keymap 唯讀提示 overlay（純視覺噪音），保留 `ConnectionBanner`／`InstallBanner`（斷線是必須知道的異常，安裝是使用者主動觸發的回饋）。串流解析度改用內容矩形寬 + 實際幀長寬比反推高度，上限規則在 `MirageCore/Viewport/StreamSize.swift`（純函式、有單元測試）：寬度上限 1080 **加上總像素預算 1.8 MP**——只限寬守不住成本，9:20 直向在寬度上限下會算到 1080×2400 ≈ 2.6 MP，比 spec §4.3 論證所用的 880×1960（1.7 MP）多 50%；加了像素預算後直向全螢幕為 900×2000，橫向仍由寬度上限主導，小視窗不受影響。**該預算尚未經 fps 實測校準**（驗收線 7 仍 pending-human）。
+- **全螢幕**：三種入口——⌃⌘F、視窗綠燈、選單列「遊戲模式（全螢幕）」；由 `NSWindow.didEnterFullScreenNotification`／`didExitFullScreenNotification` 驅動 `AppModel.isFullScreen`（系統告知，不自行推測）。letterbox 由 `MirrorContainerView`（黑底 NSView）+ `ViewportFit`（`MirageCore` 純函式）負責——容器算好 aspect-fit 內容矩形，把 `MirrorMTKView` 佈局進去，黑邊是父 view 的背景色，`MirrorMTKView.bounds` 永遠等於內容矩形，座標數學（`normalized()`／`KeymapController`）零改動。**不綁 Esc**（Esc 在 guest 是返回鍵，搶了會壞遊戲輸入）。全螢幕時隱藏 keymap 唯讀提示 overlay（純視覺噪音），保留 `ConnectionBanner`／`InstallBanner`（斷線是必須知道的異常，安裝是使用者主動觸發的回饋）。串流解析度改用內容矩形寬 + 實際幀長寬比反推高度，上限規則在 `MirageCore/Viewport/StreamSize.swift`（純函式、有單元測試）：寬度上限 1080 **加上總像素預算 1.8 MP**——只限寬守不住成本，9:20 直向在寬度上限下會算到 1080×2400 ≈ 2.6 MP，比 spec §4.3 論證所用的 880×1960（1.7 MP）多 50%；加了像素預算後直向全螢幕為 900×2000，橫向仍由寬度上限主導，小視窗不受影響。**1.8 MP 這個值仍沒有對應的量測點**（§11.2 量到的是 0.65 MP → 30.4 fps、2.59 MP → 22.0 fps，1.8 MP 落在兩者之間）——這是**可以量了但沒人回頭量**，不是被什麼擋住：驗收線 7 原本記的「需解鎖螢幕」歸因已推翻（真因是 `AVAudioEngine` 的 NSException，2026-07-28 已修），量法是 `./scripts/verify_game_fps.sh` 配 `MIRAGE_FPS_LOG`。完整更正見 `StreamSize.swift:17-40`。
 - **橫向**：`ImageFormat.rotation` 是 `[Output Only]`，emulator 已把幀轉好；長寬比一律由 `Renderer.lastFrameSize` 驅動的實際解碼幀決定，原本散在 `MirrorMTKView.viewDidMoveToWindow`／`MirrorView.Coordinator.resizeDebounced` 兩處的 `9:20` 硬編碼已移除，橫向遊戲自動支援，無需獨立分支。
 - **音訊**：`EmulatorClient.attachAudio()`／`detachAudio()` 與既有 `FramePump` 對稱掛在同一條連線狀態機上（不新增第二條生命週期）——`streamAudio`（48000Hz／stereo／S16／`modeRealTime`，由 `GrpcAudioTransport` 封裝）→ `AudioRingBuffer`（SPSC 無鎖環形緩衝，容量 200ms／19_200 samples）→ `AudioPlayer`（`AVAudioEngine` + `AVAudioSourceNode`，render callback 只做一次 `memcpy`／補零，不配置不加鎖不 log）。關視窗即靜音，跟畫面同一條 `PowerState`。選單列「靜音」勾選（`engine.mainMixerNode.outputVolume = 0/1`，macOS 無原生 per-app 音量）。`MIRAGE_AUDIO_LOG=1` 每秒印一行 `[audio] pkt=N sr=48000 ch=2 under=N over=N depth=Nms` 健康摘要，是唯一能無頭驗證音訊健康的訊號。活體驗證：`scripts/verify_audio.sh`（用 `input keyevent 24` 頂音量 + `am start VIEW` 觸發內建鈴聲發聲，量測 `streamAudio → AudioRingBuffer` 5 秒封包率）——**這是唯一正確的執行方式**：`AudioLiveTests` 額外掛了 `MIRAGE_LIVE_AUDIO=1` 閘門（比照既有 `MIRAGE_LIVE_MMAP` 慣例），只有這支腳本會設定它，避免它跟其他活體測試一起跑進通用的 `MIRAGE_LIVE=1 MIRAGE_LIVE_MMAP=1 swift test` 覆蓋率量測指令時，因鈴聲早已播畢而假性紅燈；直接跑 `MIRAGE_LIVE=1 swift test --filter AudioLiveTests`（不帶 `MIRAGE_LIVE_AUDIO=1`）現在會 early return，看似通過但其實什麼都沒驗到。
 - **已知限制／移交**：完整未驗清單（真實聽感、letterbox 目視、橫向全螢幕、遊戲模式 chrome 隱藏手感、全螢幕下 keymap/mouse capture 手感、驗收線 6 連續 60 秒 underruns==0、驗收線 7 fps≥55）見 `RESULTS-p1e.md`。**這批全部是「碼在、沒人驗」，不是「被螢幕鎖定擋住」**——見下方那條更正；`overruns`/`underruns` 歸因與緩衝深度呈兩極分佈（多數逼近容量上限、至少一次幾乎全空）的 caveat 亦記錄於該文件。**`AudioRingBuffer` 是本專案唯一允許 mutate 的資料結構**（即時執行緒的硬性要求——render callback 不得配置記憶體、不得加鎖、不得 log，破例範圍嚴格限縮在這一個 type 內，對外只暴露不可變的 `AudioChunk`／`AudioStats` 快照）。

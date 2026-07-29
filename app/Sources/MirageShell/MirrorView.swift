@@ -65,9 +65,13 @@ final class MirrorMTKView: MTKView {
         onFlagsChanged?(event)
     }
 
+    /// 換算邏輯本身在 `MirageCore.KeyTranslate`（純函式、逐行單元測試）——這裡只負責
+    /// 從 `NSEvent` 取欄位。原本這個函式直接回 `.key(chars)`，那對 Enter 會送 "\r"、
+    /// 對方向鍵會送私用區字元，emulator 都不認得；而且沒有擋 ⌘ 組合。
     private func keyCode(from event: NSEvent) -> KeyCode? {
-        guard let chars = event.charactersIgnoringModifiers, !chars.isEmpty else { return nil }
-        return .key(chars)      // W3C key 近似：單字元鍵直接用字元（"w"/"a"/…）
+        KeyTranslate.w3c(virtualKey: event.keyCode,
+                         characters: event.charactersIgnoringModifiers,
+                         hasCommand: event.modifierFlags.contains(.command))
     }
 }
 

@@ -11,6 +11,18 @@ import Testing
         ]))
     }
 
+    /// 分流的判定式：綁到的鍵走觸控，沒綁到的由呼叫端直通給 guest 鍵盤（D2）。
+    /// 測試用的 profile 綁了 w/a/s/d（joystick）與 j（tap），look 的 activation 是 nil。
+    @Test func handlesReportsBoundKeysOnly() {
+        let e = engine()
+        #expect(e.handles(KeyCode.key("w")) == true)      // joystick
+        #expect(e.handles(KeyCode.key("d")) == true)
+        #expect(e.handles(KeyCode.key("j")) == true)      // tap
+        #expect(e.handles(KeyCode.key("k")) == false)     // 沒綁 → 直通
+        #expect(e.handles(KeyCode.key("Enter")) == false)
+        #expect(e.handles(KeyCode.mouse(.left)) == false)
+    }
+
     @Test func tapDownProducesTouchThenUp() {
         let e = engine()
         let down = e.apply(.keyDown(.key("j")))
