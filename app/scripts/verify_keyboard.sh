@@ -21,7 +21,12 @@ TARGET_PORT="${MIRAGE_PORT:-8554}"
 ADB="$HOME/Library/Android/sdk/platform-tools/adb"
 
 # 與 KeyboardLiveTests.sequence 一一對應。改一邊要同步改另一邊。
-EXPECTED=(KEY_A KEY_ENTER KEY_BACKSPACE KEY_BACK)
+#
+# KEY_HOME／KEY_APPSELECT（選單列的「主畫面」「最近任務」）是 2026-07-29 補上的：
+# 這兩顆使用者可見功能先前既無單元測試、也不在這份活體清單裡，三個 Android 實體鍵
+# 只驗了 GoBack 一個。evdev 名稱以設計文件 §2 的實測為準——GoHome 對應 `KEY_HOME`
+# 而**不是** `KEY_HOMEPAGE`（猜錯名稱正是該次量測的兩個假陰性之一）。
+EXPECTED=(KEY_A KEY_ENTER KEY_BACKSPACE KEY_BACK KEY_HOME KEY_APPSELECT)
 
 cd "$(dirname "$0")/.." || exit 1
 FAILURES=0
