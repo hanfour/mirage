@@ -70,11 +70,37 @@ APP="${APP_OVERRIDE:-$(cd "$(dirname "$0")/.." && pwd)/.build/release/MirageApp}
 
 LOG=$(mktemp -t mirage_game_fps)
 ANIM_PID=""
+
+# **必須以 .app bundle 啟動，不能直接跑 bare executable。**
+# 直接跑 bare executable 時 macOS 不一定會把視窗合成上螢幕，MTKView 的
+# currentDrawable 因此為 nil、Renderer 早退，present 一次都不發生——而幀其實
+# 都正常進來了。症狀是「取樣數 0」但 log 裡 `幀 #N` 一路在跑。2026-07-28 實測
+# 這是**不穩定**的：同樣的指令有時量得到、有時完全量不到，所以不是「偏低」
+# 而是「不可信」。包成 bundle 之後 activation policy 才是 .regular。
+BUNDLE=$(mktemp -d -t mirage_fps_bundle)
+mkdir -p "$BUNDLE/Mirage.app/Contents/MacOS"
+cp "$APP" "$BUNDLE/Mirage.app/Contents/MacOS/MirageApp"
+cat > "$BUNDLE/Mirage.app/Contents/Info.plist" <<'PLIST'
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>CFBundleExecutable</key><string>MirageApp</string>
+  <key>CFBundleIdentifier</key><string>com.mirage.fpsharness</string>
+  <key>CFBundleName</key><string>Mirage</string>
+  <key>CFBundlePackageType</key><string>APPL</string>
+  <key>CFBundleInfoDictionaryVersion</key><string>6.0</string>
+  <key>NSPrincipalClass</key><string>NSApplication</string>
+  <key>NSHighResolutionCapable</key><true/>
+</dict>
+</plist>
+PLIST
 ORIG_POINTER=$("$ADB" -s "$SERIAL" shell settings get system pointer_location 2>/dev/null | tr -d '\r')
 
 cleanup() {
   [ -n "$ANIM_PID" ] && kill "$ANIM_PID" 2>/dev/null
   pkill -x MirageApp 2>/dev/null
+  [ -n "${BUNDLE:-}" ] && rm -rf "$BUNDLE"
   # 還原：疊層是為了量測而開的，不還原會一直留在使用者的裝置上。
   case "$ORIG_POINTER" in
     ""|null) "$ADB" -s "$SERIAL" shell settings put system pointer_location 0 >/dev/null 2>&1 ;;
@@ -111,8 +137,13 @@ else
   echo "[fps] -n：不注入動畫，量畫面自己的變化率（關卡內請用這個）"
 fi
 
-echo "[fps] 啟動 Mirage → localhost:${GRPC_PORT}，量測 ${DURATION}s"
-MIRAGE_PORT="$GRPC_PORT" MIRAGE_FPS_LOG=1 MIRAGE_CONN_LOG=1 "$APP" > "$LOG" 2>&1 &
+echo "[fps] 啟動 Mirage（.app bundle）→ localhost:${GRPC_PORT}，量測 ${DURATION}s"
+open -a "$BUNDLE/Mirage.app" --stdout "$LOG" --stderr "$LOG" \
+  --env MIRAGE_PORT="$GRPC_PORT" --env MIRAGE_FPS_LOG=1 --env MIRAGE_CONN_LOG=1
+sleep 6
+# 視窗要在前景才會被合成。取不到就繼續——量測本身仍可能成功，而下面的
+# 診斷會分辨得出來。
+osascript -e 'tell application "System Events" to set frontmost of process "MirageApp" to true' >/dev/null 2>&1
 sleep "$DURATION"
 
 # grep -c 沒命中時**已經會印出 0**、同時回傳 1。寫成 `|| echo 0` 會再補一個 0，
@@ -123,11 +154,22 @@ echo "===== 結果 ====="
 grep 'fps=' "$LOG" | tail -20
 echo ""
 if [ "$SAMPLES" -eq 0 ]; then
-  echo "取樣數 0——Mirage 沒有畫任何一幀。前兩行輸出："
-  head -2 "$LOG"
+  FRAMES=$(grep -c '幀 #' "$LOG" 2>/dev/null || true)
+  echo "取樣數 0——Mirage 沒有 present 任何一幀。"
   echo ""
-  echo "已知：探測與連線是成功的（上面印出 [transport] 就代表健康探測通過、狀態已連上），"
-  echo "所以問題在「串流不出幀」而非「連不上」。log：$LOG"
+  if [ "$FRAMES" -gt 0 ]; then
+    echo "但幀有進來（log 裡有 $FRAMES 行「幀 #N」）。**所以問題不在串流，在視窗**："
+    echo "視窗沒有被合成上螢幕，MTKView 的 currentDrawable 為 nil，Renderer 早退。"
+    echo "檢查：Mirage 視窗有沒有真的出現在螢幕上、有沒有被其他視窗完全遮住、"
+    echo "螢幕是否鎖定。這條路徑實測是不穩定的，重跑一次往往就好。"
+  else
+    echo "而且幀也沒進來（log 裡沒有「幀 #N」）。問題在串流或連線："
+    head -3 "$LOG"
+    echo "（若上面出現 [transport]，代表健康探測通過、狀態已連上，那就是串流不出幀；"
+    echo "  記得 streamScreenshot 是變化驅動的，畫面靜止時本來就不出幀。）"
+  fi
+  echo ""
+  echo "log：$LOG"
   exit 1
 fi
 grep 'fps=' "$LOG" | sed 's/.*fps=//' | awk -v n="$SAMPLES" '
