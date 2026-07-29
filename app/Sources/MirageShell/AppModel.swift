@@ -269,6 +269,10 @@ final class AppModel {
     // completion off the main thread/MainActor executor — required because
     // the caller (AppDelegate.applicationWillTerminate) blocks the main
     // thread on a semaphore while this runs.
+    /// 更正（2026-07-29，D1）：這 200ms 是在等一個**已經不存在**的競態
+    /// （`GrpcChannelBox.deinit` 的阻塞式 NIO 拆除，見 AppDelegate.swift 頂端的更正註記）。
+    /// 現在 `client.stop()` 回來時 channel 已顯式關閉、group 的拆除也已非阻塞地發出。
+    /// 保留未動的理由同上：改 ⌘Q 路徑需要實機驗證，而 headless 驅動不了它。
     nonisolated func shutdown() async {
         await client.stop()
         try? await Task.sleep(for: .milliseconds(200))

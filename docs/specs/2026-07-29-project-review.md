@@ -26,6 +26,30 @@
 
 ## 1. NIO 卡死：既有歸因是錯的（已驗證）
 
+> **狀態更新（2026-07-29 同日）：D1／D8 已修並驗收通過。** 修法與本節推測的方向一致，
+> 但根因比「關閉順序」更具體：**顯示串流從來沒有可取消的 call handle**。
+> `GrpcStreamTransport` 用便利方法 `client.streamScreenshot(_:)`，它丟棄底層的
+> `GRPCAsyncServerStreamingCall`；MMAP 與音訊兩條路徑早就改用 `make*Call` 了，唯獨這條
+> **預設開啟**的沒改。於是 `dropChannel()` 永遠帶著一個未解決的 promise 去拆 group。
+>
+> 兩份獨立 stack sample 顯示：**剛好 8 條**（= 核心數）cooperative 執行緒全部阻塞在
+> `dropChannel → channelBox.setter → GrpcChannelBox.deinit → syncShutdownGracefully
+> → semaphore_wait_trap`，同一時刻 NIO 的 event loop 執行緒全部閒置在 `kevent`。
+> 也就是說 group 不是「關得慢」，是根本沒開始關，而池已被自己佔滿。
+>
+> | | 修正前 | 修正後 |
+> |---|---|---|
+> | 5 跑結果 | **3 卡死 / 2 通過** | **5 通過** |
+> | `Cannot schedule tasks…` | 通過的兩跑各 3 行、5 行 | **每跑 0 行** |
+> | 乾淨跑次 | **0 / 5** | **5 / 5** |
+>
+> **一個必須寫下來的陷阱**：「0 行 ERROR」單獨拿來當驗收訊號是**瞎的**。
+> 那行的語意是「pool 想在已關閉的 loop 上排程」——如果 group 根本沒被關掉，也一樣不會有這行。
+> 換句話說它同時相容於「修好了」與「靜默洩漏 NIO 執行緒」。補了
+> `ChannelTeardownTests`（opt-in，`MIRAGE_THREAD_AUDIT=1`）直接數行程執行緒，
+> 同時斷言「拆除不阻塞呼叫端」與「執行緒真的收斂」，才把這個盲區補起來。
+> 實測：12 條 channel 的 `shutdown()` 全部發出耗時 <100ms，執行緒在 50ms 內收斂回基準。
+
 **記憶與 `RESULTS-shell-target.md` 記載**：「測試會建真 channel，需要抽可注入 channel」。
 
 **實際機制**（審查者在套件卡死時抓的 process sample）：
@@ -65,14 +89,14 @@
 
 | # | 是什麼 | 擋住什麼 | 成本 | 序 |
 |---|---|---|---|---|
-| **D1** | **NIO 關閉順序 + 阻塞式拆除**（見 §1） | 測試套件機率性卡死（實測 7 跑 3 卡）→ 歷來每次「N tests passed」都有相當機率只是運氣；擋住 CI 與所有 App 層測試；⌘Q 路徑靠 sleep 掩護 | 半天 | **P0** |
+| ~~**D1**~~ | ~~**NIO 關閉順序 + 阻塞式拆除**（見 §1）~~ | **✅ 已修（2026-07-29）**。`GrpcChannelBox.shutdown()`：先 `channel.close()`、再回呼式 `group.shutdownGracefully(queue:)`，全程不阻塞；`dropChannel()` 顯式呼叫。驗收 5/5 乾淨 | 實際約半天 | — |
 | **D2** | **鍵盤直通零實作**——`sendKey` 無呼叫端，無 profile 時按鍵直接丟棄 | 母計畫 Phase-1 交付項；使用者在視窗裡打字 guest 收不到 | 半天 | **P0** |
 | **D3** | **8 處活體測試用 `guard/return`** 而非 skip → 未設 env 時報 passed 但零斷言 | 綠燈是假的。分佈於 `MmapStreamLive`/`KeymapInjectLive`/`SnapshotRoundTripLive`/`AudioLive`/`EmulatorClientReconnect`(×2)/`ClipboardBridge`/`EmulatorClientTouch` | 1 小時 | **P0**（最便宜） |
 | **D4** | **內建 profile 沒進 bundle** + `AppModel.gameId` 寫死 `com.example.game` | `.auto` 自動啟用端到端不可能通；指標遊戲沒有可用 profile | 半天 | **P1** |
 | **D5** | **overlay 編輯器不能拖**（29 行，只有存檔按鈕） | 母計畫交付項；鍵位映射是產品命根子但使用者改不了 | 2–3 天 | **P1** |
 | **D6** | **輸入無順序保證**——每個事件各開一個 unstructured Task，而 `TouchFrame` 是全狀態快照，晚到的舊快照會覆蓋新狀態 | 快速連點/連按產生幽靈觸點或吃掉動作，症狀是「遊戲沒反應」——又一個看起來像遊戲問題的靜默錯誤 | 半天–1 天 | **P1** |
 | **D7** | **`mouseUp` 早退吞掉放開事件**（`MirrorView.swift:35-52`）：拖到 letterbox 黑邊或視窗外放開，guest 手指永遠按著 | 同上，且黑邊在非同比視窗下必定存在 | 1 小時 | **P1** |
-| **D8** | **預設 transport 無法取消底層 RPC**——`GrpcStreamTransport` 用便利方法丟棄 call handle。同樣的修法已套用在 clipboard、audio、MMAP 三處，唯獨預設開啟的 raw RGBA 沒有 | 孤兒 RPC 的未解決 promise 正是 D1 的燃料 | 1–2 小時 | **P1**（與 D1 同批做） |
+| ~~**D8**~~ | ~~**預設 transport 無法取消底層 RPC**~~ | **✅ 已修（2026-07-29，與 D1 同批）**。`GrpcStreamTransport` 改 class 持有真 call、改用 `makeStreamScreenshotCall`；`cancelStream()` 升為 `DisplayTransport` 的**必要**成員（刻意不給 default no-op），三個產品實作與兩個測試假件全數補上 | 實際與 D1 合計約半天 | — |
 | **D9** | **驗證腳本本身是假的**：`verify_snapshot.sh` 11 行零斷言（只存 PNG + 印字）；`verify_reconnect.sh:77` 的 `getprop` 缺 `-s`（會打到實體手機） | 驗收訊號不可信 | 半天 | **P1** |
 | **D10** | **沒有 CI** | 所有品質閘門靠人手動跑；與 D1 疊加＝從未機械驗證過綠燈 | 半天 | **P1**（**必須在 D1 之後**——在 50% 機率紅的套件上架 CI 只會教會大家忽略紅燈） |
 | **D11** | **焦點切換不清鍵位狀態**：按住 W 然後 ⌘Tab，keyUp 永不投遞，搖桿觸點永遠 down | 使用者體感 bug | 2 小時 | P2 |
@@ -117,13 +141,15 @@ recon 文件那句講的是 `poc`。量 fps 用的 `game` 機已是最佳設定�
 
 ## 5. 建議的下一步
 
+> **進度（2026-07-29 同日）**：第 1 項（D1／D8）**已完成並驗收**，見 §1 的狀態更新。
+
 **第 0 步：把所有 `pending-human` 重新分類**（半天）。理由見 §0。
 
 之後：
 
-1. **D1 NIO 關閉順序**（半天）——它不是最重要的，它是**乘數**。7 跑 3 卡＝每次驗證成本翻倍，而下面幾乎每件事都要動 `EmulatorClient`。順帶把 D8 一起做（同一批、同一個原因）。
+1. ~~**D1 NIO 關閉順序**（半天）~~ ✅ 已完成。它不是最重要的，它是**乘數**——修完之後每次驗證的成本才是誠實的。D8 同批做掉了（同一個原因）。
 2. **D3 假綠燈**（1 小時）——最便宜的一筆，且直接消滅「測試通過」這個訊號的雜訊。
-3. **D10 CI**（半天，必須在 D1 之後）。
+3. **D10 CI**（半天，必須在 D1 之後——**前置條件現已解除**）。
 4. **D2 鍵盤直通 + D4 profile 上架**（1 天）——這兩個是「沒有」不是「不夠好」，比三條數字驗收線更致命。
 5. **D15 文件更正**（2 小時）——尤其 README:58。
 6. **D5 overlay 編輯器真的能拖**（2–3 天）。

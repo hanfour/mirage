@@ -14,8 +14,13 @@ private final class ScriptedTransport: DisplayTransport, @unchecked Sendable {
     private var scripts: [Script]
     private var _subscribeCount = 0
 
+    private var _cancelCount = 0
+
     init(_ scripts: [Script]) { self.scripts = scripts }
     var subscribeCount: Int { lock.lock(); defer { lock.unlock() }; return _subscribeCount }
+    var cancelCount: Int { lock.lock(); defer { lock.unlock() }; return _cancelCount }
+
+    func cancelStream() { lock.lock(); _cancelCount += 1; lock.unlock() }
 
     func frames(width: Int, height: Int) -> AsyncThrowingStream<Frame, Error> {
         lock.lock()
@@ -60,6 +65,17 @@ private func collect(_ stream: AsyncThrowingStream<Frame, Error>,
         #expect(tags == [1, 2, 3])
         #expect(err == nil)
         #expect(secondary.subscribeCount == 0)
+    }
+
+    /// cancelStream() 必須傳給兩條腿。降級與否由 frames() 內部的 Task 決定、與本呼叫並發，
+    /// 讀 fellBack 會有競態；對沒有 in-flight call 的 transport 取消本來就是 no-op。
+    @Test func cancelStreamForwardsToBothLegs() {
+        let primary = ScriptedTransport([.framesThenHang([1])])
+        let secondary = ScriptedTransport([.framesThenHang([2])])
+        let fb = FallbackTransport(primary: primary, secondary: secondary)
+        fb.cancelStream()
+        #expect(primary.cancelCount == 1)
+        #expect(secondary.cancelCount == 1)
     }
 
     /// 2. primary 丟 .mmapUnusable → 無縫接上 secondary，消費端看到連續串流。

@@ -1,5 +1,19 @@
 import AppKit
 
+// 更正（2026-07-29，D1）：下面這段描述的根因**已經修掉了**。
+// `GrpcChannelBox.deinit` 不再呼叫阻塞式的 `syncShutdownGracefully()`；
+// `EmulatorClient.dropChannel()` 改為顯式呼叫 `GrpcChannelBox.shutdown()`——
+// 先 `channel.close()` 再回呼式 `group.shutdownGracefully(queue:)`，全程不阻塞。
+// 那行 `Cannot schedule tasks on an EventLoop that has already shut down`
+// 在修正後的連跑 5 次完整套件中出現 0 次（修正前：卡死 3 次，通過的 2 次各印 3 行與 5 行）。
+//
+// 因此下面這套 semaphore + 200ms drain **不再是必要的**，只是多餘的保險。
+// 刻意保留未動：移除它會改變 ⌘Q 路徑的行為，而 GUI App 在 headless 下驅動不了
+// applicationWillTerminate，無法驗證——沒有驗證就不改。要拆的話請連同
+// `AppModel.shutdown()` 的 `Task.sleep(200ms)` 一起，並實機驗一次 ⌘Q。
+//
+// 以下為原始說明，保留以記錄當初為何這樣寫：
+//
 // AUTHORIZED ADDITION（Task 4 review: NIO teardown race）
 //
 // task-4-report.md Concern 1: EmulatorClient.stop() cancels the frame pump

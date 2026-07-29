@@ -400,8 +400,16 @@ public actor EmulatorClient {
         clipboardTask?.cancel()
         clipboardTask = nil
         clipboardCall = nil
+        // 顯示串流的顯式取消。音訊（detachAudio）與剪貼簿（clipboardCall?.cancel()）
+        // 早就有這一步，唯獨**預設開啟**的這條沒有——`pump.detach()` 只取消 Swift Task，
+        // 而 Task 取消中斷不了已 in-flight 的 `next()`（見 DisplayTransport.cancelStream 的說明）。
+        transport?.cancelStream()
         transport = nil
         probe = nil
-        channelBox = nil            // deinit → group.syncShutdownGracefully()
+        // 顯式、非阻塞地拆連線。舊碼靠 `channelBox = nil` 觸發 deinit 裡的**阻塞式**
+        // syncShutdownGracefully()，而這裡跑在 cooperative 執行緒上——8 核就是 8 條，
+        // 佔滿即全域死鎖（2026-07-29 實測 5 跑 3 卡）。shutdown() 冪等，之後的 deinit 是 no-op。
+        channelBox?.shutdown()
+        channelBox = nil
     }
 }

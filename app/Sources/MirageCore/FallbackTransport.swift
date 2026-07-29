@@ -57,6 +57,14 @@ public final class FallbackTransport: DisplayTransport, @unchecked Sendable {
         }
     }
 
+    /// 兩條都取消，不看 `fellBack`。降級發生在 `frames()` 的 Task 內部、與本方法並發，
+    /// 讀那個旗標會有競態；而對沒有 in-flight call 的 transport 呼叫 `cancelStream()`
+    /// 本來就是 no-op，兩條都喊一次既簡單又不可能漏掉正在跑的那條。
+    public func cancelStream() {
+        primary.cancelStream()
+        secondary.cancelStream()
+    }
+
     /// 降級後把 secondary 的幀灌進**同一條** continuation——消費端看到的是一條不中斷的串流。
     private func drainSecondary(into cont: AsyncThrowingStream<Frame, Error>.Continuation,
                                 width: Int, height: Int) async {
