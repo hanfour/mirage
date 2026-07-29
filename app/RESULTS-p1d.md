@@ -35,7 +35,7 @@ P1-d 的可測邏輯（dumpsys 解析、啟用決策、adb 降級）皆 MirageCo
 - **完整 app-path pending-human**：`KeymapController`（在不可 import 的 executable target）與 `MirrorMTKView` 的 `NSEvent→KeyCode` 抽取需真 GUI session——harness 只驗到 Core 引擎→注入鏈（§4.7 誠實切分）。若要 headless 驗 `KeymapController`，須先把它抽成 library target（後續選項）。
 - **`AppModel.profile` 與偵測驅動啟用不同步**（Task 7 發現）：Task 5 `applyActivation()` 只 `keymap?.reload(p)`，未回寫 `AppModel.profile`——故 overlay 編輯器（⌘E 用 `profile`）與 look-only gating 讀到的是 P1-c 啟動期的值，非偵測後的 active profile。App 層 coherence 缺口，建議 P1-d fast-follow 或 overlay 上線前修（讓 activation 回寫 `profile`）。
 
-  > **✅ 已修（更正於 2026-07-29）**：`AppModel.swift:201` 的
+  > **✅ 已修（更正於 2026-07-29；行號於 2026-07-30 隨 D4 更新）**：`AppModel.swift:228` 的
   > `case .active(let p): keymap?.reload(p); profile = p` 就是那個回寫。本條已解決，
   > 留著會讓下一個人去修一個已經好了的東西。（另：原文寫「pending-human 領域」——
   > 這是**缺陷**不是待驗項，用詞本身就是 §0 記載的那個誤用。）
