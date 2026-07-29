@@ -46,6 +46,19 @@ public enum BuiltInProfiles {
     /// `subdirectory: "profiles"` 對應 `Package.swift` 的 `.copy("Resources/profiles")`：
     /// `.copy` 保持目錄結構，所以查表要帶這一層。若改成 `.process`，目錄會被攤平、
     /// 這裡就要拿掉 subdirectory——兩者要一起改。
+    ///
+    /// **⚠️ 回傳空陣列不是「找不到 bundle」的行為——找不到 bundle 是 `fatalError`。**
+    /// SwiftPM 產生的 `Bundle.module` 存取器（`.build/…/MirageCore.build/DerivedSources/
+    /// resource_bundle_accessor.swift:10-13`）長這樣：
+    ///
+    ///     guard let bundle = preferredBundle ?? Bundle(path: buildPath) else {
+    ///         Swift.fatalError("could not load resource bundle: …")
+    ///     }
+    ///
+    /// 兩條候選路徑分別是 `Bundle.main.bundleURL/Mirage_MirageCore.bundle` 與**編譯當下
+    /// 寫死的 `.build/` 絕對路徑**。所以在開發機上 `.app` 即使沒帶資源也照跑（默默從
+    /// `.build/` 讀），換一台機器或 `swift package clean` 之後就變成**啟動即崩**。
+    /// 空陣列只代表「bundle 在、但裡面沒有 json」。詳見債務表 D25。
     public static func bundledSources() -> [URL] {
         Bundle.module.urls(forResourcesWithExtension: "json", subdirectory: "profiles") ?? []
     }

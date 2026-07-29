@@ -75,6 +75,9 @@ for i in $(seq 1 "$RUNS"); do
     if [ "$rc" -ne 0 ] && [ "$dur" -ge "$RUN_TIMEOUT" ]; then
         pkill -9 -f swiftpm-testing-helper 2>/dev/null
         fail "第 $i 次：逾時 ${RUN_TIMEOUT}s 未結束（疑似死鎖，見 D1）"
+        # log 早就留著了（cleanup_logs 只在全過時刪），但先前沒印路徑——於是**最需要
+        # 證據的那一格**（死鎖，唯一線索是卡在哪條測試）反而要人自己去猜 mktemp 的目錄。
+        echo "   完整 log 保留在：$log"
         continue
     fi
     if [ "$rc" -ne 0 ]; then
@@ -97,6 +100,7 @@ for i in $(seq 1 "$RUNS"); do
     errln=$(grep -c "$ERR_PAT" "$log" 2>/dev/null || true)
     if [ "${errln:-0}" -ne 0 ]; then
         fail "第 $i 次：出現 $errln 行 NIO teardown ERROR（D1 回歸）"
+        echo "   完整 log 保留在：$log"
         continue
     fi
     ok "第 $i 次：通過，${dur}s，0 行 NIO ERROR（$(grep -oE '[0-9]+ tests? passed' "$log" | tail -1)）"
@@ -104,14 +108,31 @@ done
 
 echo ""
 echo "=== 閘門 3：不得再出現「假 skip」 ==="
-# D3 的回歸哨兵。`guard <env> else { return }` 會讓測試回報 passed 但零斷言；
-# 正確寫法是 @Test(.enabled(if:))，閘門集中在 Tests/MirageCoreTests/LiveGate.swift。
-BAD=$(grep -rn 'guard.*MIRAGE.*else\|guard env\[' Tests/ 2>/dev/null)
+# D3 的回歸哨兵。`guard <條件> else { return }` 會讓測試回報 passed 但零斷言；
+# 正確寫法是 @Test(.enabled(if:))，env 閘門集中在 Tests/MirageCoreTests/LiveGate.swift。
+#
+# **樣式為什麼要擴**：原本只有 `guard.*MIRAGE.*else\|guard env\[`，也就是**只認 env 形式**。
+# 2026-07-30 的 D4 分支就地重建了同一種病的另一個形態——`ProfileStoreTests` 用
+# `guard FileManager.default.fileExists(atPath: src.path) else { return }` 早退，而那個
+# 路徑在資源搬家後永遠不存在，於是該測試回報 `✔ passed after 0.007 seconds` 卻零斷言。
+# 舊樣式抓不到它。**哨兵漏抓比沒有哨兵更糟**，因為綠燈被當成證據。
+#
+# 現在抓兩類：(a) env 形式；(b) 任何 `guard … else { … return }` 單行早退。
+# `return -1` / `return nil` 這種**帶值**的 return 不算——測試函式回傳 Void，
+# 帶值 return 必然來自輔助函式（例如 ChannelTeardownTests 的執行緒計數），不是假 skip。
+#
+# **已知盲區，寫在這裡免得下一個人以為它全包**：只掃單行。跨行的
+# `guard … else {\n print(…)\n return\n }` 抓不到——`MmapStreamLiveTests.swift:31-34`
+# 就是活的一例（見 D26）。要補得用 AST 而不是 grep，那是另一輪的事。
+FAKE_SKIP_PAT='guard.*MIRAGE.*else|guard env\[|guard.*else[[:space:]]*\{[^}]*return[[:space:]]*\}'
+# 註解行要排除：LiveGate.swift 與 AudioLiveTests.swift 的說明文字裡逐字引用了
+# `guard ... else { return }`（那正是它們在解釋「以前錯在哪」），本身不是程式碼。
+BAD=$(grep -rnE "$FAKE_SKIP_PAT" Tests/ 2>/dev/null | grep -vE '^[^:]+:[0-9]+:[[:space:]]*//')
 if [ -n "$BAD" ]; then
-    fail "測試裡出現 guard-env 形式的假 skip（未設 env 時會回報 passed 但零斷言）："
+    fail "測試裡出現假 skip 形式的早退（未命中條件時會回報 passed 但零斷言）："
     echo "$BAD"
 else
-    ok "無 guard-env 假 skip"
+    ok "無單行形式的假 skip（env 形式與 guard…else { return } 皆無命中）"
 fi
 
 echo ""

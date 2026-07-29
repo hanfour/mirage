@@ -92,11 +92,21 @@ final class AppModel {
     ///
     /// 一定要印出結果：沒有這行，「內建 profile 到底有沒有到位」就變成只能靠翻檔案系統
     /// 才知道的事——而 D4 的本體正是「那個檔案從來沒到位，卻沒有任何訊號」。
+    ///
+    /// **為什麼要先看 `sources.isEmpty` 再看 `copied.isEmpty`**：這兩個空值背後是不同的世界。
+    /// `copied` 為空有三種成因——(a) 目的地已有檔案（正常）、(b) 根本沒有來源（資源打包壞了）、
+    /// (c) 有來源但每筆複製都失敗（權限等）。原本一律印「已存在，未複製」，於是 (b) 這個
+    /// **D4 這筆債的本體**（檔案沒到位卻沒有訊號）會印出「一切正常」——同一個 bug 換個地方復發。
+    ///
+    /// (c) 這裡分不出來：`seed` 目前只回傳成功的清單，不回報失敗筆數，所以「三筆來源全失敗」
+    /// 與「三筆全已存在」在呼叫端長得一樣。要分需要改 `seed` 的回傳型別，記在債務表 D27。
     func seedBuiltInProfiles() {
-        let copied = BuiltInProfiles.seed(into: ProfileStore.standardDirectory(),
-                                          from: BuiltInProfiles.bundledSources())
-        if copied.isEmpty {
-            print("[profile] 內建 profile 已存在，未複製")
+        let sources = BuiltInProfiles.bundledSources()
+        let copied = BuiltInProfiles.seed(into: ProfileStore.standardDirectory(), from: sources)
+        if sources.isEmpty {
+            print("[profile] ⚠️ bundle 內找不到任何內建 profile——資源打包壞了")
+        } else if copied.isEmpty {
+            print("[profile] 內建 profile 已存在（\(sources.count) 筆），未複製")
         } else {
             print("[profile] 種下內建 profile：\(copied.joined(separator: ", "))")
         }

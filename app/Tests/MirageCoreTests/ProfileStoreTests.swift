@@ -47,17 +47,14 @@ import Testing
         #expect(throws: ProfileError.invalidCoordinate) { try store.load(gameId: "x") }
     }
 
-    @Test func bundledCanaryProfileLoads() throws {
-        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("mirage-canary")
-        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        let src = URL(fileURLWithPath: #filePath)          // Tests/.../ProfileStoreTests.swift
-            .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
-            .appendingPathComponent("Resources/profiles/com.example.game.json")
-        guard FileManager.default.fileExists(atPath: src.path) else { return }  // 路徑差異時略過
-        let dst = dir.appendingPathComponent("com.example.game.json")
-        try? FileManager.default.removeItem(at: dst)
-        try FileManager.default.copyItem(at: src, to: dst)
-        let store = ProfileStore(directory: dir)
-        #expect(throws: Never.self) { try store.load(gameId: "com.example.game") }
-    }
+    // 這裡原本有一條 `bundledCanaryProfileLoads`：用 `#filePath` 往上爬三層拼出
+    // `app/Resources/profiles/com.example.game.json`，再 `guard fileExists else { return }`。
+    // **D4 把資源搬進 `Sources/MirageCore/Resources/profiles/` 之後，那個寫死路徑就指向
+    // 不存在的檔案，guard 讓它變成零斷言卻仍回報 passed**——正是本專案上一輪花整輪
+    // 清掉的那種假訊號，只是這次由「原始碼樹佈局」而不是環境變數觸發。
+    //
+    // 沒有把路徑改對，是因為 `BuiltInProfilesTests.seedingFromBundleProducesLoadableProfile`
+    // 走 `Bundle.module` → `seed` → `ProfileStore.load`，涵蓋面嚴格更大（多驗了資源真的
+    // 進得了 bundle 這一段），而且**不依賴原始碼樹的相對位置**——搬檔案不會讓它靜默失效。
+    // 留兩份只是重複，而重複的那份還是脆的那份。
 }
