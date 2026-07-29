@@ -52,7 +52,7 @@ public final class KeymapEngine {
     public func apply(_ event: InputEvent) -> TouchFrame {
         switch event {
         case .keyDown(let k):
-            if isMapped(k) { pressed.insert(k) } else { unmappedCount += 1 }
+            if handles(k) { pressed.insert(k) } else { unmappedCount += 1 }
         case .keyUp(let k):
             pressed.remove(k)
             releaseLookIfGateClosed(for: k)
@@ -66,14 +66,24 @@ public final class KeymapEngine {
         return snapshot()
     }
 
-    // MARK: - 私有
+    // MARK: - 公開述詞
 
-    private func isMapped(_ k: KeyCode) -> Bool {
+    /// 這顆鍵有沒有被 profile 綁住。
+    ///
+    /// 公開是為了讓 `KeymapController` 能分流：綁到的走觸控，沒綁到的直通給 guest
+    /// 鍵盤（D2）。刻意**不改 `apply` 的簽章**去回傳「有沒有吃掉」——那會動到所有既有
+    /// 引擎測試，而這裡要的只是一個布林值，述詞本來就已經存在。
+    ///
+    /// 命名從 `isMapped` 改為 `handles`：呼叫端讀起來是問句
+    /// （`engine.handles(code)`），比 `isMapped` 更貼近它在分流點的角色。
+    public func handles(_ k: KeyCode) -> Bool {
         if let j = joystick, [j.up, j.down, j.left, j.right].contains(k) { return true }
         if taps.contains(where: { $0.key == k }) { return true }
         if let look, look.activation == k { return true }
         return false
     }
+
+    // MARK: - 私有
 
     /// look 是否允許套用滑鼠位移：activation=nil 表 always-on，否則需啟動鍵被按住。
     private func isLookGateOpen(_ look: LookSlot) -> Bool {
