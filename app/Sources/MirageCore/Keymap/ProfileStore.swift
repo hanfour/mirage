@@ -11,10 +11,19 @@ public struct ProfileStore: Sendable {
 
     public init(directory: URL) { self.directory = directory }
 
+    /// App 預設的 profile 目錄。
+    ///
+    /// 公開是因為 seeding（`BuiltInProfiles`）的目的地必須與這裡讀取的目錄**是同一個**。
+    /// 讓呼叫端自己拼一次 "Mirage/profiles" 會產生第二份複本，而兩份同樣的知識遲早漂移
+    /// ——這個 repo 剛因為 `EmulatorEndpoint` 的解析有兩份而吃過虧。
+    public static func standardDirectory() -> URL {
+        FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("Mirage/profiles", isDirectory: true)
+    }
+
     /// App 預設位置。
     public static func standard() -> ProfileStore {
-        let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-            .appendingPathComponent("Mirage/profiles", isDirectory: true)
+        let base = standardDirectory()
         try? FileManager.default.createDirectory(at: base, withIntermediateDirectories: true)
         return ProfileStore(directory: base)
     }

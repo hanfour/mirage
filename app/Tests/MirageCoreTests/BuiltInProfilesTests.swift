@@ -77,4 +77,30 @@ import Testing
         let dst = tempDir("dst-e")
         #expect(BuiltInProfiles.seed(into: dst, from: []).isEmpty)
     }
+
+    /// bundle 查表要真的找得到東西——這是 seeding 在產品路徑上的來源。
+    @Test func bundledSourcesFindsTheSampleProfile() {
+        let sources = BuiltInProfiles.bundledSources()
+        #expect(sources.contains { $0.lastPathComponent == "com.example.game.json" })
+    }
+
+    /// 端到端（不含 App 層）：從 bundle 種進暫存目錄後，ProfileStore 要讀得回來。
+    /// 這條把「資源進得了 bundle」與「種下去的東西是合法 profile」串起來。
+    @Test func seedingFromBundleProducesLoadableProfile() throws {
+        let dst = tempDir("dst-bundle")
+        let copied = BuiltInProfiles.seed(into: dst, from: BuiltInProfiles.bundledSources())
+        #expect(copied.contains("com.example.game"))
+
+        let profile = try ProfileStore(directory: dst).load(gameId: "com.example.game")
+        #expect(profile.gameId == "com.example.game")
+        #expect(!profile.bindings.isEmpty)
+    }
+
+    /// seeding 的目的地與 ProfileStore 讀取的目錄必須是同一個——
+    /// 兩份路徑複本遲早會漂移。
+    @Test func standardDirectoryIsUnderApplicationSupport() {
+        let dir = ProfileStore.standardDirectory()
+        #expect(dir.path.contains("Application Support"))
+        #expect(dir.lastPathComponent == "profiles")
+    }
 }

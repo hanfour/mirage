@@ -36,4 +36,17 @@ public enum BuiltInProfiles {
         }
         return copied
     }
+
+    /// bundle 內建的 profile 檔案清單。
+    ///
+    /// **這是本型別唯一不可單元測試的部分**（`Bundle.module` 是建置系統產生的），
+    /// 所以刻意獨立成一個函式，讓不可測的面積縮到最小——`seed` 的所有判斷都在
+    /// 純函式那邊，用暫存目錄逐條驗過。
+    ///
+    /// `subdirectory: "profiles"` 對應 `Package.swift` 的 `.copy("Resources/profiles")`：
+    /// `.copy` 保持目錄結構，所以查表要帶這一層。若改成 `.process`，目錄會被攤平、
+    /// 這裡就要拿掉 subdirectory——兩者要一起改。
+    public static func bundledSources() -> [URL] {
+        Bundle.module.urls(forResourcesWithExtension: "json", subdirectory: "profiles") ?? []
+    }
 }
