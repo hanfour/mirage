@@ -1,0 +1,35 @@
+#!/usr/bin/env bash
+# push 前的品質閘門。內容只有一行：呼叫 app/scripts/ci.sh。
+#
+# 為什麼是 hook 而不是 CI 服務：Drone／Jenkins 那類都要另外部署一台 server，
+# 本專案不採用。GitHub Actions 不需要部署，但需要一個 GitHub remote，而目前
+# `git remote -v` 是空的。hook 是唯一今天就能真的擋住東西的選項——零基礎設施。
+#
+# 誠實說明它擋不住什麼：
+#   - 只在裝了 hook 的 clone 上生效（跑一次 scripts/install-hooks.sh）。
+#   - `git push --no-verify` 可以繞過。這是刻意保留的——hook 是防手滑，不是防惡意。
+#   - 它保護的是「推出去的東西」，不是「commit 進去的東西」。本地歷史可能有紅的中間狀態。
+#
+# 之所以不做成 pre-commit：完整閘門要跑三次測試套件，掛在每次 commit 上會讓人
+# 很快就開始習慣性 --no-verify，那比沒有 hook 更糟——它教會大家忽略閘門。
+set -uo pipefail
+
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+GATE="$REPO_ROOT/app/scripts/ci.sh"
+
+if [ ! -x "$GATE" ]; then
+    echo "pre-push: 找不到可執行的 $GATE，略過閘門。"
+    echo "（這不是通過——是沒有檢查。請確認 repo 完整。）"
+    exit 0
+fi
+
+echo "pre-push: 執行品質閘門（app/scripts/ci.sh）……"
+if "$GATE"; then
+    echo "pre-push: 閘門通過，繼續 push。"
+    exit 0
+fi
+
+echo ""
+echo "pre-push: ❌ 閘門失敗，push 已中止。"
+echo "確定要推的話：git push --no-verify"
+exit 1
