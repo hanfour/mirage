@@ -17,7 +17,9 @@ import subprocess
 import sys
 import time
 
-sys.path.insert(0, "gen")
+# 相對路徑只在「從 harness 目錄執行」時成立——換個 cwd 就 ModuleNotFoundError，
+# 而錯誤訊息指向 pb2、完全看不出是 cwd 的問題（實測浪費了一輪量測）。
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "gen"))
 
 import grpc
 import emulator_controller_pb2 as ec
