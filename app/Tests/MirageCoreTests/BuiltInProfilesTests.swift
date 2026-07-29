@@ -14,4 +14,67 @@ import Testing
         let profile = try JSONDecoder().decode(KeymapProfile.self, from: data)
         #expect(profile.gameId == "com.example.game")
     }
+
+    /// 暫存目錄慣例照抄 ProfileStoreTests.tempDir()。
+    private func tempDir(_ tag: String) -> URL {
+        let d = FileManager.default.temporaryDirectory
+            .appendingPathComponent("mirage-seed-\(tag)-\(UInt64(bitPattern: Int64(ObjectIdentifier(NSObject()).hashValue)))")
+        try? FileManager.default.createDirectory(at: d, withIntermediateDirectories: true)
+        return d
+    }
+
+    /// 寫一個來源檔並回傳它的 URL。
+    private func writeSource(_ dir: URL, name: String, body: String) throws -> URL {
+        let u = dir.appendingPathComponent("\(name).json")
+        try body.write(to: u, atomically: true, encoding: .utf8)
+        return u
+    }
+
+    @Test func seedCopiesWhenAbsent() throws {
+        let src = tempDir("src-a"), dst = tempDir("dst-a")
+        let a = try writeSource(src, name: "com.example.one", body: "{\"x\":1}")
+        let copied = BuiltInProfiles.seed(into: dst, from: [a])
+        #expect(copied == ["com.example.one"])
+        let landed = dst.appendingPathComponent("com.example.one.json")
+        #expect(FileManager.default.fileExists(atPath: landed.path))
+        #expect(try String(contentsOf: landed, encoding: .utf8) == "{\"x\":1}")
+    }
+
+    /// **最重要的一條**：使用者編輯過的 profile 絕不能被覆寫。
+    @Test func seedNeverOverwritesExisting() throws {
+        let src = tempDir("src-b"), dst = tempDir("dst-b")
+        let a = try writeSource(src, name: "com.example.one", body: "{\"builtin\":true}")
+        let existing = dst.appendingPathComponent("com.example.one.json")
+        try "{\"userEdited\":true}".write(to: existing, atomically: true, encoding: .utf8)
+
+        let copied = BuiltInProfiles.seed(into: dst, from: [a])
+
+        #expect(copied.isEmpty)          // 什麼都沒複製
+        #expect(try String(contentsOf: existing, encoding: .utf8) == "{\"userEdited\":true}")
+    }
+
+    /// 目的目錄不存在時要自己建，不能靜默失敗——首次啟動就是這個情境。
+    @Test func seedCreatesDestinationDirectory() throws {
+        let src = tempDir("src-c")
+        let dst = tempDir("dst-c").appendingPathComponent("nested/deeper")
+        let a = try writeSource(src, name: "com.example.one", body: "{\"x\":1}")
+        let copied = BuiltInProfiles.seed(into: dst, from: [a])
+        #expect(copied == ["com.example.one"])
+        #expect(FileManager.default.fileExists(atPath: dst.appendingPathComponent("com.example.one.json").path))
+    }
+
+    /// 來源不存在時跳過該筆、不中斷其餘——一份壞掉不該讓其他份也進不去。
+    @Test func seedSkipsMissingSourceButContinues() throws {
+        let src = tempDir("src-d"), dst = tempDir("dst-d")
+        let missing = src.appendingPathComponent("com.example.ghost.json")
+        let real = try writeSource(src, name: "com.example.real", body: "{\"x\":1}")
+        let copied = BuiltInProfiles.seed(into: dst, from: [missing, real])
+        #expect(copied == ["com.example.real"])
+    }
+
+    /// 空清單是合法輸入，不是錯誤。
+    @Test func seedWithNoSourcesIsNoOp() {
+        let dst = tempDir("dst-e")
+        #expect(BuiltInProfiles.seed(into: dst, from: []).isEmpty)
+    }
 }
