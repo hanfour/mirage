@@ -214,6 +214,14 @@ final class AppModel {
             onShow: { [weak self] in self?.wake() }
         )
         menuBar?.updateStatus(Self.label(connState))   // 補上 menuBar 建立前已錯過的狀態
+        // D2：選單列的 Android 實體鍵。down 之後緊接 up——guest 收到的是一次完整按放，
+        // 不是按住不放。sendKey 在未連線時靜默不送（與 sendTap/sendTouches 一致）。
+        menuBar?.onAndroidKey = { [client] w3c in
+            Task {
+                await client.sendKey(.key(w3c), down: true)
+                await client.sendKey(.key(w3c), down: false)
+            }
+        }
         setupFullScreen()
         setupFocusTracking()
         startAudio()
