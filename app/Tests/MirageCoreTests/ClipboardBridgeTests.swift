@@ -43,8 +43,8 @@ import Testing
 }
 
 @Suite struct ClipboardLiveTests {
-    @Test func hostToGuestSetsClipboard() async throws {
-        guard ProcessInfo.processInfo.environment["MIRAGE_LIVE"] == "1" else { return }
+    @Test(.enabled(if: LiveGate.live, "需 MIRAGE_LIVE=1 與真模擬器"))
+    func hostToGuestSetsClipboard() async throws {
         let client = EmulatorClient()
         await client.start(box: LatestFrameBox(), width: 540, height: 1200)
         try await Task.sleep(for: .seconds(2))

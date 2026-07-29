@@ -195,6 +195,23 @@ render block 的唯一工作：`ringBuffer.read(into:count:)`，回傳數不足�
 - **`ViewportFit` 退化輸入**（幀或 bounds 任一維度 ≤ 0）→ 回 `.zero`，容器不佈局子 view，不崩。
 - **`AudioTransport` 串流錯誤** → 走既有 `TransportError` 分類（`unavailable` 可重連 / `invalidRequest` fail fast），交由既有連線狀態機處理，音訊不自行重連。
 - **AVAudioEngine 啟動失敗**（無輸出裝置、沙盒權限）→ 記錄並降級為「無音訊」，**畫面與輸入完全不受影響**。音訊不可拖垮鏡像主功能。
+
+  > **⚠️ 更正（2026-07-29）：這條設計承諾在實作上沒有兌現，而它恰好是三個階段黑畫面的根因本體。**
+  >
+  > 本節只設想了「`engine.start()` 丟 Swift `Error`」這一種失敗，用 `do/catch` 包住。但實際
+  > 打死系統的是 `engine.connect(_:to:format:)` 在收到 interleaved format 時丟的
+  > `kAudioUnitErr_FormatNotSupported (-10868)` **Obj-C NSException**——`do/catch` 攔不到它。
+  > 那個例外在 `@MainActor` 上把 `startLifecycle()` 的執行整個扯斷，MainActor 自此不再 drain：
+  > `client.states` 的消費者永遠收不到值（橫幅卡在「未連線」）、MTKView 停止繪製
+  > （`fps=` 恆為 0）。**音訊確確實實拖垮了鏡像主功能**，而且拖垮的方式正是本節宣稱不會發生的那種。
+  >
+  > 修法在 `MirageShell/Audio/AudioPlayer.swift:29`：格式硬性指定 `interleaved: false`
+  > （不是偏好，是 `engine.connect` 的硬性要求），從源頭讓那個 NSException 不會被丟出來。
+  > 完整證據見 `2026-07-28-mirror-never-rendered-investigation.md`。
+  >
+  > **設計教訓**：「降級為無音訊」的容錯只擋得住你**預期的那種失敗**。這裡預期的是 Swift
+  > 錯誤，實際來的是 Obj-C 例外——而 Swift 的 `do/catch` 對後者完全無效。寫「不可拖垮主功能」
+  > 時要問的不是「我有沒有 catch」，是「有哪些失敗形態根本不走 catch」。
 - **`streamAudio` 無封包 ≠ 斷線**。遊戲靜音時本來就沒有封包，絕不可拿它當健康訊號（健康探測仍由既有 `HealthProbe` 負責）。
 - **緩衝欠位/溢位**不是錯誤，是要被計數與觀測的正常現象。
 

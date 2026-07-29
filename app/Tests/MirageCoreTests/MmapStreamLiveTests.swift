@@ -17,12 +17,9 @@ import Testing
 /// 的驗收標準。等含修正的 emulator 發布後，應重新啟用並驗證是否轉綠；在那之前，
 /// 預設不開 `MIRAGE_TRANSPORT=mmap` 就不會執行到這裡（見 DisplayTransportSelector）。
 @Suite struct MmapStreamLiveTests {
-    @Test func realEmulatorWritesIntoMappedBuffer() async throws {
-        let env = ProcessInfo.processInfo.environment
-        guard env["MIRAGE_TRANSPORT"] == "mmap", env["MIRAGE_LIVE"] == "1", env["MIRAGE_LIVE_MMAP"] == "1" else {
-            print("[mmap-live] skipped: 需 MIRAGE_TRANSPORT=mmap 且 MIRAGE_LIVE=1 且 MIRAGE_LIVE_MMAP=1；請跑 scripts/verify_mmap.sh")
-            return
-        }
+    @Test(.enabled(if: LiveGate.mmap,
+                   "需 MIRAGE_TRANSPORT=mmap 且 MIRAGE_LIVE=1 且 MIRAGE_LIVE_MMAP=1；請跑 scripts/verify_mmap.sh"))
+    func realEmulatorWritesIntoMappedBuffer() async throws {
         let box = try GrpcChannelBox(host: "localhost", port: 8554)
         // 終審 Important 1：這是唯一沒有版本閘的實際發送路徑——被刪除的舊
         // `UnaryMmapTransport` 把閘放在型別內部，本分支把互鎖搬到單一呼叫端

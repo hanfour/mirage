@@ -19,12 +19,43 @@
 
 三次躺在標著「已完成」的 RESULTS 文件裡。**這意味著現有的交付清單不可信**，而它正是排優先序的依據。
 
-> **下一輪的第 0 步**：把所有 `pending-human` / `pending-unlock` 逐項重新分類為
-> 「做了沒驗」或「根本沒做」。半天。在確定清單是真的之前，任何優先序都是在按錯的地圖走路。
+> **第 0 步：把所有 `pending-human` / `pending-unlock` 逐項重新分類為
+> 「做了沒驗」或「根本沒做」。** ✅ **已執行，結果見 §8（2026-07-29 同日）。**
+>
+> 兩點修正本節：
+> 1. 誤診數字應為**六類**不是四類——多出兩項「已修好但文件還寫著 pending」（§8 C 節）。
+> 2. **兩個分類選項不夠。** 實際存在第三類：**「阻礙已消失，但沒人回頭驗」**——
+>    所有掛在「螢幕鎖定」下的項目，在 NSException 修好的那一刻就不再被擋住了，
+>    但它們在清單上長得跟「被外部條件擋住」一模一樣，於是每一輪都被合理地跳過。
+>    這一類橫跨十餘筆，是本次稽核最大的單一收穫（§8 D 節）。
 
 ---
 
 ## 1. NIO 卡死：既有歸因是錯的（已驗證）
+
+> **狀態更新（2026-07-29 同日）：D1／D8 已修並驗收通過。** 修法與本節推測的方向一致，
+> 但根因比「關閉順序」更具體：**顯示串流從來沒有可取消的 call handle**。
+> `GrpcStreamTransport` 用便利方法 `client.streamScreenshot(_:)`，它丟棄底層的
+> `GRPCAsyncServerStreamingCall`；MMAP 與音訊兩條路徑早就改用 `make*Call` 了，唯獨這條
+> **預設開啟**的沒改。於是 `dropChannel()` 永遠帶著一個未解決的 promise 去拆 group。
+>
+> 兩份獨立 stack sample 顯示：**剛好 8 條**（= 核心數）cooperative 執行緒全部阻塞在
+> `dropChannel → channelBox.setter → GrpcChannelBox.deinit → syncShutdownGracefully
+> → semaphore_wait_trap`，同一時刻 NIO 的 event loop 執行緒全部閒置在 `kevent`。
+> 也就是說 group 不是「關得慢」，是根本沒開始關，而池已被自己佔滿。
+>
+> | | 修正前 | 修正後 |
+> |---|---|---|
+> | 5 跑結果 | **3 卡死 / 2 通過** | **5 通過** |
+> | `Cannot schedule tasks…` | 通過的兩跑各 3 行、5 行 | **每跑 0 行** |
+> | 乾淨跑次 | **0 / 5** | **5 / 5** |
+>
+> **一個必須寫下來的陷阱**：「0 行 ERROR」單獨拿來當驗收訊號是**瞎的**。
+> 那行的語意是「pool 想在已關閉的 loop 上排程」——如果 group 根本沒被關掉，也一樣不會有這行。
+> 換句話說它同時相容於「修好了」與「靜默洩漏 NIO 執行緒」。補了
+> `ChannelTeardownTests`（opt-in，`MIRAGE_THREAD_AUDIT=1`）直接數行程執行緒，
+> 同時斷言「拆除不阻塞呼叫端」與「執行緒真的收斂」，才把這個盲區補起來。
+> 實測：12 條 channel 的 `shutdown()` 全部發出耗時 <100ms，執行緒在 50ms 內收斂回基準。
 
 **記憶與 `RESULTS-shell-target.md` 記載**：「測試會建真 channel，需要抽可注入 channel」。
 
@@ -65,21 +96,21 @@
 
 | # | 是什麼 | 擋住什麼 | 成本 | 序 |
 |---|---|---|---|---|
-| **D1** | **NIO 關閉順序 + 阻塞式拆除**（見 §1） | 測試套件機率性卡死（實測 7 跑 3 卡）→ 歷來每次「N tests passed」都有相當機率只是運氣；擋住 CI 與所有 App 層測試；⌘Q 路徑靠 sleep 掩護 | 半天 | **P0** |
+| ~~**D1**~~ | ~~**NIO 關閉順序 + 阻塞式拆除**（見 §1）~~ | **✅ 已修（2026-07-29）**。`GrpcChannelBox.shutdown()`：先 `channel.close()`、再回呼式 `group.shutdownGracefully(queue:)`，全程不阻塞；`dropChannel()` 顯式呼叫。驗收 5/5 乾淨 | 實際約半天 | — |
 | **D2** | **鍵盤直通零實作**——`sendKey` 無呼叫端，無 profile 時按鍵直接丟棄 | 母計畫 Phase-1 交付項；使用者在視窗裡打字 guest 收不到 | 半天 | **P0** |
-| **D3** | **8 處活體測試用 `guard/return`** 而非 skip → 未設 env 時報 passed 但零斷言 | 綠燈是假的。分佈於 `MmapStreamLive`/`KeymapInjectLive`/`SnapshotRoundTripLive`/`AudioLive`/`EmulatorClientReconnect`(×2)/`ClipboardBridge`/`EmulatorClientTouch` | 1 小時 | **P0**（最便宜） |
+| ~~**D3**~~ | ~~**8 處活體測試用 `guard/return`**~~ | **✅ 已修（2026-07-29）**。全數改用 `@Test(.enabled(if:))`，env 閘門集中到 `Tests/MirageCoreTests/LiveGate.swift`。未設 env → 如實顯示 skipped 並附原因；設了 env → 照跑（已雙向驗證） | 實際約 1 小時 | — |
 | **D4** | **內建 profile 沒進 bundle** + `AppModel.gameId` 寫死 `com.example.game` | `.auto` 自動啟用端到端不可能通；指標遊戲沒有可用 profile | 半天 | **P1** |
 | **D5** | **overlay 編輯器不能拖**（29 行，只有存檔按鈕） | 母計畫交付項；鍵位映射是產品命根子但使用者改不了 | 2–3 天 | **P1** |
 | **D6** | **輸入無順序保證**——每個事件各開一個 unstructured Task，而 `TouchFrame` 是全狀態快照，晚到的舊快照會覆蓋新狀態 | 快速連點/連按產生幽靈觸點或吃掉動作，症狀是「遊戲沒反應」——又一個看起來像遊戲問題的靜默錯誤 | 半天–1 天 | **P1** |
 | **D7** | **`mouseUp` 早退吞掉放開事件**（`MirrorView.swift:35-52`）：拖到 letterbox 黑邊或視窗外放開，guest 手指永遠按著 | 同上，且黑邊在非同比視窗下必定存在 | 1 小時 | **P1** |
-| **D8** | **預設 transport 無法取消底層 RPC**——`GrpcStreamTransport` 用便利方法丟棄 call handle。同樣的修法已套用在 clipboard、audio、MMAP 三處，唯獨預設開啟的 raw RGBA 沒有 | 孤兒 RPC 的未解決 promise 正是 D1 的燃料 | 1–2 小時 | **P1**（與 D1 同批做） |
+| ~~**D8**~~ | ~~**預設 transport 無法取消底層 RPC**~~ | **✅ 已修（2026-07-29，與 D1 同批）**。`GrpcStreamTransport` 改 class 持有真 call、改用 `makeStreamScreenshotCall`；`cancelStream()` 升為 `DisplayTransport` 的**必要**成員（刻意不給 default no-op），三個產品實作與兩個測試假件全數補上 | 實際與 D1 合計約半天 | — |
 | **D9** | **驗證腳本本身是假的**：`verify_snapshot.sh` 11 行零斷言（只存 PNG + 印字）；`verify_reconnect.sh:77` 的 `getprop` 缺 `-s`（會打到實體手機） | 驗收訊號不可信 | 半天 | **P1** |
-| **D10** | **沒有 CI** | 所有品質閘門靠人手動跑；與 D1 疊加＝從未機械驗證過綠燈 | 半天 | **P1**（**必須在 D1 之後**——在 50% 機率紅的套件上架 CI 只會教會大家忽略紅燈） |
+| ~~**D10**~~ | ~~**沒有 CI**~~ | **✅ 已完成（2026-07-29）**。品質閘門 `app/scripts/ci.sh`（三道閘門，每道都注入故障驗證過會紅）＋ `pre-push` hook 強制執行。**Drone／Jenkins 那類需要另外部署 server，本專案不採用**；hook 零基礎設施、今天就生效。已用本地 bare repo 實際驗證：閘門綠 → push 成功；閘門紅 → push 被中止且遠端確實沒收到 | 實際約半天 | — |
 | **D11** | **焦點切換不清鍵位狀態**：按住 W 然後 ⌘Tab，keyUp 永不投遞，搖桿觸點永遠 down | 使用者體感 bug | 2 小時 | P2 |
 | **D12** | **搖桿觸點沒有 clamp**：`center ± radius` 可越界，`validated()` 不檢查。同一換算在 Python 端會 raise，Swift 端靜默送出 | ⌘E 把搖桿拉到邊緣就注入越界座標 | 1 小時 | P2 |
 | **D13** | App 層 23 檔約 1300 行接線邏輯、5 條測試；`AppModel()` 光建構就有 8 個全域副作用 | §6 根因、D2、D4 全住在那裡 | 1–2 週 | P2（D1 修完成本降一半） |
 | **D14** | **`PowerReducer` / `GrpcSnapshotService` 是死碼**，且 `PowerReducer` 的事件語意（`.snapshotSaved`/`.snapshotLoaded`）與實作相反——實作刻意不存不載快照 | 5 條測試在驗一台不存在的狀態機 | 1 小時 | P2 |
-| **D15** | **文件與碼庫不符**（見 §3） | 誤導下一個人重寫剛修好的 bug | 2 小時 | **P1** |
+| ~~**D15**~~ | ~~**文件與碼庫不符**（見 §3）~~ | **✅ 已修（2026-07-29）**。§3 十項＋§8 C 三項全數補上更正註記（加註記、不重寫歷史）。含兩處**產品原始碼**註解：`StreamSize.swift`（fps 校準理由，補上 §11.2 的實測並指出它一半對一半錯）、`NormPoint.swift`（座標換算來源，那句話正是觸點偏移的 bug 本體）。連帶查出一個先前被「完全吻合」蓋住的 fps 落差 | 實際約 2 小時 | — |
 | **D16** | MMAP transport 凍結未解，`MmapStreamTransport` 0% 覆蓋 | **什麼都沒擋**——§11.2 已證明傳輸不是 fps 瓶頸 | — | **建議封存** |
 | **D17** | 環境漂移：canary emulator `37.2.1.0` 為除錯裝上後從未還原 stable | 所有 fps/延遲數字與 Phase-0 不可比 | 1 小時 | P2 |
 | **D18** | `emulator-5554`（poc，共享）的 `pointer_location=1` 沒人關 | 小 | 5 分鐘 | P3 |
@@ -87,6 +118,21 @@
 ---
 
 ## 3. 文件與實際的落差（依誤導程度排序）
+
+> **✅ 全數已補上更正註記（2026-07-29，D15）。** 下面十項逐條處理完畢，另加 §8 C 節的三項。
+>
+> **做法是加更正註記、不重寫歷史**——本節抱怨的是「更正缺席」，不是「保留了錯誤的歷史」。
+> 每則更正都寫明「原本寫什麼、為什麼錯、現在的事實是什麼、證據在哪」，讓讀到舊句子的人
+> 當場就看得到反駁，而不是要他們自己去別的檔案交叉比對。
+>
+> 兩則值得單獨一提：
+> - **第 7 項不是單純的「已被推翻」。** `StreamSize.maxPixels` 的註解說「尚未經 fps 實測校準」
+>   ——現在有數據了（§11.2），而數據顯示那段理由**一半對一半錯**：0.65 MP 以下縮像素預算
+>   幾乎買不到 fps（30.4→32.3，解析度差 4 倍），但 2.59 MP 確實掉到 22.0，上限對防高端仍有用。
+>   1.8 MP 這個值本身仍沒有對應量測點。更正寫成這樣，而不是籠統說「已推翻」。
+> - **第 10 項（本輪自己犯的錯）連帶查出第二個問題**：撤掉那句「完全吻合」之後，
+>   §11.2 的 30.4 fps 與 §12 的 43–56 fps 之間有個**沒人解釋過的落差**——原本被那句話蓋住了。
+>   已在文件裡標明，拿 fps 做決策前應先解釋它。
 
 1. **`app/README.md:58`** — 描述已移除的 `sendTouches(_:width:height:)`，並說「座標用解碼後實際幀尺寸」。**那正是讓所有觸點偏移的錯誤慣例。** 座落在最可能被當作寫碼依據的檔案裡——不修的風險不是誤解歷史，是重新寫出剛修好的 bug。
 2. **`app/RESULTS-p1d.md:43`** — 「引擎→多指注入活體通過且座標數學正確」的 GO 判定。那條驗的是 harness 直接呼叫並自行傳尺寸，沒有經過 App 層的傳遞路徑。無更正註記。
@@ -117,13 +163,18 @@ recon 文件那句講的是 `poc`。量 fps 用的 `game` 機已是最佳設定�
 
 ## 5. 建議的下一步
 
-**第 0 步：把所有 `pending-human` 重新分類**（半天）。理由見 §0。
+> **進度（2026-07-29 同日）**：**第 0 步與下面第 1、2、3 項（D1／D8／D3／D10）皆已完成並驗收**，
+> 見 §1、§7、§8。
+
+~~**第 0 步：把所有 `pending-human` 重新分類**（半天）~~ ✅ 已完成，結果見 §8。
+最重要的產出不是分類本身，而是發現**分類方式漏了一整類**：十餘筆項目的阻礙早在
+2026-07-28 就消失了，卻仍以「pending-unlock」的形式躺在清單上，每一輪都被合理地跳過。
 
 之後：
 
-1. **D1 NIO 關閉順序**（半天）——它不是最重要的，它是**乘數**。7 跑 3 卡＝每次驗證成本翻倍，而下面幾乎每件事都要動 `EmulatorClient`。順帶把 D8 一起做（同一批、同一個原因）。
-2. **D3 假綠燈**（1 小時）——最便宜的一筆，且直接消滅「測試通過」這個訊號的雜訊。
-3. **D10 CI**（半天，必須在 D1 之後）。
+1. ~~**D1 NIO 關閉順序**（半天）~~ ✅ 已完成。它不是最重要的，它是**乘數**——修完之後每次驗證的成本才是誠實的。D8 同批做掉了（同一個原因）。
+2. ~~**D3 假綠燈**（1 小時）~~ ✅ 已完成。
+3. ~~**D10 CI**（半天）~~ ✅ 已完成（見 §7）。`app/scripts/ci.sh` 三道閘門都注入故障驗證過會紅，`pre-push` hook 也用本地 bare repo 驗過真的會擋。**不採用需要另外部署 server 的 CI 服務。**
 4. **D2 鍵盤直通 + D4 profile 上架**（1 天）——這兩個是「沒有」不是「不夠好」，比三條數字驗收線更致命。
 5. **D15 文件更正**（2 小時）——尤其 README:58。
 6. **D5 overlay 編輯器真的能拖**（2–3 天）。
@@ -146,3 +197,147 @@ recon 文件那句講的是 `poc`。量 fps 用的 `game` 機已是最佳設定�
 | 記憶體閒置 < 4GB | ⬜ **未量** | — | 現行 suspend 不停 qemu，此線在現架構下必然不達標 |
 
 「1 款指標遊戲開箱即玩」通過，但**那台 AVD 是人手工用 curl + 手寫 config.ini 建的**，產品沒有一行碼能重現它。目前「開箱即玩」的意思是「有人先幫你把箱子拆好」。
+
+---
+
+## 7. D10 CI：閘門 + pre-push hook（2026-07-29，已完成）
+
+**為什麼不是 CI 服務**：Drone／Jenkins 那類都要另外部署並維護一台 server，本專案不採用。
+GitHub Actions 不需要部署，但需要一個 GitHub remote，而 `git remote -v` 目前是空的。
+**`pre-push` hook 是唯一零基礎設施、今天就能真的擋住東西的選項**，因此選它。
+
+（曾經寫過一份 `.drone.yml`，在確認 Drone 不符使用後**刪除**而不是留著。
+一份沒人會跑的設定檔留在 repo 裡，下一個人只會以為「這專案有 CI」——
+那正是本文件 §3 整節在講的失敗模式。）
+
+**做法上的一個決定**：閘門邏輯全部放在 `app/scripts/ci.sh`，hook 只有一行呼叫它。
+那支腳本今天就能在本機跑、能被驗證；邏輯若寫在 hook 或 YAML 裡，就只有等它被觸發
+才知道對不對。日後若真的接上 GitHub Actions，也只是換一個 wrapper 呼叫同一支腳本。
+
+### 三道閘門，以及它們各自被證明會紅
+
+一支從未失敗過的驗證腳本不能算驗證過——D9 記著 `verify_snapshot.sh`「11 行零斷言」。
+所以每道閘門都注入了對應的故障，確認它真的會紅：
+
+| 閘門 | 注入的故障 | 結果 |
+|---|---|---|
+| 0：hermetic 前提（目標埠無人監聽） | 用 `nc -l` 佔住該埠 | ❌ 立即中止，退出碼 1 |
+| 2：測試連跑 N 次 + NIO ERROR 為 0 | 把 `GrpcChannelBox.shutdown()` 退回 D1 修正前的阻塞式寫法 | ❌ 第 1 跑抓到 2 行 ERROR，第 2、3 跑死鎖被逾時攔下，退出碼 1 |
+| 3：不得出現 `guard <env> else { return }` 假 skip | 加一個含該樣式的探針檔 | ❌ 指出檔名行號，退出碼 1 |
+
+乾淨樹上退出碼 0。
+
+**閘門 2 跑不只一次**（預設 3 次）：D1 的死鎖命中率約 60%，單次綠燈有四成機率只是運氣，
+而這個 repo 歷來每一份「N tests passed」都是單次的。
+
+**逾時是必要的**：沒有它，D1 那類死鎖會讓 CI 掛到平台的全域逾時才失敗，而在儀表板上
+「卡住」跟「還在跑」長得一樣。
+
+### 一個先前沒人驗過的前提
+
+整個測試套件在此之前**從未在「本機沒有模擬器」的條件下跑過**。原因是
+`EmulatorEndpoint.resolve`（`MIRAGE_HOST` / `MIRAGE_PORT`，9 條單元測試）雖然早就存在，
+卻**只接在 `AppModel` 上**；測試用的 `EmulatorClient()` 預設值仍寫死 `localhost:8554`，
+而開發機上剛好一直有 AVD 在跑。CI runner 上不會有。
+
+已把 `EmulatorClient` 的預設端點下沉到 `EmulatorClient.defaultEndpoint`（同一份解析，
+`AppModel` 改為共用），於是 `MIRAGE_PORT=<沒人監聽的埠> swift test` 成為確定性的 hermetic 跑法。
+**實測：無模擬器條件下連跑 5 次，5/5 通過、每跑 0 行 ERROR。**
+
+順帶一個意外發現：**沒有模擬器時 D1 的死鎖照樣重現**（見上表閘門 2），
+也就是說那個 bug 從來不依賴活連線——先前「模擬器剛重開才會中」的觸發配方只是放大因子。
+
+### hook 本身也驗證過會擋
+
+`.drone.yml` 沒被驗證過正是刪掉它的理由，所以 hook 不能重蹈覆轍。
+用 `git init --bare` 開一個本地 bare repo 當臨時 remote，實際 push 兩次：
+
+| 情境 | 結果 |
+|---|---|
+| 閘門全綠 | hook 執行閘門 → 通過 → **push 成功**，遠端收到 branch |
+| 閘門紅（塞入假 skip 探針） | hook 執行閘門 → 失敗 → **push 中止**，`git --git-dir` 查遠端**確實沒有那條 branch** |
+
+第二列的最後半句是重點：不是「印了紅字」，是**遠端真的沒收到**。
+
+### 安裝與限制
+
+`./app/scripts/install-hooks.sh`，每個 clone 跑一次。用 `core.hooksPath` 指向版本控制中的
+目錄，不複製檔案——複製會產生兩份、之後永遠不知道哪份是新的（本專案已經因為
+「同一件事有兩份各自演化的複本」吃過虧，見本節開頭的 `EmulatorEndpoint`）。
+
+擋不住的：只在裝了 hook 的 clone 上生效；`--no-verify` 可繞過（刻意保留，hook 是防手滑
+不是防惡意）；保護的是「推出去的東西」而非「commit 進去的東西」。
+
+刻意不做成 `pre-commit`：完整閘門要跑三次測試套件，掛在每次 commit 上會讓人很快開始
+習慣性 `--no-verify`，那比沒有 hook 更糟——它教會大家忽略閘門。
+
+### 閘門綠**不**代表什麼
+
+活體測試（`MIRAGE_LIVE` 系列）、覆蓋率（需真模擬器且會觸發 guest 發聲）、
+GUI 路徑（⌘Q 拆除、overlay、Metal 渲染）都不在 CI 涵蓋範圍內。
+
+---
+
+## 8. 第 0 步的執行結果：pending 重新分類（2026-07-29）
+
+§0 要求把所有 `pending-human` / `pending-unlock` 逐項重分為「做了沒驗」或「根本沒做」。
+以下是執行結果。**每一筆的判定依據都是 grep 呼叫端或檢查 bundle 宣告，不是讀文件。**
+
+方法上有一點值得記下來：只掃 `pending-human` 這類關鍵字是不夠的——`sendKey` 那筆
+（任何文件都沒提過，卻是零呼叫端）就抓不到。所以另外做了一路結構性檢查：
+「這個功能有沒有呼叫端」「這個資源進得了 bundle 嗎」「這條 stream 有沒有消費端」。
+兩筆最嚴重的發現都來自結構性那一路，不是關鍵字那一路。
+
+### A. 根本沒做（功能不存在）
+
+| 項目 | 文件怎麼說 | 實際 | 證據 |
+|---|---|---|---|
+| 鍵盤直通 `sendKey` | **任何文件都沒提過** | 公開 API 零呼叫端 | `Sources/MirageShell/` 與 `Tests/` grep `sendKey` 全零 |
+| overlay 編輯器拖放 | 「拖放存檔、拖放手感 pending-human」 | 不能拖 | `OverlayEditorView.swift` 全檔 29 行，只有一個「存檔」Button；全 `MirageShell` 零 `DragGesture` |
+| 內建 profile 上架 | 「佔位，待綁真 package」 | SPM 看不到那個檔 | `Resources/profiles/com.example.game.json` 在磁碟，但 `Package.swift` 無 `resources:` 宣告、全碼庫零 `Bundle.module` |
+| 真遊戲 profile 內容 | 「留 Phase 1 三款遊戲」 | 只有 `com.example.game` | `AppModel.swift:59` 硬編碼；`MenuBarController.swift:105` 也 fallback 到同一個字串 |
+| `powerStates` UI 接線 | 「未接線」← **誠實** | 定義 + 初始化，零消費端 | `EmulatorClient.swift:63,109` 之外全庫零命中 |
+| `isTargeted` 拖曳高亮 | 「刻意 scope 掉的功能缺口」← **誠實** | `.dropDestination` 未帶該參數 | `MirageScene.swift:31` |
+
+**後兩列是這次稽核唯二記載誠實的「沒做」**——它們寫的是「未接線」「刻意缺口」，
+不是「pending-human」。差別在於：前者讀起來是「還沒做」，後者讀起來是「做了待驗」。
+
+### B. 做了沒驗（碼在，沒人看過或量過）
+
+| 項目 | 證據 |
+|---|---|
+| APK 拖放完整鏈 | `MirageScene.swift:31` `.dropDestination` → `AppModel+Install.swift:22` `installAPKs` → `InstallBanner.swift` |
+| 焦點恢復重新捕捉 | `AppModel+Focus.swift:22` `didBecomeKey` ＋ `MouseCapture.swift:34` `didResignKey`，兩半都在 |
+| keymap overlay 顯示 | `KeymapOverlay.swift` 44 行，有 `ForEach`／`Circle`／`Text` |
+| letterbox | `MirrorContainerView.swift:47` `ViewportFit.fit` |
+| 全螢幕 | `AppModel+FullScreen.swift:15,21` 兩個通知都接 |
+| 音訊播放 | `AppModel+Audio.swift:16,21` `AudioPlayer` ＋ `setAudioSink` |
+| 座標落點精度 | 換算來源改為健康探測的 `guestDisplay`（`MirrorView.swift:135` 的說明） |
+| look 靈敏度 | `KeymapEngine.swift:61` 的 `/1000` 能跑，但那是佔位除數、未校準 |
+
+### C. 已修好但文件還寫著 pending（D15 類，最會誤導）
+
+| 項目 | 過時的記載 | 實際 |
+|---|---|---|
+| `AppModel.profile` 與偵測啟用不同步 | `README.md:77`、`RESULTS-p1d.md:36` 仍寫「不同步、overlay 上線前須讓 activation 回寫」 | **已回寫**：`AppModel.swift:201` `case .active(let p): keymap?.reload(p); profile = p` |
+| `MouseCapture` 失焦不釋放 | `RESULTS-p1c.md:39` 寫「已文件化，待補生命週期 hook」 | P1-d 已補，`MouseCapture.swift:34` |
+| 全部 `pending-unlock`（螢幕鎖定） | `README.md:29–31, 96, 102` 仍重申「螢幕解鎖後補測即可」 | 歸因早已推翻，真因是 `AVAudioEngine` 的 NSException |
+
+### D. 最重要的一項發現：阻礙已經消失，但沒人回頭重試
+
+所有標成「pending-unlock（螢幕鎖定）」的項目——驗收線 1b／5、驗收線 6／7、
+P1-e 的七項 GUI pending、`RESULTS-mmap.md` 的三項——**它們的阻礙在 NSException 修好時就沒了**。
+防護現在確實在樹上（`AudioPlayer.swift:29` 的 `AVAudioFormat(interleaved: false)` 與其上方
+說明「這正是鏡像顯示自 P1-a 起從未運作過的原因」）。
+
+也就是說這批項目的正確分類**既不是「做了沒驗」也不是「根本沒做」，而是第三類：
+「可以驗了，但沒人回去驗」**。§0 只給了兩個選項，這是分類本身的盲區。
+
+> **這一類最危險**：它們在清單上長得跟「被外部條件擋住」一模一樣，於是每一輪
+> 都被合理地跳過。而擋住它們的那個條件在 2026-07-28 就已經不存在了。
+
+### 對 §0 的一處修正
+
+§0 說「已知四次」誤診。本次逐項稽核後，數字應為**六類**——除了原本四項，
+再加上 C 節的兩項「已修好但文件還寫著 pending」。而 D 節指出的第三種分類
+（阻礙已消失、但沒人回頭）橫跨十餘筆，是本次稽核最大的單一收穫。

@@ -1,5 +1,23 @@
 # P1-e 全螢幕遊戲模式與音訊 驗收結果
 
+> ## ⚠️ 2026-07-29 全檔更正：本檔多處「螢幕鎖定」歸因是錯的
+>
+> 更正先前只補在一處（下方 line ~99），其餘各節仍原樣斷言舊歸因。本次補齊。
+>
+> **真因**：`AVAudioEngine.connect(_:to:format:)` 收到 interleaved format 時丟出的
+> `kAudioUnitErr_FormatNotSupported (-10868)` **Obj-C NSException**，在 `@MainActor` 上把
+> `startLifecycle()` 扯斷，MainActor 自此不再 drain——MTKView 停止繪製，`fps=` 恆為 0。
+> **與螢幕是否鎖定無關**；鏡像顯示自 P1-a 起從未運作過。
+> 見 `../docs/specs/2026-07-28-mirror-never-rendered-investigation.md`。
+>
+> **本檔受影響的段落**：驗收線 7 那列（line ~22）、pending-human 清單標題（line ~47）、
+> 以及「GUI pending-human：診斷已收斂到『螢幕鎖定』」整節（line ~168 起）。
+>
+> **最重要的後果**：防護已在樹上（`Sources/MirageShell/Audio/AudioPlayer.swift:29`），
+> 本檔所有列為 pending 的 GUI 項目**現在都驗得了**。它們的正確狀態不是「被外部條件擋住」，
+> 是「**可以驗了，但沒人回頭驗**」——這一類在清單上長得跟前者一模一樣，因此每一輪都被
+> 合理地跳過。見 `../docs/specs/2026-07-29-project-review.md` §8 D 節。
+
 - **日期**：2026-07-26
 - **模擬器**：Android emulator，`emulator-5554`（headless，Android 15／API 35，`wm size` 回報
   `Physical size: 1080x2400`，`ro.product.model=Android SDK built for arm64`）——執行前已確認
@@ -179,6 +197,25 @@ P1-e 合併後把終審 parked 的殘留項與已知限制逐條收掉，並跑�
 **所以先前 7 項 pending-human 全數維持 pending-human，但阻礙是可解的**：螢幕解鎖後，用同樣的 `.app` bundle 手法即可一次驗完。新增第 8 項：進出全螢幕時游標捕捉的恢復行為（本次新修的 `didBecomeKey` 路徑）。
 
 驗收線 7（fps ≥55）仍無數字，因此 **`StreamSize.maxPixels = 1.8 MP` 這個值尚未經 fps 校準**——它是照 spec 自己的論證基礎取的保守值，拿到真實 fps 後應回頭調整。
+
+> **⚠️ 2026-07-29 更正：本節整節的結論是錯的。**
+>
+> 上面四個觀察（0 行輸出 ×3、`CGSSessionScreenIsLocked = true`）**本身都是真的**，錯的是
+> 把最後一個當成前三個的原因。後續在**螢幕未鎖、真 GUI session、使用者自己的終端機**
+> 的條件下重跑，仍然是 0 行輸出——所以螢幕鎖定不是那個阻礙。真因是 `AVAudioEngine`
+> 的 NSException 打死 MainActor（見本檔開頭的全檔更正）。
+>
+> **這是一次教科書等級的相關當因果**：`CGSSessionScreenIsLocked = true` 剛好同時成立、
+> 剛好能解釋所有症狀、而且剛好是個「不是我們的錯」的解釋——三個條件湊齊，就沒有人
+> 再往下查。代價是三個階段的 GUI 驗收被合理地跳過。
+>
+> 兩點後續：
+> 1. **那 8 項現在驗得了**，防護已在樹上（`Sources/MirageShell/Audio/AudioPlayer.swift:29`）。
+> 2. **`StreamSize.maxPixels` 現在有數據了**（不是「仍無數字」）：
+>    `2026-07-28-mirror-never-rendered-investigation.md` §11.2 量到 0.16 MP→32.3fps、
+>    0.65 MP→30.4fps、2.59 MP→22.0fps。結論是**在 0.65 MP 以下縮像素預算幾乎買不到 fps**，
+>    但上限對防住高端仍有價值。1.8 MP 這個值本身仍沒有對應量測點。
+>    完整說明已寫進 `Sources/MirageCore/Viewport/StreamSize.swift` 的註解。
 
 ## 未做，與理由
 

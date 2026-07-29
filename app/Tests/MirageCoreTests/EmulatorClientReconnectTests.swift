@@ -8,8 +8,13 @@ final class MockTransport: DisplayTransport, @unchecked Sendable {
     private let lock = NSLock()
     private var scripts: [Script]
     private(set) var subscribeCount = 0
+    private var _cancelCount = 0
+    /// 比照 `MockAudioTransport.cancelCount`：驗 `dropChannel()` 有沒有顯式取消底層 RPC。
+    var cancelCount: Int { lock.lock(); defer { lock.unlock() }; return _cancelCount }
 
     init(_ scripts: [Script]) { self.scripts = scripts }
+
+    func cancelStream() { lock.lock(); _cancelCount += 1; lock.unlock() }
 
     func frames(width: Int, height: Int) -> AsyncThrowingStream<Frame, Error> {
         lock.lock()
@@ -53,6 +58,23 @@ actor SleepRecorder {
         #expect(sleeps.first == .milliseconds(500))      // attempt 0、random 0.5
         #expect(box.takeLatest()?.rgba.first == 2)        // 第二源的幀進了 box
         await client.stop()
+    }
+
+    /// `stop()` 必須顯式取消顯示串流的底層 RPC——與 `stopCancelsAudioStream` 同一個理由，
+    /// 只是這條路徑漏了。`streamScreenshot` 是變化驅動的：guest 畫面靜止時就沒有下一幀，
+    /// `next()` 會無限期停住，而 `Task.cancel()` 中斷不了已 in-flight 的 `next()`。
+    /// 沒有這一步，`dropChannel()` 會帶著未解決的 NIO promise 去拆 EventLoopGroup。
+    @Test func stopCancelsDisplayStream() async throws {
+        let mock = MockTransport([.yieldThenHang(1)])
+        let client = EmulatorClient(
+            makeTransport: { _ in mock },
+            makeHealthProbe: { _ in ScriptedProbe([]) },  // 永遠 .healthy
+            sleeper: { _ in }
+        )
+        await client.start(box: LatestFrameBox(), width: 540, height: 1200)
+        try await Task.sleep(for: .milliseconds(300))
+        await client.stop()
+        #expect(mock.cancelCount >= 1)
     }
 
     @Test func statesPublishesTransitions() async throws {
@@ -187,10 +209,9 @@ actor SleepRecorder {
 // 裡退化成一個四行 switch，肉眼可驗證；端到端「真的走 MMAP」由 Task 8 活體驗證負責。
 
 @Suite struct LiveSmokeTests {
-    @Test func liveStreamDeliversFrames() async throws {
-        // 修正案 A 對應：XCTSkipUnless → guard 提前 return（需要活模擬器）。
-        // 執行：MIRAGE_LIVE=1 swift test --filter LiveSmokeTests
-        guard ProcessInfo.processInfo.environment["MIRAGE_LIVE"] == "1" else { return }
+    // 執行：MIRAGE_LIVE=1 swift test --filter LiveSmokeTests
+    @Test(.enabled(if: LiveGate.live, "需 MIRAGE_LIVE=1 與真模擬器"))
+    func liveStreamDeliversFrames() async throws {
         let box = LatestFrameBox()
         let client = EmulatorClient()
         await client.start(box: box, width: 540, height: 1200)
@@ -213,8 +234,8 @@ actor SleepRecorder {
     /// （`NormPoint.guestPixel`，已有單元測試），這裡驗的是「乘數來源正確」。
     ///
     /// 刻意斷言「解析度與串流尺寸不同」而非寫死 1080x2400——後者會綁死在特定 AVD 上。
-    @Test func liveHealthProbeCarriesGuestPhysicalResolution() async throws {
-        guard ProcessInfo.processInfo.environment["MIRAGE_LIVE"] == "1" else { return }
+    @Test(.enabled(if: LiveGate.live, "需 MIRAGE_LIVE=1 與真模擬器"))
+    func liveHealthProbeCarriesGuestPhysicalResolution() async throws {
         let client = EmulatorClient()
         await client.start(box: LatestFrameBox(), width: 540, height: 1200)
         try await Task.sleep(for: .seconds(3))

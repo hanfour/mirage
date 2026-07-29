@@ -6,10 +6,11 @@ import MirageCore
 final class AppModel {
     /// 連線目標可用 `MIRAGE_HOST` / `MIRAGE_PORT` 覆寫（預設仍是 `localhost:8554`）。
     /// 需要它是因為量測與多實例都不可能只面對一台模擬器——見 `EmulatorEndpoint`。
-    private static let endpoint = EmulatorEndpoint.resolve(
-        environment: ProcessInfo.processInfo.environment)
-
-    let client = EmulatorClient(host: endpoint.host, port: endpoint.port)
+    ///
+    /// 解析已下沉到 `EmulatorClient.defaultEndpoint`（2026-07-29，D10）：先前這裡自己
+    /// 解析一次、`EmulatorClient()` 的預設值卻寫死 `localhost:8554`，於是**只有 App 走這條路，
+    /// 所有測試都繞過它**。兩份各自解析的複本遲早會漂移，現在只有一份。
+    let client = EmulatorClient()
     let box = LatestFrameBox()
     var connState: ConnState = .disconnected
 
@@ -61,8 +62,9 @@ final class AppModel {
         // 端點無論如何都印一行：「連到另一台模擬器」的症狀（畫面不是預期的那台）跟
         // 「連不上」長得完全不一樣，沒有這行就只能靠猜。壞掉的覆寫更要印——靜默退回
         // 預設會讓人盯著錯的畫面卻毫無線索。
-        print("[app] endpoint=\(Self.endpoint.host):\(Self.endpoint.port)")
-        if let problem = Self.endpoint.overrideProblem {
+        let endpoint = EmulatorClient.defaultEndpoint
+        print("[app] endpoint=\(endpoint.host):\(endpoint.port)")
+        if let problem = endpoint.overrideProblem {
             print("[app] 環境變數覆寫無效：\(problem)")
         }
 
@@ -269,6 +271,10 @@ final class AppModel {
     // completion off the main thread/MainActor executor — required because
     // the caller (AppDelegate.applicationWillTerminate) blocks the main
     // thread on a semaphore while this runs.
+    /// 更正（2026-07-29，D1）：這 200ms 是在等一個**已經不存在**的競態
+    /// （`GrpcChannelBox.deinit` 的阻塞式 NIO 拆除，見 AppDelegate.swift 頂端的更正註記）。
+    /// 現在 `client.stop()` 回來時 channel 已顯式關閉、group 的拆除也已非阻塞地發出。
+    /// 保留未動的理由同上：改 ⌘Q 路徑需要實機驗證，而 headless 驅動不了它。
     nonisolated func shutdown() async {
         await client.stop()
         try? await Task.sleep(for: .milliseconds(200))

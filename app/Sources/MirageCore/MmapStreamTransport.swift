@@ -25,6 +25,9 @@ public struct MmapStreamTransport: DisplayTransport {
 
     private let channel: GrpcChannelBox
     private let seq = MmapSequence()
+    /// 最新一條 call 的存放處，只給 `cancelStream()` 用。本型別是 struct，可變狀態一律
+    /// 委託給參照型別（同 `seq` 的既有作法）。
+    private let latest = ScreenshotCallSlot()
 
     public init(channel: GrpcChannelBox) { self.channel = channel }
 
@@ -45,6 +48,7 @@ public struct MmapStreamTransport: DisplayTransport {
         // 底層 GRPCAsyncServerStreamingCall，無法顯式取消。那正是 P1-b 剪貼簿串流實證過、
         // 且架構債記錄點名為 crash 元兇的同一個坑。
         let call = channel.client.makeStreamScreenshotCall(format)
+        latest.store(call)?.cancel()        // 重入保護，理由同 GrpcStreamTransport.frames()
         // GRPCAsyncServerStreamingCall 非 Sendable，onTermination 是 @Sendable 閉包不能直接
         // 捕捉它；改捕捉這個 @unchecked Sendable box 轉發 cancel()（型別定義處有完整說明）。
         let callBox = MmapScreenshotCallBox(call)
@@ -78,6 +82,11 @@ public struct MmapStreamTransport: DisplayTransport {
         format.transport = transport
         return format
     }
+
+    /// 顯式取消最新一條 RPC。與 `onTermination` 裡的 `callBox.cancel()` 不重複：那個是
+    /// per-stream（取消它自己捕捉的那條，換源時不會誤殺新串流），這個是 per-instance
+    /// （`dropChannel()` 拆 channel 前的顯式取消）。`cancel()` 冪等，重複呼叫無害。
+    public func cancelStream() { latest.take()?.cancel() }
 
     /// 消費 `responseStream`：每個通知代表映射區已有新內容，讀出快照、餵給探測狀態機，
     /// 依判定結果 yield / 跳過 / 判定不可用。串流自然結束時另外檢查探測是否完成——見
@@ -134,15 +143,34 @@ final class MmapSequence: @unchecked Sendable {
 /// 可跨執行緒呼叫（grpc-swift 內部的 `withRPCCancellation` 也是從 cancellation handler
 /// 呼叫它），因此不需要鎖。
 final class MmapScreenshotCallBox: @unchecked Sendable {
-    private let call: GRPCAsyncServerStreamingCall<
-        Android_Emulation_Control_ImageFormat,
-        Android_Emulation_Control_Image
-    >
-    init(_ call: GRPCAsyncServerStreamingCall<
-        Android_Emulation_Control_ImageFormat,
-        Android_Emulation_Control_Image
-    >) {
-        self.call = call
-    }
+    private let call: ScreenshotCall
+    init(_ call: ScreenshotCall) { self.call = call }
     func cancel() { call.cancel() }
+}
+
+/// 「最新一條 screenshot call」的可變存放處，供 `cancelStream()` 顯式取消。
+///
+/// 與上面的 `MmapScreenshotCallBox` 是不同用途，刻意分成兩個型別而不是合併成一個可變 box：
+/// 那個是 per-stream、不可變，給 `onTermination` 取消**它自己那條**；這個是 per-instance、
+/// 可變，只保留最新那條。合併會讓 `onTermination` 取消到最新的 call，換源時誤殺剛掛上的新串流。
+final class ScreenshotCallSlot: @unchecked Sendable {
+    private let lock = NSLock()
+    private var call: ScreenshotCall?
+
+    /// 存入新 call，回傳被它取代的舊 call（呼叫端負責 cancel，避免在鎖內做 I/O）。
+    @discardableResult
+    func store(_ new: ScreenshotCall) -> ScreenshotCall? {
+        lock.lock(); defer { lock.unlock() }
+        let previous = call
+        call = new
+        return previous
+    }
+
+    /// 取出並清空。
+    func take() -> ScreenshotCall? {
+        lock.lock(); defer { lock.unlock() }
+        let current = call
+        call = nil
+        return current
+    }
 }

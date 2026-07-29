@@ -5,8 +5,8 @@ import Testing
 /// App-path 活體（Core 範圍，spec §4.7）：引擎狀態序列 → sendTouches → 真模擬器。
 /// `KeymapController`+NSEvent 抽取在不可 import 的 executable target/GUI，列 pending-human。
 @Suite struct KeymapInjectLiveTests {
-    @Test func engineDrivenMultiTouchInjects() async throws {
-        guard ProcessInfo.processInfo.environment["MIRAGE_LIVE"] == "1" else { return }
+    @Test(.enabled(if: LiveGate.live, "需 MIRAGE_LIVE=1 與真模擬器；請跑 scripts/verify_keymap_inject.sh"))
+    func engineDrivenMultiTouchInjects() async throws {
         let profile = KeymapProfile(gameId: "com.example.game", version: 1, bindings: [
             .joystick(up: .key("w"), down: .key("s"), left: .key("a"), right: .key("d"),
                       center: NormPoint(x: 0.25, y: 0.7), radius: 0.12),

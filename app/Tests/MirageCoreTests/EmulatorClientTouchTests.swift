@@ -32,8 +32,8 @@ import Testing
 }
 
 @Suite struct MultiTouchLiveTests {
-    @Test func injectsTwoSimultaneousTouches() async throws {
-        guard ProcessInfo.processInfo.environment["MIRAGE_LIVE"] == "1" else { return }
+    @Test(.enabled(if: LiveGate.live, "需 MIRAGE_LIVE=1 與真模擬器"))
+    func injectsTwoSimultaneousTouches() async throws {
         let client = EmulatorClient()
         await client.start(box: LatestFrameBox(), width: 540, height: 1200)
         try await Task.sleep(for: .seconds(2))

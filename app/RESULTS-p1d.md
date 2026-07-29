@@ -33,14 +33,30 @@ P1-d 的可測邏輯（dumpsys 解析、啟用決策、adb 降級）皆 MirageCo
 ## 已知限制／移交
 
 - **完整 app-path pending-human**：`KeymapController`（在不可 import 的 executable target）與 `MirrorMTKView` 的 `NSEvent→KeyCode` 抽取需真 GUI session——harness 只驗到 Core 引擎→注入鏈（§4.7 誠實切分）。若要 headless 驗 `KeymapController`，須先把它抽成 library target（後續選項）。
-- **`AppModel.profile` 與偵測驅動啟用不同步**（Task 7 發現）：Task 5 `applyActivation()` 只 `keymap?.reload(p)`，未回寫 `AppModel.profile`——故 overlay 編輯器（⌘E 用 `profile`）與 look-only gating 讀到的是 P1-c 啟動期的值，非偵測後的 active profile。App 層 coherence 缺口，pending-human 領域，建議 P1-d fast-follow 或 overlay 上線前修（讓 activation 回寫 `profile`）。
+- **`AppModel.profile` 與偵測驅動啟用不同步**（Task 7 發現）：Task 5 `applyActivation()` 只 `keymap?.reload(p)`，未回寫 `AppModel.profile`——故 overlay 編輯器（⌘E 用 `profile`）與 look-only gating 讀到的是 P1-c 啟動期的值，非偵測後的 active profile。App 層 coherence 缺口，建議 P1-d fast-follow 或 overlay 上線前修（讓 activation 回寫 `profile`）。
+
+  > **✅ 已修（更正於 2026-07-29）**：`AppModel.swift:201` 的
+  > `case .active(let p): keymap?.reload(p); profile = p` 就是那個回寫。本條已解決，
+  > 留著會讓下一個人去修一個已經好了的東西。（另：原文寫「pending-human 領域」——
+  > 這是**缺陷**不是待驗項，用詞本身就是 §0 記載的那個誤用。）
 - **MouseCapture 未做 look-only gating 與 didBecomeKey 自動重捕捉**（依 brief sanctioned fallback）——gating 已收緊到「有 profile+非編輯+key window」，消除主要游標陷阱；look-only 精修與 refocus 重捕捉列 follow-up。
 - **`gameId == package` 假設**：內建 profile gameId 為 `com.example.game`（非真 package）；真遊戲 profile 內容與實玩手感留後續（Phase 1「3 款指標遊戲」）。
 - **偵測輪詢**：1.5s adb 子行程 + 每次 disk load（1.5s 可忽略）；若 interval 縮或 store 變慢再評估。
 
 ## 判定
 
-- **P1-d GO**：遊戲偵測機制（adb dumpsys→ForegroundParser）活體通過、啟用決策（ActivationDecider）100% 覆蓋、無 profile/adb 失敗退 P1-a tap（不回歸不崩）、引擎→多指注入活體通過且座標數學正確、MouseCapture 焦點 gating 消游標陷阱。單元 92/92、release 零警告。
+- **P1-d GO**：遊戲偵測機制（adb dumpsys→ForegroundParser）活體通過、啟用決策（ActivationDecider）100% 覆蓋、無 profile/adb 失敗退 P1-a tap（不回歸不崩）、引擎→多指注入活體通過、MouseCapture 焦點 gating 消游標陷阱。單元 92/92、release 零警告。
+
+> **⚠️ 更正（2026-07-29）**：本條 GO 判定原本包含「**且座標數學正確**」。**那句話不成立，
+> 而且它掩護了一個真實的 bug 達兩個階段。**
+>
+> 那條活體驗的是 harness **直接呼叫 `sendTouches` 並自行傳入尺寸**，沒有經過 App 層的
+> 傳遞路徑。App 層（`KeymapController`）當時傳的是**串流幀尺寸**而非 guest 實體解析度，
+> 兩者在本機差兩倍——所以 P1-c 起所有鍵位映射的觸點都落在目標的左上一半處。
+> 「座標數學正確」講的是換算函式本身，不是實際落點；把它寫進 GO 判定，讀起來像後者。
+>
+> 已修：`sendTouches` 拿掉 `width:height:` 參數，改由 `EmulatorClient` 用健康探測回報的
+> `guestDisplay` 換算，呼叫端沒有機會再傳錯。**但真實落點精度至今仍未經人眼驗證。**
 - **移交 fast-follow/後續**：AppModel.profile 回寫（overlay 上線前）；完整 app-path 與真遊戲手感 pending-human（需 GUI session）；look-only gating 精修；真遊戲 profile 內容（Phase 1 三款遊戲）。
 
 ## 觀察與備註
