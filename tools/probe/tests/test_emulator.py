@@ -269,9 +269,12 @@ def test_send_tap_holds_before_releasing(monkeypatch):
     """tap 的 down 與 up 之間必須有按壓時間。
 
     2026-07-28 首次拿這支工具點真遊戲時，Unity 收得到觸控（Play 按鈕出現了按下
-    的視覺回饋）卻不認成一次 click，畫面停在原地；同一個座標改用 adb 的
-    `input tap`（內建按壓時間）立刻就進關卡。零延遲的 tap 是「看起來有送出、
+    的視覺回饋）卻不認成一次 click，畫面停在原地。零延遲的 tap 是「看起來有送出、
     實際上沒作用」——比完全沒送更難查，因為視覺回饋會讓人以為是座標錯了。
+
+    實測的門檻（見 DEFAULT_TAP_HOLD_MS 的註解）：0ms 與 60ms 都無效、150ms 有效。
+    本測試不釘住具體數值，只釘住「down 與 up 之間確實睡了預設的那段時間」——
+    數值該由實測決定，不該由測試凍結。
     """
     import lib.emulator as emulator_mod
 

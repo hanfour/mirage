@@ -26,6 +26,9 @@ final class Renderer: NSObject, MTKViewDelegate {
     private var fpsCount = 0
     private var fpsWindowStart = CFAbsoluteTimeGetCurrent()
     private let fpsLog = ProcessInfo.processInfo.environment["MIRAGE_FPS_LOG"] == "1"
+    private let latencyLog = ProcessInfo.processInfo.environment["MIRAGE_LATENCY_LOG"] == "1"
+    private var latency = LatencyWindow()
+    private var latencyWindowStart = CFAbsoluteTimeGetCurrent()
 
     init?(device: MTLDevice, box: LatestFrameBox) {
         guard let blitter = MirrorBlitter(device: device) else { return nil }
@@ -58,7 +61,32 @@ final class Renderer: NSObject, MTKViewDelegate {
         buffer.present(drawable)
         buffer.commit()
         // 只有走到這裡才算一幀：新幀確實被送上螢幕。
-        if arrived != nil { countPresentedFrame() }
+        if let arrived {
+            countPresentedFrame()
+            recordLatency(since: arrived.receivedAt)
+        }
+    }
+
+    /// `MIRAGE_LATENCY_LOG=1`：每秒印一行「幀抵達 Mirage → present」的 p50/p95。
+    ///
+    /// **這段不是完整的 input-to-photon**，只是它的最後一段。完整鏈路是
+    /// 送出觸控 → guest 反應 → 幀產生與傳輸 → **這裡** → Mac 上屏。前三段用
+    /// `phase0/harness/e2e_latency.py` 量（2026-07-29 實測 p50 78.1ms），
+    /// 上屏另計 8–17ms。三者相加才是驗收線 2 要比的數字。
+    ///
+    /// 分開量是刻意的：不知道哪一段佔多少，就不知道該動傳輸還是動渲染——
+    /// 那正是 §12 記下的、目前擋著優化決策的缺口。
+    private func recordLatency(since arrival: ContinuousClock.Instant) {
+        guard latencyLog else { return }
+        latency.record(ContinuousClock.now - arrival)
+        let now = CFAbsoluteTimeGetCurrent()
+        guard now - latencyWindowStart >= 1.0 else { return }
+        if let s = latency.summary() {
+            print(String(format: "[app] lat p50=%.1fms p95=%.1fms n=%d",
+                         s.p50, s.p95, s.count))
+        }
+        latency.reset()
+        latencyWindowStart = now
     }
 
     /// `MIRAGE_FPS_LOG` 的 `fps=`：**每秒有多少張新幀真的被 present 到螢幕上**。
