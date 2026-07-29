@@ -11,9 +11,17 @@ from google.protobuf import empty_pb2
 # 1080x2400 RGBA = 10.4 MB，遠超 gRPC 預設的 4 MB 上限。
 _MAX_MESSAGE = 64 * 1024 * 1024
 
-# tap 的預設按壓時間。60ms 約等於 60fps 下的 4 幀——足夠 Unity 的輸入系統
-# 在兩次 Update 之間看到「按下」與「放開」兩個狀態。實測 0ms 不被認成 click。
-DEFAULT_TAP_HOLD_MS = 60
+# tap 的預設按壓時間。**這個值是量出來的，不是推出來的。**
+#
+# 實測（Pixel Flow 關卡內的設定齒輪，2026-07-28）：
+#   0ms   → 無反應（按鈕會顯示按下的視覺回饋，但不被認成 click）
+#   60ms  → 無反應
+#   150ms → ✅ 設定視窗開啟
+#
+# 60ms 那版是照「60fps 下 4 幀應該夠」推出來的，實測不夠。取 200ms 是在
+# 已知可行的 150ms 上留餘裕——對一支驗證工具，多 50ms 不值得斤斤計較，
+# 而 tap 靜默失效的代價是讓人回頭去懷疑座標和注入路徑（那兩件事都是對的）。
+DEFAULT_TAP_HOLD_MS = 200
 
 
 class EmulatorError(RuntimeError):
