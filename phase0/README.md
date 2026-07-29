@@ -66,6 +66,23 @@ touch gen/__init__.py
 
 **結論摘要**：實測過的控制面（headless 啟動、gRPC 輸入注入、串流控制介面）驗證優異；顯示傳輸（gRPC raw-frame streaming）未達 60fps 門檻，判定 **NO-GO**，需啟動備援路線（WebRTC → fork + 共享記憶體）。剪貼簿、生命週期（快照休眠/喚醒）、sendKey 在 Phase 0 未實測，列為 Phase 1 前置驗證項。詳見 `RESULTS.md`。
 
+> **⚠️ 重大更正（2026-07-23，本檔補記於 2026-07-29）**：上面那個 NO-GO 的**量化基礎已翻案**，
+> 本檔是相關文件中最後一份沒補上更正的（`RESULTS.md:25`、`RESULTS-0b.md:3` 都早已補記）。
+>
+> Phase 0 全部 fps／延遲數字量測於**受污染的主機**（16 個殭屍行程吃掉約 6.4 核）。
+> 乾淨重測後（`RESULTS-rebaseline.md`）：
+>
+> | 量測項 | 污染期 | 乾淨重測 |
+> |---|---|---|
+> | gRPC RGBA native 1080×2400 | 29–30 fps | **55.3 fps**（p50 17.3ms、p95 25.9ms） |
+> | gRPC RGBA 720×1600 | ~42 fps 平台 | **57.4 fps**（p50 16.7ms） |
+>
+> 兩者**仍未達 60fps 閘門**（差約 3–5 fps），所以「未達門檻」這個結論本身沒變；
+> 但「29–30fps、差得很遠、必須換路線」這個**論證基礎不成立**。備援路線
+> （MMAP、H.264 編碼軌）的決策前提因此也失效——`RESULTS-0b.md` 已記為「待重開」，
+> 而 MMAP 後來實測證明**傳輸從來不是 fps 瓶頸**（見
+> `../docs/specs/2026-07-28-mirror-never-rendered-investigation.md` §11.2）。
+
 **Phase 0b 後續**：備援驗證（MMAP 共享記憶體、H.264 編碼串流）兩條路皆判 NO-GO——詳見上方
 「Phase 0b 傳輸驗證」與 [`RESULTS-0b.md`](./RESULTS-0b.md)。Phase 1 顯示路徑目前無現成方案
 通過閘門，待決策者從 `RESULTS-0b.md` 列出的四個選項中裁決。

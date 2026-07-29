@@ -36,7 +36,12 @@
 
 - **座標落點精度 pending-human**：Task 7 終審發現 `KeymapController` 原用請求 stream size（非解碼後 `renderer.lastFrameSize`）——鏡像 P1-a CRITICAL 同類 bug；已修（commit c5f9050，`frameSizeProvider` 對齊 `sendMouse`）。模擬器原生 1080×2400 vs 請求 540×1200 確實分歧，故此修正必要；但**真實觸點落點精度**需 GUI/解鎖後人工驗（pending-human）。
 - **GUI 體感 pending-human**：overlay 拖放存檔、look 靈敏度手感、⌘E 編輯即時行為、真 WASD→touch 跟手度、編輯模式點擊 hit-testing。
-- `MouseCapture` 無視窗失焦（resignKey）自動釋放——alt-tab 離開時游標維持捕捉（已文件化，待補生命週期 hook）。
+- ~~`MouseCapture` 無視窗失焦（resignKey）自動釋放——alt-tab 離開時游標維持捕捉（已文件化，待補生命週期 hook）。~~
+
+  > **✅ 已修（更正於 2026-07-29）**：P1-d 補上 `MouseCapture.swift:34` 的
+  > `didResignKeyNotification → release()`；P1-e fast-follow 再補對稱的另一半
+  > `AppModel+Focus.swift:22` 的 `didBecomeKeyNotification → updateCapture(shouldCapture:)`。
+  > 兩半都在樹上，本條已解決。
 - `gameId` 目前硬編碼 `com.example.game`（MVP 佔位；P1-d 遊戲偵測時接真值）。
 
 ## 判定

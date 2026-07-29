@@ -47,6 +47,15 @@
 1. **實體手機干擾**：`adb devices` 同時掛 `emulator-5554` 與實體手機 `RFCN804073P`；腳本 `adb shell getprop sys.boot_completed` 未指定 `-s`，在模擬器崩潰後空窗命中實體手機回 `1`→「BOOTED 0s」誤判。
 2. **headless GUI 無輸出**：release `MirageApp` 從 shell 啟動產生 0 輸出、0 連線——SwiftUI `WindowGroup` 的 `.task`（連線驅動）在無 GUI session 下不觸發（與 P1-a 記錄的 `螢幕鎖定→WindowServer 不合成` 同類環境限制）。
 
+   > **⚠️ 更正（2026-07-29）**：括號裡那句類比是錯的，而本檔是三份沿用「螢幕鎖定」歸因的
+   > RESULTS 中**最後一份沒被更正的**。「0 輸出、0 連線」的真因是 `AVAudioEngine` 的
+   > Obj-C NSException 在 `@MainActor` 上把 `startLifecycle()` 扯斷，MainActor 自此不再 drain
+   > ——不是 WindowServer 不合成畫面。鏡像顯示自 P1-a 起從未運作過。
+   > 見 `../docs/specs/2026-07-28-mirror-never-rendered-investigation.md`。
+   >
+   > 「從 shell 直接啟動 executable 不會進入 Aqua session」這件事本身仍然成立
+   > （要用 `.app` bundle + `open`），但它**不是**當時 0 輸出的原因。
+
 **重連正確性改由既有證據支撐**（非產品缺陷）：
 - **單元**：`EmulatorClientHealthGateTests` — `bannerHonestWhileReconnecting`（全失敗劇本絕不出現 `.connected`）、`unhealthyProbeIncrementsAttemptThenConnects`（真經 `reconnecting(0)→(1)→connected`、attempt 遞增）、`loopNotRecursionUnderManyFailures`（101 圈無 async frame 堆積）。opus task-review 判為真行為。
 - **P1-a 活體 3× PASS**：≤1s 恢復（重連機制由 GRPCChannelPool 內部完成，Task 3 只重寫誠實狀態層）。
