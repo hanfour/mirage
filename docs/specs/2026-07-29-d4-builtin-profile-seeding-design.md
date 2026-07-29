@@ -31,6 +31,11 @@ D4 記載兩件事：「內建 profile 沒進 bundle」＋「`AppModel.gameId` �
 於是 `loadKeymap()`（`:99`）那次以寫死 id 進行的載入，是一條與偵測並存、且語意錯誤的路徑：
 它會在啟動時載入 `com.example.game` 的 profile，不管使用者實際在玩什麼。
 
+> **本節（§1.2）的三個行號是 D4 動手前（`818f80f`）的位置，不是現在的位置。** 那條死路徑
+> 已於 2026-07-30 整段刪除，`AppModel.swift:57-59` 現在是 `start()` 的開頭。對應的現況：
+> `applyActivation()` 在 `AppModel.swift:220`、`loadKeymap()` 在 `:126`（只建
+> `KeymapController(profile: nil)`，不再讀 store），刪除的理由寫在 `:118-125` 的更正註解。
+
 ### 1.3 「指標遊戲沒有可用 profile」——**這一項不成立**
 
 Phase-1 的指標遊戲是 **Pixel Flow**（`com.loomgames.pixelflow`，recon 判定唯一可遊玩的一款）。
@@ -118,7 +123,7 @@ resources: [.copy("Resources/profiles")]
 逃生出口是既有的選單列「套用 profile ▸」手動覆寫（`MenuBarController.menuNeedsUpdate` 掃描
 store 目錄）。**這是刻意的取捨**：寧可沒有 profile，也不要載入一個與當前遊戲無關的 profile。
 
-順帶：`MenuBarController.availableGameIds()`（`:120`）的
+順帶：`MenuBarController.availableGameIds()`（`:122`）的
 `ids.isEmpty ? ["com.example.game"] : ids` 在 seeding 之後永遠走不到 fallback 分支
 （目錄至少有範例那一份）。無害，不動它，但值得知道。
 
@@ -158,12 +163,48 @@ store 目錄）。**這是刻意的取捨**：寧可沒有 profile，也不要�
 
 **不得**把 D4 標成「`.auto` 端到端已驗」。
 
+> **⚠️ 補記（2026-07-30）：上面第 2 步在有 `.build/` 的開發機上，結構上無法證明資源已進 bundle。**
+>
+> SwiftPM 產生的 `Bundle.module` 存取器（`app/.build/arm64-apple-macosx/debug/
+> MirageCore.build/DerivedSources/resource_bundle_accessor.swift:5-13`）依序試兩條路徑：
+> `Bundle.main.bundleURL/Mirage_MirageCore.bundle`，然後是**編譯當下寫死的
+> `.build/…/Mirage_MirageCore.bundle` 絕對路徑**；兩條都不中才 `Swift.fatalError`。
+>
+> 而全 repo 唯一組裝 `.app` 的地方（`app/scripts/verify_game_fps.sh:81-82`）**只
+> `cp` executable，不複製 resource bundle**。所以在這台機器上 `.app` 照跑、profile 照樣
+> 種得下去——**但那是從 `.build/` 讀的**，不是從 `.app` 裡讀的。換一台機器、或
+> `swift package clean` 之後，同一個 `.app` 會**啟動即崩**（fatalError，不是空陣列）。
+>
+> **一個測不出目標缺陷的驗證步驟，正是本專案要根治的那種東西。** 這一步能驗
+> 「seeding 接線對不對」，**不能**驗「資源打包對不對」。後者目前只有
+> `BuiltInProfilesTests.bundleContainsSampleProfile` 在守（測試 bundle，不是 `.app`），
+> 而 `.app` 的打包路徑無人守——已記入 `2026-07-29-project-review.md` 債務表 **D25**。
+> 這裡不修打包流程：這個 repo 目前沒有發佈流程，補一個是另一輪的事。
+
 ## 5. 不做什麼（YAGNI）
 
 - **不做版本遷移**：`KeymapProfile.version` 存在，但拿它做「內建版較新就提示／覆寫」需要遷移邏輯與 UI，而目前連一份真實遊戲的 profile 都還沒有。過度設計。
 - **不為 Pixel Flow 做 profile**：見 §1.3。
 - **不動 `MenuBarController` 的 fallback**：它變成走不到的分支，但無害。
-- **不改 `ProfileStore`**：seeding 是新責任，放新型別，不往既有型別上疊。
+- ~~**不改 `ProfileStore`**：seeding 是新責任，放新型別，不往既有型別上疊。~~
+
+  > **⚠️ 更正（2026-07-30）：這一條在實作時被有意識地推翻了，設計文件先前沒跟上。**
+  > 實作在 `ProfileStore` 上新增了 `public static func standardDirectory()`
+  > （`ProfileStore.swift:19-22`；計畫 Task 3 明列），所以「不改 `ProfileStore`」現在
+  > 對碼庫做了一個不成立的宣稱。
+  >
+  > **為什麼推翻是對的**：原本這條要防的是「把 seeding 的責任疊到 `ProfileStore` 上」
+  > ——那個顧慮仍然成立，`seed()` 到今天還是住在 `BuiltInProfiles`，`ProfileStore`
+  > 一行 seeding 邏輯都沒有。但 `standardDirectory()` 不是新責任，它是**把既有知識
+  > 暴露出來**：`ProfileStore.standard()` 本來就知道「Mirage/profiles 在哪」，只是把它
+  > 埋在函式體裡。seeding 的目的地必須與 `ProfileStore` 讀取的目錄**是同一個**，若不
+  > 暴露就得讓呼叫端自己再拼一次 `"Mirage/profiles"`——那才是真正的架構問題（兩份
+  > 同樣的知識遲早漂移，這個 repo 剛因為 `EmulatorEndpoint` 的解析有兩份而吃過虧）。
+  >
+  > **暴露既有知識 ≠ 疊加新責任。** 抽 `standardDirectory()` 之後
+  > `MenuBarController.availableGameIds()`（`MenuBarController.swift:123`）也改用它，
+  > 路徑複本從三份降到一份。YAGNI 防的是「還用不到的東西」，不是「已經有兩個呼叫端
+  > 的東西」。
 
 ## 6. 驗收
 
