@@ -369,3 +369,51 @@ Mirage 側是 20–35 fps。**兩者一致 → Mirage 的顯示路徑沒有額�
 以及一個機器層面的：**`verify_game_fps.sh` 預設的 5558 是 AOSP bench 機，沒有 Google
 帳號，Pixel Flow 在上面進不了遊戲**（卡在載入畫面）。能玩的是 5556（Play Store 已登入）。
 量 fps 用 5558 沒問題，但任何「能不能玩」的驗證都必須用 5556。
+
+## 12. 輸入延遲實測（驗收線 2）：不通過，而且量到的是下界
+
+2026-07-29，用 `phase0/harness/e2e_latency.py`（開 `show_touches`、送 tap、以
+`streamScreenshot` 監看該區域亮度變化）在 `emulator-5556` 上量：
+
+```
+n=41  misses=9  p50=78.1ms  p95=235.1ms
+```
+
+腳本註明此值不含 Mac 上屏，對照 80ms 上限時加 8–17ms：
+
+| 指標 | 實測 | +17ms 上屏 | 驗收線 80ms |
+|---|---|---|---|
+| p50 | 78.1ms | **95.1ms** | ❌ |
+| p95 | 235.1ms | **252.1ms** | ❌ |
+
+### 這個數字是**下界**，不是實際體感
+
+量測路徑是 **gRPC 直連**（Python client 送 tap、Python client 收幀），
+**完全不經過 Mirage**。真實使用時還要加上 Mirage 這一段：幀解碼 → 上傳 texture
+→ present。所以實際的 input-to-photon 只會比 95ms 更高。
+
+**要量「經過 Mirage 的完整 e2e」需要在 `Renderer` 埋點**（記錄幀從 `LatestFrameBox`
+取出到 `present` 的時間），目前沒有這個能力。
+
+### 與 Phase-0 的落差，以及未控制的變因
+
+`phase0/RESULTS.md` 記錄的是 p50 51.1/56.8ms、p95 65.2/65.7ms（同樣不含上屏），
+明顯優於本次。但**不能直接判定為退步**，以下變因都沒有控制：
+
+- **不同機器**：Phase-0 量的是 `emulator-5554`（AOSP）；本次是 `emulator-5556`
+  （Play Store 映像、4GB RAM）。本次嘗試在 5554 上做對照量測，但那台畫面靜止、
+  `streamScreenshot` 不出幀（change-driven），量不到。
+- **本次那台當天跑過 Pixel Flow**，可能有背景負載。
+- Phase-0 自己就有一筆更正記錄：那批數字量於「受污染主機」（見
+  `phase0/RESULTS-rebaseline.md`）。
+
+### misses 的偏差（Phase-0 已指出，此處同樣成立）
+
+`misses=9`（50 次中 9 次逾時未偵測到畫面變化）**被排除在 p50/p95 的計算之外**。
+那 9 次的真實延遲只會更長（甚至無限），所以回報的 p95=235ms 仍是樂觀值。
+
+### 結論
+
+**驗收線 2（輸入延遲 < 80ms）目前不通過**，而且量到的 95.1ms 是不含 Mirage 的下界。
+下一步該做的是在 `Renderer` 埋點量完整路徑——在那之前，我們不知道 Mirage 這一段
+貢獻了多少，也就不知道該優化哪裡。
