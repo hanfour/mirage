@@ -53,7 +53,11 @@ fi
 echo ""
 echo "=== 閘門 2：連跑 $RUNS 次完整測試套件 ==="
 LOGDIR=$(mktemp -d)
-trap 'rm -rf "$LOGDIR"' EXIT
+# **只在全過時清掉 log**。原本是無條件 `trap 'rm -rf "$LOGDIR"' EXIT`，於是失敗那一刻
+# 證據就跟著消失——2026-07-30 追一次間歇失敗時，就是因為這行而拿不到失敗的 run log，
+# 只能記成「未重現、原因未確立」。閘門存在的意義是說清楚出了什麼事，不是只說「紅了」。
+cleanup_logs() { [ "$FAILURES" -eq 0 ] && rm -rf "$LOGDIR"; }
+trap cleanup_logs EXIT
 
 for i in $(seq 1 "$RUNS"); do
     log="$LOGDIR/run-$i.log"
@@ -80,7 +84,11 @@ for i in $(seq 1 "$RUNS"); do
         # 這一行只在**測試失敗時**才跑，所以這個 bug 的效果是「真的失敗時，用一個看不懂的
         # 錯誤蓋掉真正的失敗原因」——閘門最需要說清楚的那一刻反而啞掉。
         fail "第 ${i} 次：測試失敗（退出碼 ${rc}，${dur}s）"
-        grep -E '✘|error:' "$log" | head -10
+        # **不能只 grep ✘**：swift-testing 用同一個 ✘ 標記 skip 與 failure，而本專案有 10 條
+        # 環境閘門的 skip，所以原本那行印出來的全是 skip、真正的失敗被埋在下面看不到
+        # （2026-07-30 追間歇失敗時實際踩到）。改成只抓失敗的標記，並明確排除 skip。
+        grep -E 'recorded an issue|failed after [0-9]|error:' "$log" | grep -v 'skipped:' | head -10
+        echo "   完整 log 保留在：$log"
         continue
     fi
 
