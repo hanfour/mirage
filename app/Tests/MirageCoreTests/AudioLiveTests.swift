@@ -34,14 +34,12 @@ private func drainRingAtRealTimeRate(_ ring: AudioRingBuffer) async {
 /// `MIRAGE_LIVE` 下會讓覆蓋率量測指令無謂地紅掉；只有明確知道前置條件已滿足的呼叫端
 /// （目前只有 `verify_audio.sh`）才會額外設 `MIRAGE_LIVE_AUDIO=1`。
 @Suite struct AudioLiveTests {
-    @Test func realEmulatorDeliversAudioPackets() async throws {
-        let env = ProcessInfo.processInfo.environment
-        guard env["MIRAGE_LIVE"] == "1", env["MIRAGE_LIVE_AUDIO"] == "1" else {
-            // 終審 Minor 7：不再靜默 skip——沒有這行，測試回報「passed」但零驗證，
-            // 容易被誤判成「音訊活體真的驗過了」。
-            print("[audio-live] skipped: 需 MIRAGE_LIVE=1 且 MIRAGE_LIVE_AUDIO=1；請跑 scripts/verify_audio.sh")
-            return
-        }
+    // 原本是 `guard ... else { print(...); return }`——那行 print 是為了讓「回報 passed 但零驗證」
+    // 不至於完全靜默（終審 Minor 7）。改用 .enabled(if:) 之後不需要它了：測試會如實顯示為
+    // skipped，訊息就是下面這個 comment，而且是測試框架自己報的，不靠人記得去 grep stdout。
+    @Test(.enabled(if: LiveGate.audio,
+                   "需 MIRAGE_LIVE=1 且 MIRAGE_LIVE_AUDIO=1；請跑 scripts/verify_audio.sh"))
+    func realEmulatorDeliversAudioPackets() async throws {
         let ring = AudioRingBuffer()
         let client = EmulatorClient()
         await client.setAudioSink(ring)

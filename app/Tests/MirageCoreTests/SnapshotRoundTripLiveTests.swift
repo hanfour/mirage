@@ -11,8 +11,8 @@ import NIOPosix
 /// 「suspend 期間 qemu 仍在跑」矛盾（load 會 rewind 丟狀態）。因此 wake() 已改為
 /// 只恢復拉幀、不 load（見 EmulatorClient.wake 與 RESULTS-p1b §4），此處亦不驗 load。
 @Suite struct SnapshotRoundTripLiveTests {
-    @Test func saveSnapshotSucceeds() async throws {
-        guard ProcessInfo.processInfo.environment["MIRAGE_LIVE"] == "1" else { return }
+    @Test(.enabled(if: LiveGate.live, "需 MIRAGE_LIVE=1 與真模擬器；請跑 scripts/verify_snapshot.sh"))
+    func saveSnapshotSucceeds() async throws {
         let boxCh = try GrpcChannelBox(host: "localhost", port: 8554)
         let snap = GrpcSnapshotService(channelBox: boxCh)
         #expect(await snap.save("mirage_suspend") == true)

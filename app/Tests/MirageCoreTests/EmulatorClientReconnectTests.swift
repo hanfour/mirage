@@ -209,10 +209,9 @@ actor SleepRecorder {
 // 裡退化成一個四行 switch，肉眼可驗證；端到端「真的走 MMAP」由 Task 8 活體驗證負責。
 
 @Suite struct LiveSmokeTests {
-    @Test func liveStreamDeliversFrames() async throws {
-        // 修正案 A 對應：XCTSkipUnless → guard 提前 return（需要活模擬器）。
-        // 執行：MIRAGE_LIVE=1 swift test --filter LiveSmokeTests
-        guard ProcessInfo.processInfo.environment["MIRAGE_LIVE"] == "1" else { return }
+    // 執行：MIRAGE_LIVE=1 swift test --filter LiveSmokeTests
+    @Test(.enabled(if: LiveGate.live, "需 MIRAGE_LIVE=1 與真模擬器"))
+    func liveStreamDeliversFrames() async throws {
         let box = LatestFrameBox()
         let client = EmulatorClient()
         await client.start(box: box, width: 540, height: 1200)
@@ -235,8 +234,8 @@ actor SleepRecorder {
     /// （`NormPoint.guestPixel`，已有單元測試），這裡驗的是「乘數來源正確」。
     ///
     /// 刻意斷言「解析度與串流尺寸不同」而非寫死 1080x2400——後者會綁死在特定 AVD 上。
-    @Test func liveHealthProbeCarriesGuestPhysicalResolution() async throws {
-        guard ProcessInfo.processInfo.environment["MIRAGE_LIVE"] == "1" else { return }
+    @Test(.enabled(if: LiveGate.live, "需 MIRAGE_LIVE=1 與真模擬器"))
+    func liveHealthProbeCarriesGuestPhysicalResolution() async throws {
         let client = EmulatorClient()
         await client.start(box: LatestFrameBox(), width: 540, height: 1200)
         try await Task.sleep(for: .seconds(3))

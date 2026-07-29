@@ -35,7 +35,7 @@ private func liveThreadCount() -> Int {
 @Suite struct ChannelTeardownTests {
     static let boxCount = 12
 
-    @Test(.enabled(if: ProcessInfo.processInfo.environment["MIRAGE_THREAD_AUDIT"] == "1",
+    @Test(.enabled(if: LiveGate.threadAudit,
                    "需 MIRAGE_THREAD_AUDIT=1——見上方說明（會讀行程級執行緒數，不能與其他測試並行）"))
     func shutdownReleasesNioThreads() async throws {
         let baseline = liveThreadCount()
