@@ -115,14 +115,25 @@ private func waitUntil(
     /// **柵欄是 positive control，不是計時器。** 這條原本兩個斷言都是否定的
     /// （`keyCalls.isEmpty`／`touchCalls == 0`）而只等固定 100ms——正是本分支實測過
     /// 「穩定 50% 不夠用」的那個時長。拿掉 `route()` 的 editing guard 之後它有可觀機率
-    /// 仍然綠。現在改成：編輯模式送 `k` → 離開編輯模式 → 送 `z` → 等 `z` 到達。
-    /// 兩個直通 Task 都在同一個 MainActor 上依序排隊，`z` 到得了就代表 `k` 若有送出
-    /// 一定已經排在它前面——「什麼都沒送」因此變成因果順序保證。
+    /// 仍然綠。
+    ///
+    /// **柵欄的強度，誠實地說**：`Task { [client] in await client.sendKey(...) }` 的
+    /// body 確實繼承 MainActor、確實依建立順序 FIFO 排隊，但 `SpyInjector.sendKey` 是
+    /// nonisolated async——依 SE-0338，從 MainActor 呼叫它會跳到 global concurrent
+    /// executor，跳過去之後 `_keyCalls.append` 的先後就不再受 MainActor 那層排隊保護。
+    /// 所以「送 `z` 之後等它到達，就代表 `k` 若有送出一定已經跑完」**不是**因果順序
+    /// 保證，只是機率——跟拿掉 editing guard 前的舊寫法是同一種脆弱，只是機率被提高了。
+    /// 因此改用本檔案其他否定斷言（見 `boundKeyGoesToTouchesNotKeyboard`）同一套手法：
+    /// 送出可能違規的 `k` 之後先固定等一段時間，讓它有機會在關閉編輯模式**之前**就
+    /// 現形；下面送 `z` 再等的 `waitUntil` 只是確認「這條路徑本身活著」的柵欄，不是
+    /// 拿它反推 `k` 有沒有被送出。
     @Test func editingModeSuppressesPassthrough() async throws {
         let spy = SpyInjector()
         let c = KeymapController(client: spy, profile: profileWithWAndJ())
         c.setEditing(true)
         c.handleKeyDown(.key("k"))
+        // 否定訊號用固定等待抓，不借 z 的到達反推——理由見上方 doc comment。
+        try await Task.sleep(for: .milliseconds(100))
         c.setEditing(false)
         c.handleKeyDown(.key("z"))
         #expect(await waitUntil { spy.keyCalls.count >= 1 })

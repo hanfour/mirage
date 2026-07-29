@@ -55,10 +55,19 @@ final class KeymapController {
     /// ADAPTATION（P1-d task-5 brief）：參數改為無 label（`reload(_:)`），對齊 brief 簽名
     /// 與 ActivationDecider 呼叫慣例；唯一既有呼叫端（saveProfile）已同步更新，未新增重複方法。
     ///
-    /// **按住期間換 profile 不需要在這裡補償**：`route()` 是先查 `passthroughDown` 再查
-    /// `engine.handles`，所以「按住 k 時 k 從未綁變成已綁」的 keyUp 仍然走直通送出 up，
-    /// 不會因為換了 profile 就被引擎吃掉。反向翻轉（已綁變未綁）也不會冒出一個沒有
-    /// 對應 down 的 up——那顆鍵從來不在 `passthroughDown` 裡。
+    /// **按住期間換 profile，不需要為直通鍵在這裡補償**：`route()` 是先查
+    /// `passthroughDown` 再查 `engine.handles`，所以「按住 k 時 k 從未綁變成已綁」的
+    /// keyUp 仍然走直通送出 up，不會因為換了 profile 就被引擎吃掉。反向翻轉
+    /// （已綁變未綁）也不會冒出一個沒有對應 down 的 up——那顆鍵從來不在
+    /// `passthroughDown` 裡。
+    ///
+    /// **觸點（bound 鍵）這一半沒有對應的補償，是已知缺口（債務表 D23）**：按住 `w`
+    /// （綁在搖桿）時呼叫這個函式，舊 engine 連同它的 `pressed={w}` 被整顆丟棄，
+    /// guest 端留著一個 `down:true` 的搖桿觸點；之後放開 `w`，新 engine 不認得
+    /// （或是 nil）、`w` 也從來不在 `passthroughDown` 裡——`route()` 三段判斷全部
+    /// 跳過，連 `emit` 都不會被呼叫，沒有自癒路徑。這不是假設情境：真實觸發路徑是
+    /// `AppModel.applyActivation()` 的 `.inactive` 分支（`AppModel.swift:202`，
+    /// 遊戲偵測到前景遊戲消失時呼叫 `reload(nil)`）。
     func reload(_ profile: KeymapProfile?) {
         engine = profile.map(KeymapEngine.init(profile:))
     }
