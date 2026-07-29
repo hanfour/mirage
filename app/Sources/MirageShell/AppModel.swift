@@ -54,10 +54,6 @@ final class AppModel {
     /// 與這裡的 540x1200 差兩倍）。混淆這兩者正是 §10 那個 bug 的成因。
     static let defaultStreamSize: (w: Int, h: Int) = (540, 1200)
 
-    /// PLACEHOLDER：目前哪個 game 在跑（gameId）尚未有偵測機制，先寫死——與 Task 7 brief
-    /// 一致，實際綁定留待後續任務（見 task-7-report.md pending-human 清單）。
-    static let gameId = "com.example.game"
-
     func start() async {
         // 端點無論如何都印一行：「連到另一台模擬器」的症狀（畫面不是預期的那台）跟
         // 「連不上」長得完全不一樣，沒有這行就只能靠猜。壞掉的覆寫更要印——靜默退回
@@ -92,12 +88,43 @@ final class AppModel {
         await client.start(box: box, width: Self.defaultStreamSize.w, height: Self.defaultStreamSize.h)
     }
 
-    /// 啟動時載入 profile；找不到／解析失敗一律吞成 nil（直接模式），對齊 spec §5「無 profile
-    /// 不得崩潰」——與 loadKeymap 呼叫端（body 的 .task）同一批啟動流程，但獨立成一步，
-    /// 這樣往後要換成「偵測目前遊戲」時只需要改這一個函式。
+    /// 首次啟動時把內建範例 profile 種進使用者目錄。已存在者不動（見 `BuiltInProfiles.seed`）。
+    ///
+    /// 一定要印出結果：沒有這行，「內建 profile 到底有沒有到位」就變成只能靠翻檔案系統
+    /// 才知道的事——而 D4 的本體正是「那個檔案從來沒到位，卻沒有任何訊號」。
+    ///
+    /// **為什麼要先看 `sources.isEmpty` 再看 `copied.isEmpty`**：這兩個空值背後是不同的世界。
+    /// `copied` 為空有三種成因——(a) 目的地已有檔案（正常）、(b) 根本沒有來源（資源打包壞了）、
+    /// (c) 有來源但每筆複製都失敗（權限等）。原本一律印「已存在，未複製」，於是 (b) 這個
+    /// **D4 這筆債的本體**（檔案沒到位卻沒有訊號）會印出「一切正常」——同一個 bug 換個地方復發。
+    ///
+    /// (c) 這裡分不出來：`seed` 目前只回傳成功的清單，不回報失敗筆數，所以「三筆來源全失敗」
+    /// 與「三筆全已存在」在呼叫端長得一樣。要分需要改 `seed` 的回傳型別，記在債務表 D27。
+    func seedBuiltInProfiles() {
+        let sources = BuiltInProfiles.bundledSources()
+        let copied = BuiltInProfiles.seed(into: ProfileStore.standardDirectory(), from: sources)
+        if sources.isEmpty {
+            print("[profile] ⚠️ bundle 內找不到任何內建 profile——資源打包壞了")
+        } else if copied.isEmpty {
+            print("[profile] 內建 profile 已存在（\(sources.count) 筆），未複製")
+        } else {
+            print("[profile] 種下內建 profile：\(copied.joined(separator: ", "))")
+        }
+    }
+
+    /// 建立 keymap controller。**啟動時不載入任何 profile**——載入哪一份由遊戲偵測決定
+    /// （`applyActivation()` → `keymap?.reload(p)`）。
+    ///
+    /// 更正（2026-07-29，D4）：這裡原本用寫死的靜態欄位（值為 `com.example.game`）載入，
+    /// 而那行的註解寫「尚未有偵測機制」——**那句話在 P1-d 就過期了**，`GameDetector` →
+    /// `currentPackage` → `applyActivation` 早已是唯一的真實來源。舊路徑的實際效果是
+    /// 「不管使用者在玩什麼，啟動時都載入 com.example.game 的 profile」。
+    ///
+    /// **行為改變**：沒有 adb 的環境下偵測不會跑（`AdbClient.standard()` 靜默不偵測），
+    /// 因此不會有任何 profile。逃生出口是選單列的「套用 profile ▸」手動覆寫。
+    /// 這是刻意的取捨——寧可沒有 profile，也不要載入一份與當前遊戲無關的。
     func loadKeymap() {
-        profile = try? ProfileStore.standard().load(gameId: Self.gameId)
-        keymap = KeymapController(client: client, profile: profile)
+        keymap = KeymapController(client: client, profile: nil)
         mouseCapture.updateCapture(shouldCapture: shouldCapture)
     }
 

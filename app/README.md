@@ -70,7 +70,23 @@ P1-a 迴歸的證據，改列為未量測（**當時記為 pending-unlock，該�
 把 P1-a 的「滑鼠即觸控」升級為每遊戲 profile 的鍵位映射——鍵盤/滑鼠 → 多點觸控注入：
 
 - **鍵位映射引擎（`MirageCore/Keymap/`，純引擎）**：tap（技能鍵）、joystick（WASD 移動）、look（滑鼠視角）→ 多指 `TouchFrame` 快照。identifier 靜態分配（joystick=1／taps=2,3…／look=最後）保證多指決定論不衝突。核心 `KeymapEngine` 逐行 100% 覆蓋。
-- **每遊戲 profile**：`KeymapProfile`（Codable + schema 驗證，載入 fail-fast）；`ProfileStore` 原子檔案 I/O（temp+rename）。位置 `~/Library/Application Support/Mirage/profiles/<gameId>.json`；內建指標 `com.example.game`。
+- **每遊戲 profile**：`KeymapProfile`（Codable + schema 驗證，載入 fail-fast）；`ProfileStore` 原子檔案 I/O（temp+rename）。
+  位置 `~/Library/Application Support/Mirage/profiles/<gameId>.json`。
+  內建**範例** profile `com.example.game` 於首次啟動時複製到該目錄（已存在者不動，
+  使用者的編輯永不被覆寫）。
+
+  > **`com.example.game` 是格式範例，不對應任何真實遊戲。** `com.example.*` 是保留給
+  > 範例用的網域。Phase-1 的指標遊戲 Pixel Flow（`com.loomgames.pixelflow`）是點擊／
+  > 拖曳型，**不需要 keymap profile**——滑鼠直接 tap（無 profile 時的 P1-a 路徑）就是
+  > 對的輸入模型，這也正是驗收線「1 款指標遊戲開箱即玩」已經通過的原因。
+  > 實測記錄見 `../docs/specs/2026-07-29-d4-builtin-profile-seeding-design.md` §1.3。
+  >
+  > **因此 `.auto` 自動啟用目前沒有端到端的自動驗證**：`.auto` 要求 profile 的 `gameId`
+  > 對得上偵測到的前景 package，而範例是 `com.example.game`，不對應任何真實 App。
+  > 這**可以驗，只是沒人回頭驗**（§8 D 節的第三類）——手動放一份以真實 package 命名的
+  > profile（例如 `com.google.android.apps.nexuslauncher.json`，模擬器上一定存在的桌面），
+  > 用 `.app` bundle + `open` 啟動 Mirage，把該 App 帶到前景，看選單列的
+  > 「遊戲：… [keymap ✓]」是否切換。阻礙（`AVAudioEngine` NSException）已於 2026-07-28 修復。
 - **多指注入**：`EmulatorClient.sendTouches([TouchSpec])`（一個 `TouchEvent` 帶多 `Touch`）；`sendTap` 為單指特例。
   座標由 `EmulatorClient` 自己用**健康探測回報的 guest 實體螢幕解析度**（`guestDisplay`）換算，呼叫端只傳正規化的 0–1。
 
@@ -134,7 +150,7 @@ P1-a 迴歸的證據，改列為未量測（**當時記為 pending-unlock，該�
 - 活體多指：`ANDROID_SERIAL=emulator-5554 MIRAGE_LIVE=1 swift test --filter MultiTouchLiveTests`（配 `adb shell settings put system show_touches 1`，注入後 show_touches 見 `P: 0/2`）。
 - 驗收紀錄：`RESULTS-p1c.md`（authoritative）。
 
-**已知限制/移交**：真實觸點落點精度未驗（換算路徑已修，見上方多指注入的更正）；look 手感、⌘E 即時行為未驗；`gameId` 仍硬編碼 `com.example.game`；鍵盤直通的膠水層（`keyCode(from:)`／`keyDown`/`keyUp`／`onKey`／`flagsChanged` 接線）與選單列三顆 Android 實體鍵的接線可以驗了但沒人回頭驗，見上方鍵盤直通說明的殘餘涵蓋面三項。（`MouseCapture` 失焦自動釋放已於 P1-d 修復。）
+**已知限制/移交**：真實觸點落點精度未驗（換算路徑已修，見上方多指注入的更正）；look 手感、⌘E 即時行為未驗；~~`gameId` 仍硬編碼 `com.example.game`~~（**已於 2026-07-29 移除，D4**：`AppModel.loadKeymap()` 不再用寫死的 `gameId` 載入，profile 完全交給偵測決定，見下方 P1-d 段落）；鍵盤直通的膠水層（`keyCode(from:)`／`keyDown`/`keyUp`／`onKey`／`flagsChanged` 接線）與選單列三顆 Android 實體鍵的接線可以驗了但沒人回頭驗，見上方鍵盤直通說明的殘餘涵蓋面三項。（`MouseCapture` 失焦自動釋放已於 P1-d 修復。）
 
 > **⚠️ 更正（2026-07-29）**：本行原本把「overlay 拖放存檔」列為 **pending-human**，讀起來像
 > 「做好了待人眼確認」。**實際是根本沒做**：`Sources/MirageShell/Keymap/OverlayEditorView.swift`
@@ -154,10 +170,17 @@ P1-a 迴歸的證據，改列為未量測（**當時記為 pending-unlock，該�
 - **選單列**：目前遊戲 + 手動「停用 keymap／恢復自動偵測／套用 profile ▸」（掃 `~/Library/Application Support/Mirage/profiles/*.json`）。
 - **MouseCapture 修正**（P1-c 交接）：焦點 gating（`hasProfile && !editing && keyWindow`）+ `didResignKeyNotification` 自動釋放，消除游標陷阱。
 - 活體：`scripts/verify_keymap_inject.sh`（引擎→注入 show_touches 佐證；擷圖見 P:1/2、座標數學正確）。
-- **已知限制**：完整 app-path（KeymapController+NSEvent）與真遊戲手感未驗；`gameId==package`，但**真遊戲 profile 內容仍不存在**——只有內建的 `com.example.game`，而它連 bundle 都進不去（`Package.swift` 無 `resources:` 宣告，見 D4）。
+- **已知限制**：完整 app-path（KeymapController+NSEvent）與真遊戲手感未驗；`gameId==package`，**真遊戲 profile 內容仍不存在**——只有內建的範例 `com.example.game`。
+
+  > **⚠️ 更正（2026-07-29）**：本行原本接著寫「而它連 bundle 都進不去（`Package.swift` 無
+  > `resources:` 宣告，見 D4）」。**D4 已於同日修復**：`Package.swift:32` 補上
+  > `resources: [.copy("Resources/profiles")]`，範例 profile 現在會在首次啟動時複製進
+  > 使用者目錄（見上方 P1-c「每遊戲 profile」段落）。另外，「真遊戲需要 profile」這個
+  > 前提查證後也不成立——Phase-1 指標遊戲 Pixel Flow（`com.loomgames.pixelflow`）是
+  > 點擊／拖曳型，不需要 keymap，同見上方 P1-c 段落。
 
   > **⚠️ 更正（2026-07-29）**：本行原本還列著「`AppModel.profile` 與偵測啟用不同步
-  > （overlay 上線前須讓 activation 回寫）」。**已修**：`AppModel.swift:201` 的
+  > （overlay 上線前須讓 activation 回寫）」。**已修**：`AppModel.swift:228` 的
   > `case .active(let p): keymap?.reload(p); profile = p` 就是那個回寫。
   > 留著會讓下一個人去修一個已經好了的東西——這比「以為做了其實沒做」更浪費。
 - 驗收：`RESULTS-p1d.md`；架構詳見 `../docs/specs/2026-07-24-p1d-game-detection-design.md`。

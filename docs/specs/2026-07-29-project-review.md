@@ -77,7 +77,7 @@
 `Cannot schedule tasks on an EventLoop that has already shut down`，那是同一件事的另一個症狀。
 
 **這在產品路徑上一樣會發生**：`AppDelegate.swift:47-52` 用 semaphore 卡住主執行緒、
-`AppModel.swift:274` 補 200ms sleep——那就是同一個問題在使用者按 ⌘Q 時的補丁。
+`AppModel.swift:315` 補 200ms sleep——那就是同一個問題在使用者按 ⌘Q 時的補丁。
 
 **修法**：`channel.close()`（等 future）→ `group.shutdownGracefully(queue:)`（回呼式，不阻塞）。
 `dropChannel()` 呼叫它，deinit 只留最後防線。**半天，不動任何公開介面或既有測試。**
@@ -99,7 +99,7 @@
 | ~~**D1**~~ | ~~**NIO 關閉順序 + 阻塞式拆除**（見 §1）~~ | **✅ 已修（2026-07-29）**。`GrpcChannelBox.shutdown()`：先 `channel.close()`、再回呼式 `group.shutdownGracefully(queue:)`，全程不阻塞；`dropChannel()` 顯式呼叫。驗收 5/5 乾淨 | 實際約半天 | — |
 | ~~**D2**~~ | ~~**鍵盤直通零實作**~~ | **✅ 已修（2026-07-29）**。`KeymapController` 依 `KeymapEngine.handles(_:)` 分流：profile 沒綁的鍵走 `sendKey` 直通。換算抽成 `MirageCore.KeyTranslate` 純函式；⌘ 組合不直通；Esc→GoBack；主畫面／最近任務走選單列。傳輸路徑由活體實測選定（`key` 十個鍵全通，`.mac` 送不出字母 a——proto3 的 0 是預設值不序列化）。驗證用 `getevent` 當儀器 | 實際約半天 | — |
 | ~~**D3**~~ | ~~**8 處活體測試用 `guard/return`**~~ | **✅ 已修（2026-07-29）**。全數改用 `@Test(.enabled(if:))`，env 閘門集中到 `Tests/MirageCoreTests/LiveGate.swift`。未設 env → 如實顯示 skipped 並附原因；設了 env → 照跑（已雙向驗證） | 實際約 1 小時 | — |
-| **D4** | **內建 profile 沒進 bundle** + `AppModel.gameId` 寫死 `com.example.game` | `.auto` 自動啟用端到端不可能通；指標遊戲沒有可用 profile | 半天 | **P1** |
+| ~~**D4**~~ | ~~**內建 profile 沒進 bundle** + `AppModel.gameId` 寫死~~ | **✅ 已修（2026-07-29）**。`Package.swift` 補 `resources: [.copy("Resources/profiles")]`、資源搬進 target 目錄；`BuiltInProfiles.seed` 首次啟動複製（永不覆寫）；刪掉寫死 `gameId` 的死路徑（其註解「尚未有偵測機制」自 P1-d 起就已過期）。**但記載的「指標遊戲沒有可用 profile」查證後不成立**——Pixel Flow 是點擊／拖曳型，不需要 keymap，見設計文件 §1.3。**`.auto` 端到端仍無自動驗證**（範例 profile 不對應真實 package），已如實記入 §8 D | 實際約半天 | — |
 | **D5** | **overlay 編輯器不能拖**（29 行，只有存檔按鈕） | 母計畫交付項；鍵位映射是產品命根子但使用者改不了 | 2–3 天 | **P1** |
 | **D6** | **輸入無順序保證**——每個事件各開一個 unstructured Task。**2026-07-29 擴大：現在有兩種資料形態**。(a) 觸控走 `TouchFrame` **全狀態快照**，晚到的舊快照覆蓋新狀態；(b) 鍵盤直通（D2）走**邊緣事件**——`KeymapController.route()` 對每個 keyDown/keyUp 各開一個 Task，路上沒有任何一層保證順序（MainActor 排隊 → `EmulatorClient` actor → 兩個各自獨立的 unary RPC，HTTP/2 跨 stream 不保證到達順序） | (a) 快速連點/連按產生幽靈觸點或吃掉動作，症狀是「遊戲沒反應」——又一個看起來像遊戲問題的靜默錯誤。(b) **比 (a) 嚴重一級**：down 與 up 對調就是**永久卡鍵**。快照有自癒機制（下一幀會蓋掉錯的狀態），邊緣事件沒有——那顆鍵從此一直按著，而且影響的是整個 guest 鍵盤輸入，不只當下那款遊戲 | 半天–1 天 | **P0** |
 | **D7** | **`mouseUp` 早退吞掉放開事件**（`MirrorView.swift:35-52`）：拖到 letterbox 黑邊或視窗外放開，guest 手指永遠按著 | 同上，且黑邊在非同比視窗下必定存在 | 1 小時 | **P1** |
@@ -118,8 +118,11 @@
 | **D20** | **`KeymapEngine.unmappedCount` 會動，但沒人讀——不是「恆為 0」**。它在 `apply(.keyDown)` 裡對「引擎不認識的鍵」累加；D2 之後 `KeymapController.route()` 確實把大部分這類鍵攔去走直通，到不了 `apply`，但**唯一還會餵未綁定鍵進 `apply` 的呼叫端 `handleFlagsChanged`（修飾鍵旁路）本身就是產品路徑**——C1 修復後它直接呼叫 `emit(engine?.apply(.keyDown(code)))`（`KeymapController.swift:120`），而 keymap profile 通常不會綁 Shift/Control/Alt/Meta 這四顆修飾鍵。結果是**使用者在產品路徑上每按一次修飾鍵，這個計數就加一**，這句標題原本說反了 | `KeymapEngineTests.swift:74` 那條斷言驗的是「`apply` 對未映射鍵會累加計數」——這件事是真的，也確實會在產品路徑上發生（見左欄）。斷言測不到的是這個計數**有沒有意義**：全庫沒有任何生產碼讀取 `unmappedCount`（grep 只落在定義與遞增那兩行），它不上報、不觸發任何行為。這仍是本專案要防的「綠燈但沒驗到產品行為」那一類，只是精確地說是**測了一個沒有消費端的旁支指標**，不是「測了一條死路」 | 1 小時（決定：接上真正的消費端，或連同測試一起刪） | P2 |
 | **D21** | **注入縫只做了一半**。`InputInjecting` 只涵蓋 `sendTouches`/`sendKey`，**`sendTap` 不在裡面**；於是 `MirrorView.Coordinator` 仍吃具體型別 `EmulatorClient`（actor），滑鼠→tap 這條路徑無法在不建真 gRPC channel 的情況下觀察，仍然只能靠讀碼驗證。同一個模組因此並存兩套注入慣例：`KeymapController` 吃協定、`Coordinator` 吃具體型別 | 「無 profile 退回直接 tap」（spec §7 驗收 4）是 P1-a 不回歸的核心保證，而它零自動化涵蓋。也讓下一個人不知道該照哪一套寫 | 1 小時 | P2 |
 | **D22** | **編輯模式擋鍵盤、沒擋滑鼠**。`KeymapController.hasProfile` 是 `engine != nil && !editing`，所以一進編輯模式它就變 false；而 `MirrorView.Coordinator.sendMouse` 的 `guard controller?.hasProfile != true else { return }` 正是靠這個值決定要不要退回直接 tap——**編輯模式反而讓滑鼠點擊直接打進 guest**。「編輯時不干擾 guest」這個意圖被滑鼠那半邊整個繞過 | 使用者在 ⌘E 編輯器裡拖曳鍵位（D5 做完之後）等於在 guest 螢幕上亂點。兩個布林值目前共用一個述詞，語意其實不同：「該不該把滑鼠交給引擎」與「該不該送出去」 | 1 小時 | P2 |
-| **D23** | **`KeymapController.reload()` 換 profile 時，按住中的 bound 鍵在 guest 端永久卡住觸點**：按住 `w`（綁在搖桿）→ `reload(nil)` → 放開 `w`。舊 engine 連同它的 `pressed={w}` 被整顆丟棄，guest 端留著一個 `down:true` 的搖桿觸點；放開 `w` 這個 keyUp 到達 `route()` 時：不在 `passthroughDown` 裡（原本走的是 engine 分支，不是直通），`engine?.handles` 因新 engine 是 nil 而不成立，最後 `guard down, !editing else { return }` 因為這是 keyUp 直接 return——三段判斷全部跳過，`emit` 一次都不會被呼叫，沒有自癒路徑。**與 D11 不同**：D11 講的是**失焦**（⌘Tab 離開視窗）沒接上既有的釋放機制，且 D11 已知的修法（借用 `setEditing(true)` 對 `passthroughDown` 的釋放路徑）只清直通鍵；這裡的觸發條件是**呼叫 `reload(_:)` 本身**（真實路徑：`AppModel.applyActivation()` 的 `.inactive` 分支，`AppModel.swift:202`，遊戲偵測失去前景遊戲時），卡住的是 engine 內部 `pressed` 集合追蹤的**bound** 鍵，`setEditing` 的機制完全碰不到它——兩者觸發條件與修法都不同，不能互相取代 | 使用者體感 bug，且不會自己恢復：新 engine 從 `pressed={}` 起算，除非後續事件恰好用到同一個觸點 identifier 才會被蓋掉，否則那個觸點對 guest 來說永遠是按著的。修法：`reload()` 換 engine 前，先用舊 engine 目前的 `pressed` 算一次「全放開」快照送出去，或讓 `KeymapEngine` 提供一個等效方法給 `reload()` 呼叫 | 1 小時 | P2 |
-| **D24** | **測試用的 `waitUntil` 上限是 2 秒（`attempts:100 × interval:20ms`），在高負載下會逾時**。實測：機器 load avg 6.3/8（多個並行 session）時 `boundKeyGoesToTouchesNotKeyboard` 逾時變紅；`git stash` 確認**在改動前的樹上同樣重現**，是 helper 本身的性質不是 D2 引入。目前 21 條測試依賴它（`KeymapControllerRoutingTests` 15、`EmulatorClientReconnectTests` 6），且該 helper 在兩個 testTarget 各有一份逐字複本 | CI 若跑在共享或高負載機器上會出現無法重現的紅燈——正是本專案花一整輪修掉的那種訊號 | 1 小時 | P2 |
+| **D23** | **`KeymapController.reload()` 換 profile 時，按住中的 bound 鍵在 guest 端永久卡住觸點**：按住 `w`（綁在搖桿）→ `reload(nil)` → 放開 `w`。舊 engine 連同它的 `pressed={w}` 被整顆丟棄，guest 端留著一個 `down:true` 的搖桿觸點；放開 `w` 這個 keyUp 到達 `route()` 時：不在 `passthroughDown` 裡（原本走的是 engine 分支，不是直通），`engine?.handles` 因新 engine 是 nil 而不成立，最後 `guard down, !editing else { return }` 因為這是 keyUp 直接 return——三段判斷全部跳過，`emit` 一次都不會被呼叫，沒有自癒路徑。**與 D11 不同**：D11 講的是**失焦**（⌘Tab 離開視窗）沒接上既有的釋放機制，且 D11 已知的修法（借用 `setEditing(true)` 對 `passthroughDown` 的釋放路徑）只清直通鍵；這裡的觸發條件是**呼叫 `reload(_:)` 本身**（真實路徑：`AppModel.applyActivation()` 的 `.inactive` 分支，`AppModel.swift:229`，遊戲偵測失去前景遊戲時），卡住的是 engine 內部 `pressed` 集合追蹤的**bound** 鍵，`setEditing` 的機制完全碰不到它——兩者觸發條件與修法都不同，不能互相取代 | 使用者體感 bug，且不會自己恢復：新 engine 從 `pressed={}` 起算，除非後續事件恰好用到同一個觸點 identifier 才會被蓋掉，否則那個觸點對 guest 來說永遠是按著的。修法：`reload()` 換 engine 前，先用舊 engine 目前的 `pressed` 算一次「全放開」快照送出去，或讓 `KeymapEngine` 提供一個等效方法給 `reload()` 呼叫 | 1 小時 | P2 |
+| **D24** | **測試用的 `waitUntil` 上限是 2 秒（`attempts:100 × interval:20ms`），在高負載下會逾時。已重現三次，不再是假說**。helper 在 `KeymapControllerRoutingTests.swift:60-70`（`EmulatorClientReconnectTests.swift:267-277` 有一份逐字複本）。三次獨立觀察都落在 load average 約 12–13 的高負載下，且**每次紅的是不同的測試**——第一次 `boundKeyGoesToTouchesNotKeyboard`（`git stash` 確認在改動前的樹上同樣重現，是 helper 的性質不是 D2 引入），第三次是 `modifierKeysNeverPassThroughToGuest`，具名證據：<br>`✘ Test modifierKeysNeverPassThroughToGuest() recorded an issue at KeymapControllerRoutingTests.swift:161:9: Expectation failed: await waitUntil { spy.keyCalls.count >= 1 }`<br>`✘ Test run with 228 tests failed after 4.257 seconds with 1 issue.`<br>「紅的是哪一條會變」正是它不是真 bug 的指紋：失敗的是**等待預算**，不是被等的行為。目前 **10 條**測試依賴它、共 17 個呼叫點（`KeymapControllerRoutingTests` 8 條全部用、12 個呼叫點；`EmulatorClientReconnectTests` 10 條中只有 `suspendPreservesConnectionAndDoesNotReconnect` 與 `wakeResumesStreamingAfterSuspend` 用、5 個呼叫點）。**先前這裡寫「21 條（15／6）」是錯的**——那兩個數字是 `grep -c waitUntil` 的**行數**，含 helper 定義與註解，不是測試條數；2026-07-30 逐條分段核對後更正 | **它會讓品質閘門本身間歇說謊，而閘門是這一輪所有結論的載體。** `ci.sh` 連跑 3 次、任何一次紅就退出碼非零；於是在一台正常負載的開發機上，一個完全正確的樹有可觀機率被判定為壞的。比「紅燈不可重現」更糟的是它訓練人去無視紅燈——而這個 repo 剛花一整輪把訊號修到可信 | 1 小時 | **P1**（2026-07-30 由 P2 提升） |
+| **D25** | **`.app` 裡找不到資源會硬崩，而目前沒有任何東西守著這條路徑——這是 D4 新增的、先前不存在的啟動期失效模式**。D4 之前全碼庫零 `Bundle.module`；現在 `BuiltInProfiles.bundledSources()`（`BuiltInProfiles.swift:63`）會碰它，而 SwiftPM 產生的存取器（`app/.build/arm64-apple-macosx/debug/MirageCore.build/DerivedSources/resource_bundle_accessor.swift:5-13`）在兩條候選路徑都不中時是 `Swift.fatalError`，不是回傳 nil。第二條候選是**編譯當下寫死的 `.build/` 絕對路徑**，所以在這台開發機上 `.app` 照跑（資源其實從 `.build/` 讀），換機器或 `swift package clean` 之後就變成啟動即崩 | 全 repo 唯一組裝 `.app` 的地方（`app/scripts/verify_game_fps.sh:81-82`）**只 `cp` executable，不複製 resource bundle**，所以設計文件 §4.1 那條「`.app` bundle + `open`」的手動驗法在有 `.build/` 的機器上**結構上測不出這個缺陷**。單元測試守的是測試 bundle（`BuiltInProfilesTests.bundleContainsSampleProfile`），不是 `.app`。目前無發佈流程，所以還沒有人被這件事咬到——但它是「換一台機器就 100% 重現」的那種 | 半天（補打包步驟＋一條驗 `.app` 內容的斷言） | **P1**（有發佈流程前可降級；一旦要交付給第二個人就是 P0） |
+| **D26** | **閘門 3 的假 skip 哨兵只掃單行**。2026-07-30 已把樣式從「只認 env 形式」擴到同時抓 `guard … else { … return }`（`app/scripts/ci.sh` 閘門 3），但跨行的 `guard … else {\n print(…)\n return\n }` 仍抓不到。活的一例：`Tests/MirageCoreTests/MmapStreamLiveTests.swift:31-34`——模擬器版本 < 37 時 print 一行然後 return，該測試回報 passed 但零斷言 | 哨兵漏抓比沒有哨兵更糟，因為綠燈會被當成證據——這正是 D3 與本輪 C1 的共同病理。目前的緩解是把盲區明寫在腳本註解與 `ok` 訊息裡（「無**單行形式**的假 skip」），不假裝全包 | 半天（要 AST 而不是 grep；或先把 `MmapStreamLiveTests` 那條改成不早退） | P2 |
+| **D27** | **`BuiltInProfiles.seed` 不回報失敗筆數，呼叫端分不出「全都已存在」與「每一筆都複製失敗」**。`seed` 只回傳成功複製的清單，`catch { continue }` 把權限錯誤之類的失敗整個吞掉。`AppModel.seedBuiltInProfiles()`（`AppModel.swift:103-113`）已能靠 `sources.isEmpty` 分出「資源打包壞了」，但「有來源、每筆都失敗」仍與「全都已存在」印同一句話 | 與 D4 本體同一種病（東西沒到位卻沒有訊號），只是機率低得多——要磁碟滿或 `~/Library/Application Support` 權限異常才會踩到。修法是把回傳型別從 `[String]` 換成帶失敗清單的結構，並讓呼叫端把失敗印出來 | 1 小時 | P2 |
 
 > **關於 `P0`**：這一級是 2026-07-29 為 D6 新增的。原本最高只有 P1，而 D6 在 D2 上線後
 > 多了一種「不會自癒」的失效模式（永久卡鍵），與其他 P1 不同級。優先序欄位仍然是建議。
@@ -301,10 +304,10 @@ GUI 路徑（⌘Q 拆除、overlay、Metal 渲染）都不在 CI 涵蓋範圍內
 
 | 項目 | 文件怎麼說 | 實際 | 證據 |
 |---|---|---|---|
-| ~~鍵盤直通 `sendKey`~~ | ~~**任何文件都沒提過**~~ | ~~公開 API 零呼叫端~~ **✅ 已於 2026-07-29 實作（D2）** | 稽核當時：`Sources/MirageShell/` 與 `Tests/` grep `sendKey` 全零。D2 修復後不再成立——`KeymapController.swift:99`（`route()` 的直通分支經 `sendKeyToGuest`）、`AppModel.swift:221-222`（選單列 `onAndroidKey` 綁定，down 接 up）；同一組 grep 現為 `Sources/MirageShell/` 9 筆、`Tests/` 8 筆 |
+| ~~鍵盤直通 `sendKey`~~ | ~~**任何文件都沒提過**~~ | ~~公開 API 零呼叫端~~ **✅ 已於 2026-07-29 實作（D2）** | 稽核當時：`Sources/MirageShell/` 與 `Tests/` grep `sendKey` 全零。D2 修復後不再成立——`KeymapController.swift:99`（`route()` 的直通分支經 `sendKeyToGuest`）、`AppModel.swift:246-250`（選單列 `onAndroidKey` 綁定，down 接 up）；同一組 grep 現為 `Sources/MirageShell/` 9 筆、`Tests/` 8 筆 |
 | overlay 編輯器拖放 | 「拖放存檔、拖放手感 pending-human」 | 不能拖 | `OverlayEditorView.swift` 全檔 29 行，只有一個「存檔」Button；全 `MirageShell` 零 `DragGesture` |
-| 內建 profile 上架 | 「佔位，待綁真 package」 | SPM 看不到那個檔 | `Resources/profiles/com.example.game.json` 在磁碟，但 `Package.swift` 無 `resources:` 宣告、全碼庫零 `Bundle.module` |
-| 真遊戲 profile 內容 | 「留 Phase 1 三款遊戲」 | 只有 `com.example.game` | `AppModel.swift:59` 硬編碼；`MenuBarController.swift:105` 也 fallback 到同一個字串 |
+| 內建 profile 上架 | 「佔位，待綁真 package」 | SPM 看不到那個檔 | 稽核當時：~~`Resources/profiles/com.example.game.json` 在磁碟，但 `Package.swift` 無 `resources:` 宣告、全碼庫零 `Bundle.module`~~。**✅ 已於 2026-07-29 實作（D4）**——資源已搬進 `Sources/MirageCore/Resources/profiles/`，`Package.swift:32` 有 `resources: [.copy("Resources/profiles")]`，`Bundle.module` 有兩個呼叫端（`BuiltInProfiles.swift` 與 `BuiltInProfilesTests.swift`）。（**更正於 2026-07-30**：證據欄前半原本仍用現在式，與後半的「已實作」自我矛盾——隔壁那列的刪除線處理是對的，這列漏了。） |
+| 真遊戲 profile 內容 | 「留 Phase 1 三款遊戲」 | 只有 `com.example.game` | ~~`AppModel.swift:59` 硬編碼~~——**該死路徑已於 2026-07-29（D4）整段刪除**，見 `AppModel.swift:118-125` 的更正註解；`MenuBarController.swift:126` 也 fallback 到同一個字串（未變動，YAGNI） |
 | `powerStates` UI 接線 | 「未接線」← **誠實** | 定義 + 初始化，零消費端 | `EmulatorClient.swift:63,109` 之外全庫零命中 |
 | `isTargeted` 拖曳高亮 | 「刻意 scope 掉的功能缺口」← **誠實** | `.dropDestination` 未帶該參數 | `MirageScene.swift:31` |
 
@@ -326,9 +329,25 @@ GUI 路徑（⌘Q 拆除、overlay、Metal 渲染）都不在 CI 涵蓋範圍內
 
 ### C. 已修好但文件還寫著 pending（D15 類，最會誤導）
 
-| 項目 | 過時的記載 | 實際 |
+> **中欄的行號是 2026-07-29 稽核當時的位置，不是現在的位置。** D15 的更正註記是**就地插入**的，
+> 註記本身就把它抱怨的那些句子往下推。2026-07-30 逐一 `sed` 核對的結果：
+>
+> - `RESULTS-p1d.md:36` — **仍正確**（該行就是「不同步」那條記載本身）。
+> - `README.md:77` — **已失效**。在 D4 之前（`818f80f`）它就已經指向另一段文字，
+>   所以不是 D4 造成的。原記載現在是 `README.md:173` 的「已知限制」項，更正註記在 `:182-185`。
+> - `README.md:29–31, 96, 102` — `:29–31` 仍是那三項未量測項目本身，更正註記在 `:32-40`；
+>   `:96` 與 `:102` 在 `818f80f` 就已經是空行（同樣不是 D4 造成的），P1-e 那半的
+>   刪除線在 `:210`、更正註記在 `:212-224`。三處都已帶更正註記，所以「仍重申」這個動詞本身也過時了。
+>
+>   （這兩個範圍在 2026-07-30 也修過一次：原本寫 `:32-35` 與 `:210-213`，指的位置對、
+>   但尾端都少算了——引用區塊實際各延伸到 `:40` 與 `:224`。**一節在講「行號會過時」，
+>   自己的行號卻量錯**，正好說明這件事沒有靠自覺就能免疫的版本。）
+>
+> 中欄的舊行號**刻意保留**——它記的是稽核當時看到什麼，改掉會讓這一節變成事後修飾過的紀錄。
+
+| 項目 | 過時的記載（行號為稽核當時） | 實際 |
 |---|---|---|
-| `AppModel.profile` 與偵測啟用不同步 | `README.md:77`、`RESULTS-p1d.md:36` 仍寫「不同步、overlay 上線前須讓 activation 回寫」 | **已回寫**：`AppModel.swift:201` `case .active(let p): keymap?.reload(p); profile = p` |
+| `AppModel.profile` 與偵測啟用不同步 | `README.md:77`、`RESULTS-p1d.md:36` 仍寫「不同步、overlay 上線前須讓 activation 回寫」 | **已回寫**：`AppModel.swift:228` `case .active(let p): keymap?.reload(p); profile = p` |
 | `MouseCapture` 失焦不釋放 | `RESULTS-p1c.md:39` 寫「已文件化，待補生命週期 hook」 | P1-d 已補，`MouseCapture.swift:34` |
 | 全部 `pending-unlock`（螢幕鎖定） | `README.md:29–31, 96, 102` 仍重申「螢幕解鎖後補測即可」 | 歸因早已推翻，真因是 `AVAudioEngine` 的 NSException |
 
@@ -366,8 +385,8 @@ P1-e 的七項 GUI pending、`RESULTS-mmap.md` 的三項——**它們的阻礙�
    （該 factory 已實測在 `swift test` 環境可用）。**函式本體現已涵蓋**；剩下的
    `MirrorMTKView.flagsChanged(with:)` 覆寫 → `onFlagsChanged` 閉包接線與第 1 項同性質，仍零涵蓋。
 3. **`MenuBarController` 的「返回／主畫面／最近任務」→ `onAndroidKey` →
-   `AppModel.startLifecycle()` 的綁定** — **漏記**。`MenuBarController.swift:100-102` 三個
-   `@objc` 動作 → `AppModel.swift:219-222` 的閉包 → `client.sendKey`，單元測試零涵蓋
+   `AppModel.startLifecycle()` 的綁定** — **漏記**。`MenuBarController.swift:101-103` 三個
+   `@objc` 動作 → `AppModel.swift:246-250` 的閉包 → `client.sendKey`，單元測試零涵蓋
    （選單項要 GUI）。更糟的是**活體清單也不完整**：`verify_keyboard.sh` 的 `EXPECTED`
    原本只有四個鍵，`GoHome`／`AppSwitch` 這兩顆使用者可見功能兩邊都沒有——三顆 Android
    實體鍵只驗了 `GoBack` 一顆。**已於 2026-07-29 補上**：`EXPECTED` 加 `KEY_HOME`／
@@ -383,6 +402,24 @@ GUI 現在開得起來、鍵盤事件現在收得到，只是還沒有人回頭�
 > **這一筆本身就是 §8 開頭那句方法論的又一次驗證**：「稽核完整性要從逃逸路徑出發」。
 > 上面第 2、3 項漏掉的原因與當初漏掉 `sendKey` 一模一樣——列清單的人只列得出自己
 > 已經想到的東西。抓到它們的不是關鍵字，是「這批 diff 改了哪些檔、每一檔各有誰在測」。
+
+**D4 新增的一筆（2026-07-29）**：`.auto` 自動啟用的端到端路徑
+（seeding → 偵測命中 → `applyActivation` → `keymap?.reload`）**沒有任何自動驗證**。
+不是被什麼擋住——是內建的只有 `com.example.game` 這份格式範例，不對應任何真實 App，
+所以 `.auto` 永遠不會為它啟用。驗法見 `app/README.md` 的 P1-c 段。
+`AppModel` 本身無法 hermetic 測試（債務 D13：光建構就有 8 個全域副作用），
+所以這條在 D13 完成前只能手動驗。
+
+**同一批裡一個更具體、可指名的殘留風險**：seed-before-detect 的時序不變式沒有任何
+測試守著。`MirageScene.swift:55-57` 的 `.task` 裡三行呼叫——`model.seedBuiltInProfiles()`
+→ `model.loadKeymap()` → `model.startDetection()`——依序執行是正確性的一部分：偵測
+一旦命中前景 package 就會去讀 profile 目錄。目前這個順序**只靠 `:55`那行的單行程式碼
+註解**（「必須在 startDetection 之前：偵測命中就會讀那個目錄」）守著，沒有任何測試
+斷言它。若日後有人把 `seedBuiltInProfiles()` 移到 `startDetection()` 之後，會原地
+重現 D4 要修的啟動競態，而**全部測試不會有任何一條變紅**——因為 `AppModel`／
+`MirageScene` 的接線在 D13 完成前不可測，而 `BuiltInProfiles` 的測試測的是純函式
+邏輯、不涉及呼叫順序。這條歸類與上面同屬第三類的相反面：不是「阻礙已消失但沒人
+回頭驗」，是「正確性繫在一句註解上，沒有任何機制能在它被移動時發出警告」。
 
 ### 對 §0 的一處修正
 

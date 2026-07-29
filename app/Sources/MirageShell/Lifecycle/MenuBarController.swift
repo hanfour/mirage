@@ -1,4 +1,5 @@
 import AppKit
+import MirageCore
 
 /// 選單列常駐：顯示連線/電源狀態，提供喚醒、顯示視窗、退出。
 /// P1-d Task 6：加「目前遊戲」狀態列 + 手動 keymap 覆蓋子選單（停用/恢復自動/套用指定 profile）。
@@ -107,14 +108,19 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         onForce?(gameId)
     }
 
-    /// 列舉可用 profile 的 gameId：直接掃描 ProfileStore.standard() 用的目錄
-    /// （Application Support/Mirage/profiles/*.json）。刻意不在 ProfileStore 上新增公開
-    /// 列舉 API——Task 6 範圍只改本檔，且掃描目錄字串已經是 ProfileStore.standard() 的公開
-    /// 行為（同一個 FileManager 位置），不算越權碰 Core。找不到目錄或無檔案時退化為只列
-    /// 內建 gameId，維持「選單一定有至少一個可選項」的簡單不變式，不必為空選單開特殊分支。
+    /// 列舉可用 profile 的 gameId：直接掃描 `ProfileStore.standardDirectory()` 指到的目錄
+    /// （Application Support/Mirage/profiles/*.json）。
+    ///
+    /// 更正（2026-07-29，D4）：這裡原本自己重拼一次同一段相對路徑字串，理由是
+    /// 「當時 ProfileStore 沒有公開的路徑 API，直接加會越權碰 Core」——D4 為了
+    /// seeding（`BuiltInProfiles`）已經把 `ProfileStore.standardDirectory()` 公開，
+    /// 前提已經不存在，於是這份複本變成單純的重複定義：兩處各自寫一次同樣的路徑
+    /// 遲早會漂移，這個 repo 剛因為 `EmulatorEndpoint` 吃過一次同類型的虧（見
+    /// AppModel.swift `client` 的註解）。改成呼叫共用定義，讓路徑只有一份。
+    /// 找不到目錄或無檔案時退化為只列內建 gameId，維持「選單一定有至少一個可選項」的
+    /// 簡單不變式，不必為空選單開特殊分支。
     private static func availableGameIds() -> [String] {
-        let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-            .appendingPathComponent("Mirage/profiles", isDirectory: true)
+        let base = ProfileStore.standardDirectory()
         let names = (try? FileManager.default.contentsOfDirectory(atPath: base.path)) ?? []
         let ids = names.filter { $0.hasSuffix(".json") }.map { String($0.dropLast(5)) }.sorted()
         return ids.isEmpty ? ["com.example.game"] : ids

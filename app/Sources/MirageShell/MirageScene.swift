@@ -52,6 +52,7 @@ struct MirageScene: App {
                 appDelegate.model = model   // 供 applicationWillTerminate 使用
                 await model.start()
                 model.startLifecycle()
+                model.seedBuiltInProfiles()   // 必須在 startDetection 之前：偵測命中就會讀那個目錄
                 model.loadKeymap()
                 model.startDetection()
             }

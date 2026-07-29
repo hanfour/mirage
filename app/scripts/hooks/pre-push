@@ -18,7 +18,9 @@ REPO_ROOT="$(git rev-parse --show-toplevel)"
 GATE="$REPO_ROOT/app/scripts/ci.sh"
 
 if [ ! -x "$GATE" ]; then
-    echo "pre-push: 找不到可執行的 $GATE，略過閘門。"
+    # ${} 不可省略：裸變數緊接全形字元在 bash 5.3.9 + set -u 下會被判成未綁定變數
+    # （見 scripts/ci.sh 同類修正的說明）。這一行同樣只在失敗路徑上跑。
+    echo "pre-push: 找不到可執行的 ${GATE}，略過閘門。"
     echo "（這不是通過——是沒有檢查。請確認 repo 完整。）"
     exit 0
 fi
