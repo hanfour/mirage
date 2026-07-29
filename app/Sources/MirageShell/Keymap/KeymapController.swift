@@ -5,7 +5,7 @@ import MirageCore
 /// （呼叫端負責——見 MirrorView.Coordinator.sendMouse 的 `hasProfile != true` guard）。
 @MainActor
 final class KeymapController {
-    private let client: EmulatorClient
+    private let client: any InputInjecting
     private var engine: KeymapEngine?
     private var editing = false
     private var pressedModifiers: Set<KeyCode> = []
@@ -23,7 +23,7 @@ final class KeymapController {
     /// 不再收 `guestSize`：`TouchFrame` 的觸點已經是正規化座標，換算成 guest 像素所需的
     /// 實體螢幕解析度由 `EmulatorClient` 從健康探測取得。原本這裡存的是**串流幀尺寸**，
     /// 而那與 guest 實體解析度在本機相差兩倍——P1-c 起所有觸點都偏在左上一半處。
-    init(client: EmulatorClient, profile: KeymapProfile?) {
+    init(client: any InputInjecting, profile: KeymapProfile?) {
         self.client = client
         if let profile { self.engine = KeymapEngine(profile: profile) }
     }
@@ -38,9 +38,24 @@ final class KeymapController {
         engine = profile.map(KeymapEngine.init(profile:))
     }
 
-    func handleKeyDown(_ code: KeyCode) { emit(engine?.apply(.keyDown(code))) }
-    func handleKeyUp(_ code: KeyCode) { emit(engine?.apply(.keyUp(code))) }
+    /// 分流（D2）：profile 綁到的鍵走觸控，沒綁到的直通給 guest 鍵盤。
+    ///
+    /// **為什麼不是「有 profile 就全走觸控」**：指標遊戲幾乎都會有 profile，那樣使用者
+    /// 就永遠不能在遊戲的聊天框打字。分流之後 WASD 仍走搖桿，其餘鍵照常送到 guest。
+    func handleKeyDown(_ code: KeyCode) { route(code, down: true) }
+    func handleKeyUp(_ code: KeyCode) { route(code, down: false) }
     func handleMouseMoved(dx: Double, dy: Double) { emit(engine?.apply(.mouseMove(dx: dx, dy: dy))) }
+
+    private func route(_ code: KeyCode, down: Bool) {
+        // 編輯模式一律不送：使用者正在改鍵位，不是在玩。既有的 emit 也有同樣的 guard，
+        // 這裡再擋一次是因為直通路徑不經過 emit。
+        guard !editing else { return }
+        if engine?.handles(code) == true {
+            emit(engine?.apply(down ? .keyDown(code) : .keyUp(code)))
+        } else {
+            Task { [client] in await client.sendKey(code, down: down) }
+        }
+    }
 
     /// 對照前次旗標算出「這次哪個修飾鍵被按下/放開」，換算成 W3C key 名稱後併入既有
     /// handleKeyDown/handleKeyUp 路徑——同一顆鍵只有一條轉移邏輯，不在這裡分岔複製。
