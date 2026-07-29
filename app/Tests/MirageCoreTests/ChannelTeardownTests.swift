@@ -42,11 +42,13 @@ private func liveThreadCount() -> Int {
         try #require(baseline > 0)
 
         // 每個 GrpcChannelBox 建一個 numberOfThreads:1 的 MultiThreadedEventLoopGroup，
-        // 也就是一條 NIO-ELT 執行緒。指向真的有人監聽的埠（模擬器 gRPC 8554）——
-        // 連不上的埠會讓 close() 變得太容易，量不到真實情境。
+        // 也就是一條 NIO-ELT 執行緒。走預設端點（可用 MIRAGE_HOST/MIRAGE_PORT 覆寫）——
+        // **有意義的那次是對著真模擬器跑**：連不上的埠會讓 close() 變得太容易，
+        // 量不到「pool 還握著活連線時能不能收斂」這個真實情境。
+        let endpoint = EmulatorClient.defaultEndpoint
         var boxes: [GrpcChannelBox] = []
         for _ in 0..<Self.boxCount {
-            boxes.append(try GrpcChannelBox(host: "localhost", port: 8554))
+            boxes.append(try GrpcChannelBox(host: endpoint.host, port: endpoint.port))
         }
         let peak = liveThreadCount()
         #expect(peak >= baseline + Self.boxCount,

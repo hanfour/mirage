@@ -65,7 +65,22 @@ public actor EmulatorClient {
     public nonisolated let guestClipboard: AsyncStream<String>
     let guestClipCont: AsyncStream<String>.Continuation
 
-    public init(host: String = "localhost", port: Int = 8554,
+    /// 預設連線目標：從環境解析（`MIRAGE_HOST` / `MIRAGE_PORT`），不再寫死 `localhost:8554`。
+    ///
+    /// `EmulatorEndpoint.resolve` 早就存在且有 9 條單元測試，但**只接在 `AppModel` 上**——
+    /// 所有用 `EmulatorClient()` 的呼叫端（也就是全部的測試）仍打寫死的 `localhost:8554`。
+    /// 後果是整個測試套件**從來沒有在「本機沒有模擬器」的條件下被驗證過**，而那正是 CI
+    /// runner 的條件。接上之後 `MIRAGE_PORT=<沒人監聽的埠> swift test` 就是一次確定性的
+    /// hermetic 驗證，見 `scripts/ci.sh`。
+    ///
+    /// 讀環境變數的副作用留在這裡、不塞進 `resolve` 裡——維持 `EmulatorEndpoint` 的純函式
+    /// 性質（同檔既有的 `connLog` 也是這樣直接讀環境）。`static let` 而非每次呼叫都解析：
+    /// 同一個行程內端點不會變，且讓 `overrideProblem` 只需被回報一次。
+    public static let defaultEndpoint = EmulatorEndpoint.resolve(
+        environment: ProcessInfo.processInfo.environment)
+
+    public init(host: String = EmulatorClient.defaultEndpoint.host,
+                port: Int = EmulatorClient.defaultEndpoint.port,
                 makeTransport: @escaping @Sendable (GrpcChannelBox) -> DisplayTransport
                     = { GrpcStreamTransport(channel: $0) },
                 makeHealthProbe: @escaping @Sendable (GrpcChannelBox) -> HealthProbe
