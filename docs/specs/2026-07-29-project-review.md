@@ -99,7 +99,7 @@
 | ~~**D1**~~ | ~~**NIO 關閉順序 + 阻塞式拆除**（見 §1）~~ | **✅ 已修（2026-07-29）**。`GrpcChannelBox.shutdown()`：先 `channel.close()`、再回呼式 `group.shutdownGracefully(queue:)`，全程不阻塞；`dropChannel()` 顯式呼叫。驗收 5/5 乾淨 | 實際約半天 | — |
 | ~~**D2**~~ | ~~**鍵盤直通零實作**~~ | **✅ 已修（2026-07-29）**。`KeymapController` 依 `KeymapEngine.handles(_:)` 分流：profile 沒綁的鍵走 `sendKey` 直通。換算抽成 `MirageCore.KeyTranslate` 純函式；⌘ 組合不直通；Esc→GoBack；主畫面／最近任務走選單列。傳輸路徑由活體實測選定（`key` 十個鍵全通，`.mac` 送不出字母 a——proto3 的 0 是預設值不序列化）。驗證用 `getevent` 當儀器 | 實際約半天 | — |
 | ~~**D3**~~ | ~~**8 處活體測試用 `guard/return`**~~ | **✅ 已修（2026-07-29）**。全數改用 `@Test(.enabled(if:))`，env 閘門集中到 `Tests/MirageCoreTests/LiveGate.swift`。未設 env → 如實顯示 skipped 並附原因；設了 env → 照跑（已雙向驗證） | 實際約 1 小時 | — |
-| **D4** | **內建 profile 沒進 bundle** + `AppModel.gameId` 寫死 `com.example.game` | `.auto` 自動啟用端到端不可能通；指標遊戲沒有可用 profile | 半天 | **P1** |
+| ~~**D4**~~ | ~~**內建 profile 沒進 bundle** + `AppModel.gameId` 寫死~~ | **✅ 已修（2026-07-29）**。`Package.swift` 補 `resources: [.copy("Resources/profiles")]`、資源搬進 target 目錄；`BuiltInProfiles.seed` 首次啟動複製（永不覆寫）；刪掉寫死 `gameId` 的死路徑（其註解「尚未有偵測機制」自 P1-d 起就已過期）。**但記載的「指標遊戲沒有可用 profile」查證後不成立**——Pixel Flow 是點擊／拖曳型，不需要 keymap，見設計文件 §1.3。**`.auto` 端到端仍無自動驗證**（範例 profile 不對應真實 package），已如實記入 §8 D | 實際約半天 | — |
 | **D5** | **overlay 編輯器不能拖**（29 行，只有存檔按鈕） | 母計畫交付項；鍵位映射是產品命根子但使用者改不了 | 2–3 天 | **P1** |
 | **D6** | **輸入無順序保證**——每個事件各開一個 unstructured Task。**2026-07-29 擴大：現在有兩種資料形態**。(a) 觸控走 `TouchFrame` **全狀態快照**，晚到的舊快照覆蓋新狀態；(b) 鍵盤直通（D2）走**邊緣事件**——`KeymapController.route()` 對每個 keyDown/keyUp 各開一個 Task，路上沒有任何一層保證順序（MainActor 排隊 → `EmulatorClient` actor → 兩個各自獨立的 unary RPC，HTTP/2 跨 stream 不保證到達順序） | (a) 快速連點/連按產生幽靈觸點或吃掉動作，症狀是「遊戲沒反應」——又一個看起來像遊戲問題的靜默錯誤。(b) **比 (a) 嚴重一級**：down 與 up 對調就是**永久卡鍵**。快照有自癒機制（下一幀會蓋掉錯的狀態），邊緣事件沒有——那顆鍵從此一直按著，而且影響的是整個 guest 鍵盤輸入，不只當下那款遊戲 | 半天–1 天 | **P0** |
 | **D7** | **`mouseUp` 早退吞掉放開事件**（`MirrorView.swift:35-52`）：拖到 letterbox 黑邊或視窗外放開，guest 手指永遠按著 | 同上，且黑邊在非同比視窗下必定存在 | 1 小時 | **P1** |
@@ -303,7 +303,7 @@ GUI 路徑（⌘Q 拆除、overlay、Metal 渲染）都不在 CI 涵蓋範圍內
 |---|---|---|---|
 | ~~鍵盤直通 `sendKey`~~ | ~~**任何文件都沒提過**~~ | ~~公開 API 零呼叫端~~ **✅ 已於 2026-07-29 實作（D2）** | 稽核當時：`Sources/MirageShell/` 與 `Tests/` grep `sendKey` 全零。D2 修復後不再成立——`KeymapController.swift:99`（`route()` 的直通分支經 `sendKeyToGuest`）、`AppModel.swift:221-222`（選單列 `onAndroidKey` 綁定，down 接 up）；同一組 grep 現為 `Sources/MirageShell/` 9 筆、`Tests/` 8 筆 |
 | overlay 編輯器拖放 | 「拖放存檔、拖放手感 pending-human」 | 不能拖 | `OverlayEditorView.swift` 全檔 29 行，只有一個「存檔」Button；全 `MirageShell` 零 `DragGesture` |
-| 內建 profile 上架 | 「佔位，待綁真 package」 | SPM 看不到那個檔 | `Resources/profiles/com.example.game.json` 在磁碟，但 `Package.swift` 無 `resources:` 宣告、全碼庫零 `Bundle.module` |
+| 內建 profile 上架 | 「佔位，待綁真 package」 | SPM 看不到那個檔 | `Resources/profiles/com.example.game.json` 在磁碟，但 `Package.swift` 無 `resources:` 宣告、全碼庫零 `Bundle.module`。**✅ 已於 2026-07-29 實作（D4）** |
 | 真遊戲 profile 內容 | 「留 Phase 1 三款遊戲」 | 只有 `com.example.game` | `AppModel.swift:59` 硬編碼；`MenuBarController.swift:105` 也 fallback 到同一個字串 |
 | `powerStates` UI 接線 | 「未接線」← **誠實** | 定義 + 初始化，零消費端 | `EmulatorClient.swift:63,109` 之外全庫零命中 |
 | `isTargeted` 拖曳高亮 | 「刻意 scope 掉的功能缺口」← **誠實** | `.dropDestination` 未帶該參數 | `MirageScene.swift:31` |
@@ -383,6 +383,24 @@ GUI 現在開得起來、鍵盤事件現在收得到，只是還沒有人回頭�
 > **這一筆本身就是 §8 開頭那句方法論的又一次驗證**：「稽核完整性要從逃逸路徑出發」。
 > 上面第 2、3 項漏掉的原因與當初漏掉 `sendKey` 一模一樣——列清單的人只列得出自己
 > 已經想到的東西。抓到它們的不是關鍵字，是「這批 diff 改了哪些檔、每一檔各有誰在測」。
+
+**D4 新增的一筆（2026-07-29）**：`.auto` 自動啟用的端到端路徑
+（seeding → 偵測命中 → `applyActivation` → `keymap?.reload`）**沒有任何自動驗證**。
+不是被什麼擋住——是內建的只有 `com.example.game` 這份格式範例，不對應任何真實 App，
+所以 `.auto` 永遠不會為它啟用。驗法見 `app/README.md` 的 P1-c 段。
+`AppModel` 本身無法 hermetic 測試（債務 D13：光建構就有 8 個全域副作用），
+所以這條在 D13 完成前只能手動驗。
+
+**同一批裡一個更具體、可指名的殘留風險**：seed-before-detect 的時序不變式沒有任何
+測試守著。`MirageScene.swift:55-57` 的 `.task` 裡三行呼叫——`model.seedBuiltInProfiles()`
+→ `model.loadKeymap()` → `model.startDetection()`——依序執行是正確性的一部分：偵測
+一旦命中前景 package 就會去讀 profile 目錄。目前這個順序**只靠 `:55`那行的單行程式碼
+註解**（「必須在 startDetection 之前：偵測命中就會讀那個目錄」）守著，沒有任何測試
+斷言它。若日後有人把 `seedBuiltInProfiles()` 移到 `startDetection()` 之後，會原地
+重現 D4 要修的啟動競態，而**全部測試不會有任何一條變紅**——因為 `AppModel`／
+`MirageScene` 的接線在 D13 完成前不可測，而 `BuiltInProfiles` 的測試測的是純函式
+邏輯、不涉及呼叫順序。這條歸類與上面同屬第三類的相反面：不是「阻礙已消失但沒人
+回頭驗」，是「正確性繫在一句註解上，沒有任何機制能在它被移動時發出警告」。
 
 ### 對 §0 的一處修正
 
