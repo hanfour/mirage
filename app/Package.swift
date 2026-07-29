@@ -23,6 +23,13 @@ let package = Package(
                 .product(name: "GRPC", package: "grpc-swift"),
                 .product(name: "Atomics", package: "swift-atomics"),
             ],
+            // 內建範例 profile。`.copy` 而非 `.process`：這是 JSON，不需要任何編譯期
+            // 處理，`.copy` 保持 profiles/ 這層目錄結構原樣（查表時要用 subdirectory）。
+            //
+            // 這個宣告在 2026-07-29 之前**不存在**，所以 `app/Resources/profiles/` 裡那個
+            // 檔案對建置系統而言不存在——它永遠到不了使用者的 Application Support 目錄。
+            // 那就是債務 D4 的本體。
+            resources: [.copy("Resources/profiles")],
             swiftSettings: strict
         ),
         .target(
