@@ -19,8 +19,15 @@
 
 三次躺在標著「已完成」的 RESULTS 文件裡。**這意味著現有的交付清單不可信**，而它正是排優先序的依據。
 
-> **下一輪的第 0 步**：把所有 `pending-human` / `pending-unlock` 逐項重新分類為
-> 「做了沒驗」或「根本沒做」。半天。在確定清單是真的之前，任何優先序都是在按錯的地圖走路。
+> **第 0 步：把所有 `pending-human` / `pending-unlock` 逐項重新分類為
+> 「做了沒驗」或「根本沒做」。** ✅ **已執行，結果見 §8（2026-07-29 同日）。**
+>
+> 兩點修正本節：
+> 1. 誤診數字應為**六類**不是四類——多出兩項「已修好但文件還寫著 pending」（§8 C 節）。
+> 2. **兩個分類選項不夠。** 實際存在第三類：**「阻礙已消失，但沒人回頭驗」**——
+>    所有掛在「螢幕鎖定」下的項目，在 NSException 修好的那一刻就不再被擋住了，
+>    但它們在清單上長得跟「被外部條件擋住」一模一樣，於是每一輪都被合理地跳過。
+>    這一類橫跨十餘筆，是本次稽核最大的單一收穫（§8 D 節）。
 
 ---
 
@@ -141,10 +148,12 @@ recon 文件那句講的是 `poc`。量 fps 用的 `game` 機已是最佳設定�
 
 ## 5. 建議的下一步
 
-> **進度（2026-07-29 同日）**：下面第 1、2、3 項（D1／D8／D3／D10）**已完成並驗收**，
-> 見 §1 與 §7。**第 0 步尚未做**，它現在是清單上最前面的一筆。
+> **進度（2026-07-29 同日）**：**第 0 步與下面第 1、2、3 項（D1／D8／D3／D10）皆已完成並驗收**，
+> 見 §1、§7、§8。
 
-**第 0 步：把所有 `pending-human` 重新分類**（半天）。理由見 §0。
+~~**第 0 步：把所有 `pending-human` 重新分類**（半天）~~ ✅ 已完成，結果見 §8。
+最重要的產出不是分類本身，而是發現**分類方式漏了一整類**：十餘筆項目的阻礙早在
+2026-07-28 就消失了，卻仍以「pending-unlock」的形式躺在清單上，每一輪都被合理地跳過。
 
 之後：
 
@@ -251,3 +260,69 @@ GitHub Actions 不需要部署，但需要一個 GitHub remote，而 `git remote
 
 活體測試（`MIRAGE_LIVE` 系列）、覆蓋率（需真模擬器且會觸發 guest 發聲）、
 GUI 路徑（⌘Q 拆除、overlay、Metal 渲染）都不在 CI 涵蓋範圍內。
+
+---
+
+## 8. 第 0 步的執行結果：pending 重新分類（2026-07-29）
+
+§0 要求把所有 `pending-human` / `pending-unlock` 逐項重分為「做了沒驗」或「根本沒做」。
+以下是執行結果。**每一筆的判定依據都是 grep 呼叫端或檢查 bundle 宣告，不是讀文件。**
+
+方法上有一點值得記下來：只掃 `pending-human` 這類關鍵字是不夠的——`sendKey` 那筆
+（任何文件都沒提過，卻是零呼叫端）就抓不到。所以另外做了一路結構性檢查：
+「這個功能有沒有呼叫端」「這個資源進得了 bundle 嗎」「這條 stream 有沒有消費端」。
+兩筆最嚴重的發現都來自結構性那一路，不是關鍵字那一路。
+
+### A. 根本沒做（功能不存在）
+
+| 項目 | 文件怎麼說 | 實際 | 證據 |
+|---|---|---|---|
+| 鍵盤直通 `sendKey` | **任何文件都沒提過** | 公開 API 零呼叫端 | `Sources/MirageShell/` 與 `Tests/` grep `sendKey` 全零 |
+| overlay 編輯器拖放 | 「拖放存檔、拖放手感 pending-human」 | 不能拖 | `OverlayEditorView.swift` 全檔 29 行，只有一個「存檔」Button；全 `MirageShell` 零 `DragGesture` |
+| 內建 profile 上架 | 「佔位，待綁真 package」 | SPM 看不到那個檔 | `Resources/profiles/com.example.game.json` 在磁碟，但 `Package.swift` 無 `resources:` 宣告、全碼庫零 `Bundle.module` |
+| 真遊戲 profile 內容 | 「留 Phase 1 三款遊戲」 | 只有 `com.example.game` | `AppModel.swift:59` 硬編碼；`MenuBarController.swift:105` 也 fallback 到同一個字串 |
+| `powerStates` UI 接線 | 「未接線」← **誠實** | 定義 + 初始化，零消費端 | `EmulatorClient.swift:63,109` 之外全庫零命中 |
+| `isTargeted` 拖曳高亮 | 「刻意 scope 掉的功能缺口」← **誠實** | `.dropDestination` 未帶該參數 | `MirageScene.swift:31` |
+
+**後兩列是這次稽核唯二記載誠實的「沒做」**——它們寫的是「未接線」「刻意缺口」，
+不是「pending-human」。差別在於：前者讀起來是「還沒做」，後者讀起來是「做了待驗」。
+
+### B. 做了沒驗（碼在，沒人看過或量過）
+
+| 項目 | 證據 |
+|---|---|
+| APK 拖放完整鏈 | `MirageScene.swift:31` `.dropDestination` → `AppModel+Install.swift:22` `installAPKs` → `InstallBanner.swift` |
+| 焦點恢復重新捕捉 | `AppModel+Focus.swift:22` `didBecomeKey` ＋ `MouseCapture.swift:34` `didResignKey`，兩半都在 |
+| keymap overlay 顯示 | `KeymapOverlay.swift` 44 行，有 `ForEach`／`Circle`／`Text` |
+| letterbox | `MirrorContainerView.swift:47` `ViewportFit.fit` |
+| 全螢幕 | `AppModel+FullScreen.swift:15,21` 兩個通知都接 |
+| 音訊播放 | `AppModel+Audio.swift:16,21` `AudioPlayer` ＋ `setAudioSink` |
+| 座標落點精度 | 換算來源改為健康探測的 `guestDisplay`（`MirrorView.swift:135` 的說明） |
+| look 靈敏度 | `KeymapEngine.swift:61` 的 `/1000` 能跑，但那是佔位除數、未校準 |
+
+### C. 已修好但文件還寫著 pending（D15 類，最會誤導）
+
+| 項目 | 過時的記載 | 實際 |
+|---|---|---|
+| `AppModel.profile` 與偵測啟用不同步 | `README.md:77`、`RESULTS-p1d.md:36` 仍寫「不同步、overlay 上線前須讓 activation 回寫」 | **已回寫**：`AppModel.swift:201` `case .active(let p): keymap?.reload(p); profile = p` |
+| `MouseCapture` 失焦不釋放 | `RESULTS-p1c.md:39` 寫「已文件化，待補生命週期 hook」 | P1-d 已補，`MouseCapture.swift:34` |
+| 全部 `pending-unlock`（螢幕鎖定） | `README.md:29–31, 96, 102` 仍重申「螢幕解鎖後補測即可」 | 歸因早已推翻，真因是 `AVAudioEngine` 的 NSException |
+
+### D. 最重要的一項發現：阻礙已經消失，但沒人回頭重試
+
+所有標成「pending-unlock（螢幕鎖定）」的項目——驗收線 1b／5、驗收線 6／7、
+P1-e 的七項 GUI pending、`RESULTS-mmap.md` 的三項——**它們的阻礙在 NSException 修好時就沒了**。
+防護現在確實在樹上（`AudioPlayer.swift:29` 的 `AVAudioFormat(interleaved: false)` 與其上方
+說明「這正是鏡像顯示自 P1-a 起從未運作過的原因」）。
+
+也就是說這批項目的正確分類**既不是「做了沒驗」也不是「根本沒做」，而是第三類：
+「可以驗了，但沒人回去驗」**。§0 只給了兩個選項，這是分類本身的盲區。
+
+> **這一類最危險**：它們在清單上長得跟「被外部條件擋住」一模一樣，於是每一輪
+> 都被合理地跳過。而擋住它們的那個條件在 2026-07-28 就已經不存在了。
+
+### 對 §0 的一處修正
+
+§0 說「已知四次」誤診。本次逐項稽核後，數字應為**六類**——除了原本四項，
+再加上 C 節的兩項「已修好但文件還寫著 pending」。而 D 節指出的第三種分類
+（阻礙已消失、但沒人回頭）橫跨十餘筆，是本次稽核最大的單一收穫。
