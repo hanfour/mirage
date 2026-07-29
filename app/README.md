@@ -180,7 +180,7 @@ P1-a 迴歸的證據，改列為未量測（**當時記為 pending-unlock，該�
   > 點擊／拖曳型，不需要 keymap，同見上方 P1-c 段落。
 
   > **⚠️ 更正（2026-07-29）**：本行原本還列著「`AppModel.profile` 與偵測啟用不同步
-  > （overlay 上線前須讓 activation 回寫）」。**已修**：`AppModel.swift:201` 的
+  > （overlay 上線前須讓 activation 回寫）」。**已修**：`AppModel.swift:218` 的
   > `case .active(let p): keymap?.reload(p); profile = p` 就是那個回寫。
   > 留著會讓下一個人去修一個已經好了的東西——這比「以為做了其實沒做」更浪費。
 - 驗收：`RESULTS-p1d.md`；架構詳見 `../docs/specs/2026-07-24-p1d-game-detection-design.md`。
