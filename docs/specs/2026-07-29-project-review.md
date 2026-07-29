@@ -101,12 +101,12 @@
 | ~~**D3**~~ | ~~**8 處活體測試用 `guard/return`**~~ | **✅ 已修（2026-07-29）**。全數改用 `@Test(.enabled(if:))`，env 閘門集中到 `Tests/MirageCoreTests/LiveGate.swift`。未設 env → 如實顯示 skipped 並附原因；設了 env → 照跑（已雙向驗證） | 實際約 1 小時 | — |
 | **D4** | **內建 profile 沒進 bundle** + `AppModel.gameId` 寫死 `com.example.game` | `.auto` 自動啟用端到端不可能通；指標遊戲沒有可用 profile | 半天 | **P1** |
 | **D5** | **overlay 編輯器不能拖**（29 行，只有存檔按鈕） | 母計畫交付項；鍵位映射是產品命根子但使用者改不了 | 2–3 天 | **P1** |
-| **D6** | **輸入無順序保證**——每個事件各開一個 unstructured Task，而 `TouchFrame` 是全狀態快照，晚到的舊快照會覆蓋新狀態 | 快速連點/連按產生幽靈觸點或吃掉動作，症狀是「遊戲沒反應」——又一個看起來像遊戲問題的靜默錯誤 | 半天–1 天 | **P1** |
+| **D6** | **輸入無順序保證**——每個事件各開一個 unstructured Task。**2026-07-29 擴大：現在有兩種資料形態**。(a) 觸控走 `TouchFrame` **全狀態快照**，晚到的舊快照覆蓋新狀態；(b) 鍵盤直通（D2）走**邊緣事件**——`KeymapController.route()` 對每個 keyDown/keyUp 各開一個 Task，路上沒有任何一層保證順序（MainActor 排隊 → `EmulatorClient` actor → 兩個各自獨立的 unary RPC，HTTP/2 跨 stream 不保證到達順序） | (a) 快速連點/連按產生幽靈觸點或吃掉動作，症狀是「遊戲沒反應」——又一個看起來像遊戲問題的靜默錯誤。(b) **比 (a) 嚴重一級**：down 與 up 對調就是**永久卡鍵**。快照有自癒機制（下一幀會蓋掉錯的狀態），邊緣事件沒有——那顆鍵從此一直按著，而且影響的是整個 guest 鍵盤輸入，不只當下那款遊戲 | 半天–1 天 | **P0** |
 | **D7** | **`mouseUp` 早退吞掉放開事件**（`MirrorView.swift:35-52`）：拖到 letterbox 黑邊或視窗外放開，guest 手指永遠按著 | 同上，且黑邊在非同比視窗下必定存在 | 1 小時 | **P1** |
 | ~~**D8**~~ | ~~**預設 transport 無法取消底層 RPC**~~ | **✅ 已修（2026-07-29，與 D1 同批）**。`GrpcStreamTransport` 改 class 持有真 call、改用 `makeStreamScreenshotCall`；`cancelStream()` 升為 `DisplayTransport` 的**必要**成員（刻意不給 default no-op），三個產品實作與兩個測試假件全數補上 | 實際與 D1 合計約半天 | — |
 | **D9** | **驗證腳本本身是假的**：`verify_snapshot.sh` 11 行零斷言（只存 PNG + 印字）；`verify_reconnect.sh:77` 的 `getprop` 缺 `-s`（會打到實體手機） | 驗收訊號不可信 | 半天 | **P1** |
 | ~~**D10**~~ | ~~**沒有 CI**~~ | **✅ 已完成（2026-07-29）**。品質閘門 `app/scripts/ci.sh`（三道閘門，每道都注入故障驗證過會紅）＋ `pre-push` hook 強制執行。**Drone／Jenkins 那類需要另外部署 server，本專案不採用**；hook 零基礎設施、今天就生效。已用本地 bare repo 實際驗證：閘門綠 → push 成功；閘門紅 → push 被中止且遠端確實沒收到 | 實際約半天 | — |
-| **D11** | **焦點切換不清鍵位狀態**：按住 W 然後 ⌘Tab，keyUp 永不投遞，搖桿觸點永遠 down | 使用者體感 bug | 2 小時 | P2 |
+| **D11** | **焦點切換不清鍵位狀態**：按住 W 然後 ⌘Tab，keyUp 永不投遞。**2026-07-29 擴大：現在有兩顆東西會卡**——搖桿觸點永遠 down（原記載），**加上** 若按住的是 profile 沒綁的鍵（D2 起走直通），guest 的**鍵盤鍵**也永遠按著。機制本身已經有了：`KeymapController.setEditing(true)` 會把 in-flight 的直通鍵補送 up（2026-07-29 為 ⌘E 加的），**但失焦沒有接上它**——`MouseCapture` 的 `didResignKeyNotification` 觀察者只 `release()` 游標，不碰鍵盤／觸點狀態 | 使用者體感 bug，且卡住的鍵盤鍵不會自己恢復（觸點還有下一幀快照可能蓋掉，鍵盤鍵沒有）。修法已知：失焦時走與 `setEditing(true)` 同一條釋放路徑，觸點側再補一個全放開快照 | 2 小時 | P2 |
 | **D12** | **搖桿觸點沒有 clamp**：`center ± radius` 可越界，`validated()` 不檢查。同一換算在 Python 端會 raise，Swift 端靜默送出 | ⌘E 把搖桿拉到邊緣就注入越界座標 | 1 小時 | P2 |
 | **D13** | App 層 23 檔約 1300 行接線邏輯、5 條測試；`AppModel()` 光建構就有 8 個全域副作用 | §6 根因、D2、D4 全住在那裡 | 1–2 週 | P2（D1 修完成本降一半） |
 | **D14** | **`PowerReducer` / `GrpcSnapshotService` 是死碼**，且 `PowerReducer` 的事件語意（`.snapshotSaved`/`.snapshotLoaded`）與實作相反——實作刻意不存不載快照 | 5 條測試在驗一台不存在的狀態機 | 1 小時 | P2 |
@@ -114,6 +114,13 @@
 | **D16** | MMAP transport 凍結未解，`MmapStreamTransport` 0% 覆蓋 | **什麼都沒擋**——§11.2 已證明傳輸不是 fps 瓶頸 | — | **建議封存** |
 | **D17** | 環境漂移：canary emulator `37.2.1.0` 為除錯裝上後從未還原 stable | 所有 fps/延遲數字與 Phase-0 不可比 | 1 小時 | P2 |
 | **D18** | `emulator-5554`（poc，共享）的 `pointer_location=1` 沒人關 | 小 | 5 分鐘 | P3 |
+| **D19** | **`KeyTranslate` 把私用區字元原樣送給 guest**：`specialKeys` 只列了 8 個虛擬鍵碼，其餘鍵一律走 `characters` 路徑。但 macOS 對功能鍵給的 `charactersIgnoringModifiers` 是**私用區字元**——F1=`U+F704`、ForwardDelete=`U+F728`、Home=`U+F729`、End=`U+F72B`、PageUp=`U+F72C`、PageDown=`U+F72D`（以 AppKit 的 `NSF1FunctionKey` 等常數實測列印確認）。它們既非 nil 也非空字串，於是 `guard let characters, !characters.isEmpty` 放行，`.key("\u{F704}")` 被當成 W3C key 送出去。`KeyTranslateTests.swift:37` 的註解寫「沒有字元又不是已知特殊鍵 → nil，**不猜**」——**那句話只涵蓋「沒有字元」的鍵**，「有字元但那字元不是可列印字元」這一整類正好繞過它 | 送出 emulator 必不認得的 key 字串（設計 §2 的實測十個鍵不含任何一個私用區字元，無資料支持它會被翻譯）。後果是靜默無作用而非崩潰，但它讓「不猜」這句註解變成假的：碼確實在猜，只是猜在另一個分支 | 1 小時 | P2 |
+| **D20** | **`KeymapEngine.unmappedCount` 在產品路徑上恆為 0**。它在 `apply(.keyDown)` 裡對「引擎不認識的鍵」累加，但 D2 之後那些鍵在 `KeymapController.route()` 就被攔去走直通，根本到不了 `apply`。唯一還會餵未綁定鍵進 `apply` 的呼叫端是 `handleFlagsChanged`（修飾鍵），而它不看這個計數 | `KeymapEngineTests` 那條斷言測的是 App 永不執行的路徑——不是錯的測試，是**測了一條死路**。這正是本專案要防的「綠燈但沒驗到產品行為」那一類 | 1 小時（決定：接上真正的消費端，或連同測試一起刪） | P2 |
+| **D21** | **注入縫只做了一半**。`InputInjecting` 只涵蓋 `sendTouches`/`sendKey`，**`sendTap` 不在裡面**；於是 `MirrorView.Coordinator` 仍吃具體型別 `EmulatorClient`（actor），滑鼠→tap 這條路徑無法在不建真 gRPC channel 的情況下觀察，仍然只能靠讀碼驗證。同一個模組因此並存兩套注入慣例：`KeymapController` 吃協定、`Coordinator` 吃具體型別 | 「無 profile 退回直接 tap」（spec §7 驗收 4）是 P1-a 不回歸的核心保證，而它零自動化涵蓋。也讓下一個人不知道該照哪一套寫 | 1 小時 | P2 |
+| **D22** | **編輯模式擋鍵盤、沒擋滑鼠**。`KeymapController.hasProfile` 是 `engine != nil && !editing`，所以一進編輯模式它就變 false；而 `MirrorView.Coordinator.sendMouse` 的 `guard controller?.hasProfile != true else { return }` 正是靠這個值決定要不要退回直接 tap——**編輯模式反而讓滑鼠點擊直接打進 guest**。「編輯時不干擾 guest」這個意圖被滑鼠那半邊整個繞過 | 使用者在 ⌘E 編輯器裡拖曳鍵位（D5 做完之後）等於在 guest 螢幕上亂點。兩個布林值目前共用一個述詞，語意其實不同：「該不該把滑鼠交給引擎」與「該不該送出去」 | 1 小時 | P2 |
+
+> **關於 `P0`**：這一級是 2026-07-29 為 D6 新增的。原本最高只有 P1，而 D6 在 D2 上線後
+> 多了一種「不會自癒」的失效模式（永久卡鍵），與其他 P1 不同級。優先序欄位仍然是建議。
 
 ---
 
@@ -292,7 +299,7 @@ GUI 路徑（⌘Q 拆除、overlay、Metal 渲染）都不在 CI 涵蓋範圍內
 
 | 項目 | 文件怎麼說 | 實際 | 證據 |
 |---|---|---|---|
-| 鍵盤直通 `sendKey` | **任何文件都沒提過** | 公開 API 零呼叫端 **✅ 已於 2026-07-29 實作（D2）** | `Sources/MirageShell/` 與 `Tests/` grep `sendKey` 全零 |
+| ~~鍵盤直通 `sendKey`~~ | ~~**任何文件都沒提過**~~ | ~~公開 API 零呼叫端~~ **✅ 已於 2026-07-29 實作（D2）** | 稽核當時：`Sources/MirageShell/` 與 `Tests/` grep `sendKey` 全零。D2 修復後不再成立——`KeymapController.swift:99`（`route()` 的直通分支經 `sendKeyToGuest`）、`AppModel.swift:221-222`（選單列 `onAndroidKey` 綁定，down 接 up）；同一組 grep 現為 `Sources/MirageShell/` 9 筆、`Tests/` 8 筆 |
 | overlay 編輯器拖放 | 「拖放存檔、拖放手感 pending-human」 | 不能拖 | `OverlayEditorView.swift` 全檔 29 行，只有一個「存檔」Button；全 `MirageShell` 零 `DragGesture` |
 | 內建 profile 上架 | 「佔位，待綁真 package」 | SPM 看不到那個檔 | `Resources/profiles/com.example.game.json` 在磁碟，但 `Package.swift` 無 `resources:` 宣告、全碼庫零 `Bundle.module` |
 | 真遊戲 profile 內容 | 「留 Phase 1 三款遊戲」 | 只有 `com.example.game` | `AppModel.swift:59` 硬編碼；`MenuBarController.swift:105` 也 fallback 到同一個字串 |
@@ -336,20 +343,44 @@ P1-e 的七項 GUI pending、`RESULTS-mmap.md` 的三項——**它們的阻礙�
 > **這一類最危險**：它們在清單上長得跟「被外部條件擋住」一模一樣，於是每一輪
 > 都被合理地跳過。而擋住它們的那個條件在 2026-07-28 就已經不存在了。
 
-**2026-07-29 同日新增一筆（D2 完成後即刻出現）**：`MirrorMTKView.keyCode(from:)`（三行
-`NSEvent` 取值）、`keyDown`/`keyUp` 覆寫、`onKey` 閉包接線——`app/Tests` 全樹 grep
-`NSEvent(`／`CGEvent`／`keyCode(from` 零命中，這段膠水程式碼沒有任何自動化測試涵蓋。
-業務邏輯已抽進純函式 `MirageCore.KeyTranslate`（5 條單元測試逐行覆蓋），分流邏輯有
-`KeymapControllerRoutingTests`（4 條），`buildKeyEvent` 有 `EmulatorClientTouchTests`——
-殘餘面因此很薄，但不是零：三個參數若「標籤對但來源錯」——例如 `hasCommand:` 誤傳
-`event.modifierFlags.contains(.option)`、或 `characters:` 誤傳 `event.characters`
-（該用 `charactersIgnoringModifiers`）——型別仍吻合、編譯器不會擋、215 條測試也不會紅，
-因為它們測的是 `KeyTranslate` 本身，不是這個呼叫端。**這正是第三類，不是 pending-human
-也不是根本沒做**：阻礙（`AVAudioEngine` 的 NSException 打死 MainActor）已於 2026-07-28
-修復，GUI 現在開得起來、鍵盤事件現在收得到，只是還沒有人回頭用 App 實際按過。驗法：
-`open` 開 `.app` bundle（不要從 shell 直接跑 executable）→ 在鏡像視窗按幾個鍵 → 同時
-`adb -s <serial> shell getevent -l` 觀察是否出現對應的 `KEY_*` 事件。詳見 `app/README.md`
-鍵盤直通段落。
+**2026-07-29 同日新增（D2 完成後即刻出現）**。原本只記了一項，**同日稍晚的全分支審查發現
+這份清單自己也不完整**——同批新增/改動、同樣零涵蓋的還有兩項。三項如下：
+
+1. **`MirrorMTKView.keyCode(from:)`（三行 `NSEvent` 取值）、`keyDown`/`keyUp` 覆寫、
+   `onKey` 閉包接線** — **仍零涵蓋**。業務邏輯已抽進純函式 `MirageCore.KeyTranslate`
+   （`KeyTranslateTests` 5 條逐行覆蓋），分流邏輯有 `KeymapControllerRoutingTests`（8 條），
+   `buildKeyEvent` 有 `EmulatorClientTouchTests`——殘餘面因此很薄，但不是零：三個參數若
+   「標籤對但來源錯」——例如 `hasCommand:` 誤傳 `event.modifierFlags.contains(.option)`、
+   或 `characters:` 誤傳 `event.characters`（該用 `charactersIgnoringModifiers`）——型別仍
+   吻合、編譯器不會擋、219 條測試也不會紅，因為它們測的是 `KeyTranslate` 本身，不是這個呼叫端。
+2. **`KeymapController.handleFlagsChanged`（NSEvent → 四顆修飾鍵）＋ `MirrorView` 的
+   `onFlagsChanged` 接線** — **漏記，而且一個 Critical 就住在這裡**。`handleFlagsChanged`
+   原本呼叫 `handleKeyDown`/`handleKeyUp`，D2 把那兩個函式改成走 `route()` 分流之後，
+   引擎不認識的 `Meta`/`Shift`/`Control`/`Alt` **全部從這條旁路被送給 guest**——直接推翻
+   設計 §4.3「修飾鍵維持現狀只餵引擎」與 README「帶 ⌘ 的組合一律不直通」。
+   **已於 2026-07-29 修復並補上回歸測試**：`handleFlagsChanged` 改為直接
+   `emit(engine?.apply(...))`，測試 `KeymapControllerRoutingTests.modifierKeysNeverPassThroughToGuest`
+   用 `NSEvent.keyEvent(with: .flagsChanged, …)` 在 headless 下合成真事件斷言零 `sendKey`
+   （該 factory 已實測在 `swift test` 環境可用）。**函式本體現已涵蓋**；剩下的
+   `MirrorMTKView.flagsChanged(with:)` 覆寫 → `onFlagsChanged` 閉包接線與第 1 項同性質，仍零涵蓋。
+3. **`MenuBarController` 的「返回／主畫面／最近任務」→ `onAndroidKey` →
+   `AppModel.startLifecycle()` 的綁定** — **漏記**。`MenuBarController.swift:100-102` 三個
+   `@objc` 動作 → `AppModel.swift:219-222` 的閉包 → `client.sendKey`，單元測試零涵蓋
+   （選單項要 GUI）。更糟的是**活體清單也不完整**：`verify_keyboard.sh` 的 `EXPECTED`
+   原本只有四個鍵，`GoHome`／`AppSwitch` 這兩顆使用者可見功能兩邊都沒有——三顆 Android
+   實體鍵只驗了 `GoBack` 一顆。**已於 2026-07-29 補上**：`EXPECTED` 加 `KEY_HOME`／
+   `KEY_APPSELECT`，`KeyboardLiveTests.sequence` 同步加 `.key("GoHome")`／`.key("AppSwitch")`。
+
+第 1 項與第 3 項的選單接線屬於**第三類：可以驗了，但沒人回頭驗**——不是「做了待人眼確認」，
+也不是根本沒做。阻礙（`AVAudioEngine` 的 NSException 打死 MainActor）已於 2026-07-28 修復，
+GUI 現在開得起來、鍵盤事件現在收得到，只是還沒有人回頭用 App 實際按過。驗法：
+`open` 開 `.app` bundle（不要從 shell 直接跑 executable）→ 在鏡像視窗按幾個鍵、並從選單列
+點「主畫面」與「最近任務」→ 同時 `adb -s <serial> shell getevent -l` 觀察是否出現對應的
+`KEY_*` 事件（`KEY_A`… ／`KEY_HOME`／`KEY_APPSELECT`）。詳見 `app/README.md` 鍵盤直通段落。
+
+> **這一筆本身就是 §8 開頭那句方法論的又一次驗證**：「稽核完整性要從逃逸路徑出發」。
+> 上面第 2、3 項漏掉的原因與當初漏掉 `sendKey` 一模一樣——列清單的人只列得出自己
+> 已經想到的東西。抓到它們的不是關鍵字，是「這批 diff 改了哪些檔、每一檔各有誰在測」。
 
 ### 對 §0 的一處修正
 
