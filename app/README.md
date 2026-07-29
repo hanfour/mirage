@@ -84,14 +84,38 @@ P1-a 迴歸的證據，改列為未量測（**當時記為 pending-unlock，該�
   > 這一行是本檔最危險的一處過時記載：它座落在最可能被當作寫碼依據的檔案裡，
   > 照著寫等於**重新製造一個剛修好的 bug**。
 
-- **`sendKey`**：API 存在（`EmulatorClient.sendKey(_:down:)`），但**目前全碼庫零呼叫端**——
-  鍵盤直通尚未接線，使用者在視窗裡打字 guest 收不到。見債務清單 D2。
+- **鍵盤直通（D2，2026-07-29）**：keymap profile **沒綁到**的鍵直接送給 guest 鍵盤
+  （`EmulatorClient.sendKey`），綁到的維持觸控路徑——使用者可以一邊用搖桿一邊在遊戲
+  聊天框打字。換算在 `MirageCore.KeyTranslate`（純函式、逐行單元測試）：特殊鍵用
+  macOS 虛擬鍵碼查表（`charactersIgnoringModifiers` 對 Enter 給 `"\r"`、對方向鍵給
+  私用區字元，emulator 不認得），可列印字元仍走字元路徑以保持版面感知。
+  **帶 ⌘ 的組合一律不直通**（Android 沒有 ⌘；⌘C/⌘V 已有剪貼簿橋接，送了會貼兩次）。
+  Esc → Android 返回鍵；主畫面／最近任務在選單列。
+  傳輸只用 `KeyboardEvent.key`——實測十個鍵全通，見設計文件 §2。
+  活體驗證：`./scripts/verify_keyboard.sh`（儀器是 `getevent`，不是目視）。
+
+  > **殘餘涵蓋面（未被自動化涵蓋，2026-07-29）**：`MirrorMTKView.keyCode(from:)`（三行
+  > `NSEvent` 取值）、`keyDown`/`keyUp` 覆寫、`onKey` 閉包接線——這段膠水程式碼沒有任何
+  > 自動化測試涵蓋（`app/Tests` 全樹 grep `NSEvent(`／`CGEvent`／`keyCode(from` 零命中）。
+  > 業務邏輯已抽進純函式 `KeyTranslate`（5 條單元測試逐行覆蓋），分流邏輯有
+  > `KeymapControllerRoutingTests`（4 條），`buildKeyEvent` 有 `EmulatorClientTouchTests`——
+  > 殘餘面因此很薄，但不是零：三個參數若「標籤對但來源錯」——例如 `hasCommand:` 誤傳
+  > `event.modifierFlags.contains(.option)`、或 `characters:` 誤傳 `event.characters`
+  > （該用 `charactersIgnoringModifiers`）——型別仍吻合、編譯器不會擋、215 條測試也不會紅，
+  > 因為它們測的是 `KeyTranslate` 本身，不是這個呼叫端。
+  >
+  > 這屬於 `../docs/specs/2026-07-29-project-review.md` §8 D 節點名的**第三類**：
+  > **可以驗了，但沒人回頭驗**——不是 pending-human，也不是根本沒做。阻礙（`AVAudioEngine`
+  > 的 NSException 打死 MainActor）已於 2026-07-28 修復，GUI 現在開得起來、鍵盤事件現在
+  > 收得到，只是還沒有人回頭用 App 實際按過。驗法：`open` 開 `.app` bundle（不要從 shell
+  > 直接跑 executable）→ 在鏡像視窗按幾個鍵 → 同時 `adb -s <serial> shell getevent -l`
+  > 觀察是否出現對應的 `KEY_*` 事件。
 - **無 profile 退回**：`MirrorView` 在無 active profile 時仍走 P1-a 直接 mouse→tap（不回歸）。
 - **App 整合**：`KeymapController`（NSEvent→引擎→注入）、`MouseCapture`（look 游標鎖定）、overlay 提示與陽春編輯器、⌘E 進編輯。
 - 活體多指：`ANDROID_SERIAL=emulator-5554 MIRAGE_LIVE=1 swift test --filter MultiTouchLiveTests`（配 `adb shell settings put system show_touches 1`，注入後 show_touches 見 `P: 0/2`）。
 - 驗收紀錄：`RESULTS-p1c.md`（authoritative）。
 
-**已知限制/移交**：真實觸點落點精度未驗（換算路徑已修，見上方多指注入的更正）；look 手感、⌘E 即時行為未驗；`gameId` 仍硬編碼 `com.example.game`。（`MouseCapture` 失焦自動釋放已於 P1-d 修復。）
+**已知限制/移交**：真實觸點落點精度未驗（換算路徑已修，見上方多指注入的更正）；look 手感、⌘E 即時行為未驗；`gameId` 仍硬編碼 `com.example.game`；鍵盤直通的膠水層（`keyCode(from:)`／`keyDown`/`keyUp`／`onKey`）可以驗了但沒人回頭驗，見上方鍵盤直通說明。（`MouseCapture` 失焦自動釋放已於 P1-d 修復。）
 
 > **⚠️ 更正（2026-07-29）**：本行原本把「overlay 拖放存檔」列為 **pending-human**，讀起來像
 > 「做好了待人眼確認」。**實際是根本沒做**：`Sources/MirageShell/Keymap/OverlayEditorView.swift`

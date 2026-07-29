@@ -97,7 +97,7 @@
 | # | 是什麼 | 擋住什麼 | 成本 | 序 |
 |---|---|---|---|---|
 | ~~**D1**~~ | ~~**NIO 關閉順序 + 阻塞式拆除**（見 §1）~~ | **✅ 已修（2026-07-29）**。`GrpcChannelBox.shutdown()`：先 `channel.close()`、再回呼式 `group.shutdownGracefully(queue:)`，全程不阻塞；`dropChannel()` 顯式呼叫。驗收 5/5 乾淨 | 實際約半天 | — |
-| **D2** | **鍵盤直通零實作**——`sendKey` 無呼叫端，無 profile 時按鍵直接丟棄 | 母計畫 Phase-1 交付項；使用者在視窗裡打字 guest 收不到 | 半天 | **P0** |
+| ~~**D2**~~ | ~~**鍵盤直通零實作**~~ | **✅ 已修（2026-07-29）**。`KeymapController` 依 `KeymapEngine.handles(_:)` 分流：profile 沒綁的鍵走 `sendKey` 直通。換算抽成 `MirageCore.KeyTranslate` 純函式；⌘ 組合不直通；Esc→GoBack；主畫面／最近任務走選單列。傳輸路徑由活體實測選定（`key` 十個鍵全通，`.mac` 送不出字母 a——proto3 的 0 是預設值不序列化）。驗證用 `getevent` 當儀器 | 實際約半天 | — |
 | ~~**D3**~~ | ~~**8 處活體測試用 `guard/return`**~~ | **✅ 已修（2026-07-29）**。全數改用 `@Test(.enabled(if:))`，env 閘門集中到 `Tests/MirageCoreTests/LiveGate.swift`。未設 env → 如實顯示 skipped 並附原因；設了 env → 照跑（已雙向驗證） | 實際約 1 小時 | — |
 | **D4** | **內建 profile 沒進 bundle** + `AppModel.gameId` 寫死 `com.example.game` | `.auto` 自動啟用端到端不可能通；指標遊戲沒有可用 profile | 半天 | **P1** |
 | **D5** | **overlay 編輯器不能拖**（29 行，只有存檔按鈕） | 母計畫交付項；鍵位映射是產品命根子但使用者改不了 | 2–3 天 | **P1** |
@@ -292,7 +292,7 @@ GUI 路徑（⌘Q 拆除、overlay、Metal 渲染）都不在 CI 涵蓋範圍內
 
 | 項目 | 文件怎麼說 | 實際 | 證據 |
 |---|---|---|---|
-| 鍵盤直通 `sendKey` | **任何文件都沒提過** | 公開 API 零呼叫端 | `Sources/MirageShell/` 與 `Tests/` grep `sendKey` 全零 |
+| 鍵盤直通 `sendKey` | **任何文件都沒提過** | 公開 API 零呼叫端 **✅ 已於 2026-07-29 實作（D2）** | `Sources/MirageShell/` 與 `Tests/` grep `sendKey` 全零 |
 | overlay 編輯器拖放 | 「拖放存檔、拖放手感 pending-human」 | 不能拖 | `OverlayEditorView.swift` 全檔 29 行，只有一個「存檔」Button；全 `MirageShell` 零 `DragGesture` |
 | 內建 profile 上架 | 「佔位，待綁真 package」 | SPM 看不到那個檔 | `Resources/profiles/com.example.game.json` 在磁碟，但 `Package.swift` 無 `resources:` 宣告、全碼庫零 `Bundle.module` |
 | 真遊戲 profile 內容 | 「留 Phase 1 三款遊戲」 | 只有 `com.example.game` | `AppModel.swift:59` 硬編碼；`MenuBarController.swift:105` 也 fallback 到同一個字串 |
@@ -335,6 +335,21 @@ P1-e 的七項 GUI pending、`RESULTS-mmap.md` 的三項——**它們的阻礙�
 
 > **這一類最危險**：它們在清單上長得跟「被外部條件擋住」一模一樣，於是每一輪
 > 都被合理地跳過。而擋住它們的那個條件在 2026-07-28 就已經不存在了。
+
+**2026-07-29 同日新增一筆（D2 完成後即刻出現）**：`MirrorMTKView.keyCode(from:)`（三行
+`NSEvent` 取值）、`keyDown`/`keyUp` 覆寫、`onKey` 閉包接線——`app/Tests` 全樹 grep
+`NSEvent(`／`CGEvent`／`keyCode(from` 零命中，這段膠水程式碼沒有任何自動化測試涵蓋。
+業務邏輯已抽進純函式 `MirageCore.KeyTranslate`（5 條單元測試逐行覆蓋），分流邏輯有
+`KeymapControllerRoutingTests`（4 條），`buildKeyEvent` 有 `EmulatorClientTouchTests`——
+殘餘面因此很薄，但不是零：三個參數若「標籤對但來源錯」——例如 `hasCommand:` 誤傳
+`event.modifierFlags.contains(.option)`、或 `characters:` 誤傳 `event.characters`
+（該用 `charactersIgnoringModifiers`）——型別仍吻合、編譯器不會擋、215 條測試也不會紅，
+因為它們測的是 `KeyTranslate` 本身，不是這個呼叫端。**這正是第三類，不是 pending-human
+也不是根本沒做**：阻礙（`AVAudioEngine` 的 NSException 打死 MainActor）已於 2026-07-28
+修復，GUI 現在開得起來、鍵盤事件現在收得到，只是還沒有人回頭用 App 實際按過。驗法：
+`open` 開 `.app` bundle（不要從 shell 直接跑 executable）→ 在鏡像視窗按幾個鍵 → 同時
+`adb -s <serial> shell getevent -l` 觀察是否出現對應的 `KEY_*` 事件。詳見 `app/README.md`
+鍵盤直通段落。
 
 ### 對 §0 的一處修正
 
