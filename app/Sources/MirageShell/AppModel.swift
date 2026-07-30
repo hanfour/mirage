@@ -256,6 +256,27 @@ final class AppModel {
         editorSession = editorSession?.selecting(id)
     }
 
+    /// 拖曳落點寫回 session 並**即時套用**到 `profile` 與引擎。
+    ///
+    /// 即時套用是設計文件定的存檔語意的前半（「即時套用＋明確存檔」）：畫面上的圈要跟著
+    /// 手走，否則使用者要等到存檔才看得到結果。`emit` 在編輯模式下本來就被擋，所以套用到
+    /// 引擎不會有任何東西送到 guest。
+    func moveSelectedBinding(to p: NormPoint) {
+        applyToSession { $0.movingSelected(to: p) }
+    }
+
+    /// session 變換 → 同步 `profile` 與引擎。三個編輯入口（移動／半徑／靈敏度）共用它，
+    /// 免得「改完忘了套用」在三個地方各犯一次。
+    private func applyToSession(_ transform: (EditorSession) -> EditorSession) {
+        guard let session = editorSession else { return }
+        let updated = transform(session)
+        guard updated != session else { return }
+        editorSession = updated
+        let p = updated.profile()
+        profile = p
+        keymap?.reload(p)
+    }
+
     /// 抽屜「存檔」呼叫這裡。寫檔 → 引擎立即套用 → session 以存下的那份重建（`isDirty` 歸零）。
     ///
     /// **重建而不是只清旗標**：存完之後的「基準版本」已經變了（version+1），下一次存檔要

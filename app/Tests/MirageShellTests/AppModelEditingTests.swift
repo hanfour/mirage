@@ -225,4 +225,48 @@ import Testing
         #expect(model.editorSession?.isDirty == false)
         #expect(model.keymap?.hasProfile == true)
     }
+
+    /// 拖曳落點寫回 session，並**即時套用到引擎**——使用者要看到圈跟著手走。
+    @Test func movingSelectedBindingUpdatesSessionAndEngine() throws {
+        let (store, dir) = Self.tempStore("move")
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let model = AppModel(store: store,
+                             starterBindings: { [.tap(key: .key("j"), at: NormPoint(x: 0.8, y: 0.8))] })
+        model.currentPackage = "com.game.move"
+        model.loadKeymap()
+        model.toggleEditing()
+        let id = try #require(model.editorSession?.items.first?.id)
+        model.selectBinding(id)
+
+        model.moveSelectedBinding(to: NormPoint(x: 0.25, y: 0.4))
+
+        if case .tap(_, let at) = try #require(model.editorSession?.items.first?.binding) {
+            #expect(at == NormPoint(x: 0.25, y: 0.4))
+        } else {
+            Issue.record("期待 .tap")
+        }
+        #expect(model.editorSession?.isDirty == true)
+        // 即時套用：`profile` 與引擎都要看到新位置，否則離開編輯後才會突然跳位。
+        if case .tap(_, let at) = try #require(model.profile?.bindings.first) {
+            #expect(at == NormPoint(x: 0.25, y: 0.4))
+        } else {
+            Issue.record("期待 .tap")
+        }
+    }
+
+    /// 沒有選取時拖曳是 no-op，不得憑空改到別的 binding。
+    @Test func movingWithoutSelectionChangesNothing() throws {
+        let (store, dir) = Self.tempStore("move-none")
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let model = AppModel(store: store,
+                             starterBindings: { [.tap(key: .key("j"), at: NormPoint(x: 0.8, y: 0.8))] })
+        model.currentPackage = "com.game.move.none"
+        model.toggleEditing()
+        let before = try #require(model.editorSession)
+
+        model.moveSelectedBinding(to: NormPoint(x: 0.1, y: 0.1))
+
+        #expect(model.editorSession == before)
+        #expect(model.editorSession?.isDirty == false)
+    }
 }
