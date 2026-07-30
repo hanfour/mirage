@@ -95,4 +95,57 @@ import Testing
 
         #expect(!model.editing)
     }
+
+    /// C1（Critical，D5 階段 A 終審）：⌘E 進去又出來（未存檔），不得把 starter 留在 session 裡。
+    ///
+    /// 原本 `.leave` 只做 `editing = false`，不還原 `profile`、不清引擎——磁碟乾淨，
+    /// session 卻髒了：`shouldCapture` 仍會成立（隱藏游標、解除滑鼠關聯），fallback
+    /// starter 的 `.look(activation: nil)` 是 always-on，滑鼠一動就在 guest 上拖曳，而
+    /// `Coordinator.sendMouse` 因為 `hasProfile == true` 提早 return，連「點一下＝tap」
+    /// 都沒了。使用者只是按了兩次 ⌘E、什麼都沒存，卻換了一套他從沒設定過的輸入模式。
+    ///
+    /// 這條測試會在把 `toggleEditing()` 的 `.leave` 分支裡 `applyActivation()` 那行拿掉時
+    /// 變紅——已手動驗證過（見 final-fix-report.md）。
+    @Test func leavingUnsavedEditDoesNotLeakStarterIntoSession() throws {
+        let (store, dir) = Self.tempStore("leak")
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let starter: [Binding] = [.tap(key: .key("q"), at: NormPoint(x: 0.3, y: 0.3))]
+        let model = AppModel(store: store, starterBindings: { starter })
+        model.loadKeymap()
+        model.currentPackage = "com.game.leak"
+
+        model.toggleEditing()   // 進：套用 starter
+        #expect(model.editing)
+        model.toggleEditing()   // 出：未存檔
+
+        #expect(!model.editing)
+        #expect(model.profile == nil)
+        #expect(model.keymap?.hasProfile == false)
+        let files = try FileManager.default.contentsOfDirectory(atPath: dir.path)
+        #expect(files.isEmpty, "未存檔不落檔，實得 \(files)")
+    }
+
+    /// I3（Important，D5 階段 A 終審）：編輯途中收到偵測/覆寫通知（`setOverride` 與
+    /// `GameDetector` 回呼共用 `applyActivation()` 這條路），不得把記憶體裡還沒存檔的
+    /// starter 收掉。原本 `applyActivation()` 找不到磁碟上的檔就走 `.inactive`，把
+    /// `profile` 清成 nil、引擎跟著清空——編輯器 UI（`if editing, let profile`）因此
+    /// 整個消失，但 App 仍在編輯模式（滑鼠被擋、鍵盤直通被擋），畫面上沒有任何提示、
+    /// 也沒有可見出口。
+    @Test func detectionDuringEditingDoesNotClearInMemoryProfile() {
+        let (store, dir) = Self.tempStore("i3")
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let starter: [Binding] = [.tap(key: .key("q"), at: NormPoint(x: 0.3, y: 0.3))]
+        let model = AppModel(store: store, starterBindings: { starter })
+        model.loadKeymap()
+        model.currentPackage = "com.game.i3"
+        model.toggleEditing()
+        #expect(model.editing)
+        let editedProfile = model.profile
+
+        model.setOverride(.auto)   // 與遊戲偵測回呼同一條路（AppModel.onForeground → applyActivation）
+
+        #expect(model.editing)
+        #expect(model.profile == editedProfile)
+        #expect(model.keymap?.hasProfile == true)
+    }
 }

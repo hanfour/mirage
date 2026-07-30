@@ -172,6 +172,12 @@ final class AppModel {
             return
         case .leave:
             editing = false
+            // 離開編輯＝回到磁碟的真相。存過檔就重新載到那份，沒存過就回到「沒有 profile」
+            // ——包含清掉引擎、放開游標、刷新選單列標籤。
+            // 刻意呼叫 applyActivation() 而不是自己把 profile 設回 nil：後者要重新推導
+            // 「本來該是什麼」（存過？被手動覆寫過？），而 applyActivation 已經是那個唯一
+            // 的真相來源。消除特殊情況，不是加旗標。
+            applyActivation()
         case .enter(let p):
             // 即時套用：overlay 與引擎都看得到這份 profile。`emit` 在編輯模式下本來就被擋，
             // 所以套用不會有任何東西送到 guest。
@@ -265,7 +271,24 @@ final class AppModel {
     /// →套用到 keymap engine →回報選單列。currentPackage 為 nil（無前景/adb 失敗）時
     /// loadedProfile 自然是 nil，ActivationDecider 在 .auto 下會決成 .inactive——不需要
     /// 額外的 nil 特例分支。
+    ///
+    /// **編輯中不得動 profile／引擎（2026-07-30，D5 階段 A 終審 I3）**：階段 A 之後
+    /// 「記憶體限定的 profile」是主流路徑——使用者可能正在編一份從沒存過檔的 starter。
+    /// 前景 package 一變動（或選單列按「恢復自動偵測」）就跑到這裡，若照常
+    /// `keymap?.reload(...)` / `profile = ...`，會把使用者正在編的東西靜默換掉或清空，
+    /// 而編輯器 UI（`if model.editing, let profile = model.profile`）會因為抓不到條件
+    /// 整個消失，畫面上沒有任何提示也沒有可見出口。選單列與捕捉狀態仍然要更新，
+    /// 那兩者是「這台 guest 現在是誰」的旁觀者，不是編輯中的資料本身。
+    ///
+    /// **讀的是呼叫當下的 `editing`**：`toggleEditing()` 的 `.leave` 分支會先把
+    /// `editing` 設回 `false`、再呼叫這裡，所以離開編輯時這道 guard 不會擋到——那條路徑
+    /// 本來就需要完整套用（回到磁碟的真相），這裡讀到的已經是 false。
     private func applyActivation() {
+        guard !editing else {
+            menuBar?.updateGame(package: currentPackage, active: keymap?.hasProfile == true)
+            mouseCapture.updateCapture(shouldCapture: shouldCapture)
+            return
+        }
         let loaded: KeymapProfile? = currentPackage.flatMap { try? store.load(gameId: $0) }
         switch ActivationDecider.decide(loadedProfile: loaded, override: override) {
         // AUTHORIZED FIX（P1-d 終審 Important：⌘E 編輯器讀到 stale profile）：
