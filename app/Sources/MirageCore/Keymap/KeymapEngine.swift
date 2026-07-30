@@ -58,8 +58,8 @@ public final class KeymapEngine {
             releaseLookIfGateClosed(for: k)
         case .mouseMove(let dx, let dy):
             if let look, isLookGateOpen(look) {
-                lookPoint = clamp(NormPoint(x: lookPoint.x + dx * look.sensitivity / 1000,
-                                            y: lookPoint.y + dy * look.sensitivity / 1000))
+                lookPoint = NormPoint.clamped(x: lookPoint.x + dx * look.sensitivity / 1000,
+                                              y: lookPoint.y + dy * look.sensitivity / 1000)
                 lookDown = true
             }
         }
@@ -115,9 +115,5 @@ public final class KeymapEngine {
             out.append(TouchSpec(identifier: look.id, point: lookPoint, down: lookDown))
         }
         return TouchFrame(touches: out)
-    }
-
-    private func clamp(_ p: NormPoint) -> NormPoint {
-        NormPoint(x: min(max(p.x, 0), 1), y: min(max(p.y, 0), 1))
     }
 }

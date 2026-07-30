@@ -152,4 +152,19 @@ import Testing
         let src = try writeSource(dir, name: "empty.json", body: json)
         #expect(BuiltInProfiles.starterBindings(from: [src]) == BuiltInProfiles.fallbackStarterBindings)
     }
+
+    /// I4（Important，D5 階段 A 終審）：來源座標越界（`x > 1`）也要退回 fallback。
+    /// `JSONDecoder().decode` 本身不會拒絕越界座標，只有 `.validated()` 會——而
+    /// `KeymapEngine.snapshot()` 對 tap／靜止搖桿點刻意不夾取，安全性建立在
+    /// 「profile 必經 validated()」這條不變式上，starter 這條路徑不能是例外。
+    @Test func starterBindingsFallBackWhenSourceHasOutOfRangeCoordinate() throws {
+        let dir = tempDir("starter-oob")
+        let json = """
+        {"gameId":"test.game","version":1,"bindings":[
+          {"tap":{"at":{"x":1.5,"y":0.5},"key":{"key":{"_0":"z"}}}}
+        ]}
+        """
+        let src = try writeSource(dir, name: "oob.json", body: json)
+        #expect(BuiltInProfiles.starterBindings(from: [src]) == BuiltInProfiles.fallbackStarterBindings)
+    }
 }

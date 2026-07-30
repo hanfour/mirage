@@ -79,10 +79,15 @@ public enum BuiltInProfiles {
     ///
     /// 借 gameId 會讓編輯後的存檔寫回那個佔位檔，正是 D5 §1 描述的死路。
     /// 任一來源解不出來就換下一個；全部失敗才退回 `fallbackStarterBindings`。
+    ///
+    /// **一定要 `.validated()`（2026-07-30，D5 階段 A 終審 I4）**：`ProfileStore.load`
+    /// 有驗、全系統其他地方都靠 `validated()` 保證座標合法——`KeymapEngine.snapshot()`
+    /// 的靜止搖桿點與 tap 點刻意不夾取，安全性建立在「profile 必經 validated()」這條
+    /// 不變式上。這裡原本只 `decode` 就直接回傳 bindings，是這條路徑上唯一漏掉驗證的缺口。
     public static func starterBindings(from sources: [URL]) -> [Binding] {
         for source in sources {
             guard let data = try? Data(contentsOf: source),
-                  let profile = try? JSONDecoder().decode(KeymapProfile.self, from: data),
+                  let profile = try? JSONDecoder().decode(KeymapProfile.self, from: data).validated(),
                   !profile.bindings.isEmpty
             else { continue }
             return profile.bindings
