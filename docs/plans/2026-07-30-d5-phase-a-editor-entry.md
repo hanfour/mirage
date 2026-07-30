@@ -35,7 +35,8 @@ swift-testing、SwiftUI/AppKit。
 | `app/Sources/MirageShell/Keymap/KeymapController.swift` | 鍵鼠→引擎橋接 | 修改：`hasProfile` 語意（D22） |
 | `app/Sources/MirageShell/MirrorView.swift` | 鏡像視圖與滑鼠 | 修改：Coordinator 收 `isEditing`（D22） |
 | `app/Sources/MirageShell/MirageScene.swift` | Scene 接線 | 修改：傳 `isEditing` |
-| `app/Sources/MirageShell/AppModel.swift` | App 狀態 | 修改：`toggleEditing` 走 decider |
+| `app/Sources/MirageShell/AppModel.swift` | App 狀態 | 修改：注入縫（Task 5）＋ `toggleEditing` 走 decider（Task 6） |
+| `app/Tests/MirageShellTests/AppModelEditingTests.swift` | `toggleEditing` 的行為 | **新增**（Task 6） |
 
 ---
 
@@ -566,18 +567,205 @@ git commit -m "feat: D5-A ⌘E 進入決策抽成純函式 EditorEntryDecider"
 
 ---
 
-## Task 5：接線並驗收
+## Task 5：`AppModel` 注入縫
+
+**Files:**
+- Modify: `app/Sources/MirageShell/AppModel.swift`
+- Test: `app/Tests/MirageShellTests/AppModelEditingTests.swift`（新建，本 task 只放構造測試）
+
+**Interfaces:**
+- Produces:
+  - `AppModel.init(store: ProfileStore = .standard(), starterBindings: @escaping @Sendable () -> [Binding] = BuiltInProfiles.starterBindings)`
+  - `AppModel.currentPackage` 可寫（原為 `private(set)`）
+
+**為什麼需要這個 task（實作者必讀）：** Task 6 要測 `toggleEditing`，就得在測試裡構造
+`AppModel`。但目前構造它會**在使用者真實的 `~/Library/Application Support/Mirage/profiles`
+底下建目錄**（`private let store = ProfileStore.standard()`），而且 `currentPackage` 是
+`private(set)`、測試設不了。這個 task 只開縫、不改任何行為。
+
+- [ ] **Step 1: 寫失敗測試**
+
+Create `app/Tests/MirageShellTests/AppModelEditingTests.swift`:
+
+```swift
+import Foundation
+import Testing
+@testable import MirageCore
+@testable import MirageShell
+
+@MainActor
+@Suite struct AppModelEditingTests {
+    /// 測試用的暫存 store——**不得碰使用者真實的 Application Support 目錄**。
+    static func tempStore(_ tag: String) -> (ProfileStore, URL) {
+        let dir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("mirage-appmodel-\(tag)-\(UUID().uuidString)")
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        return (ProfileStore(directory: dir), dir)
+    }
+
+    /// 注入縫本身：構造時用得上注入的 store 與 starter 來源，且不碰真實目錄。
+    @Test func constructsWithInjectedDependencies() {
+        let (store, dir) = Self.tempStore("construct")
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let starter: [Binding] = [.tap(key: .key("q"), at: NormPoint(x: 0.3, y: 0.3))]
+
+        let model = AppModel(store: store, starterBindings: { starter })
+
+        #expect(model.currentPackage == nil)
+        model.currentPackage = "com.game.injected"      // private(set) 時這行編不過
+        #expect(model.currentPackage == "com.game.injected")
+    }
+}
+```
+
+- [ ] **Step 2: 跑測試確認它紅**
+
+```bash
+cd app && swift test --filter constructsWithInjectedDependencies
+```
+
+Expected: 編譯失敗——`AppModel` 沒有這個 init，且 `currentPackage` 不可寫。
+
+- [ ] **Step 3: 開縫**
+
+`AppModel.swift`：把 `private(set) var currentPackage: String?` 改成：
+
+```swift
+    /// 放寬為可寫（2026-07-30，D5 階段 A）：`toggleEditing` 的行為取決於它，
+    /// 而測試設不了 `private(set)` 就測不到那條路徑。比照本檔 `installState`／
+    /// `installGeneration` 先前為了同樣理由放寬的既有先例。
+    /// **產品碼的唯一寫入點仍是 `onForeground(_:)`**——放寬是為了可測，不是邀請別處去改它。
+    var currentPackage: String?
+```
+
+把 `private let store = ProfileStore.standard()` 改成：
+
+```swift
+    private let store: ProfileStore
+    /// starter 版面的來源。注入是為了讓 `toggleEditing` 測得到——產品路徑餵的是
+    /// `BuiltInProfiles.starterBindings`（會讀 bundle，不可單元測試）。
+    private let starterBindings: @Sendable () -> [Binding]
+```
+
+把既有的 `init()` 改成：
+
+```swift
+    /// **參數都有預設值，產品呼叫端（`MirageScene` 的 `@State private var model = AppModel()`）
+    /// 一個字都不用改。** 開這道縫只為了測試能餵暫存目錄與固定的 starter——構造 `AppModel`
+    /// 原本會在使用者真實的 Application Support 底下建目錄（D13 記載的「光建構就有 8 個
+    /// 全域副作用」之一），測試不該碰那裡。
+    init(store: ProfileStore = .standard(),
+         starterBindings: @escaping @Sendable () -> [Binding] = BuiltInProfiles.starterBindings)
+    {
+        self.store = store
+        self.starterBindings = starterBindings
+        inputQueue = InputQueue(injector: client)
+    }
+```
+
+- [ ] **Step 4: 跑完整測試**
+
+```bash
+cd app && swift test
+```
+
+Expected: 全綠。既有測試不得變紅（所有參數都有預設值，產品行為零改變）。
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add app/Sources/MirageShell/AppModel.swift \
+        app/Tests/MirageShellTests/AppModelEditingTests.swift
+git commit -m "refactor: D5-A 為 AppModel 開注入縫（store 與 starter 來源），行為零改變"
+```
+
+---
+
+## Task 6：`toggleEditing` 接線並驗收
 
 **Files:**
 - Modify: `app/Sources/MirageShell/AppModel.swift`（`toggleEditing`）
+- Test: `app/Tests/MirageShellTests/AppModelEditingTests.swift`（加測試）
 
 **Interfaces:**
-- Consumes: `EditorEntryDecider.decide(...)`、`BuiltInProfiles.starterBindings()`（Task 3、4）
+- Consumes: `EditorEntryDecider.decide(...)`（Task 4）、`AppModel.init(store:starterBindings:)`（Task 5）
 
-**注意：** `AppModel` 沒有注入縫，這個 task **沒有單元測試**——判斷邏輯的涵蓋在 Task 4，
-這裡只有接線。這是刻意的取捨，不是遺漏；驗收靠 Step 3 的手動確認。
+- [ ] **Step 1: 寫失敗測試**
 
-- [ ] **Step 1: 改 `toggleEditing`**
+加到 `AppModelEditingTests` 的 suite 內：
+
+```swift
+    /// 階段 A 的核心：沒有 profile 但知道在玩什麼 → ⌘E 要打得開，且帶著 starter 版面。
+    @Test func editingOpensWithStarterWhenNoProfileExists() {
+        let (store, dir) = Self.tempStore("starter")
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let starter: [Binding] = [.tap(key: .key("q"), at: NormPoint(x: 0.3, y: 0.3))]
+        let model = AppModel(store: store, starterBindings: { starter })
+        model.currentPackage = "com.loomgames.pixelflow"
+
+        model.toggleEditing()
+
+        #expect(model.editing)
+        #expect(model.profile?.gameId == "com.loomgames.pixelflow")
+        #expect(model.profile?.version == 1)
+        #expect(model.profile?.bindings == starter)
+    }
+
+    /// **未存檔不落檔**：⌘E 只在記憶體裡建 starter，磁碟上不得出現任何檔案。
+    /// 不小心按到 ⌘E 就憑空生出一個檔案，是「明確存檔」語意不能接受的。
+    @Test func openingEditorWritesNothingToDisk() throws {
+        let (store, dir) = Self.tempStore("nodisk")
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let model = AppModel(store: store,
+                             starterBindings: { [.tap(key: .key("q"), at: NormPoint(x: 0.3, y: 0.3))] })
+        model.currentPackage = "com.game.nodisk"
+
+        model.toggleEditing()
+
+        let files = try FileManager.default.contentsOfDirectory(atPath: dir.path)
+        #expect(files.isEmpty, "⌘E 不得落檔，實得 \(files)")
+    }
+
+    /// 不知道在玩什麼就沒有 gameId 可以掛——維持現行的「不動作」。
+    @Test func editingStaysClosedWithoutPackageOrProfile() {
+        let (store, dir) = Self.tempStore("nopkg")
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let model = AppModel(store: store,
+                             starterBindings: { [.tap(key: .key("q"), at: NormPoint(x: 0.3, y: 0.3))] })
+
+        model.toggleEditing()
+
+        #expect(!model.editing)
+        #expect(model.profile == nil)
+    }
+
+    /// 已在編輯模式時一定出得來——即使途中 profile 被收成 nil。
+    @Test func editingAlwaysCloses() {
+        let (store, dir) = Self.tempStore("close")
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let model = AppModel(store: store,
+                             starterBindings: { [.tap(key: .key("q"), at: NormPoint(x: 0.3, y: 0.3))] })
+        model.currentPackage = "com.game.close"
+        model.toggleEditing()
+        #expect(model.editing)
+
+        model.profile = nil          // 模擬偵測途中把遊戲切成 .inactive
+        model.toggleEditing()
+
+        #expect(!model.editing)
+    }
+```
+
+- [ ] **Step 2: 跑測試確認它紅**
+
+```bash
+cd app && swift test --filter AppModelEditingTests
+```
+
+Expected: `editingOpensWithStarterWhenNoProfileExists` 失敗——現行 guard
+`guard editing || profile != nil else { return }` 會直接 return，`model.editing` 仍是 false。
+
+- [ ] **Step 3: 改 `toggleEditing`**
 
 把 `AppModel.swift` 的 `toggleEditing()` 整個換成：
 
@@ -591,10 +779,10 @@ git commit -m "feat: D5-A ⌘E 進入決策抽成純函式 EditorEntryDecider"
     ///
     /// **不落檔是刻意的**：檔案要按下「存檔」才出現。否則不小心按到 ⌘E 就會憑空生出一個檔案。
     func toggleEditing() {
-        let starter = BuiltInProfiles.starterBindings()
         switch EditorEntryDecider.decide(editing: editing, profile: profile,
                                          currentPackage: currentPackage,
-                                         starterBindings: starter) {
+                                         starterBindings: starterBindings())
+        {
         case .ignore:
             return
         case .leave:
@@ -611,34 +799,15 @@ git commit -m "feat: D5-A ⌘E 進入決策抽成純函式 EditorEntryDecider"
     }
 ```
 
-- [ ] **Step 2: 跑完整測試**
+- [ ] **Step 4: 跑完整測試**
 
 ```bash
 cd app && swift test
 ```
 
-Expected: 240+ 條全過（既有測試不得變紅）。
+Expected: 全綠。
 
-- [ ] **Step 3: 手動驗收（需模擬器）**
-
-```bash
-# 開模擬器
-"$HOME/Library/Android/sdk/emulator/emulator" -avd mirage-poc -no-window -grpc 8554 &
-# 等開機
-"$HOME/Library/Android/sdk/platform-tools/adb" -s emulator-5554 wait-for-device
-# 打包並啟動
-cd app && APP=$(./scripts/package_app.sh /tmp/mirage_d5a 2>/dev/null) && "$APP/Contents/MacOS/MirageApp"
-```
-
-在模擬器上開任一 App（讓 `currentPackage` 非 nil），然後：
-
-1. 按 ⌘E → **編輯器要打得開**，畫面上看得到 starter 的搖桿圈與兩顆技能鍵標記。
-2. 檢查 `~/Library/Application Support/Mirage/profiles/` → **不得**出現當前 package 的 json
-   （未存檔不落檔）。
-3. 編輯模式下在鏡像畫面上點幾下 → guest **不得**有任何反應（D22）。
-4. 按 ⌘E 離開 → 回到正常鏡像。
-
-- [ ] **Step 4: 跑閘門**
+- [ ] **Step 5: 跑閘門**
 
 ```bash
 cd app && ./scripts/ci.sh; echo "CI_EXIT=$?"
@@ -646,12 +815,30 @@ cd app && ./scripts/ci.sh; echo "CI_EXIT=$?"
 
 Expected: `CI_EXIT=0`，四道閘門全綠。
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 6: Commit**
 
 ```bash
-git add app/Sources/MirageShell/AppModel.swift
+git add app/Sources/MirageShell/AppModel.swift \
+        app/Tests/MirageShellTests/AppModelEditingTests.swift
 git commit -m "feat: D5-A ⌘E 在沒有 profile 時用 starter 版面進入編輯器（不落檔）"
 ```
+
+---
+
+## 手動驗收（需模擬器，全部 task 完成後執行）
+
+```bash
+"$HOME/Library/Android/sdk/emulator/emulator" -avd mirage-poc -no-window -grpc 8554 &
+"$HOME/Library/Android/sdk/platform-tools/adb" -s emulator-5554 wait-for-device
+cd app && APP=$(./scripts/package_app.sh /tmp/mirage_d5a 2>/dev/null) && "$APP/Contents/MacOS/MirageApp"
+```
+
+在模擬器上開任一 App（讓 `currentPackage` 非 nil），然後：
+
+1. 按 ⌘E → **編輯器要打得開**，畫面上看得到 starter 的搖桿圈與兩顆技能鍵標記。
+2. 檢查 `~/Library/Application Support/Mirage/profiles/` → **不得**出現當前 package 的 json。
+3. 編輯模式下在鏡像畫面上點幾下 → guest **不得**有任何反應（D22）。
+4. 按 ⌘E 離開 → 回到正常鏡像。
 
 ---
 
