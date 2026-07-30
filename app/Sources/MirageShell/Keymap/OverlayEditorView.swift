@@ -1,32 +1,24 @@
 import MirageCore
 import SwiftUI
 
-/// 陽春編輯器（⌘E 進入）：目前 MVP 沿用 KeymapOverlay 的視覺當底，加「存檔」按鈕
-/// （version+1，不可變、原子寫，見 ProfileStore.save）。拖放調整 binding 座標／
-/// 滑桿調 radius、sensitivity 等互動細節列 pending-human（需 GUI 手感驗證）。
-/// 「完成編輯」由父層（MirageShell 的 ⌘E monitor / AppModel.toggleEditing）驅動，
-/// 這裡的按鈕只是視覺提示，不持有切換邏輯——避免兩處各自一份 editing 狀態。
+/// 編輯模式的組合層：上半是可互動的 overlay（Task 6 加把手），下半是抽屜。
+///
+/// 這個型別本身**不持有狀態**——`EditorSession` 由 `AppModel` 持有，因為 overlay 與抽屜
+/// 要共用同一份選取，而且 ⌘E 離開時的未存變更檢查發生在 `AppModel` 那一層。
 struct OverlayEditorView: View {
-    // 明確寫 SwiftUI.Binding：MirageCore 也有一個叫 Binding 的列舉（keymap 綁定），兩個
-    // import 同時出現時裸寫 `@Binding` 會 ambiguous（見 KeymapOverlay.swift 同樣的處理）。
-    @SwiftUI.Binding var profile: KeymapProfile
-    let onSave: (KeymapProfile) -> Void
-    /// Task 4：與唯讀 `KeymapOverlay` 共用同一份幀尺寸——編輯預覽跟成品畫在同一個
-    /// letterbox 內容矩形上，兩者不該各自用不同基準換算座標。
+    let session: EditorSession
     let frameSize: (w: Int, h: Int)
+    let onSelect: (UUID?) -> Void
+    let onSave: () -> Void
 
     var body: some View {
-        VStack {
-            KeymapOverlay(profile: profile, frameSize: frameSize)
-            HStack {
-                Button("存檔") { onSave(bumpVersion(profile)) }
-                Text("完成編輯：⌘E").font(.caption).foregroundStyle(.secondary)
+        VStack(spacing: 0) {
+            // 階段 B Task 6 會把這裡換成可拖曳的 overlay；此刻先沿用唯讀標記，
+            // 版面與座標基準（letterbox 內容矩形）在 Task 4 就已經正確。
+            KeymapOverlay(profile: session.profile(), frameSize: frameSize)
+            EditorDrawer(session: session, onSelect: onSelect, onSave: onSave) {
+                AnyView(EmptyView())      // Task 6 填入半徑／靈敏度
             }
-            .padding()
         }
-    }
-
-    private func bumpVersion(_ p: KeymapProfile) -> KeymapProfile {
-        KeymapProfile(gameId: p.gameId, version: p.version + 1, bindings: p.bindings)
     }
 }

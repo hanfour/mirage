@@ -44,6 +44,12 @@ final class AppModel {
     var keymap: KeymapController?
     var profile: KeymapProfile?
     var editing = false
+    /// 編輯中的 binding 清單與選取狀態。非編輯時為 nil。
+    ///
+    /// **由 `AppModel` 持有而不是 view 的 `@State`**：抽屜與 overlay 是兩個 view，要共用
+    /// 同一份選取；而且 ⌘E 離開時要檢查未存變更，那件事發生在這一層。放進 view 各持一份
+    /// 遲早不同步。
+    var editorSession: EditorSession?
     let mouseCapture = MouseCapture()
     var isFullScreen = false  // P1-e: 系統通知驅動（涵蓋綠燈/⌃⌘F/選單列）
     /// 目前解碼幀的尺寸。`(0, 0)` 代表尚未收到任何幀。
@@ -180,6 +186,7 @@ final class AppModel {
             return
         case .leave:
             editing = false
+            editorSession = nil        // 離開就收掉，不留殘影
             // 離開編輯＝回到磁碟的真相。存過檔就重新載到那份，沒存過就回到「沒有 profile」
             // ——包含清掉引擎、放開游標、刷新選單列標籤。
             // 刻意呼叫 applyActivation() 而不是自己把 profile 設回 nil：後者要重新推導
@@ -192,6 +199,7 @@ final class AppModel {
             profile = p
             keymap?.reload(p)
             editing = true
+            editorSession = EditorSession(profile: p)
         }
         keymap?.setEditing(editing)
         mouseCapture.updateCapture(shouldCapture: shouldCapture)
@@ -241,6 +249,23 @@ final class AppModel {
         } catch {
             print("[keymap] profile save failed: \(error)")
         }
+    }
+
+    /// overlay 與抽屜共用的選取入口。兩邊都呼叫這裡，狀態因此只有一份。
+    func selectBinding(_ id: UUID?) {
+        editorSession = editorSession?.selecting(id)
+    }
+
+    /// 抽屜「存檔」呼叫這裡。寫檔 → 引擎立即套用 → session 以存下的那份重建（`isDirty` 歸零）。
+    ///
+    /// **重建而不是只清旗標**：存完之後的「基準版本」已經變了（version+1），下一次存檔要
+    /// 從新的基準再加一。用存下的 profile 重建 session 讓那件事自然成立，不必額外記帳。
+    /// 代價是選取會被清掉——可接受，且比一份版本號對不上的 session 安全。
+    func saveEditorSession() {
+        guard let session = editorSession else { return }
+        let p = session.profile()
+        saveProfile(p)
+        editorSession = EditorSession(profile: p)
     }
 
     /// 啟動前景遊戲偵測（P1-d）。無 adb（找不到 SDK/非可執行檔）→ 靜默不偵測，維持

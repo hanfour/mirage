@@ -165,4 +165,64 @@ import Testing
         #expect(ViewportFit.fit(frame: model.frameSize, in: (w: 1000, h: 1000))
                 == FitRect(x: 275, y: 0, width: 450, height: 1000))
     }
+
+    /// 進編輯 → 建立 session；離開 → 清掉。session 的內容要對應當下的 profile。
+    @Test func editorSessionLifecycleFollowsEditingMode() {
+        let (store, dir) = Self.tempStore("session")
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let starter: [Binding] = [
+            .joystick(up: .key("w"), down: .key("s"), left: .key("a"), right: .key("d"),
+                      center: NormPoint(x: 0.2, y: 0.75), radius: 0.12),
+            .tap(key: .key("j"), at: NormPoint(x: 0.85, y: 0.82)),
+        ]
+        let model = AppModel(store: store, starterBindings: { starter })
+        model.currentPackage = "com.game.session"
+        #expect(model.editorSession == nil)
+
+        model.toggleEditing()
+        #expect(model.editorSession?.items.map(\.binding) == starter)
+        #expect(model.editorSession?.gameId == "com.game.session")
+        #expect(model.editorSession?.isDirty == false)
+
+        model.toggleEditing()
+        #expect(model.editorSession == nil)          // 離開就收掉，不留殘影
+    }
+
+    /// 選取經由 `AppModel` 走，overlay 與抽屜因此看到同一份狀態。
+    @Test func selectBindingUpdatesTheSession() {
+        let (store, dir) = Self.tempStore("select")
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let model = AppModel(store: store,
+                             starterBindings: { [.tap(key: .key("j"), at: NormPoint(x: 0.8, y: 0.8))] })
+        model.currentPackage = "com.game.select"
+        model.toggleEditing()
+        let id = try! #require(model.editorSession?.items.first?.id)
+
+        model.selectBinding(id)
+        #expect(model.editorSession?.selectedID == id)
+        #expect(model.editorSession?.isDirty == false)   // 選取不是變更
+
+        model.selectBinding(nil)
+        #expect(model.editorSession?.selectedID == nil)
+    }
+
+    /// 存檔：寫進注入的 store、version+1、引擎立即套用，且 session 重置為不髒。
+    @Test func savingEditorSessionWritesAndReloads() throws {
+        let (store, dir) = Self.tempStore("save")
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let model = AppModel(store: store,
+                             starterBindings: { [.tap(key: .key("j"), at: NormPoint(x: 0.8, y: 0.8))] })
+        model.currentPackage = "com.game.save"
+        model.loadKeymap()
+        model.toggleEditing()
+
+        model.saveEditorSession()
+
+        let saved = try store.load(gameId: "com.game.save")
+        #expect(saved.gameId == "com.game.save")
+        #expect(saved.version == 2)                       // starter 是 version 1
+        #expect(model.profile == saved)
+        #expect(model.editorSession?.isDirty == false)
+        #expect(model.keymap?.hasProfile == true)
+    }
 }

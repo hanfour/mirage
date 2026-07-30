@@ -78,21 +78,20 @@ struct MirageScene: App {
         }
     }
 
-    // P1-c：編輯模式顯示陽春編輯器，否則顯示唯讀提示 overlay；兩者都在無 profile 時
-    // 優雅退化（OverlayEditorView 需要非 nil profile 才有東西可編，KeymapOverlay 本身
-    // 就接受 nil 直接不畫任何標記）。獨立成 @MainActor computed var 而非塞進 body 是因為
-    // MirrorView 那行已經夠長；標 @MainActor 是因為它讀取的是 model 的 MainActor-isolated
-    // 屬性（editing/profile），不像 body 本身有 App 協定的 @MainActor 需求可以白拿。
+    // P1-c：編輯模式顯示編輯器（overlay ＋ 底部抽屜），否則顯示唯讀提示 overlay；兩者都
+    // 在無東西可編時優雅退化（OverlayEditorView 需要非 nil `editorSession` 才顯示，
+    // KeymapOverlay 本身就接受 nil profile 直接不畫任何標記）。獨立成 @MainActor computed
+    // var 而非塞進 body 是因為 MirrorView 那行已經夠長；標 @MainActor 是因為它讀取的是
+    // model 的 MainActor-isolated 屬性（editing/editorSession/profile），不像 body 本身
+    // 有 App 協定的 @MainActor 需求可以白拿。
     @MainActor
     @ViewBuilder
     private var keymapOverlayLayer: some View {
-        if model.editing, let profile = model.profile {
-            OverlayEditorView(
-                // SwiftUI.Binding 明確寫模組名——MirageCore.Binding（keymap 綁定列舉）撞名。
-                profile: SwiftUI.Binding(get: { profile }, set: { model.profile = $0 }),
-                onSave: { model.saveProfile($0) },
-                frameSize: model.frameSize
-            )
+        if model.editing, let session = model.editorSession {
+            OverlayEditorView(session: session,
+                              frameSize: model.frameSize,
+                              onSelect: { model.selectBinding($0) },
+                              onSave: { model.saveEditorSession() })
         } else if !model.isFullScreen {
             // P1-e 遊戲模式：全螢幕時隱藏唯讀提示標記（純視覺噪音）。ConnectionBanner
             // 與 InstallBanner 刻意保留——前者是必須知道的異常，後者是使用者主動觸發的回饋。
