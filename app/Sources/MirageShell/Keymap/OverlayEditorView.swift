@@ -11,10 +11,13 @@ struct OverlayEditorView: View {
     // import 同時出現時裸寫 `@Binding` 會 ambiguous（見 KeymapOverlay.swift 同樣的處理）。
     @SwiftUI.Binding var profile: KeymapProfile
     let onSave: (KeymapProfile) -> Void
+    /// Task 4：與唯讀 `KeymapOverlay` 共用同一份幀尺寸——編輯預覽跟成品畫在同一個
+    /// letterbox 內容矩形上，兩者不該各自用不同基準換算座標。
+    let frameSize: (w: Int, h: Int)
 
     var body: some View {
         VStack {
-            KeymapOverlay(profile: profile)
+            KeymapOverlay(profile: profile, frameSize: frameSize)
             HStack {
                 Button("存檔") { onSave(bumpVersion(profile)) }
                 Text("完成編輯：⌘E").font(.caption).foregroundStyle(.secondary)

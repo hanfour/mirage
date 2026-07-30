@@ -148,4 +148,21 @@ import Testing
         #expect(model.profile == editedProfile)
         #expect(model.keymap?.hasProfile == true)
     }
+
+    /// 幀尺寸要流得到 `AppModel`——Scene 層的 overlay 靠它算 letterbox 內容矩形。
+    /// 預設 (0, 0) 代表「還沒收到任何幀」，此時 `ViewportFit.fit` 回 `.zero`，overlay 不畫。
+    @Test func frameSizeStartsUnknownAndIsSettable() {
+        let (store, dir) = Self.tempStore("framesize")
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let model = AppModel(store: store,
+                             starterBindings: { [.tap(key: .key("q"), at: NormPoint(x: 0.3, y: 0.3))] })
+
+        #expect(model.frameSize.w == 0)
+        #expect(model.frameSize.h == 0)
+        #expect(ViewportFit.fit(frame: model.frameSize, in: (w: 1000, h: 1000)) == .zero)
+
+        model.frameSize = (w: 1080, h: 2400)
+        #expect(ViewportFit.fit(frame: model.frameSize, in: (w: 1000, h: 1000))
+                == FitRect(x: 275, y: 0, width: 450, height: 1000))
+    }
 }

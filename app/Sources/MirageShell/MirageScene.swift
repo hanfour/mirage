@@ -45,7 +45,8 @@ struct MirageScene: App {
                 // loadKeymap() 完成、@Observable 觸發重繪時把值同步進 Coordinator。
                 MirrorView(client: model.client, box: model.box,
                            controller: model.keymap, isEditing: model.editing,
-                           queue: model.inputQueue)
+                           queue: model.inputQueue,
+                           onFrameSize: { w, h in model.frameSize = (w: w, h: h) })
                     .dropDestination(for: URL.self) { urls, _ in
                         let apks = urls.filter { $0.pathExtension.lowercased() == "apk" }
                         guard !apks.isEmpty else { return false }
@@ -89,12 +90,13 @@ struct MirageScene: App {
             OverlayEditorView(
                 // SwiftUI.Binding 明確寫模組名——MirageCore.Binding（keymap 綁定列舉）撞名。
                 profile: SwiftUI.Binding(get: { profile }, set: { model.profile = $0 }),
-                onSave: { model.saveProfile($0) }
+                onSave: { model.saveProfile($0) },
+                frameSize: model.frameSize
             )
         } else if !model.isFullScreen {
             // P1-e 遊戲模式：全螢幕時隱藏唯讀提示標記（純視覺噪音）。ConnectionBanner
             // 與 InstallBanner 刻意保留——前者是必須知道的異常，後者是使用者主動觸發的回饋。
-            KeymapOverlay(profile: model.profile)
+            KeymapOverlay(profile: model.profile, frameSize: model.frameSize)
         }
     }
 }

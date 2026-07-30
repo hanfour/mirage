@@ -46,6 +46,14 @@ final class AppModel {
     var editing = false
     let mouseCapture = MouseCapture()
     var isFullScreen = false  // P1-e: 系統通知驅動（涵蓋綠燈/⌃⌘F/選單列）
+    /// 目前解碼幀的尺寸。`(0, 0)` 代表尚未收到任何幀。
+    ///
+    /// **為什麼 `AppModel` 需要知道它**：keymap overlay 畫在 Scene 層的 ZStack 上，而
+    /// guest 畫面被 `MirrorContainerView` letterbox 進 `ViewportFit.fit(...)` 的內容矩形。
+    /// 沒有幀尺寸就算不出那個矩形，標記只能用整個視窗換算——一有黑邊就與真正的觸點錯開。
+    /// 資料流是 `Renderer.onFrameSize` → `MirrorView` →（這裡）＋ `MirrorContainerView`，
+    /// 同一個回呼餵兩個出口，既有那條不動。
+    var frameSize: (w: Int, h: Int) = (0, 0)
     let audioRing = AudioRingBuffer()
     var audioPlayer: AudioPlayer?
     // P1-d: 遊戲偵測→啟用接線。detector 輪詢前景 package（無 adb 時保持 nil，

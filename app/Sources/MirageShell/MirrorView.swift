@@ -90,6 +90,8 @@ struct MirrorView: NSViewRepresentable {
     /// D6：tap 與鍵位映射的觸控／鍵盤共用**同一條**佇列（由 `AppModel` 持有），
     /// 否則兩條佇列各自有序、彼此無序，切換 profile 的瞬間仍會對調。
     let queue: InputQueue
+    /// Task 4：幀尺寸同時餵給容器（佈局用）與 `AppModel`（overlay 算內容矩形用）。
+    let onFrameSize: (Int, Int) -> Void
 
     func makeCoordinator() -> Coordinator { Coordinator(client: client, queue: queue) }
 
@@ -99,6 +101,7 @@ struct MirrorView: NSViewRepresentable {
         let renderer = Renderer(view: view, box: box)
         renderer?.onFrameSize = { [weak container] w, h in
             container?.frameSize = (w: w, h: h)
+            onFrameSize(w, h)
         }
         context.coordinator.renderer = renderer
         context.coordinator.controller = controller

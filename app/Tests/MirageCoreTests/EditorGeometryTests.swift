@@ -54,4 +54,18 @@ import Testing
         let back = EditorGeometry.radius(fromPoints: 54, in: rect)
         #expect(abs((back ?? -1) - 0.12) < 0.0001)
     }
+
+    /// 橫向幀 → **上下**黑邊，`FitRect.y` 非 0。
+    ///
+    /// 補這條的理由：其餘測試全用直向幀（左右黑邊、`y` 恆為 0），所以把 `viewPoint` 的
+    /// `Double(rect.y) +` 拿掉也不會有任何測試變紅。橫向遊戲是產品支援的情境。
+    @Test func viewPointHonoursVerticalLetterboxOffset() {
+        let rect = ViewportFit.fit(frame: (w: 20, h: 9), in: (w: 1000, h: 1000))
+        #expect(rect.x == 0)
+        #expect(rect.y > 0)              // 上下黑邊
+        let top = EditorGeometry.viewPoint(for: NormPoint(x: 0, y: 0), in: rect)
+        #expect(top.y == Double(rect.y)) // **不是 0**——0 是黑邊，不是 guest 的上緣
+        let mid = EditorGeometry.viewPoint(for: NormPoint(x: 0.5, y: 0.5), in: rect)
+        #expect(mid.y == Double(rect.y) + Double(rect.height) * 0.5)
+    }
 }
