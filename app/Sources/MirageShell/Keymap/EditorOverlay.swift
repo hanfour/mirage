@@ -26,6 +26,8 @@ struct EditorOverlay: View {
                 }
             }
         }
+        // 具名座標空間，供 `dragGesture` 用——見該函式註解。
+        .coordinateSpace(name: Self.coordinateSpaceName)
     }
 
     @ViewBuilder
@@ -37,6 +39,7 @@ struct EditorOverlay: View {
             Circle()
                 .stroke(selected ? Color.accentColor : .white.opacity(0.5), lineWidth: selected ? 2 : 1)
                 .frame(width: 44, height: 44)
+                .contentShape(Circle())
                 .overlay(Text(Self.label(key)).font(.caption).foregroundStyle(.white))
                 .position(x: p.x, y: p.y)
                 .opacity(selected ? 1 : 0.6)
@@ -61,8 +64,18 @@ struct EditorOverlay: View {
 
     /// 點一下＝選取；拖曳＝選取並移動。用同一個 `DragGesture(minimumDistance: 0)` 兼顧兩者，
     /// 不必再疊一個 `TapGesture` 去跟它搶手勢。
+    ///
+    /// **必須用具名座標空間，不能用 `.local`**（Task 6 review 抓到，Critical）：這個手勢
+    /// 掛在經過 `.position(x:y:)` 之後的標記上。`.position()` 只改變父層把它擺在哪，
+    /// 不改變該 view 自己的手勢辨識器眼中的「local」是什麼——`.local` 回報的
+    /// `value.location` 仍是相對於標記**自己那個框**（tap 是 44×44、搖桿是直徑 d×d），
+    /// 不是 `GeometryReader` 的空間。而 `EditorGeometry.normPoint` 期待的 `rect` 是
+    /// `GeometryReader` 那個空間裡的矩形。餵進 0…44 的值算出來的正規化座標會夾在接近 0，
+    /// 加上 `minimumDistance: 0` 讓 `onChanged` 在按下瞬間就觸發——後果是「點一下想選取」
+    /// 就把標記彈到內容矩形左上角。改用 `body` 裡宣告的具名座標空間，讓 `value.location`
+    /// 與 `rect` 同一個基準。
     private func dragGesture(item: EditorSession.Item, rect: FitRect) -> some Gesture {
-        DragGesture(minimumDistance: 0, coordinateSpace: .local)
+        DragGesture(minimumDistance: 0, coordinateSpace: .named(Self.coordinateSpaceName))
             .onChanged { value in
                 if session.selectedID != item.id { onSelect(item.id) }
                 if let p = EditorGeometry.normPoint(x: value.location.x, y: value.location.y, in: rect) {
@@ -70,6 +83,8 @@ struct EditorOverlay: View {
                 }
             }
     }
+
+    private static let coordinateSpaceName = "editorOverlay"
 
     private static func label(_ k: KeyCode) -> String {
         if case .key(let s) = k { return s } else { return "•" }
