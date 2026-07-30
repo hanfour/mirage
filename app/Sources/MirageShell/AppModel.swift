@@ -241,21 +241,29 @@ final class AppModel {
     }
 
     /// OverlayEditorView 的「存檔」呼叫這裡：version+1 已在編輯器裡算好，這裡只管原子寫
-    /// 檔＋讓當前 session 的引擎立即套用新 binding。失敗只記錄不丟例外中斷編輯流程——
-    /// 使用者可見的錯誤提示（例如存檔失敗 toast）留待後續（pending-human，無 GUI 無法驗證）。
+    /// 檔＋讓當前 session 的引擎立即套用新 binding。
+    ///
+    /// **回傳成功與否（2026-07-30，D5 階段 B 終審 I1）**：原本失敗只 `print` 一行就算了，
+    /// 而呼叫端（`saveEditorSession`／`confirmLeaveSaving`）**不看結果**照樣清 `isDirty`、
+    /// 照樣離開編輯——離開會 `applyActivation()` 從磁碟重讀，記憶體那份當場蒸發。使用者
+    /// 拖了十分鐘、按了「存檔」、對話框關閉，變更全沒了，只有 console 一行。
+    /// 這裡不擲例外是刻意的：呼叫端要的是「成不成」這個決策，不是錯誤本身。
     ///
     /// **走注入的 `store`，不是 `ProfileStore.standard()`（2026-07-30，D5 階段 A review 修正）**：
     /// 原本這裡自己另外呼叫 `.standard()`，跳過了 Task 5 開的注入縫——測試給的暫存
     /// `store` 只有讀（`applyActivation`/`startDetection`）接上，寫仍然打到使用者真實的
     /// `~/Library/Application Support/Mirage/profiles/`。`store` 的預設值就是 `.standard()`，
     /// 所以這裡改用注入的 `store` 對產品行為零改變，只是讓測試能攔到寫入。
-    func saveProfile(_ p: KeymapProfile) {
+    @discardableResult
+    func saveProfile(_ p: KeymapProfile) -> Bool {
         do {
             try store.save(p)
             profile = p
             keymap?.reload(p)
+            return true
         } catch {
             print("[keymap] profile save failed: \(error)")
+            return false
         }
     }
 
@@ -304,7 +312,10 @@ final class AppModel {
     func saveEditorSession() {
         guard let session = editorSession else { return }
         let p = session.profile()
-        saveProfile(p)
+        // 寫檔失敗就**保持髒**（I1）：重建 session 會把 `isDirty` 歸零，而抽屜的存檔鍵
+        // `.disabled(!session.isDirty)` 會跟著變灰——那是「已存好」的視覺訊號。使用者
+        // 因此不會再按一次，變更就再也回不去了。
+        guard saveProfile(p) else { return }
         editorSession = EditorSession(profile: p)
     }
 
@@ -318,10 +329,16 @@ final class AppModel {
         mouseCapture.updateCapture(shouldCapture: shouldCapture)
     }
 
-    /// 提示的「存檔」：寫檔之後才離開。
+    /// 提示的「存檔」：寫檔**成功**之後才離開。
+    ///
+    /// 存不成功就別離開（I1）——`leaveEditing()` 會 `applyActivation()` 從磁碟重讀，
+    /// 變更當場蒸發。提示也刻意留著（`pendingLeaveConfirmation` 不清），使用者可以再按
+    /// 一次「存檔」重試、或改選「捨棄」。判斷條件是 session 還髒不髒，而不是另記一個
+    /// 「上次存檔成功嗎」的旗標——後者是同一件事的第二份真相。
     func confirmLeaveSaving() {
-        pendingLeaveConfirmation = false
         saveEditorSession()
+        guard editorSession?.isDirty != true else { return }
+        pendingLeaveConfirmation = false
         leaveEditing()
     }
 

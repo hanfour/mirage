@@ -66,17 +66,21 @@ struct MirageScene: App {
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
                     .allowsHitTesting(false)
             }
-            // 注意：SwiftUI 關閉 `.alert` 時（無論按哪個按鈕）都會把 `isPresented` 的
-            // binding 設回 `false`，所以按「存檔」／「捨棄」時，下面的按鈕動作與這裡的
-            // `set` 都會觸發——即 `confirmLeaveSaving()`/`confirmLeaveDiscarding()`
-            // 之後緊接著又呼叫一次 `cancelLeave()`。目前無害：`cancelLeave()` 只清
-            // `pendingLeaveConfirmation`（已經是 false，冪等），不碰 `editing`／
-            // `editorSession`。但這個重複觸發沒有測試守住（現有測試都直接呼叫四個
-            // 函式，不經過這個 binding），`cancelLeave()` 之後若加了別的副作用，這裡
-            // 會變成真的 bug——動它之前先重新檢查這個假設。
+            // **setter 刻意什麼都不做**（2026-07-30，D5 階段 B 終審 I1）。
+            //
+            // SwiftUI 關閉 `.alert` 時（無論按哪個按鈕）都會把 `isPresented` 的 binding
+            // 設回 `false`。原本的 setter 因此會在按「存檔」之後補一次 `cancelLeave()`
+            // ——在 I1 之前那是冪等的無害動作，但現在不是了：存檔失敗時
+            // `confirmLeaveSaving()` **刻意保留** `pendingLeaveConfirmation`，好讓提示
+            // 留在畫面上；setter 若把它清掉，一次失敗的存檔看起來就跟成功一模一樣
+            // （對話框關閉、留在編輯模式），而變更其實一個位元組都沒寫出去。
+            //
+            // 代價：Esc 關不掉這個對話框（`role: .cancel` 的「繼續編輯」仍然可以，它自己
+            // 呼叫 `cancelLeave()`）。有未存變更時本來就該要求明確選擇三者其一，
+            // 這個取捨可以接受。
             .alert("有未存的鍵位變更", isPresented: Binding(
                 get: { model.pendingLeaveConfirmation },
-                set: { if !$0 { model.cancelLeave() } }
+                set: { _ in }
             )) {
                 Button("存檔") { model.confirmLeaveSaving() }
                 Button("捨棄", role: .destructive) { model.confirmLeaveDiscarding() }
