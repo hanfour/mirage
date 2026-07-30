@@ -202,7 +202,12 @@ final class AppModel {
     /// `didBecomeKey` 觀察者需要跨檔讀它（SE-0169：`private` 不跨檔），與
     /// `startAudio()`／`setupFullScreen()` 抽 extension 時同一個理由。
     var shouldCapture: Bool {
-        keymap?.hasProfile == true && !editing && NSApp.keyWindow != nil
+        // `NSApp` 的型別是 `NSApplication!`（IUO）：headless 測試行程若沒人先碰過
+        // `NSApplication.shared`，它就是 nil，直接解包會讓整個 test run 帶著一句
+        // 「Unexpectedly found nil」死掉，而那句錯誤訊息完全不指向「這是 NSApp」。
+        // 先轉成 Optional 再用 `?.`，讓「App 不在前景／測試行程」與「有 key window」
+        // 用同一條路徑表達，不必為前者另開特殊情況。
+        keymap?.hasProfile == true && !editing && (NSApp as NSApplication?)?.keyWindow != nil
     }
 
     /// OverlayEditorView 的「存檔」呼叫這裡：version+1 已在編輯器裡算好，這裡只管原子寫

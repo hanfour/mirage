@@ -27,11 +27,15 @@ import Testing
     }
 
     /// 階段 A 的核心：沒有 profile 但知道在玩什麼 → ⌘E 要打得開，且帶著 starter 版面。
+    ///
+    /// 呼叫 `loadKeymap()`——沒有它 `model.keymap` 恆為 nil，`toggleEditing()` 裡的
+    /// `keymap?.reload(p)` 從未真的執行過，測試會因為錯誤的理由而綠（I1）。
     @Test func editingOpensWithStarterWhenNoProfileExists() {
         let (store, dir) = Self.tempStore("starter")
         defer { try? FileManager.default.removeItem(at: dir) }
         let starter: [Binding] = [.tap(key: .key("q"), at: NormPoint(x: 0.3, y: 0.3))]
         let model = AppModel(store: store, starterBindings: { starter })
+        model.loadKeymap()
         model.currentPackage = "com.loomgames.pixelflow"
 
         model.toggleEditing()
@@ -40,6 +44,7 @@ import Testing
         #expect(model.profile?.gameId == "com.loomgames.pixelflow")
         #expect(model.profile?.version == 1)
         #expect(model.profile?.bindings == starter)
+        #expect(model.keymap?.hasProfile == true)
     }
 
     /// **未存檔不落檔**：⌘E 只在記憶體裡建 starter，磁碟上不得出現任何檔案。
