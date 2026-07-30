@@ -138,6 +138,19 @@ handleKeyDown(code):
 handleKeyUp(code): 同上，down: false
 ```
 
+> **更正（2026-07-30，D6）**：上面那段虛擬碼的 `Task { await client.sendKey(...) }`
+> **已不是現行實作，也不該被照抄**。每個事件各開一個 unstructured Task 正是 D6 的
+> 本體——down 與 up 對調就是 guest 永久卡鍵，而且沒有自癒路徑。
+>
+> 現行實作：`KeymapController` 持有 `MirageCore.InputQueue`（一條 `AsyncStream` ＋
+> **單一**消費者 Task），直通鍵走 `queue.key(code, down:)`、觸控快照走
+> `queue.touches(_:)`。順序保證來自「只有一條消費路徑」這個結構，不是靠序號或重試。
+> 佇列由 `AppModel` 持有並注入，**一台 guest 只有一條**——tap、鍵盤、觸控共用它，
+> 否則各自一條佇列之間仍然沒有順序。
+>
+> 亂序已用 `InputQueueTests` / `KeymapControllerRoutingTests` 確定性重現過：修之前
+> 實測到 `["k up", "k down"]`（放開先於按下）與 `["touch []", "touch [1]"]`。
+
 修飾鍵（`handleFlagsChanged`）維持現狀只餵引擎——Shift/Control/Alt 單獨送給 guest
 沒有意義，而組字用的 Shift 已經由 `charactersIgnoringModifiers` 反映在字元上。
 
