@@ -1518,8 +1518,13 @@ struct EditorInspector: View {
                         DragGesture(minimumDistance: 0, coordinateSpace: .local)
                             .onChanged { value in
                                 let d = value.location.x - p.x
+                                // **必須夾，而且下限不能是 0**：`radius(fromPoints: 0)` 回的是
+                                // `0.0` 不是 nil，而 `radius: 0` 會通過 save（`ProfileStore.save`
+                                // 不驗證）卻在下次 `load` 的 `validated()` 被拒——那個錯誤又被
+                                // `applyActivation` 的 `try?` 吞掉，使用者只看到「keymap 就是不生效」，
+                                // 而壞檔永久留在磁碟上、沒有 UI 路徑回得去。與滑桿共用同一組界線常數。
                                 if let r = EditorGeometry.radius(fromPoints: max(d, 0), in: rect) {
-                                    onRadius(r)
+                                    onRadius(min(max(r, radiusFloor), radiusCeiling))
                                 }
                             }
                     )
