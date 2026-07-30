@@ -408,6 +408,11 @@ import Testing
         model.moveSelectedBinding(to: NormPoint(x: 0.2, y: 0.2))
         model.toggleEditing()
 
+        // 先確認攔截真的發生了——否則下面的「目錄是空的」會因為「根本沒進編輯模式」
+        // 而通過，那是綠得毫無意義。
+        #expect(model.pendingLeaveConfirmation)
+        #expect(model.editorSession?.isDirty == true)
+
         model.confirmLeaveDiscarding()
 
         #expect(!model.pendingLeaveConfirmation)
