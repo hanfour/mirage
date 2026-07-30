@@ -62,4 +62,37 @@ public enum BuiltInProfiles {
     public static func bundledSources() -> [URL] {
         Bundle.module.urls(forResourcesWithExtension: "json", subdirectory: "profiles") ?? []
     }
+
+    /// 寫死的 starter 版面：搖桿（WASD）＋兩顆點擊鍵＋視角。
+    ///
+    /// 存在的理由是「編輯器不該因為資源問題而打不開」。bundle 讀不到時（D25 的情境）
+    /// 退回這一份，而不是回空陣列——空的 starter 等於空白畫布，那是設計時明確否決的起點。
+    public static let fallbackStarterBindings: [Binding] = [
+        .joystick(up: .key("w"), down: .key("s"), left: .key("a"), right: .key("d"),
+                  center: NormPoint(x: 0.2, y: 0.75), radius: 0.12),
+        .tap(key: .key("j"), at: NormPoint(x: 0.85, y: 0.82)),
+        .tap(key: .key("k"), at: NormPoint(x: 0.72, y: 0.88)),
+        .look(activation: nil, sensitivity: 1.5),
+    ]
+
+    /// 從內建 profile 借**版面**（不借 gameId、不借 version）。
+    ///
+    /// 借 gameId 會讓編輯後的存檔寫回那個佔位檔，正是 D5 §1 描述的死路。
+    /// 任一來源解不出來就換下一個；全部失敗才退回 `fallbackStarterBindings`。
+    public static func starterBindings(from sources: [URL]) -> [Binding] {
+        for source in sources {
+            guard let data = try? Data(contentsOf: source),
+                  let profile = try? JSONDecoder().decode(KeymapProfile.self, from: data),
+                  !profile.bindings.isEmpty
+            else { continue }
+            return profile.bindings
+        }
+        return fallbackStarterBindings
+    }
+
+    /// 產品呼叫端用這個。`Bundle.module` 不可單元測試，所以這裡只做轉呼叫，
+    /// 判斷全在上面那個吃 `sources` 的純函式裡。
+    public static func starterBindings() -> [Binding] {
+        starterBindings(from: bundledSources())
+    }
 }
