@@ -10,6 +10,11 @@ private final class SpyInjector: InputInjecting, @unchecked Sendable {
     private let lock = NSLock()
     private var _touchFrames: [[TouchSpec]] = []
     private var _keyCalls: [(KeyCode, Bool)] = []
+    private var _tapCalls: [(Double, Double, Bool)] = []
+
+    /// D24：等待改用計數閘門，不再輪詢。見 `CountGate` 的說明。
+    let keyGate = CountGate()
+    let touchGate = CountGate()
 
     var touchCalls: Int { lock.lock(); defer { lock.unlock() }; return _touchFrames.count }
     /// 存下每一幀的內容（不只計數）：要斷言「引擎狀態沒被編輯模式弄髒」就得看觸點本身，
@@ -19,9 +24,16 @@ private final class SpyInjector: InputInjecting, @unchecked Sendable {
 
     func sendTouches(_ touches: [TouchSpec]) async {
         lock.lock(); _touchFrames.append(touches); lock.unlock()
+        touchGate.increment()
     }
     func sendKey(_ code: KeyCode, down: Bool) async {
         lock.lock(); _keyCalls.append((code, down)); lock.unlock()
+        keyGate.increment()
+    }
+    /// D6 起 `sendTap` 也在 `InputInjecting` 裡（見該協定的說明）。本檔的斷言都不看
+    /// tap，但仍如實記錄——回傳空實作等於在假件裡埋一個「送出去卻查不到」的盲區。
+    func sendTap(nx: Double, ny: Double, down: Bool) async {
+        lock.lock(); _tapCalls.append((nx, ny, down)); lock.unlock()
     }
 }
 
@@ -49,34 +61,14 @@ private func profileWithWAndJ() -> KeymapProfile {
     ])
 }
 
-/// 輪詢直到條件成立或逾時（比照 `EmulatorClientReconnectTests.waitUntil` 的既有慣例），
-/// 回傳是否在期限內達成；逾時回傳 false，呼叫端用 `#expect` 斷言。
-///
-/// **只用在肯定斷言**。`route()` 內走直通路徑時是 `Task { await client.sendKey(...) }`——
-/// 一個 unstructured Task，何時真正執行不受呼叫端控制。swift-testing 預設並行跑測試，
-/// MainActor 負載高時不保證固定 100ms 內排到那個 Task；這正是本檔案原本半數機率紅燈
-/// 的根因。輪詢把「等固定多久」換成「等到條件成立為止（最多 2 秒）」，消除的是機率本身，
-/// 不是把機率壓低到看不見。
-private func waitUntil(
-    attempts: Int = 100,
-    interval: Duration = .milliseconds(20),
-    _ condition: @Sendable () async -> Bool
-) async -> Bool {
-    for _ in 0..<attempts {
-        if await condition() { return true }
-        try? await Task.sleep(for: interval)
-    }
-    return false
-}
-
 @MainActor
-@Suite struct KeymapControllerRoutingTests {
+@Suite(.timeLimit(.minutes(1))) struct KeymapControllerRoutingTests {
     /// 綁到的鍵走觸控路徑，**不**產生 sendKey——否則遊戲會同時收到觸控與鍵盤事件。
     @Test func boundKeyGoesToTouchesNotKeyboard() async throws {
         let spy = SpyInjector()
-        let c = KeymapController(client: spy, profile: profileWithWAndJ())
+        let c = KeymapController(queue: InputQueue(injector: spy), profile: profileWithWAndJ())
         c.handleKeyDown(.key("w"))
-        #expect(await waitUntil { spy.touchCalls >= 1 })
+        await spy.touchGate.wait(for: 1)
         // 否定斷言不輪詢：bound key 在 route() 裡只會走 emit 分支，sendKey 那條路徑
         // 這次呼叫根本不會被排進佇列——不是「還沒發生」，是「永遠不會發生」。輪詢一個
         // 永遠不成立的條件只會空等到逾時再回 false，沒有意義；固定等一小段時間只是給
@@ -88,10 +80,10 @@ private func waitUntil(
     /// 沒綁到的鍵直通鍵盤，**不**產生觸控。
     @Test func unboundKeyGoesToKeyboard() async throws {
         let spy = SpyInjector()
-        let c = KeymapController(client: spy, profile: profileWithWAndJ())
+        let c = KeymapController(queue: InputQueue(injector: spy), profile: profileWithWAndJ())
         c.handleKeyDown(.key("k"))
         c.handleKeyUp(.key("k"))
-        #expect(await waitUntil { spy.keyCalls.count == 2 })
+        await spy.keyGate.wait(for: 2)
         #expect(spy.keyCalls.first?.0 == .key("k"))
         #expect(spy.keyCalls.first?.1 == true)
         #expect(spy.keyCalls.last?.1 == false)
@@ -104,9 +96,9 @@ private func waitUntil(
     /// 完全沒有 profile 時每顆鍵都直通——這是 D2 最初被回報的情境。
     @Test func withoutProfileEveryKeyPassesThrough() async throws {
         let spy = SpyInjector()
-        let c = KeymapController(client: spy, profile: nil)
+        let c = KeymapController(queue: InputQueue(injector: spy), profile: nil)
         c.handleKeyDown(.key("a"))
-        #expect(await waitUntil { spy.keyCalls.count == 1 })
+        await spy.keyGate.wait(for: 1)
         #expect(spy.keyCalls.first?.0 == .key("a"))
     }
 
@@ -117,26 +109,27 @@ private func waitUntil(
     /// 「穩定 50% 不夠用」的那個時長。拿掉 `route()` 的 editing guard 之後它有可觀機率
     /// 仍然綠。
     ///
-    /// **柵欄的強度，誠實地說**：`Task { [client] in await client.sendKey(...) }` 的
-    /// body 確實繼承 MainActor、確實依建立順序 FIFO 排隊，但 `SpyInjector.sendKey` 是
-    /// nonisolated async——依 SE-0338，從 MainActor 呼叫它會跳到 global concurrent
-    /// executor，跳過去之後 `_keyCalls.append` 的先後就不再受 MainActor 那層排隊保護。
-    /// 所以「送 `z` 之後等它到達，就代表 `k` 若有送出一定已經跑完」**不是**因果順序
-    /// 保證，只是機率——跟拿掉 editing guard 前的舊寫法是同一種脆弱，只是機率被提高了。
-    /// 因此改用本檔案其他否定斷言（見 `boundKeyGoesToTouchesNotKeyboard`）同一套手法：
-    /// 送出可能違規的 `k` 之後先固定等一段時間，讓它有機會在關閉編輯模式**之前**就
-    /// 現形；下面送 `z` 再等的 `waitUntil` 只是確認「這條路徑本身活著」的柵欄，不是
-    /// 拿它反推 `k` 有沒有被送出。
+    /// **更正（2026-07-30，D6）**：原本這裡有一整段「柵欄的強度，誠實地說」，論證
+    /// 「送 `z` 之後等它到達，就代表 `k` 若有送出一定已經跑完」**不是**因果保證只是
+    /// 機率——理由是 `Task { await client.sendKey(...) }` 跳到 global concurrent
+    /// executor 之後就不再受 MainActor 排隊保護。
+    ///
+    /// **那個弱點已經沒有了。** `KeymapController` 改走 `InputQueue`（單一消費者依序
+    /// 送出）之後，`z` 抵達就**因果上**代表任何更早送出的事件已經抵達。
+    ///
+    /// 即使如此，下面仍保留「先固定等一段時間再切換編輯模式」的寫法——不是因為柵欄
+    /// 不夠強，而是這條要驗的是「`k` 在**編輯模式期間**沒被送出」，時序上必須讓它有
+    /// 機會在 `setEditing(false)` 之前現形。這是斷言的語意需求，不是對排程的不信任。
     @Test func editingModeSuppressesPassthrough() async throws {
         let spy = SpyInjector()
-        let c = KeymapController(client: spy, profile: profileWithWAndJ())
+        let c = KeymapController(queue: InputQueue(injector: spy), profile: profileWithWAndJ())
         c.setEditing(true)
         c.handleKeyDown(.key("k"))
         // 否定訊號用固定等待抓，不借 z 的到達反推——理由見上方 doc comment。
         try await Task.sleep(for: .milliseconds(100))
         c.setEditing(false)
         c.handleKeyDown(.key("z"))
-        #expect(await waitUntil { spy.keyCalls.count >= 1 })
+        await spy.keyGate.wait(for: 1)
         #expect(spy.keyCalls.map(\.0) == [.key("z")])
         #expect(spy.touchCalls == 0)
     }
@@ -150,15 +143,15 @@ private func waitUntil(
     /// `KeyTranslate` 只擋得住字元那半邊，⌘ 鍵本身只有這裡能擋。
     @Test func modifierKeysNeverPassThroughToGuest() async throws {
         let spy = SpyInjector()
-        let c = KeymapController(client: spy, profile: profileWithWAndJ())
+        let c = KeymapController(queue: InputQueue(injector: spy), profile: profileWithWAndJ())
         c.handleFlagsChanged(try flagsChangedEvent([.command]))            // 按住 ⌘
         c.handleFlagsChanged(try flagsChangedEvent([.command, .shift]))    // 再加 ⇧
         c.handleFlagsChanged(try flagsChangedEvent([.shift]))              // 放開 ⌘
         c.handleFlagsChanged(try flagsChangedEvent([]))                    // 放開 ⇧
-        // 同上的柵欄：送一顆確定會直通的鍵，等它到達。修飾鍵若有送出，
-        // 它們的 Task 一定已經排在 `z` 前面跑完。
+        // 柵欄：送一顆確定會直通的鍵，等它到達。修飾鍵若有送出，一定排在 `z` 前面。
+        // D6 之後這是因果保證（單一消費者依序送出），不再是「機率上大概已經跑完」。
         c.handleKeyDown(.key("z"))
-        #expect(await waitUntil { spy.keyCalls.count >= 1 })
+        await spy.keyGate.wait(for: 1)
         #expect(spy.keyCalls.map(\.0) == [.key("z")])
     }
 
@@ -169,15 +162,15 @@ private func waitUntil(
     /// 使用者實際放開時不該再送第二個。
     @Test func editingReleasesInFlightKeysExactlyOnce() async throws {
         let spy = SpyInjector()
-        let c = KeymapController(client: spy, profile: profileWithWAndJ())
+        let c = KeymapController(queue: InputQueue(injector: spy), profile: profileWithWAndJ())
         c.handleKeyDown(.key("k"))
-        #expect(await waitUntil { spy.keyCalls.count >= 1 })
+        await spy.keyGate.wait(for: 1)
         c.setEditing(true)                       // ⌘E：必須把 in-flight 的 k 補送 up
-        #expect(await waitUntil { spy.keyCalls.count >= 2 })
+        await spy.keyGate.wait(for: 2)
         c.handleKeyUp(.key("k"))                 // 使用者實際放開：不得再送第二個 up
         c.setEditing(false)
         c.handleKeyDown(.key("z"))               // 柵欄
-        #expect(await waitUntil { spy.keyCalls.count >= 3 })
+        await spy.keyGate.wait(for: 3)
         #expect(spy.keyCalls.map(\.0) == [.key("k"), .key("k"), .key("z")])
         #expect(spy.keyCalls.map(\.1) == [true, false, true])
     }
@@ -186,12 +179,12 @@ private func waitUntil(
     /// 那顆鍵從「沒綁」翻成「已綁」。up 仍然要走直通送出去，不能被引擎吃掉。
     @Test func profileReloadWhileKeyHeldStillReleasesGuestKey() async throws {
         let spy = SpyInjector()
-        let c = KeymapController(client: spy, profile: nil)   // 起初全部直通
+        let c = KeymapController(queue: InputQueue(injector: spy), profile: nil)   // 起初全部直通
         c.handleKeyDown(.key("w"))
-        #expect(await waitUntil { spy.keyCalls.count >= 1 })
+        await spy.keyGate.wait(for: 1)
         c.reload(profileWithWAndJ())                          // w 現在被搖桿綁走
         c.handleKeyUp(.key("w"))
-        #expect(await waitUntil { spy.keyCalls.count >= 2 })
+        await spy.keyGate.wait(for: 2)
         #expect(spy.keyCalls.map(\.0) == [.key("w"), .key("w")])
         #expect(spy.keyCalls.map(\.1) == [true, false])
     }
@@ -203,17 +196,45 @@ private func waitUntil(
     /// 還按著，之後按 `s` 會與 `w` 相消成「沒有方向」，使用者看到搖桿不動。
     @Test func editingDoesNotDesyncEngineState() async throws {
         let spy = SpyInjector()
-        let c = KeymapController(client: spy, profile: profileWithWAndJ())
+        let c = KeymapController(queue: InputQueue(injector: spy), profile: profileWithWAndJ())
         c.handleKeyDown(.key("w"))
-        #expect(await waitUntil { spy.touchCalls >= 1 })
+        await spy.touchGate.wait(for: 1)
         c.setEditing(true)
         c.handleKeyUp(.key("w"))     // emit 被擋，但引擎必須看到這個 up
         c.setEditing(false)
         c.handleKeyDown(.key("s"))
-        #expect(await waitUntil { spy.touchCalls >= 2 })
+        await spy.touchGate.wait(for: 2)
         // profileWithWAndJ 的搖桿是第一個 binding → identifier 1，圓心 y=0.75、半徑 0.1。
         let stick = try #require(spy.touchFrames.last?.first { $0.identifier == 1 })
         #expect(stick.down)                              // w 若殘留 → 相消 → down=false
         #expect(abs(stick.point.y - 0.85) < 0.0001)      // 純 s = 向下滿舵
+    }
+
+    /// D6：直通鍵的 down/up 到達 guest 的順序必須等於按放順序，即使 down 那次比較慢。
+    ///
+    /// 對調就是**永久卡鍵**——guest 那顆鍵從此一直按著，而且汙染的是整個 guest 鍵盤
+    /// 輸入，不只當下那款遊戲。快照有下一幀可以自癒，邊緣事件沒有。
+    @Test(.timeLimit(.minutes(1)))
+    func passthroughKeysReachGuestInPressOrder() async {
+        let probe = OrderProbe { $0.hasSuffix("down") ? .milliseconds(60) : .milliseconds(10) }
+        let c = KeymapController(queue: InputQueue(injector: probe), profile: nil)
+        c.handleKeyDown(.key("k"))
+        c.handleKeyUp(.key("k"))
+        await probe.waitForArrivals(2)
+        #expect(probe.arrivals == ["k down", "k up"])
+    }
+
+    /// D6 的另一半：綁定鍵走觸控快照，晚到的舊快照會覆蓋新狀態（幽靈觸點／吃掉動作）。
+    ///
+    /// 按下 `w` 產生「搖桿 down」的快照、放開產生「搖桿 up」的快照。兩者對調，guest
+    /// 端就停在按著的狀態。
+    @Test(.timeLimit(.minutes(1)))
+    func touchSnapshotsReachGuestInEventOrder() async {
+        let probe = OrderProbe { $0 == "touch [1]" ? .milliseconds(60) : .milliseconds(10) }
+        let c = KeymapController(queue: InputQueue(injector: probe), profile: profileWithWAndJ())
+        c.handleKeyDown(.key("w"))
+        c.handleKeyUp(.key("w"))
+        await probe.waitForArrivals(2)
+        #expect(probe.arrivals == ["touch [1]", "touch []"])
     }
 }

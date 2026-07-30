@@ -23,11 +23,28 @@ struct MirageScene: App {
     }
 
     var body: some Scene {
-        WindowGroup("Mirage") {
+        // D30：`Window` 而不是 `WindowGroup`——**單一實例場景**。
+        //
+        // `WindowGroup` 自帶 File → New Window（⌘N），而下面的 `.task` 是**每個視窗跑
+        // 一次**、`@State model` 卻是整個 App 一份。兩者一組合，開第二個視窗就會對同一個
+        // `AppModel` 重跑整段啟動序列：第二條連線迴圈、第二個 `client.states` 消費者
+        // （那是**單一 continuation** 的 AsyncStream，兩個消費者會各自只收到一部分值——
+        // `AppModel.start()` 的註解早就寫明這件事，只是沒人想到 `.task` 會跑兩次）、
+        // 第二個剪貼簿消費者、第二份 ClipboardWatcher、第二個狀態列圖示。
+        //
+        // **修法刻意不是在 `.task` 裡加旗標**：旗標是補丁，它讓「可以有兩個視窗」這個
+        // 錯誤前提繼續存在，只是擋住其中一個後果。Mirage 鏡像的是一台模擬器，本來就
+        // 只該有一個鏡像視窗——換成 `Window` 之後 ⌘N 直接從選單消失，重複啟動這件事
+        // 在結構上不存在，順帶讓 `NSApp.windows.first` 這個既有寫法不再有歧義。
+        //
+        // 關閉視窗不會重跑 `.task`：`AppLifecycle.windowShouldClose` 回傳 false 並
+        // `orderOut(nil)`，視窗是**隱藏**不是銷毀，SwiftUI 的 view 樹原封不動。
+        Window("Mirage", id: "mirage-mirror") {
             ZStack(alignment: .top) {
                 // P1-c: model.keymap 起始為 nil（非同步載入），MirrorView.updateNSView 會在
                 // loadKeymap() 完成、@Observable 觸發重繪時把值同步進 Coordinator。
-                MirrorView(client: model.client, box: model.box, controller: model.keymap)
+                MirrorView(client: model.client, box: model.box,
+                           controller: model.keymap, queue: model.inputQueue)
                     .dropDestination(for: URL.self) { urls, _ in
                         let apks = urls.filter { $0.pathExtension.lowercased() == "apk" }
                         guard !apks.isEmpty else { return false }

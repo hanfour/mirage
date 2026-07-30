@@ -14,6 +14,17 @@ final class AppModel {
     let box = LatestFrameBox()
     var connState: ConnState = .disconnected
 
+    /// 所有輸入事件的唯一序列化出口（D6）。
+    ///
+    /// **一台 guest 一條佇列**，不是一個呼叫端一條：鍵位映射的觸控、滑鼠 tap、選單列
+    /// 的 Android 實體鍵全部走這一條。各自持有一條佇列的話，每條內部有序但彼此之間
+    /// 沒有順序——例如切換 profile 的瞬間 tap 與觸控快照仍可能對調，等於沒修。
+    let inputQueue: InputQueue
+
+    init() {
+        inputQueue = InputQueue(injector: client)
+    }
+
     // Task 6: 選單列、剪貼簿橋接、視窗關閉/喚醒生命週期。
     var menuBar: MenuBarController?
     var lifecycle: AppLifecycle?
@@ -124,7 +135,7 @@ final class AppModel {
     /// 因此不會有任何 profile。逃生出口是選單列的「套用 profile ▸」手動覆寫。
     /// 這是刻意的取捨——寧可沒有 profile，也不要載入一份與當前遊戲無關的。
     func loadKeymap() {
-        keymap = KeymapController(client: client, profile: nil)
+        keymap = KeymapController(queue: inputQueue, profile: nil)
         mouseCapture.updateCapture(shouldCapture: shouldCapture)
     }
 
@@ -243,11 +254,12 @@ final class AppModel {
         menuBar?.updateStatus(Self.label(connState))   // 補上 menuBar 建立前已錯過的狀態
         // D2：選單列的 Android 實體鍵。down 之後緊接 up——guest 收到的是一次完整按放，
         // 不是按住不放。sendKey 在未連線時靜默不送（與 sendTap/sendTouches 一致）。
-        menuBar?.onAndroidKey = { [client] w3c in
-            Task {
-                await client.sendKey(.key(w3c), down: true)
-                await client.sendKey(.key(w3c), down: false)
-            }
+        // D6：走同一條佇列。原本這裡自己開一個 Task 循序 await 兩次——那一對內部確實
+        // 有序，但它與鍵位映射送出的事件之間仍然沒有順序，實體鍵可以插進一組 down/up
+        // 中間。改走佇列之後「一台 guest 只有一種輸入順序」才是真的。
+        menuBar?.onAndroidKey = { [inputQueue] w3c in
+            inputQueue.key(.key(w3c), down: true)
+            inputQueue.key(.key(w3c), down: false)
         }
         setupFullScreen()
         setupFocusTracking()

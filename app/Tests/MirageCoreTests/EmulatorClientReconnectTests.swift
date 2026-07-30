@@ -7,7 +7,18 @@ final class MockTransport: DisplayTransport, @unchecked Sendable {
     enum Script { case yieldThenFail(UInt8), yieldThenHang(UInt8) }
     private let lock = NSLock()
     private var scripts: [Script]
-    private(set) var subscribeCount = 0
+    /// 讀取必須走鎖（2026-07-30，D28 的前半）。原本是 `private(set) var subscribeCount = 0`
+    /// ——寫入在 `frames()` 裡加鎖、讀取卻裸讀，跨執行緒沒有任何 happens-before 邊。
+    /// 同一個 mock 的 `cancelCount` 早就寫對了，兩者並存代表這是遺漏不是取捨。
+    ///
+    /// **D28 的後半也已修（2026-07-30）**：`connectedRun()` 是先發布 `.connected`、之後才
+    /// `attachStream()`，所以「等到 `.connected` 就立刻斷言 `subscribeCount == 1`」本身就有
+    /// 時序窗口——那不是加鎖能解決的，要改斷言的寫法。現在改成先 `subscribeGate.wait(for: 1)`
+    /// 等 attach 真的發生，再斷言它**恰好**是 1（等待保證下限，斷言守上限）。
+    private var _subscribeCount = 0
+    var subscribeCount: Int { lock.lock(); defer { lock.unlock() }; return _subscribeCount }
+    /// D24／D28 後半：等待訂閱發生，不再輪詢、也不再「等到 .connected 就立刻斷言」。
+    let subscribeGate = CountGate()
     private var _cancelCount = 0
     /// 比照 `MockAudioTransport.cancelCount`：驗 `dropChannel()` 有沒有顯式取消底層 RPC。
     var cancelCount: Int { lock.lock(); defer { lock.unlock() }; return _cancelCount }
@@ -18,9 +29,14 @@ final class MockTransport: DisplayTransport, @unchecked Sendable {
 
     func frames(width: Int, height: Int) -> AsyncThrowingStream<Frame, Error> {
         lock.lock()
-        subscribeCount += 1
+        _subscribeCount += 1
         let script = scripts.isEmpty ? .yieldThenHang(99) : scripts.removeFirst()
         lock.unlock()
+        // **必須在計數更新之後才開閘門。** 放在前面會製造一個新的競態：等待方被放行時
+        // `_subscribeCount` 可能還沒 +1，緊接的 `#expect(subscribeCount == 1)` 就讀到 0
+        // ——與 D28 後半同一種病，只是窗口更窄。2026-07-30 實測紅過一次（18 次連跑才複現
+        // 不到第二次），順序改對之後消失。
+        subscribeGate.increment()
         return AsyncThrowingStream { cont in
             switch script {
             case .yieldThenFail(let tag):
@@ -38,6 +54,42 @@ final class MockTransport: DisplayTransport, @unchecked Sendable {
 actor SleepRecorder {
     var all: [Duration] = []
     func record(_ d: Duration) { all.append(d) }
+}
+
+/// D30：`start()` 對重複呼叫必須有正確語意。
+///
+/// **為什麼這是真實路徑而不是防禦性測試**：啟動序列掛在 `WindowGroup` 的 `.task` 上，
+/// 而 `.task` 是**每個視窗跑一次**、`@State model` 卻是整個 App 一份。全域沒有
+/// `.commands`／`commandsRemoved()`，所以 `WindowGroup` 自帶的 File → New Window（⌘N）
+/// 就會讓同一個 `AppModel` 的 `start()` 被呼叫第二次。
+///
+/// 視窗那一側已改用 `Window`（單一實例場景，⌘N 直接消失），但那是 SwiftUI 宣告、
+/// 單元測試碰不到。這裡守的是 actor 自己的不變式——**不倚賴上層永遠只呼叫一次**。
+@Suite(.timeLimit(.minutes(1))) struct EmulatorClientStartOnceTests {
+    /// 第二次 `start()` 不得留下第二條連線迴圈。
+    ///
+    /// 原本 `start()` 直接覆寫 `loopTask`：舊 Task 既不取消、`running` 也還是 true，
+    /// 於是舊迴圈continues 跑，兩條迴圈同時對同一個 actor 搶 `attachStream()`。
+    @Test func startTwiceDoesNotSpawnASecondConnectionLoop() async throws {
+        let mock = MockTransport([.yieldThenHang(1), .yieldThenHang(2)])
+        let box = LatestFrameBox()
+        let client = EmulatorClient(
+            makeTransport: { _ in mock },
+            makeHealthProbe: { _ in ScriptedProbe([]) },
+            sleeper: { _ in },
+            randomSource: { 0.5 }
+        )
+        await client.start(box: box, width: 540, height: 1200)
+        await mock.subscribeGate.wait(for: 1)
+
+        // 第二個視窗的 .task：同一個 model、同一個 client，再 start 一次。
+        await client.start(box: box, width: 540, height: 1200)
+        // 否定斷言用固定等待：第二條迴圈若存在，它會走完 connect 並再 attach 一次。
+        try await Task.sleep(for: .milliseconds(300))
+        #expect(mock.subscribeCount == 1)
+
+        await client.stop()
+    }
 }
 
 @Suite struct EmulatorClientReconnectTests {
@@ -252,31 +304,7 @@ actor SleepRecorder {
 
 // MARK: - suspend()/wake() 不變式回歸測試（Task 4 補審）
 
-actor ConnStateRecorder {
-    private(set) var items: [ConnState] = []
-    func record(_ s: ConnState) { items.append(s) }
-}
-
-actor PowerStateRecorder {
-    private(set) var items: [PowerState] = []
-    func record(_ p: PowerState) { items.append(p) }
-}
-
-/// 輪詢直到條件成立或逾時（比照 FramePumpTests 的 deadline polling 慣例），
-/// 回傳是否在期限內達成；逾時回傳 false，呼叫端用 #expect 斷言。
-private func waitUntil(
-    attempts: Int = 100,
-    interval: Duration = .milliseconds(20),
-    _ condition: @Sendable () async -> Bool
-) async -> Bool {
-    for _ in 0..<attempts {
-        if await condition() { return true }
-        try? await Task.sleep(for: interval)
-    }
-    return false
-}
-
-@Suite struct EmulatorClientSuspendTests {
+@Suite(.timeLimit(.minutes(1))) struct EmulatorClientSuspendTests {
     @Test func suspendPreservesConnectionAndDoesNotReconnect() async throws {
         let mock = MockTransport([.yieldThenHang(1)])
         let client = EmulatorClient(
@@ -293,13 +321,16 @@ private func waitUntil(
         let powerTask = Task { for await p in client.powerStates { await powerRecorder.record(p) } }
 
         await client.start(box: LatestFrameBox(), width: 540, height: 1200)
-        let reachedConnected = await waitUntil { await connRecorder.items.last == .connected }
-        #expect(reachedConnected)
+        await connRecorder.wait { $0.last == .connected }
+        // D28 後半：**等到 attach 真的發生**再斷言，不是等到 .connected 就立刻斷言。
+        // `connectedRun()` 是先發布 .connected、之後才 attachStream()，兩者之間有一個真實的
+        // 時序窗口——原本在那個窗口內量到 subscribeCount==0 而紅過一次，且該次「reachedConnected
+        // 是通過的、只有下一行紅」，正是它不同於 D24 的指紋。
+        await mock.subscribeGate.wait(for: 1)
         #expect(mock.subscribeCount == 1)   // connectedRun() 的唯一一次 attach
 
         await client.suspend()
-        let reachedSuspended = await waitUntil { await powerRecorder.items.last == .suspended }
-        #expect(reachedSuspended)
+        await powerRecorder.wait { $0.last == .suspended }
 
         // 核心不變式：suspend 不觸發重連、channel 原封不動保留給 wake() 沿用。
         let powerSeen = await powerRecorder.items
@@ -332,14 +363,14 @@ private func waitUntil(
         let powerTask = Task { for await p in client.powerStates { await powerRecorder.record(p) } }
 
         await client.start(box: LatestFrameBox(), width: 540, height: 1200)
-        #expect(await waitUntil { await connRecorder.items.last == .connected })
+        await connRecorder.wait { $0.last == .connected }
 
         await client.suspend()
-        #expect(await waitUntil { await powerRecorder.items.last == .suspended })
+        await powerRecorder.wait { $0.last == .suspended }
         #expect(mock.subscribeCount == 1)
 
         await client.wake()
-        #expect(await waitUntil { await powerRecorder.items.last == .active })
+        await powerRecorder.wait { $0.last == .active }
 
         let powerSeen = await powerRecorder.items
         #expect(powerSeen == [.suspending, .suspended, .waking, .active])

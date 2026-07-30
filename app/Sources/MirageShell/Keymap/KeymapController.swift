@@ -5,7 +5,10 @@ import MirageCore
 /// （呼叫端負責——見 MirrorView.Coordinator.sendMouse 的 `hasProfile != true` guard）。
 @MainActor
 final class KeymapController {
-    private let client: any InputInjecting
+    /// **不是** `any InputInjecting`：直接持有注入器就會回到「每個事件各開一個
+    /// unstructured Task」，而那正是 D6——down/up 對調＝guest 永久卡鍵。順序保證由
+    /// `InputQueue` 在結構上提供，這裡只負責決定送什麼。
+    private let queue: InputQueue
     private var engine: KeymapEngine?
     private var editing = false
     private var pressedModifiers: Set<KeyCode> = []
@@ -31,8 +34,8 @@ final class KeymapController {
     /// 不再收 `guestSize`：`TouchFrame` 的觸點已經是正規化座標，換算成 guest 像素所需的
     /// 實體螢幕解析度由 `EmulatorClient` 從健康探測取得。原本這裡存的是**串流幀尺寸**，
     /// 而那與 guest 實體解析度在本機相差兩倍——P1-c 起所有觸點都偏在左上一半處。
-    init(client: any InputInjecting, profile: KeymapProfile?) {
-        self.client = client
+    init(queue: InputQueue, profile: KeymapProfile?) {
+        self.queue = queue
         if let profile { self.engine = KeymapEngine(profile: profile) }
     }
 
@@ -105,7 +108,7 @@ final class KeymapController {
     }
 
     private func sendKeyToGuest(_ code: KeyCode, down: Bool) {
-        Task { [client] in await client.sendKey(code, down: down) }
+        queue.key(code, down: down)
     }
 
     /// 對照前次旗標算出「這次哪個修飾鍵被按下/放開」，換算成 W3C key 名稱後**直接餵引擎**。
@@ -136,7 +139,6 @@ final class KeymapController {
 
     private func emit(_ frame: TouchFrame?) {
         guard let frame, !editing else { return }
-        let touches = frame.touches
-        Task { await client.sendTouches(touches) }
+        queue.touches(frame.touches)
     }
 }
