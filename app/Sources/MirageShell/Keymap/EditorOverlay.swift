@@ -17,6 +17,12 @@ struct EditorOverlay: View {
     let onMove: (NormPoint) -> Void
     let onRadius: (Double) -> Void
 
+    /// 這一段拖曳手勢的「握把偏移」＝按下點與標記中心的差，`onChanged` 全程沿用。
+    /// nil 代表「目前沒有進行中的拖曳」，由 `onEnded` 歸零。
+    ///
+    /// **一份就夠**：macOS 上同時只會有一個滑鼠拖曳在進行，標記之間不會有兩段手勢重疊。
+    @State private var grabOffset: CGSize?
+
     var body: some View {
         GeometryReader { geo in
             let rect = ViewportFit.fit(frame: frameSize,
@@ -44,7 +50,7 @@ struct EditorOverlay: View {
                 .overlay(Text(Self.label(key)).font(.caption).foregroundStyle(.white))
                 .position(x: p.x, y: p.y)
                 .opacity(selected ? 1 : 0.6)
-                .gesture(dragGesture(item: item, rect: rect))
+                .gesture(dragGesture(item: item, at: p, rect: rect))
 
         case .joystick(_, _, _, _, let center, let radius):
             let p = EditorGeometry.viewPoint(for: center, in: rect)
@@ -55,7 +61,7 @@ struct EditorOverlay: View {
                 .contentShape(Circle())
                 .position(x: p.x, y: p.y)
                 .opacity(selected ? 1 : 0.6)
-                .gesture(dragGesture(item: item, rect: rect))
+                .gesture(dragGesture(item: item, at: p, rect: rect))
 
             if selected {
                 // 橘方塊：拖它改半徑。放在圓的右緣——半徑就是圓心到它的水平距離，
@@ -74,6 +80,16 @@ struct EditorOverlay: View {
                     .gesture(
                         DragGesture(minimumDistance: 0, coordinateSpace: .named(Self.coordinateSpaceName))
                             .onChanged { value in
+                                // 按下瞬間 `translation` 為 0，那是「點一下」不是拖曳
+                                // （C2，D5 階段 B 終審）。少了這道守門，點一下橘方塊就會
+                                // 把半徑寫成「圓心到按下點的距離」——那個值幾乎不可能剛好
+                                // 等於原值，於是 `mutatingSelected` 的同值守門擋不住，
+                                // 一次點擊就設 `isDirty = true`，離開時跳出假的未存變更提示。
+                                //
+                                // **這個把手刻意不做握把偏移**（與標記的拖曳不同）：它的
+                                // 語意就是「圓心到游標的水平距離＝半徑」，所見即所得，
+                                // 加了偏移反而讓拖出來的半徑與游標位置對不上。
+                                guard value.translation != .zero else { return }
                                 let d = value.location.x - p.x
                                 // **必須夾，而且下限不能只擋負值**（B-Task 7 review Critical
                                 // 修正）：`radius(fromPoints: 0, in:)` 回的是 `0.0`，不是
@@ -86,10 +102,14 @@ struct EditorOverlay: View {
                                 // 永久留在磁碟，且沒有 UI 路徑回得去（⌘E 開的是新 starter，
                                 // 不是那個壞檔）。上限同理：往右拖會產生 `radius > 1.0`，
                                 // 不違反 schema 但一定超出畫面。與滑桿共用同一組界線
-                                // （`EditorInspector.radiusRange`），不重複字面值。
+                                // （`EditorLimits`），不重複字面值。
+                                //
+                                // 更正（2026-07-30，I2）：`ProfileStore.save` 現在會
+                                // `validated()`，`radius: 0` 已經寫不進磁碟了。但這裡的夾取
+                                // 仍然必要——沒有它，使用者會看到「拖到底之後按存檔沒反應」，
+                                // 而不是「半徑停在下限」。夾取是防它發生，驗證是防它落地。
                                 if let r = EditorGeometry.radius(fromPoints: max(d, 0), in: rect) {
-                                    onRadius(min(max(r, EditorInspector.radiusRange.lowerBound),
-                                                 EditorInspector.radiusRange.upperBound))
+                                    onRadius(EditorLimits.clampRadius(r))
                                 }
                             }
                     )
@@ -113,14 +133,36 @@ struct EditorOverlay: View {
     /// 加上 `minimumDistance: 0` 讓 `onChanged` 在按下瞬間就觸發——後果是「點一下想選取」
     /// 就把標記彈到內容矩形左上角。改用 `body` 裡宣告的具名座標空間，讓 `value.location`
     /// 與 `rect` 同一個基準。
-    private func dragGesture(item: EditorSession.Item, rect: FitRect) -> some Gesture {
+    /// `at` 是標記中心的**視圖座標**（`EditorGeometry.viewPoint(for:in:)` 的結果，與
+    /// `rect` 同一個基準）。握把偏移要它才算得出來。
+    private func dragGesture(item: EditorSession.Item, at p: (x: Double, y: Double),
+                             rect: FitRect) -> some Gesture
+    {
         DragGesture(minimumDistance: 0, coordinateSpace: .named(Self.coordinateSpaceName))
             .onChanged { value in
                 if session.selectedID != item.id { onSelect(item.id) }
-                if let p = EditorGeometry.normPoint(x: value.location.x, y: value.location.y, in: rect) {
-                    onMove(p)
+                // 握把偏移（C2，D5 階段 B 終審）：記下「按下點與標記中心的差」，整段手勢
+                // 沿用。少了它，中心會直接跳到游標處——使用者按在 44×44 圈的邊緣就等於
+                // 重新定位（最多瞬移 22pt），搖桿更慘，按在圈緣最多瞬移一整個半徑
+                // （半徑 0.5、寬 270pt 時約 135pt）。
+                let offset = grabOffset ?? CGSize(width: value.startLocation.x - p.x,
+                                                  height: value.startLocation.y - p.y)
+                if grabOffset == nil { grabOffset = offset }
+                // 按下瞬間 `translation` 為 0：那是「點一下選取」，**不是拖曳，不得改資料**。
+                // `EditorSession` 用一整條規則保證「選取不算變更」（`selecting` 不動
+                // `isDirty`），這裡若不擋，一次點擊就會把浮點座標寫回去——那個值幾乎不可能
+                // 剛好等於原值，所以 `mutatingSelected` 的同值守門攔不住，`isDirty` 被設起來，
+                // 離開時跳出根本不存在的「有未存的鍵位變更」。
+                guard value.translation != .zero else { return }
+                if let np = EditorGeometry.normPoint(x: value.location.x - offset.width,
+                                                     y: value.location.y - offset.height,
+                                                     in: rect) {
+                    onMove(np)
                 }
             }
+            // 手勢結束才歸零。放在 `onChanged` 裡判斷「是不是第一次」是行不通的——
+            // `DragGesture` 不會告訴你這件事，偏移必須跨整段手勢活著。
+            .onEnded { _ in grabOffset = nil }
     }
 
     private static let coordinateSpaceName = "editorOverlay"
