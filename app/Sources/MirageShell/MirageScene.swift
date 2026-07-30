@@ -44,7 +44,8 @@ struct MirageScene: App {
                 // P1-c: model.keymap 起始為 nil（非同步載入），MirrorView.updateNSView 會在
                 // loadKeymap() 完成、@Observable 觸發重繪時把值同步進 Coordinator。
                 MirrorView(client: model.client, box: model.box,
-                           controller: model.keymap, queue: model.inputQueue)
+                           controller: model.keymap, isEditing: model.editing,
+                           queue: model.inputQueue)
                     .dropDestination(for: URL.self) { urls, _ in
                         let apks = urls.filter { $0.pathExtension.lowercased() == "apk" }
                         guard !apks.isEmpty else { return false }

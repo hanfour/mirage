@@ -85,6 +85,8 @@ struct MirrorView: NSViewRepresentable {
     // P1-c：nil＝無 profile（P1-a 直接 tap 行為，見 Coordinator.sendMouse）。由 AppModel
     // 非同步載入後才會有值，透過 updateNSView 逐次同步進 Coordinator（makeNSView 只跑一次）。
     var controller: KeymapController?
+    /// D22：由 `AppModel.editing` 驅動，透過 `updateNSView` 逐次同步進 Coordinator。
+    var isEditing: Bool
     /// D6：tap 與鍵位映射的觸控／鍵盤共用**同一條**佇列（由 `AppModel` 持有），
     /// 否則兩條佇列各自有序、彼此無序，切換 profile 的瞬間仍會對調。
     let queue: InputQueue
@@ -100,6 +102,7 @@ struct MirrorView: NSViewRepresentable {
         }
         context.coordinator.renderer = renderer
         context.coordinator.controller = controller
+        context.coordinator.isEditing = isEditing
         view.onMouse = { nx, ny, down in
             context.coordinator.sendMouse(nx: nx, ny: ny, down: down)
         }
@@ -121,6 +124,7 @@ struct MirrorView: NSViewRepresentable {
 
     func updateNSView(_ view: MirrorContainerView, context: Context) {
         context.coordinator.controller = controller
+        context.coordinator.isEditing = isEditing
     }
 
     @MainActor
@@ -134,6 +138,9 @@ struct MirrorView: NSViewRepresentable {
         // 餵給 KeymapController 做觸點換算。整套已移除——換算收進 EmulatorClient 之後，
         // App 層不再需要（也不應該）知道該乘什麼尺寸。
         var controller: KeymapController?
+        /// D22：編輯模式下一律不送滑鼠事件。與 `hasProfile` 是**兩件事**：
+        /// 前者問「該不該交給引擎」，這個問「該不該送出去」。
+        var isEditing = false
         let queue: InputQueue
         private var resizeTask: Task<Void, Never>?
         private static let defaultStreamSize = (w: 540, h: 1200)
@@ -144,6 +151,8 @@ struct MirrorView: NSViewRepresentable {
         }
 
         func sendMouse(nx: Double, ny: Double, down: Bool) {
+            // D22：編輯中一律不送。使用者正在拖鍵位，不是在玩。
+            guard !isEditing else { return }
             // 有作用中 profile 時鍵鼠改走 KeymapController → KeymapEngine，這裡不再重複送 tap。
             guard controller?.hasProfile != true else { return }
             // 直接送正規化座標：換算成 guest 像素需要**實體螢幕解析度**，那是

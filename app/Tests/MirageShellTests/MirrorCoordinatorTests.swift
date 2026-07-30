@@ -21,4 +21,23 @@ import Testing
         await probe.waitForArrivals(2)
         #expect(probe.arrivals == ["tap 0.5 down", "tap 0.5 up"])
     }
+
+    /// D22：編輯模式下滑鼠一律不得送到 guest——不管有沒有 profile。
+    ///
+    /// 使用者在編輯器裡拖鍵位，等於在遊戲畫面上亂點。這是階段 B 拖曳功能的前置條件：
+    /// 不先修掉，拖曳一上線就是在髒環境上開發。
+    @Test(.timeLimit(.minutes(1)))
+    func editingModeSendsNoTapEvenWithoutProfile() async {
+        let probe = OrderProbe { _ in .zero }
+        let coordinator = MirrorView.Coordinator(
+            client: EmulatorClient(), queue: InputQueue(injector: probe))
+        coordinator.isEditing = true
+
+        coordinator.sendMouse(nx: 0.5, ny: 0.5, down: true)
+        coordinator.sendMouse(nx: 0.5, ny: 0.5, down: false)
+
+        // 否定斷言用固定等待：這條路徑若有送出，事件會在幾毫秒內抵達探針。
+        try? await Task.sleep(for: .milliseconds(150))
+        #expect(probe.arrivals.isEmpty)
+    }
 }

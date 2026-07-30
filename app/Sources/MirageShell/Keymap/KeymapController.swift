@@ -27,9 +27,15 @@ final class KeymapController {
         (.option, .key("Alt")), (.command, .key("Meta")),
     ]
 
-    /// true = 有作用中 profile 且不在編輯模式。呼叫端（MirrorView.Coordinator.sendMouse）
-    /// 用它判斷滑鼠點擊要不要退回直接 tap（spec §7 驗收 4：無 profile 不回歸 P1-a 行為）。
-    var hasProfile: Bool { engine != nil && !editing }
+    /// true = 有作用中 profile。**不含編輯模式**（2026-07-30，D22）。
+    ///
+    /// 原本是 `engine != nil && !editing`，把兩個語意不同的判斷擠在一個述詞裡：
+    /// 「該不該把滑鼠交給引擎」與「該不該把事件送出去」。呼叫端
+    /// `MirrorView.Coordinator.sendMouse` 讀它來決定要不要退回直接 tap，於是編輯模式
+    /// 反而讓滑鼠直接打進 guest。現在只表達前者，後者由 `Coordinator.isEditing` 負責。
+    ///
+    /// `AppModel.shouldCapture` 本來就自己寫了 `&& !editing`，游標捕捉行為不受影響。
+    var hasProfile: Bool { engine != nil }
 
     /// 不再收 `guestSize`：`TouchFrame` 的觸點已經是正規化座標，換算成 guest 像素所需的
     /// 實體螢幕解析度由 `EmulatorClient` 從健康探測取得。原本這裡存的是**串流幀尺寸**，
