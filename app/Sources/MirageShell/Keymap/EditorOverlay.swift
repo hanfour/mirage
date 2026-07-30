@@ -75,8 +75,21 @@ struct EditorOverlay: View {
                         DragGesture(minimumDistance: 0, coordinateSpace: .named(Self.coordinateSpaceName))
                             .onChanged { value in
                                 let d = value.location.x - p.x
+                                // **必須夾，而且下限不能只擋負值**（B-Task 7 review Critical
+                                // 修正）：`radius(fromPoints: 0, in:)` 回的是 `0.0`，不是
+                                // nil——那個 guard 只在 `rect.width <= 0` 時才失敗，而把手
+                                // 只在 `rect.width > 0` 的分支裡才畫得出來。往左拖過圓心
+                                // （`d <= 0`）就會餵出 `radius: 0`：`ProfileStore.save` 不呼叫
+                                // `validated()` 照樣寫進磁碟，但下次 `load` 的 `validated()`
+                                // 會拒絕它——那個錯誤又被 `AppModel.applyActivation` 的
+                                // `try?` 吞掉，使用者只會看到「keymap 就是不生效」，壞檔
+                                // 永久留在磁碟，且沒有 UI 路徑回得去（⌘E 開的是新 starter，
+                                // 不是那個壞檔）。上限同理：往右拖會產生 `radius > 1.0`，
+                                // 不違反 schema 但一定超出畫面。與滑桿共用同一組界線
+                                // （`EditorInspector.radiusRange`），不重複字面值。
                                 if let r = EditorGeometry.radius(fromPoints: max(d, 0), in: rect) {
-                                    onRadius(r)
+                                    onRadius(min(max(r, EditorInspector.radiusRange.lowerBound),
+                                                 EditorInspector.radiusRange.upperBound))
                                 }
                             }
                     )
