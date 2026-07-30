@@ -1655,6 +1655,11 @@ git commit -m "feat: D5-B 半徑與靈敏度——橘方塊與滑桿改同一個
         model.moveSelectedBinding(to: NormPoint(x: 0.2, y: 0.2))
         model.toggleEditing()
 
+        // 先確認攔截真的發生了——否則下面的「目錄是空的」會因為「根本沒進編輯模式」而通過，
+        // 那是綠得毫無意義（「捨棄」本來就不寫檔，所以目錄為空無法區分兩種情況）。
+        #expect(model.pendingLeaveConfirmation)
+        #expect(model.editorSession?.isDirty == true)
+
         model.confirmLeaveDiscarding()
 
         #expect(!model.pendingLeaveConfirmation)
