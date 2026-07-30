@@ -92,7 +92,9 @@ struct MirageScene: App {
                               frameSize: model.frameSize,
                               onSelect: { model.selectBinding($0) },
                               onMove: { model.moveSelectedBinding(to: $0) },
-                              onSave: { model.saveEditorSession() })
+                              onSave: { model.saveEditorSession() },
+                              onRadius: { model.setSelectedRadius($0) },
+                              onSensitivity: { model.setSelectedSensitivity($0) })
         } else if !model.isFullScreen {
             // P1-e 遊戲模式：全螢幕時隱藏唯讀提示標記（純視覺噪音）。ConnectionBanner
             // 與 InstallBanner 刻意保留——前者是必須知道的異常，後者是使用者主動觸發的回饋。

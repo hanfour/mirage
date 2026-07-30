@@ -265,6 +265,17 @@ final class AppModel {
         applyToSession { $0.movingSelected(to: p) }
     }
 
+    /// 搖桿半徑。畫面上的橘方塊與抽屜的滑桿都走這裡——**同一個值，不是兩套設定**
+    /// （設計文件 §4.3）。
+    func setSelectedRadius(_ r: Double) {
+        applyToSession { $0.settingSelectedRadius(r) }
+    }
+
+    /// 視角靈敏度。`.look` 在畫面上沒有標記，所以它只有抽屜這一個入口。
+    func setSelectedSensitivity(_ s: Double) {
+        applyToSession { $0.settingSelectedSensitivity(s) }
+    }
+
     /// session 變換 → 同步 `profile` 與引擎。三個編輯入口（移動／半徑／靈敏度）共用它，
     /// 免得「改完忘了套用」在三個地方各犯一次。
     private func applyToSession(_ transform: (EditorSession) -> EditorSession) {

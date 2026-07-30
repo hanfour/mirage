@@ -15,6 +15,7 @@ struct EditorOverlay: View {
     let frameSize: (w: Int, h: Int)
     let onSelect: (UUID?) -> Void
     let onMove: (NormPoint) -> Void
+    let onRadius: (Double) -> Void
 
     var body: some View {
         GeometryReader { geo in
@@ -55,6 +56,31 @@ struct EditorOverlay: View {
                 .position(x: p.x, y: p.y)
                 .opacity(selected ? 1 : 0.6)
                 .gesture(dragGesture(item: item, rect: rect))
+
+            if selected {
+                // 橘方塊：拖它改半徑。放在圓的右緣——半徑就是圓心到它的水平距離，
+                // 所見即所得，不必解釋。
+                //
+                // **具名座標空間，不是 `.local`**（同 `dragGesture` 的理由）：`p` 是
+                // `EditorGeometry.viewPoint` 算出來、相對於 `GeometryReader` 空間的座標。
+                // 這個把手經過 `.position(x:y:)` 之後，`.local` 回報的 `value.location`
+                // 會是相對於把手自己那個 11×11 的框，跟 `p.x` 不同基準——一按就把半徑
+                // 崩成負值附近的極小值，手勢一啟動把手就跳位。
+                let handleX = p.x + EditorGeometry.radiusInPoints(radius, in: rect)
+                Rectangle()
+                    .fill(Color.orange)
+                    .frame(width: 11, height: 11)
+                    .position(x: handleX, y: p.y)
+                    .gesture(
+                        DragGesture(minimumDistance: 0, coordinateSpace: .named(Self.coordinateSpaceName))
+                            .onChanged { value in
+                                let d = value.location.x - p.x
+                                if let r = EditorGeometry.radius(fromPoints: max(d, 0), in: rect) {
+                                    onRadius(r)
+                                }
+                            }
+                    )
+            }
 
         case .look:
             // 視角不是螢幕上的一個點——它只活在抽屜清單裡（設計文件 §4.3）。

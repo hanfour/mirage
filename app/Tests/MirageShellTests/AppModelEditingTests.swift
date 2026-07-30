@@ -269,4 +269,66 @@ import Testing
         #expect(model.editorSession == before)
         #expect(model.editorSession?.isDirty == false)
     }
+
+    /// 半徑寫回 session 並即時套用；作用在非搖桿上是 no-op。
+    @Test func settingRadiusUpdatesJoystickOnly() throws {
+        let (store, dir) = Self.tempStore("radius")
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let starter: [Binding] = [
+            .joystick(up: .key("w"), down: .key("s"), left: .key("a"), right: .key("d"),
+                      center: NormPoint(x: 0.2, y: 0.75), radius: 0.12),
+            .tap(key: .key("j"), at: NormPoint(x: 0.85, y: 0.82)),
+        ]
+        let model = AppModel(store: store, starterBindings: { starter })
+        model.currentPackage = "com.game.radius"
+        model.loadKeymap()
+        model.toggleEditing()
+        let stickID = try #require(model.editorSession?.items.first?.id)
+        let tapID = try #require(model.editorSession?.items.last?.id)
+
+        model.selectBinding(stickID)
+        model.setSelectedRadius(0.25)
+        if case .joystick(_, _, _, _, _, let r) = try #require(model.editorSession?.items.first?.binding) {
+            #expect(r == 0.25)
+        } else { Issue.record("期待 .joystick") }
+        #expect(model.editorSession?.isDirty == true)
+        // 即時套用：引擎那份也要跟上
+        if case .joystick(_, _, _, _, _, let r) = try #require(model.profile?.bindings.first) {
+            #expect(r == 0.25)
+        } else { Issue.record("期待 .joystick") }
+
+        // 選到 tap 再調半徑：不得改到任何東西
+        let snapshot = try #require(model.editorSession)
+        model.selectBinding(tapID)
+        model.setSelectedRadius(0.4)
+        #expect(model.editorSession?.items == snapshot.items)
+    }
+
+    /// 靈敏度寫回 session 並即時套用；作用在非 look 上是 no-op。
+    @Test func settingSensitivityUpdatesLookOnly() throws {
+        let (store, dir) = Self.tempStore("sens")
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let starter: [Binding] = [
+            .tap(key: .key("j"), at: NormPoint(x: 0.85, y: 0.82)),
+            .look(activation: nil, sensitivity: 1.5),
+        ]
+        let model = AppModel(store: store, starterBindings: { starter })
+        model.currentPackage = "com.game.sens"
+        model.loadKeymap()
+        model.toggleEditing()
+        let tapID = try #require(model.editorSession?.items.first?.id)
+        let lookID = try #require(model.editorSession?.items.last?.id)
+
+        model.selectBinding(lookID)
+        model.setSelectedSensitivity(3.0)
+        if case .look(_, let s) = try #require(model.editorSession?.items.last?.binding) {
+            #expect(s == 3.0)
+        } else { Issue.record("期待 .look") }
+        #expect(model.profile?.bindings.last == .look(activation: nil, sensitivity: 3.0))
+
+        let snapshot = try #require(model.editorSession)
+        model.selectBinding(tapID)
+        model.setSelectedSensitivity(4.0)
+        #expect(model.editorSession?.items == snapshot.items)
+    }
 }
