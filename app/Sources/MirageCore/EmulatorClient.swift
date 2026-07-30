@@ -110,7 +110,25 @@ public actor EmulatorClient {
         (guestClipboard, guestClipCont) = AsyncStream.makeStream(of: String.self)
     }
 
+    /// 啟動連線迴圈。**已在跑時忽略重複呼叫**（D30）。
+    ///
+    /// 原本這裡直接覆寫 `loopTask`：舊 Task 既不取消、`running` 也還是 true，於是舊迴圈
+    /// 繼續跑，兩條連線迴圈同時對同一個 actor 搶 `attachStream()`。真實觸發路徑是 App 層
+    /// 啟動序列掛在 `WindowGroup` 的 `.task` 上——`.task` 每個視窗跑一次，而 `AppModel`
+    /// 整個 App 只有一份，開第二個視窗（⌘N）就會對同一個 client 再 `start()` 一次。
+    ///
+    /// **選擇忽略而不是「先 stop 再 start」**：呼叫端傳的是同一個 box 與同一組尺寸，
+    /// 重啟只會平白斷一次線；要換串流尺寸有 `setStreamSize` 專門負責。`stop()` 會把
+    /// `running` 放回 false，所以「停掉之後重新啟動」這條正常路徑不受影響。
+    ///
+    /// **印出來是刻意的**：視窗那一側改用單一實例的 `Window` 之後這個狀態應該不可能
+    /// 發生，而一旦發生就代表有人重新引入了多重啟動——靜默忽略會讓那件事再一次
+    /// 沒有訊號，而「沒有訊號」正是 D30 能藏這麼久的原因。
     public func start(box: LatestFrameBox, width: Int, height: Int) async {
+        guard !running else {
+            print("[conn] start() 重複呼叫，已忽略（已有連線迴圈在跑）——上游不該走到這裡，見 D30")
+            return
+        }
         self.box = box
         streamSize = (width, height)
         running = true

@@ -24,8 +24,11 @@ final class MenuBarController: NSObject, NSMenuDelegate {
     /// P1-e：AppModel.startAudio() 綁定 → AudioPlayer.setMuted。
     var onToggleMute: (() -> Void)?
 
-    /// D2：Android 實體鍵。參數是 W3C key 字串（"GoBack"／"GoHome"／"AppSwitch"），
-    /// 由 AppModel 綁定到 `client.sendKey`。
+    /// D2：Android 實體鍵。參數是 W3C key 字串（"GoBack"／"GoHome"／"AppSwitch"）。
+    ///
+    /// 更正（2026-07-30，D6）：原本這裡寫「由 AppModel 綁定到 `client.sendKey`」。
+    /// 改綁到 `AppModel.inputQueue` 之後那句已不成立——直接綁 client 正是要修掉的形狀，
+    /// 照著它寫的下一個人會重新引入亂序。
     ///
     /// 走選單列而不綁快速鍵是刻意的：⌘ 組合一律不直通給 guest（見 KeyTranslate），
     /// F1–F3 在 macOS 預設是亮度／音量，⌃A／⌃E 在文字欄位有既有語意——每個候選鍵

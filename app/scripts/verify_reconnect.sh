@@ -9,6 +9,12 @@ ANIMATE_LOG=/tmp/mirage_reconnect_animate.log
 BOOT_LOG=/tmp/mirage_reboot.log
 SDK="${ANDROID_SDK_ROOT:-$HOME/Library/Android/sdk}"
 ADB="$SDK/platform-tools/adb"
+# D9：**必須指定目標裝置**。沒有它，`"$ADB" shell getprop`（line ~79 的開機等待迴圈）
+# 會打到「唯一連著的裝置」——而開發機上常常插著實體手機，於是這支腳本會去輪詢那支手機
+# 的 `sys.boot_completed`（它永遠是 1），把「模擬器已開機」判定成立，整個重連驗收因此
+# 建立在錯誤的前提上，而且不會有任何錯誤訊息。設成環境變數而非逐處補 `-s`，
+# 是為了讓**之後新增的** adb 呼叫也自動涵蓋，不必記得補。
+export ANDROID_SERIAL="${ANDROID_SERIAL:-emulator-5554}"
 
 ts() { date '+%H:%M:%S'; }
 

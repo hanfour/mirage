@@ -103,4 +103,68 @@ import Testing
         #expect(dir.path.contains("Application Support"))
         #expect(dir.lastPathComponent == "profiles")
     }
+
+    /// starter 借的是**版面**，不是 gameId——借了 gameId 就會存回那個佔位檔（D5 §1 的死路）。
+    @Test func starterBindingsComeFromTheFirstReadableSource() throws {
+        let dir = tempDir("starter-ok")
+        let json = """
+        {"gameId":"whatever","version":9,"bindings":[
+          {"tap":{"at":{"x":0.5,"y":0.5},"key":{"key":{"_0":"z"}}}}
+        ]}
+        """
+        let src = try writeSource(dir, name: "a.json", body: json)
+        let bindings = BuiltInProfiles.starterBindings(from: [src])
+        #expect(bindings.count == 1)
+        if case .tap(let key, _) = bindings[0] { #expect(key == .key("z")) }
+        else { Issue.record("期待 .tap，實得 \(bindings[0])") }
+    }
+
+    /// 沒有來源（bundle 壞掉，見 D25）時退回寫死的 starter——編輯器不該因為資源問題
+    /// 而完全打不開。
+    @Test func starterBindingsFallBackWhenNoSourceIsReadable() {
+        let bindings = BuiltInProfiles.starterBindings(from: [])
+        #expect(bindings == BuiltInProfiles.fallbackStarterBindings)
+        #expect(!bindings.isEmpty)
+    }
+
+    /// 來源存在但內容壞掉，也要退回 fallback，不能回空陣列——空的 starter 等於空白畫布，
+    /// 而那是我們明確否決掉的起點。
+    @Test func starterBindingsFallBackWhenSourceIsCorrupt() throws {
+        let dir = tempDir("starter-corrupt")
+        let src = try writeSource(dir, name: "bad.json", body: "{ not json")
+        #expect(BuiltInProfiles.starterBindings(from: [src]) == BuiltInProfiles.fallbackStarterBindings)
+    }
+
+    /// fallback 本身必須是一份合法 profile 的 bindings。
+    @Test func fallbackStarterIsValid() throws {
+        let p = KeymapProfile(gameId: "g", version: 1,
+                              bindings: BuiltInProfiles.fallbackStarterBindings)
+        _ = try p.validated()
+    }
+
+    /// 即使來源能正常 decode，但 bindings 為空也要退回 fallback——空畫布正是
+    /// 設計時明確否決的起點。
+    @Test func starterBindingsFallBackWhenSourceHasEmptyBindings() throws {
+        let dir = tempDir("starter-empty")
+        let json = """
+        {"gameId":"test.game","version":1,"bindings":[]}
+        """
+        let src = try writeSource(dir, name: "empty.json", body: json)
+        #expect(BuiltInProfiles.starterBindings(from: [src]) == BuiltInProfiles.fallbackStarterBindings)
+    }
+
+    /// I4（Important，D5 階段 A 終審）：來源座標越界（`x > 1`）也要退回 fallback。
+    /// `JSONDecoder().decode` 本身不會拒絕越界座標，只有 `.validated()` 會——而
+    /// `KeymapEngine.snapshot()` 對 tap／靜止搖桿點刻意不夾取，安全性建立在
+    /// 「profile 必經 validated()」這條不變式上，starter 這條路徑不能是例外。
+    @Test func starterBindingsFallBackWhenSourceHasOutOfRangeCoordinate() throws {
+        let dir = tempDir("starter-oob")
+        let json = """
+        {"gameId":"test.game","version":1,"bindings":[
+          {"tap":{"at":{"x":1.5,"y":0.5},"key":{"key":{"_0":"z"}}}}
+        ]}
+        """
+        let src = try writeSource(dir, name: "oob.json", body: json)
+        #expect(BuiltInProfiles.starterBindings(from: [src]) == BuiltInProfiles.fallbackStarterBindings)
+    }
 }

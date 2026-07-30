@@ -136,9 +136,42 @@ else
 fi
 
 echo ""
+echo "=== 閘門 4：shell 腳本裡不得有「裸變數緊接全形標點」 ==="
+# 2026-07-30 新增。加這道閘門的理由不是理論風險，是**同一個 session 內犯了三次**：
+# coverage.sh（D29）、verify_common_selftest.sh（D9）、package_app.sh（D25）。
+#
+# bash 在 `set -u` 下會把 `$rc，` 的全形字元吃進變數名，當場報「未綁定的變數」。
+# 最小重現：`set -u; rc=1; echo "$rc，"` → `rc?: 未綁定的變數`；`${rc}` 則正常。
+# （ci.sh:84-86 早就記載過這個坑——**記載過但還是重複踩，所以需要的是閘門不是註解**。）
+#
+# 這個 bug 幾乎總是長在**錯誤路徑**上：那些行平常不執行，所以正常跑一百次都不會現形，
+# 偏偏在真的出事、最需要訊息的那一刻啞掉並蓋掉真正的失敗原因。
+#
+# 註解行排除：本檔與 coverage.sh 的說明文字刻意逐字寫出這個壞樣式當範例。
+SHELL_LINT=$(python3 - <<'PYLINT'
+import re, pathlib, sys
+pat = re.compile(r'\$[A-Za-z_][A-Za-z0-9_]*[^\x00-\x7F\s]')
+hits = []
+for p in sorted(pathlib.Path("scripts").rglob("*.sh")):
+    for i, line in enumerate(p.read_text(encoding="utf-8").splitlines(), 1):
+        if line.lstrip().startswith("#"):
+            continue
+        for m in pat.finditer(line):
+            hits.append(f"{p}:{i}: {m.group()}  → 請改用 ${{{m.group()[1:-1]}}}")
+print("\n".join(hits))
+PYLINT
+)
+if [ -n "$SHELL_LINT" ]; then
+    fail "shell 腳本裡有裸變數緊接全形標點（set -u 下會炸成「未綁定的變數」）："
+    echo "$SHELL_LINT"
+else
+    ok "無裸變數緊接全形標點"
+fi
+
+echo ""
 echo "======================================"
 if [ "$FAILURES" -eq 0 ]; then
-    echo "全部通過（$RUNS 次跑次、0 行 NIO ERROR、無假 skip）"
+    echo "全部通過（$RUNS 次跑次、0 行 NIO ERROR、無假 skip、無全形標點陷阱）"
     exit 0
 fi
 echo "$FAILURES 項失敗"

@@ -62,8 +62,6 @@ SDK="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-$HOME/Library/Android/sdk}}"
 ADB="$SDK/platform-tools/adb"
 [ -x "$ADB" ] || { echo "找不到可執行的 adb：$ADB" >&2; exit 1; }
 
-APP="${APP_OVERRIDE:-$(cd "$(dirname "$0")/.." && pwd)/.build/release/MirageApp}"
-[ -x "$APP" ] || { echo "找不到 ${APP}——請先跑 swift build -c release" >&2; exit 1; }
 
 "$ADB" -s "$SERIAL" get-state >/dev/null 2>&1 \
   || { echo "裝置 $SERIAL 不在線上（adb devices 看看）" >&2; exit 1; }
@@ -77,24 +75,17 @@ ANIM_PID=""
 # 都正常進來了。症狀是「取樣數 0」但 log 裡 `幀 #N` 一路在跑。2026-07-28 實測
 # 這是**不穩定**的：同樣的指令有時量得到、有時完全量不到，所以不是「偏低」
 # 而是「不可信」。包成 bundle 之後 activation policy 才是 .regular。
+# 打包交給 `scripts/package_app.sh`（D25）。原本這裡自己 `cp` executable 就當成 .app，
+# **不複製 resource bundle**——在有 `.build/` 的開發機上照跑（`Bundle.module` 默默從編譯
+# 當下寫死的絕對路徑讀），換一台機器或 `swift package clean` 之後就是啟動即崩。
+# 已用 A/B 實測確認：藏掉 `.build` 的後備路徑後，自帶資源的 .app 正常啟動，
+# 不帶資源的 .app 退出碼 133（fatalError: could not load resource bundle）。
+#
+# 順帶讓「怎麼組 .app」只有一份定義——這裡與 D30 除錯時各組一份的重複，正是漂移的起點。
 BUNDLE=$(mktemp -d -t mirage_fps_bundle)
-mkdir -p "$BUNDLE/Mirage.app/Contents/MacOS"
-cp "$APP" "$BUNDLE/Mirage.app/Contents/MacOS/MirageApp"
-cat > "$BUNDLE/Mirage.app/Contents/Info.plist" <<'PLIST'
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-  <key>CFBundleExecutable</key><string>MirageApp</string>
-  <key>CFBundleIdentifier</key><string>com.mirage.fpsharness</string>
-  <key>CFBundleName</key><string>Mirage</string>
-  <key>CFBundlePackageType</key><string>APPL</string>
-  <key>CFBundleInfoDictionaryVersion</key><string>6.0</string>
-  <key>NSPrincipalClass</key><string>NSApplication</string>
-  <key>NSHighResolutionCapable</key><true/>
-</dict>
-</plist>
-PLIST
+if ! "$(dirname "$0")/package_app.sh" "$BUNDLE" release "$APP_OVERRIDE" >/dev/null; then
+  echo "打包 .app 失敗（見上方訊息）" >&2; exit 1
+fi
 ORIG_POINTER=$("$ADB" -s "$SERIAL" shell settings get system pointer_location 2>/dev/null | tr -d '\r')
 
 cleanup() {

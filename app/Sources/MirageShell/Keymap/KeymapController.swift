@@ -5,7 +5,10 @@ import MirageCore
 /// （呼叫端負責——見 MirrorView.Coordinator.sendMouse 的 `hasProfile != true` guard）。
 @MainActor
 final class KeymapController {
-    private let client: any InputInjecting
+    /// **不是** `any InputInjecting`：直接持有注入器就會回到「每個事件各開一個
+    /// unstructured Task」，而那正是 D6——down/up 對調＝guest 永久卡鍵。順序保證由
+    /// `InputQueue` 在結構上提供，這裡只負責決定送什麼。
+    private let queue: InputQueue
     private var engine: KeymapEngine?
     private var editing = false
     private var pressedModifiers: Set<KeyCode> = []
@@ -24,15 +27,21 @@ final class KeymapController {
         (.option, .key("Alt")), (.command, .key("Meta")),
     ]
 
-    /// true = 有作用中 profile 且不在編輯模式。呼叫端（MirrorView.Coordinator.sendMouse）
-    /// 用它判斷滑鼠點擊要不要退回直接 tap（spec §7 驗收 4：無 profile 不回歸 P1-a 行為）。
-    var hasProfile: Bool { engine != nil && !editing }
+    /// true = 有作用中 profile。**不含編輯模式**（2026-07-30，D22）。
+    ///
+    /// 原本是 `engine != nil && !editing`，把兩個語意不同的判斷擠在一個述詞裡：
+    /// 「該不該把滑鼠交給引擎」與「該不該把事件送出去」。呼叫端
+    /// `MirrorView.Coordinator.sendMouse` 讀它來決定要不要退回直接 tap，於是編輯模式
+    /// 反而讓滑鼠直接打進 guest。現在只表達前者，後者由 `Coordinator.isEditing` 負責。
+    ///
+    /// `AppModel.shouldCapture` 本來就自己寫了 `&& !editing`，游標捕捉行為不受影響。
+    var hasProfile: Bool { engine != nil }
 
     /// 不再收 `guestSize`：`TouchFrame` 的觸點已經是正規化座標，換算成 guest 像素所需的
     /// 實體螢幕解析度由 `EmulatorClient` 從健康探測取得。原本這裡存的是**串流幀尺寸**，
     /// 而那與 guest 實體解析度在本機相差兩倍——P1-c 起所有觸點都偏在左上一半處。
-    init(client: any InputInjecting, profile: KeymapProfile?) {
-        self.client = client
+    init(queue: InputQueue, profile: KeymapProfile?) {
+        self.queue = queue
         if let profile { self.engine = KeymapEngine(profile: profile) }
     }
 
@@ -105,7 +114,7 @@ final class KeymapController {
     }
 
     private func sendKeyToGuest(_ code: KeyCode, down: Bool) {
-        Task { [client] in await client.sendKey(code, down: down) }
+        queue.key(code, down: down)
     }
 
     /// 對照前次旗標算出「這次哪個修飾鍵被按下/放開」，換算成 W3C key 名稱後**直接餵引擎**。
@@ -136,7 +145,6 @@ final class KeymapController {
 
     private func emit(_ frame: TouchFrame?) {
         guard let frame, !editing else { return }
-        let touches = frame.touches
-        Task { await client.sendTouches(touches) }
+        queue.touches(frame.touches)
     }
 }

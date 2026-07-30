@@ -51,9 +51,29 @@ echo "這是預期中的已知缺陷，等含修正的 emulator 發布後才應�
 cd "$(dirname "$0")/.." || exit 1
 MIRAGE_TRANSPORT=mmap MIRAGE_LIVE=1 MIRAGE_LIVE_MMAP=1 swift test --filter MmapStreamLiveTests 2>&1 \
   | grep -E "\[mmap-live\]|Test run with|✘"
+MMAP_STATUS=${PIPESTATUS[0]}
+
+# **這一條刻意不 `assert_ok`，而且理由要寫下來。** MMAP 在 emulator 37.2.1.0 上已知會凍結
+# （上游 b/537802959，見 D16），所以這條測試現在必定紅。把它做成硬性閘門會產生一支永遠
+# 紅的腳本，而「永遠紅的燈」訓練人去無視紅燈——那正是 D24 的病理。折衷是：**明確印出
+# 退出碼**（不再像原本那樣整個丟棄），但不因它中止；下面那條獨立的檢查才是本腳本的斷言。
+if [ "$MMAP_STATUS" -eq 0 ]; then
+  echo "✅ MmapStreamLiveTests 通過（退出碼 0）——若上游修正已發布，D16 可以重驗了"
+else
+  echo "⚠️  MmapStreamLiveTests 失敗（退出碼 ${MMAP_STATUS}）：這是**已知且預期**的結果"
+  echo "   （emulator 37.2.1.0 凍結，上游 b/537802959 尚未有可用修正版，見 D16）。"
+  echo "   刻意不讓它中止本腳本——但它不再是靜默丟棄，退出碼現在看得見。"
+fi
 
 echo ""
 echo "=== 驗收線 6：/tmp 不得有映射檔殘留 ==="
+# 這條與上面的凍結無關，**是本腳本真正的斷言**。原本它 `echo "FAIL：…"` 之後接 `ls`，
+# 而 `ls` 在檔案存在時回傳 0——於是印著 FAIL 的那次跑，腳本照樣 exit 0（D9）。
 LEFT=$(ls /tmp/mirage_mmap_* 2>/dev/null | wc -l | tr -d ' ')
 echo "殘留檔案數：$LEFT"
-[ "$LEFT" = "0" ] && echo "PASS" || { echo "FAIL：close() 的 unlink 沒生效"; ls /tmp/mirage_mmap_*; }
+if [ "$LEFT" != "0" ]; then
+  echo "❌ FAIL：close() 的 unlink 沒生效"
+  ls /tmp/mirage_mmap_*
+  exit 1
+fi
+echo "✅ PASS：無殘留映射檔"

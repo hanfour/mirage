@@ -34,11 +34,15 @@ final class MirrorMTKView: MTKView {
 
     private func normalized(_ event: NSEvent) -> (Double, Double)? {
         let p = convert(event.locationInWindow, from: nil)
-        guard bounds.width > 0, bounds.height > 0 else { return nil }
-        let nx = Double(p.x / bounds.width)
-        let ny = 1.0 - Double(p.y / bounds.height)
-        guard (0...1).contains(nx), (0...1).contains(ny) else { return nil }
-        return (nx, ny)
+        // D7：越界**不再**回傳 nil。原本這裡有一道 `(0...1).contains` 的 guard，
+        // 而 drag 途中 AppKit 會把 mouseDragged/mouseUp 繼續送給這個 view（即使游標
+        // 已離開），於是「拖到黑邊或視窗外放開」的 up 被整個丟掉，guest 端留著一根
+        // 永遠按著的手指。夾住的算術在 `NormPoint.fromViewPoint`（純函式、有測試）。
+        guard let n = NormPoint.fromViewPoint(x: Double(p.x), y: Double(p.y),
+                                              width: Double(bounds.width),
+                                              height: Double(bounds.height))
+        else { return nil }
+        return (n.x, n.y)
     }
 
     override func mouseDown(with event: NSEvent) {
@@ -81,8 +85,13 @@ struct MirrorView: NSViewRepresentable {
     // P1-c：nil＝無 profile（P1-a 直接 tap 行為，見 Coordinator.sendMouse）。由 AppModel
     // 非同步載入後才會有值，透過 updateNSView 逐次同步進 Coordinator（makeNSView 只跑一次）。
     var controller: KeymapController?
+    /// D22：由 `AppModel.editing` 驅動，透過 `updateNSView` 逐次同步進 Coordinator。
+    var isEditing: Bool
+    /// D6：tap 與鍵位映射的觸控／鍵盤共用**同一條**佇列（由 `AppModel` 持有），
+    /// 否則兩條佇列各自有序、彼此無序，切換 profile 的瞬間仍會對調。
+    let queue: InputQueue
 
-    func makeCoordinator() -> Coordinator { Coordinator(client: client) }
+    func makeCoordinator() -> Coordinator { Coordinator(client: client, queue: queue) }
 
     func makeNSView(context: Context) -> MirrorContainerView {
         let container = MirrorContainerView(frame: .zero)
@@ -93,6 +102,7 @@ struct MirrorView: NSViewRepresentable {
         }
         context.coordinator.renderer = renderer
         context.coordinator.controller = controller
+        context.coordinator.isEditing = isEditing
         view.onMouse = { nx, ny, down in
             context.coordinator.sendMouse(nx: nx, ny: ny, down: down)
         }
@@ -114,31 +124,44 @@ struct MirrorView: NSViewRepresentable {
 
     func updateNSView(_ view: MirrorContainerView, context: Context) {
         context.coordinator.controller = controller
+        context.coordinator.isEditing = isEditing
     }
 
     @MainActor
     final class Coordinator {
         let client: EmulatorClient
         var renderer: Renderer?
-        // P1-c：無 profile（nil 或 hasProfile==false，例如編輯模式中）時 sendMouse 退回直接
-        // tap——spec §7 驗收 4，P1-a 行為不回歸。
+        // P1-c：無 profile 時 sendMouse 退回直接 tap——spec §7 驗收 4，P1-a 行為不回歸。
+        // D22：`hasProfile` 不再涵蓋編輯模式（見下面 `isEditing`），這句只談「有沒有 profile」。
         //
         // 原本這裡有一個 `frameSizeProvider` 的 didSet 佈線，把 renderer.lastFrameSize
         // 餵給 KeymapController 做觸點換算。整套已移除——換算收進 EmulatorClient 之後，
         // App 層不再需要（也不應該）知道該乘什麼尺寸。
         var controller: KeymapController?
+        /// D22：編輯模式下一律不送滑鼠事件。與 `hasProfile` 是**兩件事**：
+        /// 前者問「該不該交給引擎」，這個問「該不該送出去」。
+        var isEditing = false
+        let queue: InputQueue
         private var resizeTask: Task<Void, Never>?
         private static let defaultStreamSize = (w: 540, h: 1200)
 
-        init(client: EmulatorClient) { self.client = client }
+        init(client: EmulatorClient, queue: InputQueue) {
+            self.client = client
+            self.queue = queue
+        }
 
         func sendMouse(nx: Double, ny: Double, down: Bool) {
+            // D22：編輯中一律不送。使用者正在拖鍵位，不是在玩。
+            guard !isEditing else { return }
             // 有作用中 profile 時鍵鼠改走 KeymapController → KeymapEngine，這裡不再重複送 tap。
             guard controller?.hasProfile != true else { return }
             // 直接送正規化座標：換算成 guest 像素需要**實體螢幕解析度**，那是
             // EmulatorClient 才知道的事（來自健康探測）。這裡原本用 lastFrameSize（串流
             // 幀尺寸）自行換算，而兩者在本機相差兩倍，所以每次點擊都偏到左上一半處。
-            Task { await client.sendTap(nx: nx, ny: ny, down: down) }
+            //
+            // D6：走佇列而不是自己開 Task。原本 mouseDown/mouseUp 各開一個 Task，對調
+            // 就是 guest 的手指永遠按著——與鍵盤直通同一種「沒有自癒路徑」的失效。
+            queue.tap(nx: nx, ny: ny, down: down)
         }
 
         func resizeDebounced(to pixelSize: CGSize) {

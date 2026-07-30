@@ -14,6 +14,25 @@ final class AppModel {
     let box = LatestFrameBox()
     var connState: ConnState = .disconnected
 
+    /// 所有輸入事件的唯一序列化出口（D6）。
+    ///
+    /// **一台 guest 一條佇列**，不是一個呼叫端一條：鍵位映射的觸控、滑鼠 tap、選單列
+    /// 的 Android 實體鍵全部走這一條。各自持有一條佇列的話，每條內部有序但彼此之間
+    /// 沒有順序——例如切換 profile 的瞬間 tap 與觸控快照仍可能對調，等於沒修。
+    let inputQueue: InputQueue
+
+    /// **參數都有預設值，產品呼叫端（`MirageScene` 的 `@State private var model = AppModel()`）
+    /// 一個字都不用改。** 開這道縫只為了測試能餵暫存目錄與固定的 starter——構造 `AppModel`
+    /// 原本會在使用者真實的 Application Support 底下建目錄（D13 記載的「光建構就有 8 個
+    /// 全域副作用」之一），測試不該碰那裡。
+    init(store: ProfileStore = .standard(),
+         starterBindings: @escaping @Sendable () -> [Binding] = { BuiltInProfiles.starterBindings() })
+    {
+        self.store = store
+        self.starterBindings = starterBindings
+        inputQueue = InputQueue(injector: client)
+    }
+
     // Task 6: 選單列、剪貼簿橋接、視窗關閉/喚醒生命週期。
     var menuBar: MenuBarController?
     var lifecycle: AppLifecycle?
@@ -31,12 +50,20 @@ final class AppModel {
     var audioPlayer: AudioPlayer?
     // P1-d: 遊戲偵測→啟用接線。detector 輪詢前景 package（無 adb 時保持 nil，
     // 靜默不偵測）；currentPackage/override 一起餵給 ActivationDecider 決定要不要
-    // 套用 keymap；store 獨立於 loadKeymap/saveProfile 既有的 ProfileStore.standard()
-    // 呼叫（未合併，避免動到既有 P1-c 路徑）。
+    // 套用 keymap。（2026-07-30 更新：`saveProfile` 原本另外呼叫 `ProfileStore.standard()`，
+    // 與這個 `store` 各自獨立；D5 階段 A review 發現那條寫入路徑因此測不到，已改成
+    // 共用同一個注入的 `store`——見 `saveProfile` 的註解。）
     private var detector: GameDetector?
-    private(set) var currentPackage: String?
+    /// 放寬為可寫（2026-07-30，D5 階段 A）：`toggleEditing` 的行為取決於它，
+    /// 而測試設不了 `private(set)` 就測不到那條路徑。比照本檔 `installState`／
+    /// `installGeneration` 先前為了同樣理由放寬的既有先例。
+    /// **產品碼的唯一寫入點仍是 `onForeground(_:)`**——放寬是為了可測，不是邀請別處去改它。
+    var currentPackage: String?
     private(set) var override: ManualOverride = .auto
-    private let store = ProfileStore.standard()
+    private let store: ProfileStore
+    /// starter 版面的來源。注入是為了讓 `toggleEditing` 測得到——產品路徑餵的是
+    /// `BuiltInProfiles.starterBindings`（會讀 bundle，不可單元測試）。
+    private let starterBindings: @Sendable () -> [Binding]
 
     // APK 拖放安裝（Phase-1）：installState 供 InstallBanner 呈現；generation 令牌讓
     // 自動消失只清掉「產生它的那一批」，避免舊 dismiss 清掉使用者剛拖入的新批次。
@@ -124,24 +151,40 @@ final class AppModel {
     /// 因此不會有任何 profile。逃生出口是選單列的「套用 profile ▸」手動覆寫。
     /// 這是刻意的取捨——寧可沒有 profile，也不要載入一份與當前遊戲無關的。
     func loadKeymap() {
-        keymap = KeymapController(client: client, profile: nil)
+        keymap = KeymapController(queue: inputQueue, profile: nil)
         mouseCapture.updateCapture(shouldCapture: shouldCapture)
     }
 
-    /// ⌘E：切換編輯模式。編輯時放開游標（要看得到、能拖拉调整 binding）；離開編輯時，
-    /// 如果有作用中 profile 就重新捕捉（回到 look 手感）——實際捕捉與否交給
-    /// `shouldCapture` 統一判斷（見下方），不在這裡重複「有沒有 profile」的條件。
+    /// ⌘E：切換編輯模式。決策在 `EditorEntryDecider`（純函式、逐條測試），這裡只做副作用。
     ///
-    /// AUTHORIZED FIX（P1-d 終審 Important：⌘E 在無 profile 時的行為）：`OverlayEditorView`
-    /// 吃的是非 optional 的 `KeymapProfile`（見 body 的 keymapOverlayLayer，需要
-    /// `let profile = model.profile` 才能顯示），沒有作用中 profile（偵測未啟用任何
-    /// keymap、或使用者手動 disable）時「沒東西可編」。guard 只擋「原本沒在編輯、且沒
-    /// profile」這一種情況──已經在編輯模式時 ⌘E 永遠允許切回去（例如編輯途中偵測把
-    /// 遊戲切到 .inactive，使用者仍要能用 ⌘E 離開編輯模式），不會卡死在 editing=true
-    /// 出不來。
+    /// **行為改變（2026-07-30，D5 階段 A）**：原本的 guard 是
+    /// `guard editing || profile != nil else { return }`，而玩真實遊戲時 `profile` 永遠是 nil
+    /// ——唯一的內建 profile 是佔位 gameId，載不到當前遊戲的檔——所以 ⌘E 完全沒有反應。
+    /// 現在沒有 profile 時會用 starter 版面**在記憶體裡**建一份。
+    ///
+    /// **不落檔是刻意的**：檔案要按下「存檔」才出現。否則不小心按到 ⌘E 就會憑空生出一個檔案。
     func toggleEditing() {
-        guard editing || profile != nil else { return }
-        editing.toggle()
+        switch EditorEntryDecider.decide(editing: editing, profile: profile,
+                                         currentPackage: currentPackage,
+                                         starterBindings: starterBindings())
+        {
+        case .ignore:
+            return
+        case .leave:
+            editing = false
+            // 離開編輯＝回到磁碟的真相。存過檔就重新載到那份，沒存過就回到「沒有 profile」
+            // ——包含清掉引擎、放開游標、刷新選單列標籤。
+            // 刻意呼叫 applyActivation() 而不是自己把 profile 設回 nil：後者要重新推導
+            // 「本來該是什麼」（存過？被手動覆寫過？），而 applyActivation 已經是那個唯一
+            // 的真相來源。消除特殊情況，不是加旗標。
+            applyActivation()
+        case .enter(let p):
+            // 即時套用：overlay 與引擎都看得到這份 profile。`emit` 在編輯模式下本來就被擋，
+            // 所以套用不會有任何東西送到 guest。
+            profile = p
+            keymap?.reload(p)
+            editing = true
+        }
         keymap?.setEditing(editing)
         mouseCapture.updateCapture(shouldCapture: shouldCapture)
     }
@@ -165,15 +208,26 @@ final class AppModel {
     /// `didBecomeKey` 觀察者需要跨檔讀它（SE-0169：`private` 不跨檔），與
     /// `startAudio()`／`setupFullScreen()` 抽 extension 時同一個理由。
     var shouldCapture: Bool {
-        keymap?.hasProfile == true && !editing && NSApp.keyWindow != nil
+        // `NSApp` 的型別是 `NSApplication!`（IUO）：headless 測試行程若沒人先碰過
+        // `NSApplication.shared`，它就是 nil，直接解包會讓整個 test run 帶著一句
+        // 「Unexpectedly found nil」死掉，而那句錯誤訊息完全不指向「這是 NSApp」。
+        // 先轉成 Optional 再用 `?.`，讓「App 不在前景／測試行程」與「有 key window」
+        // 用同一條路徑表達，不必為前者另開特殊情況。
+        keymap?.hasProfile == true && !editing && (NSApp as NSApplication?)?.keyWindow != nil
     }
 
     /// OverlayEditorView 的「存檔」呼叫這裡：version+1 已在編輯器裡算好，這裡只管原子寫
     /// 檔＋讓當前 session 的引擎立即套用新 binding。失敗只記錄不丟例外中斷編輯流程——
     /// 使用者可見的錯誤提示（例如存檔失敗 toast）留待後續（pending-human，無 GUI 無法驗證）。
+    ///
+    /// **走注入的 `store`，不是 `ProfileStore.standard()`（2026-07-30，D5 階段 A review 修正）**：
+    /// 原本這裡自己另外呼叫 `.standard()`，跳過了 Task 5 開的注入縫——測試給的暫存
+    /// `store` 只有讀（`applyActivation`/`startDetection`）接上，寫仍然打到使用者真實的
+    /// `~/Library/Application Support/Mirage/profiles/`。`store` 的預設值就是 `.standard()`，
+    /// 所以這裡改用注入的 `store` 對產品行為零改變，只是讓測試能攔到寫入。
     func saveProfile(_ p: KeymapProfile) {
         do {
-            try ProfileStore.standard().save(p)
+            try store.save(p)
             profile = p
             keymap?.reload(p)
         } catch {
@@ -217,7 +271,24 @@ final class AppModel {
     /// →套用到 keymap engine →回報選單列。currentPackage 為 nil（無前景/adb 失敗）時
     /// loadedProfile 自然是 nil，ActivationDecider 在 .auto 下會決成 .inactive——不需要
     /// 額外的 nil 特例分支。
+    ///
+    /// **編輯中不得動 profile／引擎（2026-07-30，D5 階段 A 終審 I3）**：階段 A 之後
+    /// 「記憶體限定的 profile」是主流路徑——使用者可能正在編一份從沒存過檔的 starter。
+    /// 前景 package 一變動（或選單列按「恢復自動偵測」）就跑到這裡，若照常
+    /// `keymap?.reload(...)` / `profile = ...`，會把使用者正在編的東西靜默換掉或清空，
+    /// 而編輯器 UI（`if model.editing, let profile = model.profile`）會因為抓不到條件
+    /// 整個消失，畫面上沒有任何提示也沒有可見出口。選單列與捕捉狀態仍然要更新，
+    /// 那兩者是「這台 guest 現在是誰」的旁觀者，不是編輯中的資料本身。
+    ///
+    /// **讀的是呼叫當下的 `editing`**：`toggleEditing()` 的 `.leave` 分支會先把
+    /// `editing` 設回 `false`、再呼叫這裡，所以離開編輯時這道 guard 不會擋到——那條路徑
+    /// 本來就需要完整套用（回到磁碟的真相），這裡讀到的已經是 false。
     private func applyActivation() {
+        guard !editing else {
+            menuBar?.updateGame(package: currentPackage, active: keymap?.hasProfile == true)
+            mouseCapture.updateCapture(shouldCapture: shouldCapture)
+            return
+        }
         let loaded: KeymapProfile? = currentPackage.flatMap { try? store.load(gameId: $0) }
         switch ActivationDecider.decide(loadedProfile: loaded, override: override) {
         // AUTHORIZED FIX（P1-d 終審 Important：⌘E 編輯器讀到 stale profile）：
@@ -243,11 +314,12 @@ final class AppModel {
         menuBar?.updateStatus(Self.label(connState))   // 補上 menuBar 建立前已錯過的狀態
         // D2：選單列的 Android 實體鍵。down 之後緊接 up——guest 收到的是一次完整按放，
         // 不是按住不放。sendKey 在未連線時靜默不送（與 sendTap/sendTouches 一致）。
-        menuBar?.onAndroidKey = { [client] w3c in
-            Task {
-                await client.sendKey(.key(w3c), down: true)
-                await client.sendKey(.key(w3c), down: false)
-            }
+        // D6：走同一條佇列。原本這裡自己開一個 Task 循序 await 兩次——那一對內部確實
+        // 有序，但它與鍵位映射送出的事件之間仍然沒有順序，實體鍵可以插進一組 down/up
+        // 中間。改走佇列之後「一台 guest 只有一種輸入順序」才是真的。
+        menuBar?.onAndroidKey = { [inputQueue] w3c in
+            inputQueue.key(.key(w3c), down: true)
+            inputQueue.key(.key(w3c), down: false)
         }
         setupFullScreen()
         setupFocusTracking()

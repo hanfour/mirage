@@ -23,4 +23,31 @@ public struct NormPoint: Sendable, Codable, Equatable {
     public func guestPixel(width: Int, height: Int) -> (x: Int, y: Int) {
         (Int((x * Double(width)).rounded()), Int((y * Double(height)).rounded()))
     }
+
+    /// 夾進 0…1。`fromViewPoint` 與 `KeymapEngine` 的搖桿換算共用它——同一個「不得越界」
+    /// 的規則寫兩次遲早漂移，而這個 repo 剛因為 `EmulatorEndpoint` 有兩份解析吃過虧。
+    public static func clamped(x: Double, y: Double) -> NormPoint {
+        NormPoint(x: min(max(x, 0), 1), y: min(max(y, 0), 1))
+    }
+
+    /// AppKit 視圖座標（左下原點）→ 正規化座標（左上原點，對齊 guest），**夾在 0…1**。
+    ///
+    /// 抽成純函式的理由同 `KeyTranslate`：`MirrorMTKView` 只負責從 `NSEvent` 取欄位，
+    /// 算術本身在這裡逐條測試。`nil` 只代表「視圖尺寸退化（寬或高 ≤ 0）」，沒有別的意思。
+    ///
+    /// **為什麼是夾住而不是拒絕（D7）**：呼叫端原本對越界回傳 nil、事件整個丟掉。
+    /// `mouseDown` 一定落在界內（黑邊屬於 `MirrorContainerView`，它不處理滑鼠），但 drag
+    /// 一開始，AppKit 就會把後續的 `mouseDragged`／`mouseUp` **繼續投遞給同一個 view**，
+    /// 即使游標已經離開。於是「拖到黑邊或視窗外放開」= up 被丟掉 = guest 端一根永遠按著
+    /// 的手指，而且沒有自癒路徑（與 D6 同一族）。
+    ///
+    /// 夾住讓這個特殊情況整個消失，不必為「按著沒放」多維護一份狀態：真實觸控螢幕上
+    /// 手指本來就不可能離開螢幕，停在邊緣是最接近的類比。**越界必須夾而不是原樣送出**
+    /// ——送一個越界座標比不送更糟，畫面會有反應但點在錯的地方，而使用者會以為是遊戲的問題。
+    public static func fromViewPoint(x: Double, y: Double,
+                                     width: Double, height: Double) -> NormPoint?
+    {
+        guard width > 0, height > 0 else { return nil }
+        return clamped(x: x / width, y: 1.0 - y / height)
+    }
 }
