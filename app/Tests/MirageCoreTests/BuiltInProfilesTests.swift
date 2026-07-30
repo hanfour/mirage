@@ -141,4 +141,15 @@ import Testing
                               bindings: BuiltInProfiles.fallbackStarterBindings)
         _ = try p.validated()
     }
+
+    /// 即使來源能正常 decode，但 bindings 為空也要退回 fallback——空畫布正是
+    /// 設計時明確否決的起點。
+    @Test func starterBindingsFallBackWhenSourceHasEmptyBindings() throws {
+        let dir = tempDir("starter-empty")
+        let json = """
+        {"gameId":"test.game","version":1,"bindings":[]}
+        """
+        let src = try writeSource(dir, name: "empty.json", body: json)
+        #expect(BuiltInProfiles.starterBindings(from: [src]) == BuiltInProfiles.fallbackStarterBindings)
+    }
 }
