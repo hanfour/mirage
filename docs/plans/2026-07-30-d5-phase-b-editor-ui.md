@@ -1034,11 +1034,11 @@ struct OverlayEditorView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            // 階段 B Task 6 會把這裡換成可拖曳的 overlay；此刻先沿用唯讀標記，
+            // 階段 B Task 6 會把這裡換成可拖曳的 overlay（Task 7 再填 inspector 內容）；此刻先沿用唯讀標記，
             // 版面與座標基準（letterbox 內容矩形）在 Task 4 就已經正確。
             KeymapOverlay(profile: session.profile(), frameSize: frameSize)
             EditorDrawer(session: session, onSelect: onSelect, onSave: onSave) {
-                AnyView(EmptyView())      // Task 6 填入半徑／靈敏度
+                AnyView(EmptyView())      // Task 7 填入半徑／靈敏度
             }
         }
     }
