@@ -331,4 +331,114 @@ import Testing
         model.setSelectedSensitivity(4.0)
         #expect(model.editorSession?.items == snapshot.items)
     }
+
+    /// 沒有未存變更時，⌘E 直接離開——不要為了「一致」而多跳一個沒必要的對話框。
+    @Test func leavingCleanSessionDoesNotPrompt() throws {
+        let (store, dir) = Self.tempStore("clean-leave")
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let model = AppModel(store: store,
+                             starterBindings: { [.tap(key: .key("j"), at: NormPoint(x: 0.8, y: 0.8))] })
+        model.currentPackage = "com.game.clean"
+        model.toggleEditing()
+
+        model.toggleEditing()
+
+        #expect(!model.pendingLeaveConfirmation)
+        #expect(!model.editing)
+        #expect(model.editorSession == nil)
+    }
+
+    /// 有未存變更時，⌘E **不得**離開——先問。這是資料遺失的唯一防線。
+    @Test func leavingDirtySessionPromptsInsteadOfDiscarding() throws {
+        let (store, dir) = Self.tempStore("dirty-leave")
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let model = AppModel(store: store,
+                             starterBindings: { [.tap(key: .key("j"), at: NormPoint(x: 0.8, y: 0.8))] })
+        model.currentPackage = "com.game.dirty"
+        model.loadKeymap()
+        model.toggleEditing()
+        let id = try #require(model.editorSession?.items.first?.id)
+        model.selectBinding(id)
+        model.moveSelectedBinding(to: NormPoint(x: 0.2, y: 0.2))
+
+        model.toggleEditing()
+
+        #expect(model.pendingLeaveConfirmation)
+        #expect(model.editing)                        // **還在編輯模式**
+        #expect(model.editorSession?.isDirty == true) // 變更還在
+    }
+
+    /// 「存檔」：寫檔、離開、清提示。
+    @Test func confirmLeaveSavingWritesThenLeaves() throws {
+        let (store, dir) = Self.tempStore("leave-save")
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let model = AppModel(store: store,
+                             starterBindings: { [.tap(key: .key("j"), at: NormPoint(x: 0.8, y: 0.8))] })
+        model.currentPackage = "com.game.leavesave"
+        model.loadKeymap()
+        model.toggleEditing()
+        let id = try #require(model.editorSession?.items.first?.id)
+        model.selectBinding(id)
+        model.moveSelectedBinding(to: NormPoint(x: 0.2, y: 0.2))
+        model.toggleEditing()
+
+        model.confirmLeaveSaving()
+
+        #expect(!model.pendingLeaveConfirmation)
+        #expect(!model.editing)
+        #expect(model.editorSession == nil)
+        let saved = try store.load(gameId: "com.game.leavesave")
+        if case .tap(_, let at) = try #require(saved.bindings.first) {
+            #expect(at == NormPoint(x: 0.2, y: 0.2))
+        } else { Issue.record("期待 .tap") }
+        #expect(model.profile == saved)               // 存完之後生效的是存下的那份
+    }
+
+    /// 「捨棄」：不寫檔、離開、磁碟保持空的。
+    @Test func confirmLeaveDiscardingWritesNothing() throws {
+        let (store, dir) = Self.tempStore("leave-discard")
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let model = AppModel(store: store,
+                             starterBindings: { [.tap(key: .key("j"), at: NormPoint(x: 0.8, y: 0.8))] })
+        model.currentPackage = "com.game.discard"
+        model.loadKeymap()
+        model.toggleEditing()
+        let id = try #require(model.editorSession?.items.first?.id)
+        model.selectBinding(id)
+        model.moveSelectedBinding(to: NormPoint(x: 0.2, y: 0.2))
+        model.toggleEditing()
+
+        model.confirmLeaveDiscarding()
+
+        #expect(!model.pendingLeaveConfirmation)
+        #expect(!model.editing)
+        #expect(model.editorSession == nil)
+        #expect(try FileManager.default.contentsOfDirectory(atPath: dir.path).isEmpty)
+        #expect(model.profile == nil)                 // 回到磁碟的真相＝沒有 profile
+        #expect(model.keymap?.hasProfile == false)    // 引擎也要清掉（C1 那條回歸）
+    }
+
+    /// 「繼續編輯」：留在編輯模式，變更原封不動。
+    @Test func cancelLeaveKeepsEditingAndChanges() throws {
+        let (store, dir) = Self.tempStore("leave-cancel")
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let model = AppModel(store: store,
+                             starterBindings: { [.tap(key: .key("j"), at: NormPoint(x: 0.8, y: 0.8))] })
+        model.currentPackage = "com.game.cancel"
+        model.loadKeymap()
+        model.toggleEditing()
+        let id = try #require(model.editorSession?.items.first?.id)
+        model.selectBinding(id)
+        model.moveSelectedBinding(to: NormPoint(x: 0.2, y: 0.2))
+        model.toggleEditing()
+
+        model.cancelLeave()
+
+        #expect(!model.pendingLeaveConfirmation)
+        #expect(model.editing)
+        #expect(model.editorSession?.isDirty == true)
+        if case .tap(_, let at) = try #require(model.editorSession?.items.first?.binding) {
+            #expect(at == NormPoint(x: 0.2, y: 0.2))
+        } else { Issue.record("期待 .tap") }
+    }
 }

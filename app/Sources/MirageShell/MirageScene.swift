@@ -66,6 +66,16 @@ struct MirageScene: App {
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
                     .allowsHitTesting(false)
             }
+            .alert("有未存的鍵位變更", isPresented: Binding(
+                get: { model.pendingLeaveConfirmation },
+                set: { if !$0 { model.cancelLeave() } }
+            )) {
+                Button("存檔") { model.confirmLeaveSaving() }
+                Button("捨棄", role: .destructive) { model.confirmLeaveDiscarding() }
+                Button("繼續編輯", role: .cancel) { model.cancelLeave() }
+            } message: {
+                Text("離開編輯模式會丟掉這些變更。")
+            }
             .frame(minWidth: 270, minHeight: 600)
             .task {
                 appDelegate.model = model   // 供 applicationWillTerminate 使用

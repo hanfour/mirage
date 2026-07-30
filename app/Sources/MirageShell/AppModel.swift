@@ -50,6 +50,12 @@ final class AppModel {
     /// 同一份選取；而且 ⌘E 離開時要檢查未存變更，那件事發生在這一層。放進 view 各持一份
     /// 遲早不同步。
     var editorSession: EditorSession?
+    /// 有未存變更卻按了 ⌘E——Scene 據此跳「存檔／捨棄／繼續編輯」。
+    ///
+    /// **為什麼需要它**：`.leave` 會呼叫 `applyActivation()` 從磁碟重新取真相，也就是
+    /// 丟掉記憶體裡的 profile。階段 A 那是對的（使用者還不能改任何東西）；階段 B 拖曳
+    /// 上線之後，同一行就變成「按 ⌘E ＝靜默丟掉剛才調的所有東西」。
+    var pendingLeaveConfirmation = false
     let mouseCapture = MouseCapture()
     var isFullScreen = false  // P1-e: 系統通知驅動（涵蓋綠燈/⌃⌘F/選單列）
     /// 目前解碼幀的尺寸。`(0, 0)` 代表尚未收到任何幀。
@@ -185,14 +191,16 @@ final class AppModel {
         case .ignore:
             return
         case .leave:
-            editing = false
-            editorSession = nil        // 離開就收掉，不留殘影
-            // 離開編輯＝回到磁碟的真相。存過檔就重新載到那份，沒存過就回到「沒有 profile」
-            // ——包含清掉引擎、放開游標、刷新選單列標籤。
-            // 刻意呼叫 applyActivation() 而不是自己把 profile 設回 nil：後者要重新推導
-            // 「本來該是什麼」（存過？被手動覆寫過？），而 applyActivation 已經是那個唯一
-            // 的真相來源。消除特殊情況，不是加旗標。
-            applyActivation()
+            // 有未存變更就先問，**不要**先離開再問——離開的動作本身就把變更丟了。
+            if editorSession?.isDirty == true {
+                pendingLeaveConfirmation = true
+                return
+            }
+            leaveEditing()
+            return          // ← 必須 return：`leaveEditing()` 自己已經呼叫過
+                            //   `setEditing` 與 `updateCapture`，落到 switch 尾端
+                            //   會重複呼叫一次。兩者雖然冪等，但重複呼叫代表
+                            //   「誰負責這件事」沒有單一答案，下一個人會改錯地方。
         case .enter(let p):
             // 即時套用：overlay 與引擎都看得到這份 profile。`emit` 在編輯模式下本來就被擋，
             // 所以套用不會有任何東西送到 guest。
@@ -298,6 +306,35 @@ final class AppModel {
         let p = session.profile()
         saveProfile(p)
         editorSession = EditorSession(profile: p)
+    }
+
+    /// 離開編輯的唯一實作。三個出口與「沒有未存變更」那條路徑共用它。
+    private func leaveEditing() {
+        editing = false
+        editorSession = nil
+        // 離開編輯＝回到磁碟的真相（見 `toggleEditing` 的說明）。
+        applyActivation()
+        keymap?.setEditing(false)
+        mouseCapture.updateCapture(shouldCapture: shouldCapture)
+    }
+
+    /// 提示的「存檔」：寫檔之後才離開。
+    func confirmLeaveSaving() {
+        pendingLeaveConfirmation = false
+        saveEditorSession()
+        leaveEditing()
+    }
+
+    /// 提示的「捨棄」：不寫檔直接離開。`leaveEditing()` 的 `applyActivation()` 會把
+    /// 記憶體那份收掉、引擎清掉、游標放開——與 C1 修好的那條路徑同一條，不另開特例。
+    func confirmLeaveDiscarding() {
+        pendingLeaveConfirmation = false
+        leaveEditing()
+    }
+
+    /// 提示的「繼續編輯」：什麼都不做，留在編輯模式。
+    func cancelLeave() {
+        pendingLeaveConfirmation = false
     }
 
     /// 啟動前景遊戲偵測（P1-d）。無 adb（找不到 SDK/非可執行檔）→ 靜默不偵測，維持
