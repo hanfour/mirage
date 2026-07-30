@@ -45,9 +45,18 @@ public struct ProfileStore: Sendable {
         return try profile.validated()      // schema 驗證失敗擲 ProfileError（不吞）
     }
 
+    /// **存檔前先驗證**（2026-07-30，D5 階段 B 終審 I2）：`load` 會 `validated()` 而 `save`
+    /// 不會，於是「存得進去、載不出來」的 profile 有機會被寫上磁碟；而 load 端的錯誤又被
+    /// `AppModel.applyActivation` 的 `try?` 吞掉，使用者只會看到「keymap 就是不生效」，
+    /// 壞檔永久留在磁碟且沒有 UI 路徑回得去（⌘E 開的是新 starter，不是那個壞檔）。
+    ///
+    /// 放在 `save` 裡而不是各呼叫端，才涵蓋得到所有寫入路徑。階段 B 現有的寫入路徑都有
+    /// 夾取，但夾取只擋得住數值範圍——擋不住 schema 層的結構約束（例如兩個 joystick 的
+    /// `identifierConflict`），而階段 C 的「新增 binding」必然會碰到那一類。
     public func save(_ profile: KeymapProfile) throws {
-        let data = try JSONEncoder().encode(profile)
-        let dest = url(profile.gameId)
+        let checked = try profile.validated()
+        let data = try JSONEncoder().encode(checked)
+        let dest = url(checked.gameId)
         let tmp = dest.appendingPathExtension("tmp")
         try data.write(to: tmp, options: .atomic)
         _ = try FileManager.default.replaceItemAt(dest, withItemAt: tmp)   // 原子 rename

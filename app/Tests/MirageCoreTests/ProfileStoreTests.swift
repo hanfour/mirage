@@ -3,9 +3,15 @@ import Testing
 @testable import MirageCore
 
 @Suite struct ProfileStoreTests {
+    /// 每次呼叫給一個**保證唯一**的目錄。
+    ///
+    /// 原本用 `ObjectIdentifier(NSObject()).hashValue` 當後綴——那是剛配置的物件位址，
+    /// 而位址在前一個 `NSObject` 釋放後**會被重用**，所以兩條測試拿到同一個目錄是可能的。
+    /// 先前沒人踩到是因為沒有測試斷言「目錄是空的」；I2 新增的兩條正是那種形態，於是
+    /// 這個既有的隱患會變成間歇失敗。UUID 沒有這個問題。
     private func tempDir() -> URL {
         let d = FileManager.default.temporaryDirectory
-            .appendingPathComponent("mirage-store-test-\(UInt64(bitPattern: Int64(ObjectIdentifier(NSObject()).hashValue)))")
+            .appendingPathComponent("mirage-store-test-\(UUID().uuidString)")
         try? FileManager.default.createDirectory(at: d, withIntermediateDirectories: true)
         return d
     }
@@ -45,6 +51,40 @@ import Testing
         let data = try JSONEncoder().encode(bad)
         try data.write(to: dir.appendingPathComponent("x.json"))
         #expect(throws: ProfileError.invalidCoordinate) { try store.load(gameId: "x") }
+    }
+
+    /// I2（Important，D5 階段 B 終審）：`save` 也要驗證，否則「存得進去、載不出來」的
+    /// profile 會被寫上磁碟，而 load 端的錯誤被 `AppModel.applyActivation` 的 `try?` 吞掉
+    /// ——症狀只剩「keymap 就是不生效」。
+    ///
+    /// 用 `identifierConflict` 當樣本是刻意的：那正是**夾取擋不住的那一類**（兩個 joystick
+    /// 各自的座標與半徑都完全合法），也是階段 C「新增 binding」必然會踩到的形態。
+    @Test func saveRejectsInvalidProfile() throws {
+        let dir = tempDir()
+        let store = ProfileStore(directory: dir)
+        let conflicting = KeymapProfile(gameId: "com.game.conflict", version: 1, bindings: [
+            .joystick(up: .key("w"), down: .key("s"), left: .key("a"), right: .key("d"),
+                      center: NormPoint(x: 0.2, y: 0.75), radius: 0.12),
+            .joystick(up: .key("i"), down: .key("k"), left: .key("j"), right: .key("l"),
+                      center: NormPoint(x: 0.8, y: 0.75), radius: 0.12),
+        ])
+
+        #expect(throws: ProfileError.identifierConflict) { try store.save(conflicting) }
+        // **擲例外還不夠**：真正要防的是壞檔留在磁碟上，所以要斷言什麼都沒寫出去。
+        #expect(try FileManager.default.contentsOfDirectory(atPath: dir.path).isEmpty)
+    }
+
+    /// 數值型的違規同樣擋下來——`radius: 0` 是階段 B 半徑把手往左拖過圓心的產物。
+    @Test func saveRejectsZeroRadius() throws {
+        let dir = tempDir()
+        let store = ProfileStore(directory: dir)
+        let bad = KeymapProfile(gameId: "com.game.zero", version: 1, bindings: [
+            .joystick(up: .key("w"), down: .key("s"), left: .key("a"), right: .key("d"),
+                      center: NormPoint(x: 0.2, y: 0.75), radius: 0),
+        ])
+
+        #expect(throws: ProfileError.invalidRadius) { try store.save(bad) }
+        #expect(try FileManager.default.contentsOfDirectory(atPath: dir.path).isEmpty)
     }
 
     // 這裡原本有一條 `bundledCanaryProfileLoads`：用 `#filePath` 往上爬三層拼出
