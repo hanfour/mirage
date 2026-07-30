@@ -50,8 +50,9 @@ final class AppModel {
     var audioPlayer: AudioPlayer?
     // P1-d: 遊戲偵測→啟用接線。detector 輪詢前景 package（無 adb 時保持 nil，
     // 靜默不偵測）；currentPackage/override 一起餵給 ActivationDecider 決定要不要
-    // 套用 keymap；store 獨立於 loadKeymap/saveProfile 既有的 ProfileStore.standard()
-    // 呼叫（未合併，避免動到既有 P1-c 路徑）。
+    // 套用 keymap。（2026-07-30 更新：`saveProfile` 原本另外呼叫 `ProfileStore.standard()`，
+    // 與這個 `store` 各自獨立；D5 階段 A review 發現那條寫入路徑因此測不到，已改成
+    // 共用同一個注入的 `store`——見 `saveProfile` 的註解。）
     private var detector: GameDetector?
     /// 放寬為可寫（2026-07-30，D5 階段 A）：`toggleEditing` 的行為取決於它，
     /// 而測試設不了 `private(set)` 就測不到那條路徑。比照本檔 `installState`／
@@ -207,9 +208,15 @@ final class AppModel {
     /// OverlayEditorView 的「存檔」呼叫這裡：version+1 已在編輯器裡算好，這裡只管原子寫
     /// 檔＋讓當前 session 的引擎立即套用新 binding。失敗只記錄不丟例外中斷編輯流程——
     /// 使用者可見的錯誤提示（例如存檔失敗 toast）留待後續（pending-human，無 GUI 無法驗證）。
+    ///
+    /// **走注入的 `store`，不是 `ProfileStore.standard()`（2026-07-30，D5 階段 A review 修正）**：
+    /// 原本這裡自己另外呼叫 `.standard()`，跳過了 Task 5 開的注入縫——測試給的暫存
+    /// `store` 只有讀（`applyActivation`/`startDetection`）接上，寫仍然打到使用者真實的
+    /// `~/Library/Application Support/Mirage/profiles/`。`store` 的預設值就是 `.standard()`，
+    /// 所以這裡改用注入的 `store` 對產品行為零改變，只是讓測試能攔到寫入。
     func saveProfile(_ p: KeymapProfile) {
         do {
-            try ProfileStore.standard().save(p)
+            try store.save(p)
             profile = p
             keymap?.reload(p)
         } catch {

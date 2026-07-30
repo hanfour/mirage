@@ -53,6 +53,11 @@ import Testing
 
         model.toggleEditing()
 
+        // 先確認 toggleEditing 真的做了事——否則下面的「目錄是空的」會因為
+        // 「什麼都沒發生」而通過，那是綠得毫無意義。
+        #expect(model.editing)
+        #expect(model.profile?.gameId == "com.game.nodisk")
+
         let files = try FileManager.default.contentsOfDirectory(atPath: dir.path)
         #expect(files.isEmpty, "⌘E 不得落檔，實得 \(files)")
     }
