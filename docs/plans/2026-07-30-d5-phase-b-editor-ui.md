@@ -1263,7 +1263,12 @@ struct EditorOverlay: View {
     /// 點一下＝選取；拖曳＝選取並移動。用同一個 `DragGesture(minimumDistance: 0)` 兼顧兩者，
     /// 不必再疊一個 `TapGesture` 去跟它搶手勢。
     private func dragGesture(item: EditorSession.Item, rect: FitRect) -> some Gesture {
-        DragGesture(minimumDistance: 0, coordinateSpace: .local)
+        // **必須用具名座標空間**：手勢掛在經過 `.position()` 的標記上，`.local` 回報的是
+        // 標記自己那 44×44 的框，不是 `GeometryReader` 的空間——而 `EditorGeometry.normPoint`
+        // 期待的是與 `rect` 同一個空間。用 `.local` 會讓「點一下」就把標記彈到內容矩形左上角
+        // （`minimumDistance: 0` 讓 onChanged 在按下瞬間就觸發，此時還沒有任何移動）。
+        // GeometryReader 那側要配 `.coordinateSpace(name: "editorOverlay")`。
+        DragGesture(minimumDistance: 0, coordinateSpace: .named("editorOverlay"))
             .onChanged { value in
                 if session.selectedID != item.id { onSelect(item.id) }
                 if let p = EditorGeometry.normPoint(x: value.location.x, y: value.location.y, in: rect) {
