@@ -21,7 +21,15 @@ final class AppModel {
     /// 沒有順序——例如切換 profile 的瞬間 tap 與觸控快照仍可能對調，等於沒修。
     let inputQueue: InputQueue
 
-    init() {
+    /// **參數都有預設值，產品呼叫端（`MirageScene` 的 `@State private var model = AppModel()`）
+    /// 一個字都不用改。** 開這道縫只為了測試能餵暫存目錄與固定的 starter——構造 `AppModel`
+    /// 原本會在使用者真實的 Application Support 底下建目錄（D13 記載的「光建構就有 8 個
+    /// 全域副作用」之一），測試不該碰那裡。
+    init(store: ProfileStore = .standard(),
+         starterBindings: @escaping @Sendable () -> [Binding] = BuiltInProfiles.starterBindings)
+    {
+        self.store = store
+        self.starterBindings = starterBindings
         inputQueue = InputQueue(injector: client)
     }
 
@@ -45,9 +53,16 @@ final class AppModel {
     // 套用 keymap；store 獨立於 loadKeymap/saveProfile 既有的 ProfileStore.standard()
     // 呼叫（未合併，避免動到既有 P1-c 路徑）。
     private var detector: GameDetector?
-    private(set) var currentPackage: String?
+    /// 放寬為可寫（2026-07-30，D5 階段 A）：`toggleEditing` 的行為取決於它，
+    /// 而測試設不了 `private(set)` 就測不到那條路徑。比照本檔 `installState`／
+    /// `installGeneration` 先前為了同樣理由放寬的既有先例。
+    /// **產品碼的唯一寫入點仍是 `onForeground(_:)`**——放寬是為了可測，不是邀請別處去改它。
+    var currentPackage: String?
     private(set) var override: ManualOverride = .auto
-    private let store = ProfileStore.standard()
+    private let store: ProfileStore
+    /// starter 版面的來源。注入是為了讓 `toggleEditing` 測得到——產品路徑餵的是
+    /// `BuiltInProfiles.starterBindings`（會讀 bundle，不可單元測試）。
+    private let starterBindings: @Sendable () -> [Binding]
 
     // APK 拖放安裝（Phase-1）：installState 供 InstallBanner 呈現；generation 令牌讓
     // 自動消失只清掉「產生它的那一批」，避免舊 dismiss 清掉使用者剛拖入的新批次。
