@@ -337,7 +337,9 @@ final class AppModel {
         // 用 Task 讓出一輪 run loop，確保 WindowGroup 的視窗已完成建立掛載。
         Task { [weak self] in
             await MainActor.run {
-                NSApp.windows.first?.delegate = self?.lifecycle
+                // `NSApp` 是 IUO，headless 測試行程裡是 nil——硬解包會帶著整個 test run
+                // 一起死，而錯誤訊息不指向這裡。理由同 `shouldCapture`（見該處註解）。
+                (NSApp as NSApplication?)?.windows.first?.delegate = self?.lifecycle
             }
         }
     }
@@ -359,7 +361,7 @@ final class AppModel {
     }
 
     private func wake() {
-        let window = NSApp.windows.first
+        let window = (NSApp as NSApplication?)?.windows.first
         lifecycle?.wake(showing: window)
     }
 
