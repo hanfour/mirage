@@ -107,6 +107,30 @@ import Testing
         #expect(!onStick.isDirty)
     }
 
+    /// 規則 (c)：變換算出與原值**相同**的 binding 時不得設髒。
+    ///
+    /// 這是「拖了一下又拖回原位」「滑桿拉回原值」之後，離開時不該被問「要不要存檔」的保證。
+    /// 少了它會產生假的未存變更提示，而假提示會訓練使用者無視提示。
+    @Test func mutationsToTheSameValueDoNotMarkDirty() {
+        let base = EditorSession(profile: sample())
+
+        // tap 移到它原本就在的位置（sample() 的 .tap 座標 0.85, 0.82）
+        let tapSame = base.selecting(base.items[1].id)
+            .movingSelected(to: NormPoint(x: 0.85, y: 0.82))
+        #expect(!tapSame.isDirty)
+        #expect(tapSame.items == base.items)
+
+        // joystick 設成它原本的半徑（sample() 的 .joystick radius 0.12）
+        let stickSame = base.selecting(base.items[0].id).settingSelectedRadius(0.12)
+        #expect(!stickSame.isDirty)
+        #expect(stickSame.items == base.items)
+
+        // look 設成它原本的靈敏度（sample() 的 .look sensitivity 1.5）
+        let lookSame = base.selecting(base.items[2].id).settingSelectedSensitivity(1.5)
+        #expect(!lookSame.isDirty)
+        #expect(lookSame.items == base.items)
+    }
+
     /// 存檔用的 profile：gameId 沿用、version+1、順序與內容照 items。
     @Test func profileBumpsVersionAndKeepsGameIdAndOrder() {
         let base = EditorSession(profile: sample())
