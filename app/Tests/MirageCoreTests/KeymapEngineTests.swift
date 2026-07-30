@@ -94,4 +94,24 @@ import Testing
         let released = e.apply(.keyUp(.key("Shift")))
         #expect(released.touches.first { $0.identifier == 1 }?.down == false)
     }
+
+    /// D12：搖桿圓心貼邊時，`center ± radius` 會算出越界座標。
+    ///
+    /// 送越界座標比不送更糟——畫面有反應但點在錯的地方，使用者會以為是遊戲的問題
+    /// （D7 已確立這個立場）。
+    @Test func joystickAtEdgeStaysInsideUnitSquare() {
+        let profile = KeymapProfile(gameId: "g", version: 1, bindings: [
+            .joystick(up: .key("w"), down: .key("s"), left: .key("a"), right: .key("d"),
+                      center: NormPoint(x: 0.05, y: 0.95), radius: 0.3),
+        ])
+        let engine = KeymapEngine(profile: profile)
+        let frame = engine.apply(.keyDown(.key("a")))       // 向左：x = 0.05 - 0.3 = -0.25
+        let stick = frame.touches.first { $0.identifier == 1 }
+        #expect(stick?.point.x == 0)
+        #expect(stick?.point.isValid == true)
+
+        let down = engine.apply(.keyDown(.key("s")))        // 再加向下：y 會超過 1
+        let stick2 = down.touches.first { $0.identifier == 1 }
+        #expect(stick2?.point.isValid == true)
+    }
 }

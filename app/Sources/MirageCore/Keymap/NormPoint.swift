@@ -24,6 +24,12 @@ public struct NormPoint: Sendable, Codable, Equatable {
         (Int((x * Double(width)).rounded()), Int((y * Double(height)).rounded()))
     }
 
+    /// 夾進 0…1。`fromViewPoint` 與 `KeymapEngine` 的搖桿換算共用它——同一個「不得越界」
+    /// 的規則寫兩次遲早漂移，而這個 repo 剛因為 `EmulatorEndpoint` 有兩份解析吃過虧。
+    public static func clamped(x: Double, y: Double) -> NormPoint {
+        NormPoint(x: min(max(x, 0), 1), y: min(max(y, 0), 1))
+    }
+
     /// AppKit 視圖座標（左下原點）→ 正規化座標（左上原點，對齊 guest），**夾在 0…1**。
     ///
     /// 抽成純函式的理由同 `KeyTranslate`：`MirrorMTKView` 只負責從 `NSEvent` 取欄位，
@@ -42,7 +48,6 @@ public struct NormPoint: Sendable, Codable, Equatable {
                                      width: Double, height: Double) -> NormPoint?
     {
         guard width > 0, height > 0 else { return nil }
-        return NormPoint(x: min(max(x / width, 0), 1),
-                         y: min(max(1.0 - y / height, 0), 1))
+        return clamped(x: x / width, y: 1.0 - y / height)
     }
 }

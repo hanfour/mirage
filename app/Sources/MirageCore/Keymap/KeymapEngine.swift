@@ -102,7 +102,10 @@ public final class KeymapEngine {
             let v = JoystickMath.vector(up: pressed.contains(j.up), down: pressed.contains(j.down),
                                         left: pressed.contains(j.left), right: pressed.contains(j.right))
             let active = v.dx != 0 || v.dy != 0
-            let p = NormPoint(x: j.center.x + v.dx * j.radius, y: j.center.y + v.dy * j.radius)
+            // D12：`center ± radius` 會越界（圓心貼邊 + 大半徑）。夾取放在這裡而不是
+            // `validated()`：載入期拒絕會讓使用者既有的 profile 突然消失（見計畫的偏離說明）。
+            let p = NormPoint.clamped(x: j.center.x + v.dx * j.radius,
+                                      y: j.center.y + v.dy * j.radius)
             out.append(TouchSpec(identifier: j.id, point: active ? p : j.center, down: active))
         }
         for t in taps {
