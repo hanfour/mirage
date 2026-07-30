@@ -13,6 +13,17 @@ import Testing
         return (ProfileStore(directory: dir), dir)
     }
 
+    /// **保證寫入失敗**的 store。
+    ///
+    /// `/dev/null` 是字元裝置，不是目錄，所以把它當成路徑前綴的任何 `open(2)` 都會拿到
+    /// `ENOTDIR`——`ProfileStore.save` 的 `Data.write(to:options:.atomic)` 因此必定擲錯。
+    /// 這比「建好暫存目錄再 `chmod 0o500`」可靠：後者在 root 身分下（某些 CI runner）
+    /// 權限位元根本不生效，測試會靜默地變成「存檔成功」而綠得毫無意義。
+    /// 也不必清理——這條路徑上永遠不會有檔案被建出來。
+    static func unwritableStore() -> ProfileStore {
+        ProfileStore(directory: URL(fileURLWithPath: "/dev/null/mirage-nope"))
+    }
+
     /// 注入縫本身：構造時用得上注入的 store 與 starter 來源，且不碰真實目錄。
     @Test func constructsWithInjectedDependencies() {
         let (store, dir) = Self.tempStore("construct")
@@ -30,7 +41,7 @@ import Testing
     ///
     /// 呼叫 `loadKeymap()`——沒有它 `model.keymap` 恆為 nil，`toggleEditing()` 裡的
     /// `keymap?.reload(p)` 從未真的執行過，測試會因為錯誤的理由而綠（I1）。
-    @Test func editingOpensWithStarterWhenNoProfileExists() {
+    @Test func editingOpensWithStarterWhenNoProfileExists() throws {
         let (store, dir) = Self.tempStore("starter")
         defer { try? FileManager.default.removeItem(at: dir) }
         let starter: [Binding] = [.tap(key: .key("q"), at: NormPoint(x: 0.3, y: 0.3))]
@@ -44,7 +55,7 @@ import Testing
         #expect(model.profile?.gameId == "com.loomgames.pixelflow")
         #expect(model.profile?.version == 1)
         #expect(model.profile?.bindings == starter)
-        #expect(model.keymap?.hasProfile == true)
+        #expect(try #require(model.keymap).hasProfile)
     }
 
     /// **未存檔不落檔**：⌘E 只在記憶體裡建 starter，磁碟上不得出現任何檔案。
@@ -120,7 +131,7 @@ import Testing
 
         #expect(!model.editing)
         #expect(model.profile == nil)
-        #expect(model.keymap?.hasProfile == false)
+        #expect(try !#require(model.keymap).hasProfile)
         let files = try FileManager.default.contentsOfDirectory(atPath: dir.path)
         #expect(files.isEmpty, "未存檔不落檔，實得 \(files)")
     }
@@ -131,7 +142,7 @@ import Testing
     /// `profile` 清成 nil、引擎跟著清空——編輯器 UI（`if editing, let profile`）因此
     /// 整個消失，但 App 仍在編輯模式（滑鼠被擋、鍵盤直通被擋），畫面上沒有任何提示、
     /// 也沒有可見出口。
-    @Test func detectionDuringEditingDoesNotClearInMemoryProfile() {
+    @Test func detectionDuringEditingDoesNotClearInMemoryProfile() throws {
         let (store, dir) = Self.tempStore("i3")
         defer { try? FileManager.default.removeItem(at: dir) }
         let starter: [Binding] = [.tap(key: .key("q"), at: NormPoint(x: 0.3, y: 0.3))]
@@ -146,7 +157,7 @@ import Testing
 
         #expect(model.editing)
         #expect(model.profile == editedProfile)
-        #expect(model.keymap?.hasProfile == true)
+        #expect(try #require(model.keymap).hasProfile)
     }
 
     /// 幀尺寸要流得到 `AppModel`——Scene 層的 overlay 靠它算 letterbox 內容矩形。
@@ -167,7 +178,7 @@ import Testing
     }
 
     /// 進編輯 → 建立 session；離開 → 清掉。session 的內容要對應當下的 profile。
-    @Test func editorSessionLifecycleFollowsEditingMode() {
+    @Test func editorSessionLifecycleFollowsEditingMode() throws {
         let (store, dir) = Self.tempStore("session")
         defer { try? FileManager.default.removeItem(at: dir) }
         let starter: [Binding] = [
@@ -182,25 +193,28 @@ import Testing
         model.toggleEditing()
         #expect(model.editorSession?.items.map(\.binding) == starter)
         #expect(model.editorSession?.gameId == "com.game.session")
-        #expect(model.editorSession?.isDirty == false)
+        #expect(try !#require(model.editorSession).isDirty)
 
         model.toggleEditing()
         #expect(model.editorSession == nil)          // 離開就收掉，不留殘影
     }
 
     /// 選取經由 `AppModel` 走，overlay 與抽屜因此看到同一份狀態。
-    @Test func selectBindingUpdatesTheSession() {
+    ///
+    /// 標成 `throws` 而不是 `try!`（M4，D5 階段 B 終審）：`try!` 讓一條斷言失敗從「一條紅」
+    /// 升級成整個 test run 帶著 SIGILL 死掉，而錯誤訊息完全不指向成因。
+    @Test func selectBindingUpdatesTheSession() throws {
         let (store, dir) = Self.tempStore("select")
         defer { try? FileManager.default.removeItem(at: dir) }
         let model = AppModel(store: store,
                              starterBindings: { [.tap(key: .key("j"), at: NormPoint(x: 0.8, y: 0.8))] })
         model.currentPackage = "com.game.select"
         model.toggleEditing()
-        let id = try! #require(model.editorSession?.items.first?.id)
+        let id = try #require(model.editorSession?.items.first?.id)
 
         model.selectBinding(id)
         #expect(model.editorSession?.selectedID == id)
-        #expect(model.editorSession?.isDirty == false)   // 選取不是變更
+        #expect(try !#require(model.editorSession).isDirty)   // 選取不是變更
 
         model.selectBinding(nil)
         #expect(model.editorSession?.selectedID == nil)
@@ -222,8 +236,8 @@ import Testing
         #expect(saved.gameId == "com.game.save")
         #expect(saved.version == 2)                       // starter 是 version 1
         #expect(model.profile == saved)
-        #expect(model.editorSession?.isDirty == false)
-        #expect(model.keymap?.hasProfile == true)
+        #expect(try !#require(model.editorSession).isDirty)
+        #expect(try #require(model.keymap).hasProfile)
     }
 
     /// 拖曳落點寫回 session，並**即時套用到引擎**——使用者要看到圈跟著手走。
@@ -245,7 +259,7 @@ import Testing
         } else {
             Issue.record("期待 .tap")
         }
-        #expect(model.editorSession?.isDirty == true)
+        #expect(try #require(model.editorSession).isDirty)
         // 即時套用：`profile` 與引擎都要看到新位置，否則離開編輯後才會突然跳位。
         if case .tap(_, let at) = try #require(model.profile?.bindings.first) {
             #expect(at == NormPoint(x: 0.25, y: 0.4))
@@ -267,7 +281,7 @@ import Testing
         model.moveSelectedBinding(to: NormPoint(x: 0.1, y: 0.1))
 
         #expect(model.editorSession == before)
-        #expect(model.editorSession?.isDirty == false)
+        #expect(try !#require(model.editorSession).isDirty)
     }
 
     /// 半徑寫回 session 並即時套用；作用在非搖桿上是 no-op。
@@ -291,7 +305,7 @@ import Testing
         if case .joystick(_, _, _, _, _, let r) = try #require(model.editorSession?.items.first?.binding) {
             #expect(r == 0.25)
         } else { Issue.record("期待 .joystick") }
-        #expect(model.editorSession?.isDirty == true)
+        #expect(try #require(model.editorSession).isDirty)
         // 即時套用：引擎那份也要跟上
         if case .joystick(_, _, _, _, _, let r) = try #require(model.profile?.bindings.first) {
             #expect(r == 0.25)
@@ -365,7 +379,7 @@ import Testing
 
         #expect(model.pendingLeaveConfirmation)
         #expect(model.editing)                        // **還在編輯模式**
-        #expect(model.editorSession?.isDirty == true) // 變更還在
+        #expect(try #require(model.editorSession).isDirty) // 變更還在
     }
 
     /// 「存檔」：寫檔、離開、清提示。
@@ -394,6 +408,97 @@ import Testing
         #expect(model.profile == saved)               // 存完之後生效的是存下的那份
     }
 
+    /// I1（Important，D5 階段 B 終審）：**存檔失敗不得看起來像成功**。
+    ///
+    /// 原本 `confirmLeaveSaving()` 不看寫檔結果就 `leaveEditing()`，而那條路徑會
+    /// `applyActivation()` 從磁碟重讀——使用者拖了十分鐘、按「存檔」、對話框關閉、退出
+    /// 編輯，全部變更當場蒸發，只有 console 一行 `[keymap] profile save failed:`。
+    /// 這是本階段唯一「不需要 GUI 就測得到、卻沒人測」的資料遺失路徑。
+    @Test func failedSaveOnLeaveKeepsEditingAndChanges() throws {
+        let model = AppModel(store: Self.unwritableStore(),
+                             starterBindings: { [.tap(key: .key("j"), at: NormPoint(x: 0.8, y: 0.8))] })
+        model.currentPackage = "com.game.savefail"
+        model.loadKeymap()
+        model.toggleEditing()
+        let id = try #require(model.editorSession?.items.first?.id)
+        model.selectBinding(id)
+        model.moveSelectedBinding(to: NormPoint(x: 0.2, y: 0.2))
+        model.toggleEditing()
+        // 先確認提示真的跳出來了——否則下面全部會因為「根本沒進到那條路徑」而假綠。
+        #expect(model.pendingLeaveConfirmation)
+
+        model.confirmLeaveSaving()
+
+        #expect(model.editing, "存不掉就不能離開——離開會從磁碟重讀，變更當場蒸發")
+        #expect(try #require(model.editorSession).isDirty, "沒寫出去就還是髒的，存檔鍵要維持可按")
+        #expect(model.pendingLeaveConfirmation, "提示要留著，使用者才有機會重試或改選捨棄")
+        // 變更本身也要原封不動，不能只是旗標對了。
+        if case .tap(_, let at) = try #require(model.editorSession?.items.first?.binding) {
+            #expect(at == NormPoint(x: 0.2, y: 0.2))
+        } else { Issue.record("期待 .tap") }
+    }
+
+    /// 抽屜的「存檔」鍵走的是 `saveEditorSession()`——同一件事在這條路徑上也要成立。
+    /// `isDirty` 一旦被清掉，`.disabled(!session.isDirty)` 會把存檔鍵變灰，等於告訴
+    /// 使用者「已存好」，而他再也按不下去。
+    @Test func failedSaveKeepsSessionDirty() throws {
+        let model = AppModel(store: Self.unwritableStore(),
+                             starterBindings: { [.tap(key: .key("j"), at: NormPoint(x: 0.8, y: 0.8))] })
+        model.currentPackage = "com.game.savefail2"
+        model.loadKeymap()
+        model.toggleEditing()
+        let id = try #require(model.editorSession?.items.first?.id)
+        model.selectBinding(id)
+        model.moveSelectedBinding(to: NormPoint(x: 0.3, y: 0.3))
+        #expect(try #require(model.editorSession).isDirty)
+
+        model.saveEditorSession()
+
+        #expect(try #require(model.editorSession).isDirty)
+        #expect(model.editorSession?.selectedID == id, "失敗時 session 不重建，選取也不該被清掉")
+    }
+
+    /// `saveProfile` 的回傳值本身：成功 true、失敗 false。上面兩條靠它做決策。
+    @Test func saveProfileReportsOutcome() throws {
+        let (store, dir) = Self.tempStore("outcome")
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let p = KeymapProfile(gameId: "com.game.outcome", version: 1, bindings: [
+            .tap(key: .key("j"), at: NormPoint(x: 0.8, y: 0.8)),
+        ])
+
+        let good = AppModel(store: store, starterBindings: { [] })
+        #expect(good.saveProfile(p))
+        #expect(good.profile == p)
+
+        let bad = AppModel(store: Self.unwritableStore(), starterBindings: { [] })
+        #expect(!bad.saveProfile(p))
+        #expect(bad.profile == nil, "存不掉就不該讓 `profile` 假裝已經是新的那份")
+    }
+
+    /// 存檔成功時「存檔→離開」的順序仍然成立——I1 的 guard 不得把正常路徑一起擋掉。
+    /// （`confirmLeaveSavingWritesThenLeaves` 已涵蓋，這裡補的是「提示確實被清掉」的
+    /// 那一半，因為現在清除的時機從函式開頭移到了 guard 之後。）
+    @Test func successfulSaveOnLeaveClearsPromptAfterWriting() throws {
+        let (store, dir) = Self.tempStore("leave-save-order")
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let model = AppModel(store: store,
+                             starterBindings: { [.tap(key: .key("j"), at: NormPoint(x: 0.8, y: 0.8))] })
+        model.currentPackage = "com.game.order"
+        model.loadKeymap()
+        model.toggleEditing()
+        let id = try #require(model.editorSession?.items.first?.id)
+        model.selectBinding(id)
+        model.moveSelectedBinding(to: NormPoint(x: 0.2, y: 0.2))
+        model.toggleEditing()
+        #expect(model.pendingLeaveConfirmation)
+
+        model.confirmLeaveSaving()
+
+        #expect(!model.pendingLeaveConfirmation)
+        #expect(!model.editing)
+        #expect(try store.load(gameId: "com.game.order").version == 2)
+    }
+
     /// 「捨棄」：不寫檔、離開、磁碟保持空的。
     @Test func confirmLeaveDiscardingWritesNothing() throws {
         let (store, dir) = Self.tempStore("leave-discard")
@@ -411,7 +516,7 @@ import Testing
         // 先確認攔截真的發生了——否則下面的「目錄是空的」會因為「根本沒進編輯模式」
         // 而通過，那是綠得毫無意義。
         #expect(model.pendingLeaveConfirmation)
-        #expect(model.editorSession?.isDirty == true)
+        #expect(try #require(model.editorSession).isDirty)
 
         model.confirmLeaveDiscarding()
 
@@ -420,7 +525,7 @@ import Testing
         #expect(model.editorSession == nil)
         #expect(try FileManager.default.contentsOfDirectory(atPath: dir.path).isEmpty)
         #expect(model.profile == nil)                 // 回到磁碟的真相＝沒有 profile
-        #expect(model.keymap?.hasProfile == false)    // 引擎也要清掉（C1 那條回歸）
+        #expect(try !#require(model.keymap).hasProfile)    // 引擎也要清掉（C1 那條回歸）
     }
 
     /// 「繼續編輯」：留在編輯模式，變更原封不動。
@@ -441,7 +546,7 @@ import Testing
 
         #expect(!model.pendingLeaveConfirmation)
         #expect(model.editing)
-        #expect(model.editorSession?.isDirty == true)
+        #expect(try #require(model.editorSession).isDirty)
         if case .tap(_, let at) = try #require(model.editorSession?.items.first?.binding) {
             #expect(at == NormPoint(x: 0.2, y: 0.2))
         } else { Issue.record("期待 .tap") }

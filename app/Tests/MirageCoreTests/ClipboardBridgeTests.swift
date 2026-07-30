@@ -5,7 +5,7 @@ import Testing
 @Suite struct ClipboardBridgeTests {
     @Test func firstValuePropagates() {
         let (ok, _) = ClipboardBridge().shouldPropagate(value: "hello", direction: .hostToGuest)
-        #expect(ok == true)
+        #expect(ok)
     }
 
     @Test func echoBackDoesNotPropagate() {
@@ -13,24 +13,24 @@ import Testing
         var bridge = ClipboardBridge()
         let (ok1, b1) = bridge.shouldPropagate(value: "hello", direction: .hostToGuest)
         bridge = b1
-        #expect(ok1 == true)
+        #expect(ok1)
         let (ok2, _) = bridge.shouldPropagate(value: "hello", direction: .guestToHost)
-        #expect(ok2 == false)          // 回音不傳播
+        #expect(!ok2)          // 回音不傳播
     }
 
     @Test func differentValuePropagatesBothDirections() {
         var bridge = ClipboardBridge()
         let (okA, b1) = bridge.shouldPropagate(value: "A", direction: .hostToGuest); bridge = b1
         let (okB, _) = bridge.shouldPropagate(value: "B", direction: .guestToHost)
-        #expect(okA == true)
-        #expect(okB == true)           // B ≠ A，雙向都傳播
+        #expect(okA)
+        #expect(okB)           // B ≠ A，雙向都傳播
     }
 
     @Test func duplicateValueDeduped() {
         var bridge = ClipboardBridge()
         let (_, b1) = bridge.shouldPropagate(value: "same", direction: .guestToHost); bridge = b1
         let (ok2, _) = bridge.shouldPropagate(value: "same", direction: .guestToHost)
-        #expect(ok2 == false)          // 同值連續 → 去重
+        #expect(!ok2)          // 同值連續 → 去重
     }
 
     @Test func bridgeIsImmutable() {
@@ -38,7 +38,7 @@ import Testing
         _ = original.shouldPropagate(value: "x", direction: .hostToGuest)
         // original 未被改動：再次以初始狀態判定，仍傳播
         let (ok, _) = original.shouldPropagate(value: "x", direction: .hostToGuest)
-        #expect(ok == true)
+        #expect(ok)
     }
 }
 

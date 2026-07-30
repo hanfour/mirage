@@ -228,7 +228,7 @@ actor SleepRecorder {
         }
         await client.start(box: LatestFrameBox(), width: 540, height: 1200)
         let everConnected = await watch.value
-        #expect(everConnected == false)
+        #expect(!everConnected)
         await client.stop()
     }
 

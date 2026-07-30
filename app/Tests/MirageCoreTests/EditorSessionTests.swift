@@ -132,14 +132,17 @@ import Testing
     }
 
     /// 存檔用的 profile：gameId 沿用、version+1、順序與內容照 items。
-    @Test func profileBumpsVersionAndKeepsGameIdAndOrder() {
+    ///
+    /// 標成 `throws` 而不是 `try!`（M4，D5 階段 B 終審）：`try!` 讓一條斷言失敗從「一條紅」
+    /// 升級成整個 test run 帶著 SIGILL 死掉，而錯誤訊息完全不指向成因。
+    @Test func profileBumpsVersionAndKeepsGameIdAndOrder() throws {
         let base = EditorSession(profile: sample())
         let edited = base.selecting(base.items[1].id).movingSelected(to: NormPoint(x: 0.1, y: 0.2))
         let p = edited.profile()
         #expect(p.gameId == "com.game.a")
         #expect(p.version == 4)                       // 3 + 1
         #expect(p.bindings == edited.items.map(\.binding))
-        #expect(try! p.validated() == p)              // 產出的 profile 必須是合法的
+        #expect(try p.validated() == p)               // 產出的 profile 必須是合法的
     }
 
     /// 產出的 profile 能再餵回 session，形成可重複的編輯循環。

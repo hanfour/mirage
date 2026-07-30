@@ -85,8 +85,8 @@ private func profileWithWAndJ() -> KeymapProfile {
         c.handleKeyUp(.key("k"))
         await spy.keyGate.wait(for: 2)
         #expect(spy.keyCalls.first?.0 == .key("k"))
-        #expect(spy.keyCalls.first?.1 == true)
-        #expect(spy.keyCalls.last?.1 == false)
+        #expect(try #require(spy.keyCalls.first).1)
+        #expect(try !#require(spy.keyCalls.last).1)
         // 同上的不對稱理由：unbound key 只會走 sendKey 分支，sendTouches 這條路徑
         // 不會被排進去，固定等待驗的是「即使等了也沒發生」，不是拿它當計時器。
         try await Task.sleep(for: .milliseconds(100))

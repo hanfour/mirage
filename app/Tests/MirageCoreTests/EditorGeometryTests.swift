@@ -31,14 +31,14 @@ import Testing
 
     /// 拖到黑邊上必須夾回 0…1，不能產生越界座標——與 D7／D12 同一條立場：
     /// 送越界座標比不送更糟（畫面有反應但點在錯的地方）。
-    @Test func normPointClampsPointsInTheLetterbox() {
+    @Test func normPointClampsPointsInTheLetterbox() throws {
         let rect = ViewportFit.fit(frame: (w: 9, h: 20), in: (w: 1000, h: 1000))
         let left = EditorGeometry.normPoint(x: 10, y: 500, in: rect)     // 落在左黑邊
         #expect(left?.x == 0)
-        #expect(left?.isValid == true)
+        #expect(try #require(left).isValid)
         let right = EditorGeometry.normPoint(x: 990, y: 500, in: rect)   // 落在右黑邊
         #expect(right?.x == 1)
-        #expect(right?.isValid == true)
+        #expect(try #require(right).isValid)
     }
 
     /// 退化矩形（尚未收到任何幀）→ nil，呼叫端據此不換算。
