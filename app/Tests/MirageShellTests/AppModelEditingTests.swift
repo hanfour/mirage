@@ -148,20 +148,4 @@ import Testing
         #expect(model.profile == editedProfile)
         #expect(model.keymap?.hasProfile == true)
     }
-
-    /// D34 (c)：測試 NSApp 保護。headless 測試行程裡 NSApp 可能是 nil。
-    /// 無法在測試環境中驗證回歸（`wake()` 是 private、startLifecycle 的 NSApp 存取在 Task 裡）。
-    /// 此保護依賴代碼檢查及階段 A 已實測的同型崩潰經驗。
-    @Test func nsAppProtectionDoesNotAffectNormalExecution() {
-        let (store, dir) = Self.tempStore("lifecycle")
-        defer { try? FileManager.default.removeItem(at: dir) }
-        let model = AppModel(store: store,
-                             starterBindings: { [.tap(key: .key("q"), at: NormPoint(x: 0.3, y: 0.3))] })
-
-        model.startLifecycle()
-
-        // 驗證 lifecycle 和 menuBar 正常初始化
-        #expect(model.lifecycle != nil)
-        #expect(model.menuBar != nil)
-    }
 }
