@@ -154,20 +154,30 @@ final class AppModel {
         mouseCapture.updateCapture(shouldCapture: shouldCapture)
     }
 
-    /// ⌘E：切換編輯模式。編輯時放開游標（要看得到、能拖拉调整 binding）；離開編輯時，
-    /// 如果有作用中 profile 就重新捕捉（回到 look 手感）——實際捕捉與否交給
-    /// `shouldCapture` 統一判斷（見下方），不在這裡重複「有沒有 profile」的條件。
+    /// ⌘E：切換編輯模式。決策在 `EditorEntryDecider`（純函式、逐條測試），這裡只做副作用。
     ///
-    /// AUTHORIZED FIX（P1-d 終審 Important：⌘E 在無 profile 時的行為）：`OverlayEditorView`
-    /// 吃的是非 optional 的 `KeymapProfile`（見 body 的 keymapOverlayLayer，需要
-    /// `let profile = model.profile` 才能顯示），沒有作用中 profile（偵測未啟用任何
-    /// keymap、或使用者手動 disable）時「沒東西可編」。guard 只擋「原本沒在編輯、且沒
-    /// profile」這一種情況──已經在編輯模式時 ⌘E 永遠允許切回去（例如編輯途中偵測把
-    /// 遊戲切到 .inactive，使用者仍要能用 ⌘E 離開編輯模式），不會卡死在 editing=true
-    /// 出不來。
+    /// **行為改變（2026-07-30，D5 階段 A）**：原本的 guard 是
+    /// `guard editing || profile != nil else { return }`，而玩真實遊戲時 `profile` 永遠是 nil
+    /// ——唯一的內建 profile 是佔位 gameId，載不到當前遊戲的檔——所以 ⌘E 完全沒有反應。
+    /// 現在沒有 profile 時會用 starter 版面**在記憶體裡**建一份。
+    ///
+    /// **不落檔是刻意的**：檔案要按下「存檔」才出現。否則不小心按到 ⌘E 就會憑空生出一個檔案。
     func toggleEditing() {
-        guard editing || profile != nil else { return }
-        editing.toggle()
+        switch EditorEntryDecider.decide(editing: editing, profile: profile,
+                                         currentPackage: currentPackage,
+                                         starterBindings: starterBindings())
+        {
+        case .ignore:
+            return
+        case .leave:
+            editing = false
+        case .enter(let p):
+            // 即時套用：overlay 與引擎都看得到這份 profile。`emit` 在編輯模式下本來就被擋，
+            // 所以套用不會有任何東西送到 guest。
+            profile = p
+            keymap?.reload(p)
+            editing = true
+        }
         keymap?.setEditing(editing)
         mouseCapture.updateCapture(shouldCapture: shouldCapture)
     }
