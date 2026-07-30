@@ -40,4 +40,30 @@ import Testing
         try? await Task.sleep(for: .milliseconds(150))
         #expect(probe.arrivals.isEmpty)
     }
+
+    /// D22 這個 task 賴以成立的姊妹 guard：有作用中 profile、不在編輯模式時，
+    /// `sendMouse` 不得送出直接 tap——這時鍵鼠已經改走 KeymapController → KeymapEngine，
+    /// 這裡若還送一次 tap，guest 會同時收到觸控與直接 tap 兩份輸入。
+    ///
+    /// 這條路徑（`controller?.hasProfile != true` guard）先於這次改動就存在，但一直是
+    /// `app/Tests` 裡零涵蓋的不變式——`isEditing` guard 的正確性正好建立在它之上，
+    /// 補的位置也緊挨著它，一起補齊才算把 D22 這個函式的兩道 guard 都驗過。
+    @Test(.timeLimit(.minutes(1)))
+    func hasProfileSendsNoTapWhenNotEditing() async {
+        let probe = OrderProbe { _ in .zero }
+        let queue = InputQueue(injector: probe)
+        let profile = KeymapProfile(gameId: "g", version: 1, bindings: [])
+        let controller = KeymapController(queue: queue, profile: profile)
+        let coordinator = MirrorView.Coordinator(client: EmulatorClient(), queue: queue)
+        coordinator.controller = controller
+        // isEditing 預設 false——這條路徑要驗的是「有 profile、非編輯模式」本身就該
+        // 退回引擎，不是靠 isEditing guard 順帶擋下來。
+
+        coordinator.sendMouse(nx: 0.5, ny: 0.5, down: true)
+        coordinator.sendMouse(nx: 0.5, ny: 0.5, down: false)
+
+        // 否定斷言用固定等待，理由同上一條。
+        try? await Task.sleep(for: .milliseconds(150))
+        #expect(probe.arrivals.isEmpty)
+    }
 }

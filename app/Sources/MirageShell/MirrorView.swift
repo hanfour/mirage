@@ -131,8 +131,8 @@ struct MirrorView: NSViewRepresentable {
     final class Coordinator {
         let client: EmulatorClient
         var renderer: Renderer?
-        // P1-c：無 profile（nil 或 hasProfile==false，例如編輯模式中）時 sendMouse 退回直接
-        // tap——spec §7 驗收 4，P1-a 行為不回歸。
+        // P1-c：無 profile 時 sendMouse 退回直接 tap——spec §7 驗收 4，P1-a 行為不回歸。
+        // D22：`hasProfile` 不再涵蓋編輯模式（見下面 `isEditing`），這句只談「有沒有 profile」。
         //
         // 原本這裡有一個 `frameSizeProvider` 的 didSet 佈線，把 renderer.lastFrameSize
         // 餵給 KeymapController 做觸點換算。整套已移除——換算收進 EmulatorClient 之後，
