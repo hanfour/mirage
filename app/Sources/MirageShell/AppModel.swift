@@ -26,7 +26,7 @@ final class AppModel {
     /// 原本會在使用者真實的 Application Support 底下建目錄（D13 記載的「光建構就有 8 個
     /// 全域副作用」之一），測試不該碰那裡。
     init(store: ProfileStore = .standard(),
-         starterBindings: @escaping @Sendable () -> [Binding] = BuiltInProfiles.starterBindings)
+         starterBindings: @escaping @Sendable () -> [Binding] = { BuiltInProfiles.starterBindings() })
     {
         self.store = store
         self.starterBindings = starterBindings
