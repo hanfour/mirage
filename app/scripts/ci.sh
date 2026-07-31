@@ -169,9 +169,45 @@ else
 fi
 
 echo ""
+echo '=== 閘門 5：#expect 不得拿 Bool 跟 true/false 比 ==='
+# 2026-07-30 新增（D35）。**這道閘門擋的是「斷言永遠不會紅」**，不是風格問題。
+#
+# `#expect(false == true)` 在本專案**會通過**。實測確認，機制也定位到套件原始碼：
+# `swift-testing/Sources/Testing/Expectations/ExpectationChecking+Macro.swift:170` 的泛型
+# `__checkBinaryOperation` 標了 `@_disfavoredOverload`，而 `:773` 給 `??` 解包用的 `T?` 版
+# **沒標**；`Bool == Bool` 產出的 `Bool` 可隱式提升成 `Bool?`，於是未標記者勝出，流進
+# `:733` 的 `__checkValue` —— 那個函式**只檢查非 nil**，而 `Optional(false)` 非 nil。
+#
+# 2026-07-30 發現時，**52 條斷言橫跨 9 個檔案從未檢查過任何東西**，包含多條專門用來守護
+# 不變量的（`isDirty == true`、`hasProfile == true`、`isValid == true`）。全數重寫後全綠
+# ——沒有藏著真 bug，但那是運氣不是保證。
+#
+# **根因是 `Package.swift` 仍宣告外部 swift-testing 依賴而 toolchain 已內建**（那句
+# `'Suite' is deprecated: … Remove your 'swift-testing' package dependency` 警告從頭到尾
+# 都在指向這件事，卻被當成雜訊）。移除依賴需要裝 Xcode（CommandLineTools 不 vend 內建
+# Testing，會是 `missing required module '_TestingInternals'`）。**在那之前這道閘門是唯一
+# 擋復發的東西**——否則明天有人寫下一條就又開一個永遠不紅的洞，而且毫無訊號。
+#
+# 正確寫法：純 Bool 用 `#expect(x)` / `#expect(!x)`；`Optional<Bool>` 用
+# `#expect(try #require(a).b)` / `#expect(try !#require(a).b)`——`#require` 讓「nil」與
+# 「false」兩種失敗都保得住。
+#
+# **已知盲區，寫在這裡免得下一個人以為它全包**：只抓右手邊是字面 `true`/`false` 的形式。
+# **非字面值的 `Bool == Bool`**（例如 `#expect(a.isEmpty == b.isEmpty)`）同樣失效，但 grep
+# 沒有型別資訊、抓不到——那要等移除依賴才會真正消失。2026-07-30 全庫掃過，該形式命中 0 條。
+EXPECT_LINT=$(grep -rnE '#expect\(.*(==|!=|\?\?)[[:space:]]*(true|false)' Tests/ 2>/dev/null \
+              | grep -vE '^[^:]+:[0-9]+:[[:space:]]*//')
+if [ -n "$EXPECT_LINT" ]; then
+    fail "測試裡有拿 Bool 跟 true/false 比的 #expect（這種斷言永遠不會紅，見上方說明）："
+    echo "$EXPECT_LINT"
+else
+    ok "無 Bool 對 true/false 的 #expect（字面值形式；非字面值的同型問題見上方盲區說明）"
+fi
+
+echo ""
 echo "======================================"
 if [ "$FAILURES" -eq 0 ]; then
-    echo "全部通過（$RUNS 次跑次、0 行 NIO ERROR、無假 skip、無全形標點陷阱）"
+    echo "全部通過（$RUNS 次跑次、0 行 NIO ERROR、無假 skip、無全形標點陷阱、無永不紅的 #expect）"
     exit 0
 fi
 echo "$FAILURES 項失敗"
