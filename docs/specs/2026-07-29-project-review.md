@@ -220,14 +220,22 @@ recon 文件那句講的是 `poc`。量 fps 用的 `game` 機已是最佳設定�
 
 | 驗收線 | 狀態 | 瓶頸 | Mirage 佔比 |
 |---|---|---|---|
-| 1 款指標遊戲開箱即玩 | ✅ | — | — |
+| 1 款指標遊戲開箱即玩 | ⚠️ **✅（有前提）** | **前提：AVD 與 SDK 需人手備妥**（見表下說明與 D33） | — |
 | 60fps 穩定 | ❌ 29–44fps | guest 出幀（⚠️ 仍是推論，未直接量到 guest render fps） | 無額外損失 |
 | 輸入延遲 < 80ms | ❌ ~110ms | 傳輸佔 ~2/3 | 20–28ms |
 | 冷啟動 < 30 秒 | ❌ ~37s | emulator 開機佔 89% | 4.2s |
 | 快照喚醒 < 5 秒 | ❌ ~8.9s | 同上 | 4.2s |
 | 記憶體閒置 < 4GB | ⬜ **未量** | — | 現行 suspend 不停 qemu，此線在現架構下必然不達標 |
 
-「1 款指標遊戲開箱即玩」通過，但**那台 AVD 是人手工用 curl + 手寫 config.ini 建的**，產品沒有一行碼能重現它。目前「開箱即玩」的意思是「有人先幫你把箱子拆好」。
+**「1 款指標遊戲開箱即玩」的 ✅ 有前提，不能裸著讀**（D33）。它成立的條件是：這台機器上已經有人手工備妥 `~/Library/Android/sdk`（emulator 37.2.1 canary、platform-tools、兩份 android-35 system image）與三台 AVD。產品**沒有一行碼**能重現那個狀態。換一個人、換一台機器，沒有任何自動化路徑能到達那個 ✅。
+
+2026-07-30 實地查證，補三件比原記載更精確的事實：
+
+1. **`avdmanager` / `sdkmanager` 在 PATH 裡但完全跑不起來——這台機器沒有 Java runtime**（`Unable to locate a Java Runtime`）。也就是說官方文件上「建 AVD 的標準方法」在此環境下**不可用**，這正是當初改用 curl + 手寫 `config.ini` 的原因。任何 provisioning 腳本要嘛先裝 JDK，要嘛沿用 curl + 寫檔的路線。
+2. **三台的不一致確認屬實，且比原記載多一項**：`mirage-poc` 除了 `gpu.enabled=no / mode=auto / ram=2G`，還有 `hw.keyboard=no`；另兩台是 `yes / host / 4096 / yes`。RAM 2G vs 4G 是實質差異——**跑在 poc 上與跑在 bench 上的 fps 數字不可直接比較**。
+3. **兩份 system image 的來源不一致**：`default/arm64-v8a` 帶 `package.xml`（來自官方 repository zip），`google_apis_playstore/arm64-v8a` **沒有 `package.xml`**（手工組裝，來源與版本無從追溯）。
+
+**另有一段是腳本永遠補不上的**：`mirage-game` 用的是 playstore image，要在上面裝遊戲需要登入 Google 帳號——那一步不可自動化。所以「開箱即玩」可自動化的邊界最多到「**三台一致的 AVD 可被重建**」，遊戲本身得靠 sideload APK（`verify_apk_install.sh` 已涵蓋）或人工登入。這條邊界必須寫在這裡，否則寫了 provisioning 腳本之後這個 ✅ 仍然是半裸的。
 
 ---
 
