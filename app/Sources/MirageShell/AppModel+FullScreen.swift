@@ -10,7 +10,7 @@ extension AppModel {
     /// 兩個通知都不帶我們需要的資訊，故忽略 Notification 本體（它非 Sendable，
     /// 捕捉進 @Sendable 閉包會觸發 strict-concurrency 警告）。
     func setupFullScreen() {
-        menuBar?.onToggleFullScreen = { NSApp.keyWindow?.toggleFullScreen(nil) }
+        menuBar?.onToggleFullScreen = { (NSApp as NSApplication?)?.keyWindow?.toggleFullScreen(nil) }
         let center = NotificationCenter.default
         center.addObserver(forName: NSWindow.didEnterFullScreenNotification,
                            object: nil, queue: .main) { [weak self] _ in

@@ -15,6 +15,6 @@ import NIOPosix
     func saveSnapshotSucceeds() async throws {
         let boxCh = try GrpcChannelBox(host: "localhost", port: 8554)
         let snap = GrpcSnapshotService(channelBox: boxCh)
-        #expect(await snap.save("mirage_suspend") == true)
+        #expect(await snap.save("mirage_suspend"))
     }
 }

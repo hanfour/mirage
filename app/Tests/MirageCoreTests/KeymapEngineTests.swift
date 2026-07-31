@@ -15,38 +15,38 @@ import Testing
     /// 測試用的 profile 綁了 w/a/s/d（joystick）與 j（tap），look 的 activation 是 nil。
     @Test func handlesReportsBoundKeysOnly() {
         let e = engine()
-        #expect(e.handles(KeyCode.key("w")) == true)      // joystick
-        #expect(e.handles(KeyCode.key("d")) == true)
-        #expect(e.handles(KeyCode.key("j")) == true)      // tap
-        #expect(e.handles(KeyCode.key("k")) == false)     // 沒綁 → 直通
-        #expect(e.handles(KeyCode.key("Enter")) == false)
-        #expect(e.handles(KeyCode.mouse(.left)) == false)
+        #expect(e.handles(KeyCode.key("w")))      // joystick
+        #expect(e.handles(KeyCode.key("d")))
+        #expect(e.handles(KeyCode.key("j")))      // tap
+        #expect(!e.handles(KeyCode.key("k")))     // 沒綁 → 直通
+        #expect(!e.handles(KeyCode.key("Enter")))
+        #expect(!e.handles(KeyCode.mouse(.left)))
     }
 
-    @Test func tapDownProducesTouchThenUp() {
+    @Test func tapDownProducesTouchThenUp() throws {
         let e = engine()
         let down = e.apply(.keyDown(.key("j")))
         let tap = down.touches.first { $0.identifier == 2 }
-        #expect(tap?.down == true)
+        #expect(try #require(tap).down)
         #expect(tap?.point == NormPoint(x: 0.85, y: 0.8))
         let up = e.apply(.keyUp(.key("j")))
-        #expect(up.touches.first { $0.identifier == 2 }?.down == false)
+        #expect(try !#require(up.touches.first { $0.identifier == 2 }).down)
     }
 
-    @Test func joystickRightMovesTouchFromCenter() {
+    @Test func joystickRightMovesTouchFromCenter() throws {
         let e = engine()
         let f = e.apply(.keyDown(.key("d")))          // 向右
         let js = f.touches.first { $0.identifier == 1 }
-        #expect(js?.down == true)
+        #expect(try #require(js).down)
         #expect(js!.point.x > 0.2)                    // center.x=0.2，向右 → x 增
         #expect(abs(js!.point.y - 0.75) < 1e-9)       // 純水平
     }
 
-    @Test func joystickReleaseLiftsTouch() {
+    @Test func joystickReleaseLiftsTouch() throws {
         let e = engine()
         _ = e.apply(.keyDown(.key("d")))
         let f = e.apply(.keyUp(.key("d")))
-        #expect(f.touches.first { $0.identifier == 1 }?.down == false)
+        #expect(try !#require(f.touches.first { $0.identifier == 1 }).down)
     }
 
     @Test func simultaneousJoystickAndTapAreTwoStableTouches() {
@@ -60,11 +60,11 @@ import Testing
         #expect(ids.count == 2)                       // 兩觸點且 identifier 不衝突
     }
 
-    @Test func lookAccumulatesMouseMove() {
+    @Test func lookAccumulatesMouseMove() throws {
         let e = engine()
         let f = e.apply(.mouseMove(dx: 10, dy: 0))    // always-on look
         let look = f.touches.first { $0.identifier == 3 }
-        #expect(look?.down == true)
+        #expect(try #require(look).down)
         #expect(look!.point.x != 0.5 || look!.point.y != 0.5)  // 自中心位移
     }
 
@@ -74,7 +74,7 @@ import Testing
         #expect(e.unmappedCount == 1)
     }
 
-    @Test func gatedLookLiftsTouchWhenActivationKeyReleased() {
+    @Test func gatedLookLiftsTouchWhenActivationKeyReleased() throws {
         // Task 4 補審：activation-gated look 的 releaseLookIfGateClosed 迴歸測試。
         // 唯一 binding → look 為 id 1。
         let e = KeymapEngine(profile: KeymapProfile(gameId: "g", version: 1, bindings: [
@@ -83,23 +83,23 @@ import Testing
 
         // 1) gate 關閉：未按啟動鍵時 mouseMove 應被忽略。
         let closed = e.apply(.mouseMove(dx: 10, dy: 0))
-        #expect(closed.touches.first { $0.identifier == 1 }?.down == false)
+        #expect(try !#require(closed.touches.first { $0.identifier == 1 }).down)
 
         // 2) gate 開啟：按住啟動鍵後 mouseMove 生效。
         _ = e.apply(.keyDown(.key("Shift")))
         let open = e.apply(.mouseMove(dx: 10, dy: 0))
-        #expect(open.touches.first { $0.identifier == 1 }?.down == true)
+        #expect(try #require(open.touches.first { $0.identifier == 1 }).down)
 
         // 3) 放開啟動鍵：gate 因此關閉，look 觸點應被收回（down=false）。
         let released = e.apply(.keyUp(.key("Shift")))
-        #expect(released.touches.first { $0.identifier == 1 }?.down == false)
+        #expect(try !#require(released.touches.first { $0.identifier == 1 }).down)
     }
 
     /// D12：搖桿圓心貼邊時，`center ± radius` 會算出越界座標。
     ///
     /// 送越界座標比不送更糟——畫面有反應但點在錯的地方，使用者會以為是遊戲的問題
     /// （D7 已確立這個立場）。
-    @Test func joystickAtEdgeStaysInsideUnitSquare() {
+    @Test func joystickAtEdgeStaysInsideUnitSquare() throws {
         let profile = KeymapProfile(gameId: "g", version: 1, bindings: [
             .joystick(up: .key("w"), down: .key("s"), left: .key("a"), right: .key("d"),
                       center: NormPoint(x: 0.05, y: 0.95), radius: 0.3),
@@ -108,10 +108,10 @@ import Testing
         let frame = engine.apply(.keyDown(.key("a")))       // 向左：x = 0.05 - 0.3 = -0.25
         let stick = frame.touches.first { $0.identifier == 1 }
         #expect(stick?.point.x == 0)
-        #expect(stick?.point.isValid == true)
+        #expect(try #require(stick).point.isValid)
 
         let down = engine.apply(.keyDown(.key("s")))        // 再加向下：y 會超過 1
         let stick2 = down.touches.first { $0.identifier == 1 }
-        #expect(stick2?.point.isValid == true)
+        #expect(try #require(stick2).point.isValid)
     }
 }

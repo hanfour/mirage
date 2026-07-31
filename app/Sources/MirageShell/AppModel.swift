@@ -44,8 +44,28 @@ final class AppModel {
     var keymap: KeymapController?
     var profile: KeymapProfile?
     var editing = false
+    /// 編輯中的 binding 清單與選取狀態。非編輯時為 nil。
+    ///
+    /// **由 `AppModel` 持有而不是 view 的 `@State`**：抽屜與 overlay 是兩個 view，要共用
+    /// 同一份選取；而且 ⌘E 離開時要檢查未存變更，那件事發生在這一層。放進 view 各持一份
+    /// 遲早不同步。
+    var editorSession: EditorSession?
+    /// 有未存變更卻按了 ⌘E——Scene 據此跳「存檔／捨棄／繼續編輯」。
+    ///
+    /// **為什麼需要它**：`.leave` 會呼叫 `applyActivation()` 從磁碟重新取真相，也就是
+    /// 丟掉記憶體裡的 profile。階段 A 那是對的（使用者還不能改任何東西）；階段 B 拖曳
+    /// 上線之後，同一行就變成「按 ⌘E ＝靜默丟掉剛才調的所有東西」。
+    var pendingLeaveConfirmation = false
     let mouseCapture = MouseCapture()
     var isFullScreen = false  // P1-e: 系統通知驅動（涵蓋綠燈/⌃⌘F/選單列）
+    /// 目前解碼幀的尺寸。`(0, 0)` 代表尚未收到任何幀。
+    ///
+    /// **為什麼 `AppModel` 需要知道它**：keymap overlay 畫在 Scene 層的 ZStack 上，而
+    /// guest 畫面被 `MirrorContainerView` letterbox 進 `ViewportFit.fit(...)` 的內容矩形。
+    /// 沒有幀尺寸就算不出那個矩形，標記只能用整個視窗換算——一有黑邊就與真正的觸點錯開。
+    /// 資料流是 `Renderer.onFrameSize` → `MirrorView` →（這裡）＋ `MirrorContainerView`，
+    /// 同一個回呼餵兩個出口，既有那條不動。
+    var frameSize: (w: Int, h: Int) = (0, 0)
     let audioRing = AudioRingBuffer()
     var audioPlayer: AudioPlayer?
     // P1-d: 遊戲偵測→啟用接線。detector 輪詢前景 package（無 adb 時保持 nil，
@@ -171,19 +191,23 @@ final class AppModel {
         case .ignore:
             return
         case .leave:
-            editing = false
-            // 離開編輯＝回到磁碟的真相。存過檔就重新載到那份，沒存過就回到「沒有 profile」
-            // ——包含清掉引擎、放開游標、刷新選單列標籤。
-            // 刻意呼叫 applyActivation() 而不是自己把 profile 設回 nil：後者要重新推導
-            // 「本來該是什麼」（存過？被手動覆寫過？），而 applyActivation 已經是那個唯一
-            // 的真相來源。消除特殊情況，不是加旗標。
-            applyActivation()
+            // 有未存變更就先問，**不要**先離開再問——離開的動作本身就把變更丟了。
+            if editorSession?.isDirty == true {
+                pendingLeaveConfirmation = true
+                return
+            }
+            leaveEditing()
+            return          // ← 必須 return：`leaveEditing()` 自己已經呼叫過
+                            //   `setEditing` 與 `updateCapture`，落到 switch 尾端
+                            //   會重複呼叫一次。兩者雖然冪等，但重複呼叫代表
+                            //   「誰負責這件事」沒有單一答案，下一個人會改錯地方。
         case .enter(let p):
             // 即時套用：overlay 與引擎都看得到這份 profile。`emit` 在編輯模式下本來就被擋，
             // 所以套用不會有任何東西送到 guest。
             profile = p
             keymap?.reload(p)
             editing = true
+            editorSession = EditorSession(profile: p)
         }
         keymap?.setEditing(editing)
         mouseCapture.updateCapture(shouldCapture: shouldCapture)
@@ -217,22 +241,117 @@ final class AppModel {
     }
 
     /// OverlayEditorView 的「存檔」呼叫這裡：version+1 已在編輯器裡算好，這裡只管原子寫
-    /// 檔＋讓當前 session 的引擎立即套用新 binding。失敗只記錄不丟例外中斷編輯流程——
-    /// 使用者可見的錯誤提示（例如存檔失敗 toast）留待後續（pending-human，無 GUI 無法驗證）。
+    /// 檔＋讓當前 session 的引擎立即套用新 binding。
+    ///
+    /// **回傳成功與否（2026-07-30，D5 階段 B 終審 I1）**：原本失敗只 `print` 一行就算了，
+    /// 而呼叫端（`saveEditorSession`／`confirmLeaveSaving`）**不看結果**照樣清 `isDirty`、
+    /// 照樣離開編輯——離開會 `applyActivation()` 從磁碟重讀，記憶體那份當場蒸發。使用者
+    /// 拖了十分鐘、按了「存檔」、對話框關閉，變更全沒了，只有 console 一行。
+    /// 這裡不擲例外是刻意的：呼叫端要的是「成不成」這個決策，不是錯誤本身。
     ///
     /// **走注入的 `store`，不是 `ProfileStore.standard()`（2026-07-30，D5 階段 A review 修正）**：
     /// 原本這裡自己另外呼叫 `.standard()`，跳過了 Task 5 開的注入縫——測試給的暫存
     /// `store` 只有讀（`applyActivation`/`startDetection`）接上，寫仍然打到使用者真實的
     /// `~/Library/Application Support/Mirage/profiles/`。`store` 的預設值就是 `.standard()`，
     /// 所以這裡改用注入的 `store` 對產品行為零改變，只是讓測試能攔到寫入。
-    func saveProfile(_ p: KeymapProfile) {
+    @discardableResult
+    func saveProfile(_ p: KeymapProfile) -> Bool {
         do {
             try store.save(p)
             profile = p
             keymap?.reload(p)
+            return true
         } catch {
             print("[keymap] profile save failed: \(error)")
+            return false
         }
+    }
+
+    /// overlay 與抽屜共用的選取入口。兩邊都呼叫這裡，狀態因此只有一份。
+    func selectBinding(_ id: UUID?) {
+        editorSession = editorSession?.selecting(id)
+    }
+
+    /// 拖曳落點寫回 session 並**即時套用**到 `profile` 與引擎。
+    ///
+    /// 即時套用是設計文件定的存檔語意的前半（「即時套用＋明確存檔」）：畫面上的圈要跟著
+    /// 手走，否則使用者要等到存檔才看得到結果。`emit` 在編輯模式下本來就被擋，所以套用到
+    /// 引擎不會有任何東西送到 guest。
+    func moveSelectedBinding(to p: NormPoint) {
+        applyToSession { $0.movingSelected(to: p) }
+    }
+
+    /// 搖桿半徑。畫面上的橘方塊與抽屜的滑桿都走這裡——**同一個值，不是兩套設定**
+    /// （設計文件 §4.3）。
+    func setSelectedRadius(_ r: Double) {
+        applyToSession { $0.settingSelectedRadius(r) }
+    }
+
+    /// 視角靈敏度。`.look` 在畫面上沒有標記，所以它只有抽屜這一個入口。
+    func setSelectedSensitivity(_ s: Double) {
+        applyToSession { $0.settingSelectedSensitivity(s) }
+    }
+
+    /// session 變換 → 同步 `profile` 與引擎。三個編輯入口（移動／半徑／靈敏度）共用它，
+    /// 免得「改完忘了套用」在三個地方各犯一次。
+    private func applyToSession(_ transform: (EditorSession) -> EditorSession) {
+        guard let session = editorSession else { return }
+        let updated = transform(session)
+        guard updated != session else { return }
+        editorSession = updated
+        let p = updated.profile()
+        profile = p
+        keymap?.reload(p)
+    }
+
+    /// 抽屜「存檔」呼叫這裡。寫檔 → 引擎立即套用 → session 以存下的那份重建（`isDirty` 歸零）。
+    ///
+    /// **重建而不是只清旗標**：存完之後的「基準版本」已經變了（version+1），下一次存檔要
+    /// 從新的基準再加一。用存下的 profile 重建 session 讓那件事自然成立，不必額外記帳。
+    /// 代價是選取會被清掉——可接受，且比一份版本號對不上的 session 安全。
+    func saveEditorSession() {
+        guard let session = editorSession else { return }
+        let p = session.profile()
+        // 寫檔失敗就**保持髒**（I1）：重建 session 會把 `isDirty` 歸零，而抽屜的存檔鍵
+        // `.disabled(!session.isDirty)` 會跟著變灰——那是「已存好」的視覺訊號。使用者
+        // 因此不會再按一次，變更就再也回不去了。
+        guard saveProfile(p) else { return }
+        editorSession = EditorSession(profile: p)
+    }
+
+    /// 離開編輯的唯一實作。三個出口與「沒有未存變更」那條路徑共用它。
+    private func leaveEditing() {
+        editing = false
+        editorSession = nil
+        // 離開編輯＝回到磁碟的真相（見 `toggleEditing` 的說明）。
+        applyActivation()
+        keymap?.setEditing(false)
+        mouseCapture.updateCapture(shouldCapture: shouldCapture)
+    }
+
+    /// 提示的「存檔」：寫檔**成功**之後才離開。
+    ///
+    /// 存不成功就別離開（I1）——`leaveEditing()` 會 `applyActivation()` 從磁碟重讀，
+    /// 變更當場蒸發。提示也刻意留著（`pendingLeaveConfirmation` 不清），使用者可以再按
+    /// 一次「存檔」重試、或改選「捨棄」。判斷條件是 session 還髒不髒，而不是另記一個
+    /// 「上次存檔成功嗎」的旗標——後者是同一件事的第二份真相。
+    func confirmLeaveSaving() {
+        saveEditorSession()
+        guard editorSession?.isDirty != true else { return }
+        pendingLeaveConfirmation = false
+        leaveEditing()
+    }
+
+    /// 提示的「捨棄」：不寫檔直接離開。`leaveEditing()` 的 `applyActivation()` 會把
+    /// 記憶體那份收掉、引擎清掉、游標放開——與 C1 修好的那條路徑同一條，不另開特例。
+    func confirmLeaveDiscarding() {
+        pendingLeaveConfirmation = false
+        leaveEditing()
+    }
+
+    /// 提示的「繼續編輯」：什麼都不做，留在編輯模式。
+    func cancelLeave() {
+        pendingLeaveConfirmation = false
     }
 
     /// 啟動前景遊戲偵測（P1-d）。無 adb（找不到 SDK/非可執行檔）→ 靜默不偵測，維持
@@ -337,7 +456,9 @@ final class AppModel {
         // 用 Task 讓出一輪 run loop，確保 WindowGroup 的視窗已完成建立掛載。
         Task { [weak self] in
             await MainActor.run {
-                NSApp.windows.first?.delegate = self?.lifecycle
+                // `NSApp` 是 IUO，headless 測試行程裡是 nil——硬解包會帶著整個 test run
+                // 一起死，而錯誤訊息不指向這裡。理由同 `shouldCapture`（見該處註解）。
+                (NSApp as NSApplication?)?.windows.first?.delegate = self?.lifecycle
             }
         }
     }
@@ -359,7 +480,7 @@ final class AppModel {
     }
 
     private func wake() {
-        let window = NSApp.windows.first
+        let window = (NSApp as NSApplication?)?.windows.first
         lifecycle?.wake(showing: window)
     }
 

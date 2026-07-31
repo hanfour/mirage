@@ -34,17 +34,17 @@ struct EmulatorEndpointTests {
 
     /// 打錯的 port 不能靜默退回預設——那會讓使用者連上**另一台**模擬器卻毫無訊號。
     /// 這正是 MMAP 階段學到的教訓（`RESULTS-mmap.md`：降級無訊號 = 使用者看到錯誤畫面）。
-    @Test func nonNumericPortFallsBackAndSaysWhy() {
+    @Test func nonNumericPortFallsBackAndSaysWhy() throws {
         let e = EmulatorEndpoint.resolve(environment: ["MIRAGE_PORT": "abc"])
         #expect(e.port == 8554)
-        #expect(e.overrideProblem?.contains("abc") == true)
+        #expect(try #require(e.overrideProblem).contains("abc"))
     }
 
     @Test(arguments: ["0", "-1", "65536", "99999"])
-    func outOfRangePortFallsBackAndSaysWhy(_ raw: String) {
+    func outOfRangePortFallsBackAndSaysWhy(_ raw: String) throws {
         let e = EmulatorEndpoint.resolve(environment: ["MIRAGE_PORT": raw])
         #expect(e.port == 8554)
-        #expect(e.overrideProblem?.contains(raw) == true)
+        #expect(try #require(e.overrideProblem).contains(raw))
     }
 
     @Test func boundaryPortsAreAccepted() {
@@ -59,12 +59,12 @@ struct EmulatorEndpointTests {
     }
 
     /// 兩個覆寫都壞掉時，兩個原因都要說——只報一個會讓使用者修完第一個又撞第二個。
-    @Test func bothProblemsAreReportedTogether() {
+    @Test func bothProblemsAreReportedTogether() throws {
         let e = EmulatorEndpoint.resolve(
             environment: ["MIRAGE_HOST": "", "MIRAGE_PORT": "abc"])
         #expect(e.host == "localhost")
         #expect(e.port == 8554)
-        #expect(e.overrideProblem?.contains("MIRAGE_HOST") == true)
-        #expect(e.overrideProblem?.contains("MIRAGE_PORT") == true)
+        #expect(try #require(e.overrideProblem).contains("MIRAGE_HOST"))
+        #expect(try #require(e.overrideProblem).contains("MIRAGE_PORT"))
     }
 }

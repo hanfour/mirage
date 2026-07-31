@@ -57,7 +57,7 @@ import Testing
         try view.mouseUp(with: mouseEvent(.leftMouseUp, at: NSPoint(x: 300, y: 300), in: window))
 
         let up = try #require(events.last)
-        #expect(up.2 == false)
+        #expect(!up.2)
         #expect(up.0 == 1.0)   // x 超出右緣 → 夾到 1
         #expect(up.1 == 0.0)   // y 超出頂端 → 夾到 0（左上原點）
     }
@@ -74,6 +74,6 @@ import Testing
 
         #expect(events.count == 2)
         #expect(events.last?.0 == 0.0)    // x 超出左緣 → 夾到 0
-        #expect(events.last?.2 == true)
+        #expect(try #require(events.last).2)
     }
 }
