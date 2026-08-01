@@ -25,10 +25,33 @@ from lib.avdspec import SPECS
 _HOST_OS = {"Darwin": "macosx", "Linux": "linux"}
 _HOST_ARCH = {"arm64": "aarch64", "aarch64": "aarch64", "x86_64": "x64"}
 
+# `_HOST_OS`／`_HOST_ARCH` 讓這支工具看起來與 host 無關，但 versions.PINS 的
+# sha1 全部是 macOS ARM 的——manifest 上其他平台的封包內容不同，checksum
+# 自然對不上。只涵蓋這一個平台。
+SUPPORTED_HOST = ("macosx", "aarch64")
+
+
+class UnsupportedHostError(Exception):
+    """pin 表只涵蓋一個平台。
+
+    不擋的話，resolve_pins 會因為 sha1 對不上而拋 PinDriftError，訊息說
+    「上游重新打包過，請更新 PINS 並 commit」——照做就把 macOS 那台的 pin
+    改壞了。真正的原因是「這張表不涵蓋你的平台」，訊息必須直說。
+    """
+
 
 def _resolve() -> list[tuple[versions.Pin, manifest.PackageRef]]:
     host_os = _HOST_OS.get(platform.system(), platform.system().lower())
     host_arch = _HOST_ARCH.get(platform.machine(), platform.machine())
+    if (host_os, host_arch) != SUPPORTED_HOST:
+        raise UnsupportedHostError(
+            f"偵測到的平台是 {host_os}/{host_arch}，"
+            f"但 tools/provision/lib/versions.py 的 PINS 只涵蓋 "
+            f"{SUPPORTED_HOST[0]}/{SUPPORTED_HOST[1]}（macOS ARM）的 sha1。"
+            "在其他平台上跑，resolve_pins 只會因為 checksum 對不上而報成"
+            "「上游重新打包過」，照那個訊息去更新 PINS 會把 macOS 那台的"
+            "pin 改壞——真正原因是這張表還沒涵蓋你的平台。"
+        )
     refs = {}
     for key, url in versions.MANIFESTS.items():
         refs[key] = manifest.parse_manifest(
@@ -141,7 +164,12 @@ def main(argv: list[str]) -> int:
 
     try:
         resolved = _resolve()
-    except (fetch.FetchError, manifest.ManifestError, versions.PinDriftError) as error:
+    except (
+        fetch.FetchError,
+        manifest.ManifestError,
+        versions.PinDriftError,
+        UnsupportedHostError,
+    ) as error:
         print(f"錯誤：{error}", file=sys.stderr)
         return 2
 

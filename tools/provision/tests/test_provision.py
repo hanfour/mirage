@@ -1,3 +1,5 @@
+import contextlib
+import io
 import os
 import tempfile
 import unittest
@@ -9,6 +11,23 @@ import provision
 from lib import config_ini, report, versions
 from lib.avdspec import SPECS
 from lib.manifest import PackageRef
+
+
+class UnsupportedHostTests(unittest.TestCase):
+    """`versions.PINS` 的 sha1 全部是 macOS ARM 的。不擋的話，在別的平台上
+    跑會在 `resolve_pins` 裡以「上游重新打包過，請更新 PINS 並 commit」的
+    訊息中止——照做就把 macOS 那台的 pin 改壞。守門必須發生在抓 manifest
+    之前，所以這條測試不連網。"""
+
+    def test_unsupported_host_is_exit_2_with_a_message_naming_both_platforms(self):
+        with unittest.mock.patch("platform.system", return_value="Linux"), \
+             unittest.mock.patch("platform.machine", return_value="x86_64"):
+            with contextlib.redirect_stderr(io.StringIO()) as captured:
+                code = provision.main([])
+        self.assertEqual(code, 2)
+        message = captured.getvalue()
+        self.assertIn("macosx", message)
+        self.assertIn("aarch64", message)
 
 
 class ExitCodeContractTests(unittest.TestCase):
