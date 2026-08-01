@@ -72,11 +72,32 @@ class ParseManifestTests(unittest.TestCase):
 
 class ChecksumValidationTests(unittest.TestCase):
     def test_non_sha1_checksum_is_fatal(self):
-        """checksum 型別不是 sha1 時繼續下去，等於用錯的演算法驗檔案——
-        會把壞檔案當成好的裝進去。寧可當場炸掉。"""
-        bad = _read("repo.xml").replace('type="sha1"', 'type="md5"', 1)
+        """checksum 型別不是 sha1 的被選中 archive 時，拋錯。
+        用錯演算法驗檔案會把壞檔案當成好的裝進去。寧可當場炸掉。"""
+        # 把 platform-tools 的 macosx archive checksum 改成 md5
+        # (6ae73f4de6452dc57e62ec02b68eed92a4c21661 是該 archive 獨有的 sha1)
+        bad = _read("repo.xml").replace(
+            'type="sha1">6ae73f4de6452dc57e62ec02b68eed92a4c21661',
+            'type="md5">6ae73f4de6452dc57e62ec02b68eed92a4c21661',
+            1,
+        )
         with self.assertRaises(ManifestError):
             parse_manifest(bad, REPO_BASE, host_os="macosx", host_arch="aarch64")
+
+    def test_unrelated_platform_bad_checksum_type_is_ignored(self):
+        """不相關平台的 archive checksum type 壞掉時，仍然解析成功。
+        這是收斂規則「只驗被選中的 archive」的正面證據。"""
+        # 把 platform-tools 的 linux archive checksum 改成 md5
+        bad = _read("repo.xml").replace(
+            'type="sha1">477254aa5f903c15cf51001717bdf347fb6b53e0',
+            'type="md5">477254aa5f903c15cf51001717bdf347fb6b53e0',
+            1,
+        )
+        # 選 macosx，所以 linux archive 不會被用，應該解析成功
+        refs = parse_manifest(bad, REPO_BASE, host_os="macosx", host_arch="aarch64")
+        # 應該找到 platform-tools (macosx 版本)
+        ref = find_ref(refs, "platform-tools", "stable")
+        self.assertIsNotNone(ref)
 
 
 class AmbiguousArchiveTests(unittest.TestCase):
@@ -103,7 +124,15 @@ class LocalPackageTests(unittest.TestCase):
     def test_reads_installed_revision(self):
         self.assertEqual(parse_local_revision(_read("local_package.xml")), "37.2.1")
 
-    def test_missing_revision_is_fatal(self):
+    def test_local_package_without_revision_is_fatal(self):
+        """localPackage 若沒有 <revision>，取版本時拋錯。"""
+        with self.assertRaises(ManifestError):
+            parse_local_revision(
+                '<ns2:repository xmlns:ns2="x"><localPackage path="emulator"/></ns2:repository>'
+            )
+
+    def test_missing_local_package_is_fatal(self):
+        """manifest 若沒有 <localPackage>，拋錯。"""
         with self.assertRaises(ManifestError):
             parse_local_revision("<ns2:repository xmlns:ns2='x'/>")
 

@@ -34,6 +34,8 @@ def _revision(node) -> str:
     **缺的部分不補零。** sys-img 的 revision 只有 `<major>`，它就是 `"2"`
     而不是 `"2.0.0"`——pin 表裡記的是前者，補零會讓每次比對都判成漂移。
     """
+    if node is None:
+        raise ManifestError("revision 缺少 major")
     parts = []
     for key in ("major", "minor", "micro"):
         text = node.findtext(key)
@@ -94,26 +96,19 @@ def parse_manifest(
         if archives is None:
             continue
 
-        # 先驗證所有 archive 的 checksum type，不只是我們要用的那個
-        # 理由：checksum 型別錯了但我們沒驗到，等於用錯演算法驗檔案
-        archive_list = list(archives)
-        for arch in archive_list:
-            complete = arch.find("complete")
-            if complete is None:
-                raise ManifestError(f"{package.get('path')} 的 archive 沒有 <complete>")
-            checksum = complete.find("checksum")
-            if checksum is None or checksum.get("type") != "sha1":
-                got = None if checksum is None else checksum.get("type")
-                raise ManifestError(
-                    f"{package.get('path')} 的 checksum 型別是 {got!r}，只接受 sha1"
-                )
-
-        archive = _pick_archive(archive_list, host_os, host_arch)
+        archive = _pick_archive(list(archives), host_os, host_arch)
         if archive is None:
             continue
 
         complete = archive.find("complete")
+        if complete is None:
+            raise ManifestError(f"{package.get('path')} 的 archive 沒有 <complete>")
         checksum = complete.find("checksum")
+        if checksum is None or checksum.get("type") != "sha1":
+            got = None if checksum is None else checksum.get("type")
+            raise ManifestError(
+                f"{package.get('path')} 的 checksum 型別是 {got!r}，只接受 sha1"
+            )
         url_text = complete.findtext("url")
         size_text = complete.findtext("size")
         if url_text is None or size_text is None:
@@ -154,7 +149,5 @@ def parse_local_revision(xml_text: str) -> str:
     for node in root.iter():
         if node.tag == "localPackage":
             revision_node = node.find("revision")
-            if revision_node is None:
-                raise ManifestError("localPackage 沒有 <revision>")
             return _revision(revision_node)
     raise ManifestError("找不到 <localPackage>")
