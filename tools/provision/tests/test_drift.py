@@ -27,10 +27,15 @@ class ConfigDriftTests(unittest.TestCase):
         )
 
     def test_result_is_sorted_by_key(self):
-        """輸出順序不穩定的話，同一種漂移每次印出來長得不一樣，
-        看的人會以為情況變了。"""
-        drifts = config_drift({"z": "1", "a": "1"}, {"z": "2", "a": "2"})
-        self.assertEqual([d.key for d in drifts], ["a", "z"])
+        """**key 要夠多**：`current.keys() | expected.keys()` 回傳的是 set，
+        而 set 的疊代順序受行程的 hash randomization 影響、不保留插入順序。
+        只用兩個 key 的話，拿掉 sorted() 之後仍有一半機率碰巧就是排序好的。
+        10 個 key 讓碰巧命中的機率降到 1/10! ≈ 3×10⁻⁷。"""
+        keys = ["k9", "k1", "k7", "k3", "k5", "k0", "k8", "k2", "k6", "k4"]
+        current = {key: "1" for key in keys}
+        expected = {key: "2" for key in keys}
+        drifts = config_drift(current, expected)
+        self.assertEqual([d.key for d in drifts], sorted(keys))
 
     def test_placeholder_value_is_drift(self):
         """mirage-poc 的 avd.name 字面上是 <build>。"""
