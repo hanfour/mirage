@@ -114,11 +114,16 @@ def main(argv: list[str]) -> int:
         return 2
 
     cache = os.path.join(tempfile.gettempdir(), "mirage-provision-cache")
-    os.makedirs(cache, exist_ok=True)
     try:
+        os.makedirs(cache, exist_ok=True)
         sdk_rows = _sdk_rows(sdk_root, resolved, args.upgrade, cache)
         avd_rows = _avd_rows(avd_home, args.apply)
-    except fetch.FetchError as error:
+    except (fetch.FetchError, OSError) as error:
+        # 連 OSError 一起接，是為了讓退出碼契約真的成立。_avd_rows 完全不碰
+        # fetch，它寫 config.ini 時的 PermissionError（唯讀家目錄、CI sandbox）
+        # 原本沒有任何 except 接得到，會以 raw traceback + exit 1 結束——而 1 在
+        # 契約裡的意思是「有漂移」，且那時一份報表都還沒印出來。只看退出碼的
+        # 自動化會把「權限炸掉」讀成「有漂移」。
         print(f"錯誤：{error}", file=sys.stderr)
         return 2
 
