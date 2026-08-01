@@ -42,9 +42,13 @@ class ExitCodeContractTests(unittest.TestCase):
             os.chmod(avd_home, 0o500)  # r-x：進得去但寫不了
             try:
                 with unittest.mock.patch("provision._resolve", return_value=[]):
-                    code = provision.main(
-                        ["--apply", "--sdk-root", tmp, "--avd-home", avd_home]
-                    )
+                    # main() 印的錯誤訊息（PermissionError）本身就是這條測試在
+                    # 驗證的行為，但每次跑都往 stderr 噴一行對讀測試輸出的人是
+                    # 雜訊——吞掉它，退出碼才是這條測試真正關心的斷言。
+                    with contextlib.redirect_stderr(io.StringIO()):
+                        code = provision.main(
+                            ["--apply", "--sdk-root", tmp, "--avd-home", avd_home]
+                        )
                 self.assertEqual(code, 2)
             finally:
                 # 不還原權限的話 TemporaryDirectory 清不掉。
