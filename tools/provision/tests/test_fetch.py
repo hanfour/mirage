@@ -37,6 +37,19 @@ class EnsureSpaceTests(unittest.TestCase):
             with self.assertRaises(FetchError):
                 ensure_space(tmp, 1 << 60)
 
+    def test_multiplier_is_greater_than_three(self):
+        """四個真 zip 的實測解壓膨脹率裡最大的是 emulator 的 3.12×（見
+        `ensure_space` docstring，2026-08-02 量測）。舊的 1.2 倍率在「剩餘
+        空間是需求的 2.5 倍」這個情境下會誤判通過，但解壓時其實不夠——
+        用 mock 造出這個可控的剩餘空間，不用真的填滿磁碟就能驗到差異。"""
+        needed = 1_000_000_000
+        free = int(needed * 2.5)  # 介於 1.5x 與 3x 之間：1.2 倍率會誤判通過
+        with unittest.mock.patch(
+            "shutil.disk_usage", return_value=unittest.mock.MagicMock(free=free)
+        ):
+            with self.assertRaises(FetchError):
+                ensure_space("/unused-because-disk_usage-is-mocked", needed)
+
 
 class Sha1Tests(unittest.TestCase):
     def test_matching_sha1_passes(self):

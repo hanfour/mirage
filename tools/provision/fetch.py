@@ -60,10 +60,23 @@ def ensure_space(path: str, needed: int) -> None:
     空間不足時讓下載跑到一半才失敗，會留下 GB 級的半成品，而且錯誤訊息指向
     I/O error 而不是真正的原因。manifest 本來就提供 size，先問一次很便宜。
 
-    留 20% 餘裕：解壓時 zip 與解開後的內容會同時存在。
+    **倍率是 3.2，不是「留 20% 餘裕」那個直覺數字**——那個數字量錯了：它假設
+    解壓後的內容跟 zip 差不多大，但四個真 zip 的實測解壓膨脹率遠不只如此
+    （2026-08-02，讀 zip central directory 的 uncompressed size 加總，
+    `needed` 是 manifest 給的壓縮後 size）：
+
+        platform-tools    2.41×
+        emulator          3.12×
+        default sysimg    2.30×
+        playstore sysimg  1.29×
+
+    失效情境（倍率 1.2 時）：剩 2 GB 跑 emulator。檢查要求 needed*1.2 ≈
+    473 MB → 通過 → 下載 394 MB → 解壓需要 1.23 GB（3.12×）→ ENOSPC，
+    而 §9 承諾的「下載前先估算」在它唯一該生效的情境下沒有生效。3.2 蓋過
+    四個實測值裡最大的 3.12×，留一點餘裕但不到需要重新量測才能用的地步。
     """
     usage = shutil.disk_usage(path)
-    required = int(needed * 1.2)
+    required = int(needed * 3.2)
     if usage.free < required:
         raise FetchError(
             f"{path} 剩餘空間 {usage.free // (1 << 20)} MiB，"

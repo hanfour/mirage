@@ -1,6 +1,8 @@
 import contextlib
+import hashlib
 import io
 import os
+import pathlib
 import tempfile
 import unittest
 import unittest.mock
@@ -70,12 +72,20 @@ class SdkRowIdempotencyTests(unittest.TestCase):
 
     def test_second_run_reports_ok_without_package_xml(self):
         with tempfile.TemporaryDirectory() as sdk_root, tempfile.TemporaryDirectory() as cache:
+            zip_path = os.path.join(cache, "fake-pkg.zip")
+            with zipfile.ZipFile(zip_path, "w") as zf:
+                zf.writestr("fake-pkg/file.txt", "x")
+            # cache 命中現在會驗 sha1（D33 全分支審查修 3），所以這裡要填
+            # zip 的真 sha1，不能再用佔位字串——否則第一次跑就會因為驗不過
+            # 被刪檔，跟這條測試原本要驗的「第二次跑」完全無關。
+            real_sha1 = hashlib.sha1(pathlib.Path(zip_path).read_bytes()).hexdigest()
+
             pin = versions.Pin(
                 manifest_key="repo",
                 path="fake-pkg",
                 channel="stable",
                 revision="1.0",
-                sha1="unused-because-cache-hit-skips-download",
+                sha1=real_sha1,
                 size=0,
                 install_path="fake-pkg",
             )
@@ -84,12 +94,9 @@ class SdkRowIdempotencyTests(unittest.TestCase):
                 revision="1.0",
                 channel="stable",
                 url="https://example.invalid/fake-pkg.zip",
-                sha1="unused-because-cache-hit-skips-download",
+                sha1=real_sha1,
                 size=0,
             )
-            zip_path = os.path.join(cache, "fake-pkg.zip")
-            with zipfile.ZipFile(zip_path, "w") as zf:
-                zf.writestr("fake-pkg/file.txt", "x")
 
             first = provision._sdk_rows(sdk_root, [(pin, ref)], upgrade=False, cache=cache)
             self.assertEqual(len(first), 1)
@@ -107,6 +114,100 @@ class SdkRowIdempotencyTests(unittest.TestCase):
                 f"第二次跑應該全部符合（設計文件 §8 的冪等驗收條件），卻是：{second[0]}",
             )
             self.assertEqual(second[0].detail, "1.0")
+
+
+class SdkCacheIntegrityTests(unittest.TestCase):
+    """全分支審查 Important：cache 命中時原本完全不驗 sha1。第一次跑會驗
+    （`download` 內部呼叫 `verify_sha1`），但冪等工具的常態就是第二次之後，
+    那正是完整性模型被繞過的地方——cache 在 `tempfile.gettempdir()`
+    （Linux 上是 `/tmp`），任何本機使用者都能搶先放一個同名 zip 進去，
+    不重新驗就會連同執行位一起被解進 SDK。"""
+
+    def test_tampered_cache_zip_is_rejected_not_silently_extracted(self):
+        with tempfile.TemporaryDirectory() as sdk_root, tempfile.TemporaryDirectory() as cache:
+            zip_path = os.path.join(cache, "fake-pkg.zip")
+            with zipfile.ZipFile(zip_path, "w") as zf:
+                zf.writestr("fake-pkg/file.txt", "the real content")
+            # pin／ref 記的是「應該」是什麼——刻意跟 cache 裡實際放的內容不符，
+            # 模擬「檔名對、內容被換過」的 cache 汙染。
+            wrong_sha1 = hashlib.sha1(b"not the real content").hexdigest()
+
+            pin = versions.Pin(
+                manifest_key="repo",
+                path="fake-pkg",
+                channel="stable",
+                revision="1.0",
+                sha1=wrong_sha1,
+                size=0,
+                install_path="fake-pkg",
+            )
+            ref = PackageRef(
+                path="fake-pkg",
+                revision="1.0",
+                channel="stable",
+                url="https://example.invalid/fake-pkg.zip",
+                sha1=wrong_sha1,
+                size=0,
+            )
+
+            with self.assertRaises(fetch.FetchError):
+                provision._sdk_rows(sdk_root, [(pin, ref)], upgrade=False, cache=cache)
+
+            self.assertFalse(
+                os.path.isdir(os.path.join(sdk_root, "fake-pkg")),
+                "sha1 驗不過就不該把內容解進 SDK",
+            )
+            self.assertFalse(
+                os.path.exists(zip_path),
+                "verify_sha1 驗不過會刪檔，不留壞檔案卡住下一次跑",
+            )
+
+
+class SdkExtractSpaceTests(unittest.TestCase):
+    """`download()` 檢查的是 cache 所在的檔案系統，但解壓是在 sdk_root——
+    可能是不同 volume。這條測試模擬「下載那邊空間夠、sdk_root 那邊不夠」，
+    確認 `_sdk_rows` 在呼叫 `extract_into` 之前就擋下來，而不是解到一半
+    留下半成品。用 mock `shutil.disk_usage`（依路徑回不同值），不用真的
+    填滿磁碟。"""
+
+    def test_insufficient_space_at_sdk_root_is_fatal_before_extracting(self):
+        with tempfile.TemporaryDirectory() as sdk_root, tempfile.TemporaryDirectory() as cache:
+            zip_path = os.path.join(cache, "fake-pkg.zip")
+            with zipfile.ZipFile(zip_path, "w") as zf:
+                zf.writestr("fake-pkg/file.txt", "x")
+            content_sha1 = hashlib.sha1(pathlib.Path(zip_path).read_bytes()).hexdigest()
+
+            pin = versions.Pin(
+                manifest_key="repo",
+                path="fake-pkg",
+                channel="stable",
+                revision="1.0",
+                sha1=content_sha1,
+                size=1_000_000_000,
+                install_path="fake-pkg",
+            )
+            ref = PackageRef(
+                path="fake-pkg",
+                revision="1.0",
+                channel="stable",
+                url="https://example.invalid/fake-pkg.zip",
+                sha1=content_sha1,
+                size=1_000_000_000,
+            )
+
+            def fake_disk_usage(path):
+                # sdk_root 幾乎沒空間；其他路徑（cache 那條檢查路徑）空間充足。
+                free = 1 if os.path.abspath(path) == os.path.abspath(sdk_root) else 1 << 40
+                return unittest.mock.MagicMock(free=free)
+
+            with unittest.mock.patch("shutil.disk_usage", side_effect=fake_disk_usage):
+                with self.assertRaises(fetch.FetchError):
+                    provision._sdk_rows(sdk_root, [(pin, ref)], upgrade=False, cache=cache)
+
+            self.assertFalse(
+                os.path.isdir(os.path.join(sdk_root, "fake-pkg")),
+                "空間不足要在 extract_into 之前擋下來，不該留下半解壓的目錄",
+            )
 
 
 class PointerIniDriftTests(unittest.TestCase):

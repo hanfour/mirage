@@ -75,8 +75,21 @@ def _sdk_rows(sdk_root: str, resolved, upgrade: bool, cache: str) -> list[report
         may_write = installed is None or upgrade
         if may_write:
             zip_path = os.path.join(cache, os.path.basename(ref.url))
-            if not os.path.exists(zip_path):
+            if os.path.exists(zip_path):
+                # cache 命中就跳過下載，但完整性驗證不能跟著跳過——cache 在
+                # tempfile.gettempdir()（Linux 上是 /tmp），任何本機使用者
+                # 都能搶先放一個同名 zip 進去，等這支工具跑起來就會把它連同
+                # 執行位一起解進 SDK。第一次跑會驗（download 內部呼叫
+                # verify_sha1），但冪等工具的常態就是第二次之後，那正是
+                # 完整性模型被繞過的地方。sha1 不符會刪檔並拋 FetchError，
+                # 下次跑就會重下，不會留著壞檔案卡住。
+                fetch.verify_sha1(zip_path, ref.sha1)
+            else:
                 fetch.download(ref.url, zip_path, ref.sha1, ref.size)
+            # 解壓是在 sdk_root，可能跟 cache 不同 volume（download() 內部的
+            # ensure_space 只檢查 cache 所在的檔案系統）——這裡另外補一次。
+            os.makedirs(sdk_root, exist_ok=True)
+            fetch.ensure_space(sdk_root, ref.size)
             fetch.extract_into(zip_path, os.path.join(sdk_root, pin.install_path))
             # 記下我們裝的版本：Google 的原始 zip 不含 package.xml，沒有這一步
             # installed_revision 對這個 package 永遠回「無從追溯」，下一次跑
@@ -175,7 +188,10 @@ def main(argv: list[str]) -> int:
 
     cache = os.path.join(tempfile.gettempdir(), "mirage-provision-cache")
     try:
-        os.makedirs(cache, exist_ok=True)
+        # 0o700：cache 目錄在共用的 tempfile.gettempdir()（Linux 上是
+        # /tmp），世界可寫的權限讓任何本機使用者都能在裡面搶先放檔案。
+        # exist_ok=True 不會回頭收緊既有目錄的權限，但至少新建時不留門。
+        os.makedirs(cache, mode=0o700, exist_ok=True)
         sdk_rows = _sdk_rows(sdk_root, resolved, args.upgrade, cache)
         avd_rows = _avd_rows(avd_home, args.apply)
     except (fetch.FetchError, OSError) as error:
