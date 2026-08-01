@@ -6,7 +6,8 @@ import zipfile
 
 import fetch
 import provision
-from lib import versions
+from lib import config_ini, report, versions
+from lib.avdspec import SPECS
 from lib.manifest import PackageRef
 
 
@@ -83,6 +84,76 @@ class SdkRowIdempotencyTests(unittest.TestCase):
                 f"第二次跑應該全部符合（設計文件 §8 的冪等驗收條件），卻是：{second[0]}",
             )
             self.assertEqual(second[0].detail, "1.0")
+
+
+class PointerIniDriftTests(unittest.TestCase):
+    """全分支審查 Critical：`_avd_rows` 原本只拿 config.ini 算漂移，指標檔
+    （`<name>.ini`）只在寫入分支順手寫、從不參與比對。後果：config.ini 正確
+    但指標檔缺失、或 `path=` 指向別的帳號時，這裡回報「符合」且 exit 0，
+    而 `emulator -list-avds` 是靠掃指標檔找 AVD，根本看不見那台。連
+    `--apply` 都不會修它，因為漂移清單裡壓根沒有它。
+
+    全部離線、用 tempdir 當 avd_home，不連網、不碰真的 ~/.android/avd。
+    """
+
+    @staticmethod
+    def _write_correct_config(avd_home, spec):
+        avd_dir = os.path.join(avd_home, spec.name + ".avd")
+        os.makedirs(avd_dir, exist_ok=True)
+        with open(os.path.join(avd_dir, "config.ini"), "w", encoding="utf-8") as handle:
+            handle.write(config_ini.render_config(spec))
+
+    @staticmethod
+    def _write_pointer(avd_home, spec, *, path_avd_home):
+        with open(os.path.join(avd_home, spec.name + ".ini"), "w", encoding="utf-8") as handle:
+            handle.write(config_ini.render_pointer_ini(spec, path_avd_home))
+
+    def test_missing_pointer_ini_is_reported_as_drift(self):
+        spec = SPECS[0]
+        with tempfile.TemporaryDirectory() as avd_home:
+            self._write_correct_config(avd_home, spec)
+            # 指標檔刻意不寫——config.ini 單獨正確，不代表這台 AVD 存在。
+            rows = provision._avd_rows(avd_home, apply_changes=False)
+            row = next(r for r in rows if r.label == spec.name)
+            self.assertFalse(row.ok, f"config.ini 對、指標檔缺失，應回報漂移：{row}")
+            self.assertEqual(report.exit_code(rows), 1)
+
+    def test_pointer_ini_pointing_elsewhere_is_reported_as_drift(self):
+        spec = SPECS[0]
+        with tempfile.TemporaryDirectory() as avd_home:
+            self._write_correct_config(avd_home, spec)
+            self._write_pointer(avd_home, spec, path_avd_home="/tmp/some-other-account/.android/avd")
+            rows = provision._avd_rows(avd_home, apply_changes=False)
+            row = next(r for r in rows if r.label == spec.name)
+            self.assertFalse(row.ok, f"path= 指向別的目錄，應回報漂移：{row}")
+            self.assertIn(f"{spec.name}.ini:path", row.detail)
+
+    def test_both_files_correct_is_ok(self):
+        with tempfile.TemporaryDirectory() as avd_home:
+            for spec in SPECS:
+                self._write_correct_config(avd_home, spec)
+                self._write_pointer(avd_home, spec, path_avd_home=avd_home)
+            rows = provision._avd_rows(avd_home, apply_changes=False)
+            self.assertTrue(all(r.ok for r in rows), rows)
+            self.assertEqual(report.exit_code(rows), 0)
+
+    def test_apply_corrects_the_pointer_ini_to_the_right_absolute_path(self):
+        spec = SPECS[0]
+        with tempfile.TemporaryDirectory() as avd_home:
+            self._write_correct_config(avd_home, spec)
+            self._write_pointer(avd_home, spec, path_avd_home="/tmp/some-other-account/.android/avd")
+
+            provision._avd_rows(avd_home, apply_changes=True)
+
+            pointer_path = os.path.join(avd_home, spec.name + ".ini")
+            with open(pointer_path, encoding="utf-8") as handle:
+                text = handle.read()
+            self.assertIn(f"path={avd_home}/{spec.name}.avd\n", text)
+
+            # 修正後重新掃一次，兩個檔都該符合。
+            rows = provision._avd_rows(avd_home, apply_changes=False)
+            row = next(r for r in rows if r.label == spec.name)
+            self.assertTrue(row.ok, row)
 
 
 if __name__ == "__main__":

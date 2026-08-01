@@ -1,4 +1,5 @@
 import unittest
+import unittest.mock
 
 from lib.avdspec import SPECS, AvdSpec
 from lib.config_base import BASE
@@ -112,6 +113,13 @@ class PointerIniTests(unittest.TestCase):
         self.assertIn("path=/Users/tester/.android/avd/mirage-poc.avd\n", text)
         self.assertIn("path.rel=avd/mirage-poc.avd\n", text)
         self.assertIn("target=android-35\n", text)
+
+    def test_target_is_derived_from_base_not_hardcoded(self):
+        """升 Android 版本時只改 `BASE['target']` 一處，指標檔要跟著動——
+        寫死的字面值會讓指標檔的 target 跟 config.ini 的 target 各自漂移。"""
+        with unittest.mock.patch.dict(BASE, {"target": "android-99"}):
+            text = render_pointer_ini(POC, "/Users/tester/.android/avd")
+        self.assertIn("target=android-99\n", text)
 
 
 if __name__ == "__main__":

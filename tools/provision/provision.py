@@ -73,12 +73,41 @@ def _avd_rows(avd_home: str, apply_changes: bool) -> list[report.Row]:
     for spec in SPECS:
         avd_dir = os.path.join(avd_home, spec.name + ".avd")
         config_path = os.path.join(avd_dir, "config.ini")
-        exists = os.path.isfile(config_path)
-        current = {}
-        if exists:
+        pointer_path = os.path.join(avd_home, spec.name + ".ini")
+
+        # `exists`（是否需要 --apply 才能改）刻意只看 config.ini，不是兩者
+        # AND：config.ini 帶著 RAM 之類會讓既有快照失效的設定，「已存在但
+        # 不符才需要旗標」保護的正是它。若改成兩者都要存在才算 exists，
+        # 使用者只是不小心少了指標檔、config.ini 本身還帶著手動調過的合法
+        # 差異，也會被當成「全新 AVD」直接覆寫，繞過那道保護。指標檔本身
+        # 沒有這個風險（覆寫它不會讓快照失效），但它的缺失/錯誤仍要算進
+        # 漂移清單，只是走「需要 --apply」那條路，不是無條件自動建立。
+        config_exists = os.path.isfile(config_path)
+        pointer_exists = os.path.isfile(pointer_path)
+        exists = config_exists
+
+        current_config = {}
+        if config_exists:
             with open(config_path, encoding="utf-8") as handle:
-                current = config_ini.parse_config(handle.read())
-        diffs = drift.config_drift(current, config_ini.expected_config(spec))
+                current_config = config_ini.parse_config(handle.read())
+        config_diffs = drift.config_drift(current_config, config_ini.expected_config(spec))
+
+        current_pointer = {}
+        if pointer_exists:
+            with open(pointer_path, encoding="utf-8") as handle:
+                # 指標檔沒有空格，但 parse_config 兩種形式都容忍，可以共用。
+                current_pointer = config_ini.parse_config(handle.read())
+        expected_pointer = config_ini.parse_config(
+            config_ini.render_pointer_ini(spec, avd_home)
+        )
+        # key 前綴避免跟 config.ini 撞名（兩邊都有 avd.ini.encoding／target）：
+        # 合併後的漂移清單要讓人一眼看出哪個 key 屬於哪個檔案。
+        pointer_diffs = [
+            drift.Diff(key=f"{spec.name}.ini:{d.key}", current=d.current, expected=d.expected)
+            for d in drift.config_drift(current_pointer, expected_pointer)
+        ]
+
+        diffs = config_diffs + pointer_diffs
         if not diffs:
             rows.append(report.Row(spec.name, True, "符合", ""))
             continue
@@ -86,8 +115,7 @@ def _avd_rows(avd_home: str, apply_changes: bool) -> list[report.Row]:
             os.makedirs(avd_dir, exist_ok=True)
             with open(config_path, "w", encoding="utf-8") as handle:
                 handle.write(config_ini.render_config(spec))
-            pointer = os.path.join(avd_home, spec.name + ".ini")
-            with open(pointer, "w", encoding="utf-8") as handle:
+            with open(pointer_path, "w", encoding="utf-8") as handle:
                 handle.write(config_ini.render_pointer_ini(spec, avd_home))
             rows.append(report.Row(spec.name, True, "已建立" if not exists else "已修正", ""))
             continue

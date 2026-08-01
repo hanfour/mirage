@@ -58,5 +58,5 @@ def render_pointer_ini(spec: AvdSpec, avd_home: str) -> str:
         "avd.ini.encoding=UTF-8\n"
         f"path={avd_home}/{spec.name}.avd\n"
         f"path.rel=avd/{spec.name}.avd\n"
-        "target=android-35\n"
+        f"target={BASE['target']}\n"
     )
