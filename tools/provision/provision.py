@@ -55,6 +55,10 @@ def _sdk_rows(sdk_root: str, resolved, upgrade: bool, cache: str) -> list[report
             if not os.path.exists(zip_path):
                 fetch.download(ref.url, zip_path, ref.sha1, ref.size)
             fetch.extract_into(zip_path, os.path.join(sdk_root, pin.install_path))
+            # 記下我們裝的版本：Google 的原始 zip 不含 package.xml，沒有這一步
+            # installed_revision 對這個 package 永遠回「無從追溯」，下一次跑
+            # 會把剛裝好的東西誤判成漂移（2026-08-02 真下載驗證時發現）。
+            fetch.record_installed(sdk_root, pin.install_path, pin.revision)
             rows.append(report.Row(pin.path, True, f"已安裝 {pin.revision}", ""))
         else:
             shown = "版本無從追溯" if installed == "" else installed

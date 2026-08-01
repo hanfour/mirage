@@ -1,12 +1,21 @@
 import hashlib
 import os
 import pathlib
+import stat
 import tempfile
 import unittest
 import unittest.mock
 import zipfile
 
-from fetch import FetchError, ensure_space, extract_into, installed_revision, verify_sha1
+from fetch import (
+    PROVENANCE_FILE,
+    FetchError,
+    ensure_space,
+    extract_into,
+    installed_revision,
+    record_installed,
+    verify_sha1,
+)
 
 LOCAL_PACKAGE_XML = """<?xml version='1.0' encoding='utf-8'?>
 <ns2:repository xmlns:ns2="http://schemas.android.com/repository/android/common/02">
@@ -52,6 +61,19 @@ def _make_zip(tmp, root_name, files):
     with zipfile.ZipFile(zip_path, "w") as zf:
         for name, content in files.items():
             zf.writestr(f"{root_name}/{name}" if root_name else name, content)
+    return zip_path
+
+
+def _make_zip_with_modes(tmp, root_name, files):
+    """`files`：`{name: (content, mode)}`。用 `ZipInfo` 明確設 `external_attr`
+    ——`writestr(str, ...)` 造出來的項目 `external_attr` 是 0，測不出「有沒有
+    保留權限」的差異（這正是舊版 `_make_zip` 測不到執行權限 bug 的原因）。"""
+    zip_path = os.path.join(tmp, "modes.zip")
+    with zipfile.ZipFile(zip_path, "w") as zf:
+        for name, (content, mode) in files.items():
+            info = zipfile.ZipInfo(f"{root_name}/{name}" if root_name else name)
+            info.external_attr = (mode & 0xFFFF) << 16
+            zf.writestr(info, content)
     return zip_path
 
 
@@ -127,6 +149,44 @@ class ExtractTests(unittest.TestCase):
                              "還原後不該留下 backup 目錄")
 
 
+class ExtractModeTests(unittest.TestCase):
+    """2026-08-02 真下載 platform-tools 驗到的 bug：`zipfile.extractall()`
+    不還原 `external_attr` 裡的 Unix 權限，`adb` 解出來變成 `-rw-r--r--`，
+    直接 `PermissionError`。這個類別釘住修復——拿掉 `_extract_preserving_modes`
+    裡的 `os.chmod` 那行，`test_executable_bit_survives_extraction` 會紅。"""
+
+    def test_executable_bit_survives_extraction(self):
+        """真 zip（platform-tools）有 11 個 0o755 的項目，舊版 extract_into
+        全部丟掉權限。這條測試是那個真實 bug 的回歸哨兵。"""
+        with tempfile.TemporaryDirectory() as tmp:
+            zip_path = _make_zip_with_modes(
+                tmp,
+                "platform-tools",
+                {"adb": ("#!/bin/sh\n", 0o755), "NOTICE.txt": ("x", 0o644)},
+            )
+            install = os.path.join(tmp, "out")
+            extract_into(zip_path, install)
+            self.assertTrue(
+                os.access(os.path.join(install, "adb"), os.X_OK),
+                "adb 解壓後必須可執行",
+            )
+            self.assertFalse(
+                os.access(os.path.join(install, "NOTICE.txt"), os.X_OK),
+                "非執行檔不該被誤加執行權限",
+            )
+
+    def test_symlink_entries_are_rejected(self):
+        """platform-tools 的真 zip 沒有符號連結，但別的 package 可能有。
+        與其猜著寫一條沒被驗證過的還原邏輯，不如當場說清楚——這條測試
+        釘住「看到符號連結就拒絕、不要裝出一個看起來裝好但其實壞掉的
+        SDK」這個決定，不讓它被悄悄拿掉。"""
+        with tempfile.TemporaryDirectory() as tmp:
+            link_mode = stat.S_IFLNK | 0o777
+            zip_path = _make_zip_with_modes(tmp, "pkg", {"link": ("target", link_mode)})
+            with self.assertRaises(FetchError):
+                extract_into(zip_path, os.path.join(tmp, "out"))
+
+
 class InstalledRevisionTests(unittest.TestCase):
     def test_reads_package_xml(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -158,6 +218,61 @@ class InstalledRevisionTests(unittest.TestCase):
                 "<ns2:repository><localPackage/></ns2:repository>"
             )
             self.assertEqual(installed_revision(tmp, "emulator"), "")
+
+
+class RecordInstalledTests(unittest.TestCase):
+    """2026-08-02 真下載驗到的 bug：provision.py 裝的 package 沒有
+    `package.xml`（Google 的原始 zip 本來就不含它），`installed_revision`
+    永遠回空字串，第二次跑會把剛裝好的東西判成漂移。這個類別釘住修復——
+    拿掉 `installed_revision` 裡查 `_read_provenance` 那行，
+    `test_recorded_revision_is_read_back_when_no_package_xml` 會紅。"""
+
+    def test_recorded_revision_is_read_back_when_no_package_xml(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            target = os.path.join(tmp, "platform-tools")
+            os.makedirs(target)
+            record_installed(tmp, "platform-tools", "37.0.1")
+            self.assertEqual(installed_revision(tmp, "platform-tools"), "37.0.1")
+
+    def test_package_xml_takes_priority_over_provenance(self):
+        """package.xml 是別人（sdkmanager／Android Studio）寫的，代表這份
+        比我們自己的紀錄更新——例如使用者事後用官方工具升級過，我們的
+        provenance 紀錄還停在舊版本。"""
+        with tempfile.TemporaryDirectory() as tmp:
+            target = os.path.join(tmp, "emulator")
+            os.makedirs(target)
+            record_installed(tmp, "emulator", "37.0.0")  # 我們紀錄的舊版本
+            pathlib.Path(os.path.join(target, "package.xml")).write_text(LOCAL_PACKAGE_XML)  # 37.2.1
+            self.assertEqual(installed_revision(tmp, "emulator"), "37.2.1")
+
+    def test_multiple_install_paths_are_recorded_independently(self):
+        """先前呼叫寫進去的紀錄不能被下一次呼叫蓋掉——record_installed 必須
+        整份讀回來、疊上新的一筆再整份寫出去，而不是直接覆寫整個檔案。"""
+        with tempfile.TemporaryDirectory() as tmp:
+            os.makedirs(os.path.join(tmp, "emulator"))
+            os.makedirs(os.path.join(tmp, "platform-tools"))
+            record_installed(tmp, "emulator", "37.1.11")
+            record_installed(tmp, "platform-tools", "37.0.1")
+            self.assertEqual(installed_revision(tmp, "emulator"), "37.1.11")
+            self.assertEqual(installed_revision(tmp, "platform-tools"), "37.0.1")
+
+    def test_corrupt_provenance_file_is_treated_as_empty(self):
+        """這份檔案只是加速用的紀錄，不是真相來源——壞掉的後果應該是回頭
+        報告漂移，不是讓整支工具崩潰。"""
+        with tempfile.TemporaryDirectory() as tmp:
+            target = os.path.join(tmp, "platform-tools")
+            os.makedirs(target)
+            pathlib.Path(os.path.join(tmp, PROVENANCE_FILE)).write_text("{not valid json")
+            self.assertEqual(installed_revision(tmp, "platform-tools"), "")
+
+    def test_missing_directory_still_returns_none_when_provenance_file_exists(self):
+        """provenance 紀錄不能讓「目錄根本不存在」被誤判成「裝了」——
+        `installed_revision` 的第一道判斷（`os.path.isdir`）必須仍然優先，
+        即使 `PROVENANCE_FILE` 裡有別的 install_path 的紀錄。"""
+        with tempfile.TemporaryDirectory() as tmp:
+            os.makedirs(os.path.join(tmp, "emulator"))
+            record_installed(tmp, "emulator", "37.1.11")
+            self.assertIsNone(installed_revision(tmp, "platform-tools"))
 
 
 if __name__ == "__main__":

@@ -9,8 +9,10 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import os
 import shutil
+import stat
 import tempfile
 import urllib.error
 import urllib.request
@@ -21,6 +23,9 @@ from lib.manifest import ManifestError, parse_local_revision
 
 class FetchError(Exception):
     """網路、checksum 或解壓失敗。"""
+
+
+PROVENANCE_FILE = ".mirage-provision.json"
 
 
 def fetch_text(url: str, *, timeout: int = 60) -> str:
@@ -87,6 +92,31 @@ def download(url: str, dest: str, expected_sha1: str, expected_size: int) -> Non
     os.replace(part, dest)
 
 
+def _extract_preserving_modes(archive: zipfile.ZipFile, dest: str) -> None:
+    """`zipfile.extractall()` 不還原 Unix 權限——`external_attr` 裡的 mode 被丟掉。
+
+    真實後果（2026-08-02 實測 `platform-tools_r37.0.1-darwin.zip`）：zip 裡 11
+    個項目標著 `0o755`，`extractall()` 解出來全變成 `-rw-r--r--`，`adb` 直接
+    `PermissionError`——這是這支工具第一次真下載就踩到的 bug，78 條 mocked
+    測試全綠時完全沒被抓到。
+
+    **單元測試原本抓不到這個**：舊測試用 `zipfile.writestr()` 造 zip，那樣寫
+    出來的項目 `external_attr` 是 0——測試的 zip 根本沒有權限位可以丟，所以
+    「有沒有還原權限」這件事在合成 zip 上測不出差異。只有真下載才會現形，
+    這條註解與 `tests/test_fetch.py` 的 `ExtractModeTests` 就是那次的紀錄。
+    """
+    for info in archive.infolist():
+        mode = info.external_attr >> 16
+        if stat.S_ISLNK(mode):
+            # platform-tools 的真 zip 沒有符號連結，但別的 package 可能有。
+            # 與其猜著寫一條沒被驗證過的還原邏輯，不如當場說清楚——裝歪的
+            # SDK 只會在啟動模擬器時以看不懂的訊息現形。
+            raise FetchError(f"{info.filename} 是符號連結，目前不支援")
+        target = archive.extract(info, dest)
+        if mode & 0o777:
+            os.chmod(target, mode & 0o777)
+
+
 def extract_into(zip_path: str, install_dir: str) -> None:
     """解壓並就位。
 
@@ -103,7 +133,7 @@ def extract_into(zip_path: str, install_dir: str) -> None:
     backup = None
     try:
         with zipfile.ZipFile(zip_path) as archive:
-            archive.extractall(staging)
+            _extract_preserving_modes(archive, staging)
         entries = os.listdir(staging)
         if len(entries) != 1 or not os.path.isdir(os.path.join(staging, entries[0])):
             raise FetchError(
@@ -127,20 +157,64 @@ def extract_into(zip_path: str, install_dir: str) -> None:
             shutil.rmtree(backup, ignore_errors=True)
 
 
+def record_installed(sdk_root: str, install_path: str, revision: str) -> None:
+    """記下我們自己裝了什麼版本，寫進 `sdk_root` 底下的 `PROVENANCE_FILE`。
+
+    **為什麼需要這個檔案**：Google 的原始 repository zip 不含 `package.xml`
+    ——那是 `sdkmanager`／Android Studio 在「管理式安裝」時額外合成的本地
+    metadata，不是 zip 的內容物（2026-08-02 用真下載的 `platform-tools`
+    zip 實測確認：14 個項目裡沒有 `package.xml`）。本工具刻意不依賴 JDK，
+    不會呼叫 `sdkmanager`，所以少了這份紀錄，`installed_revision` 對我們
+    自己裝的任何 package 永遠回 `""`（無從追溯）——第二次跑就會把剛裝好的
+    東西報成漂移，建議的 `--upgrade` 一旦照做就會每次重新下載 GB 級檔案，
+    直接違反設計文件 §8 的冪等驗收條件。
+
+    **用新字典整份重寫，不原地改**：`_read_provenance` 回傳的是獨立的一份，
+    這裡疊上新的一筆再整份 `json.dump`，不對它做原地賦值——寫檔本身就該是
+    「舊狀態 + 這次的變更 → 新狀態」，而不是修飾一個可能被別處持有的物件。
+    """
+    records = {**_read_provenance(sdk_root), install_path: revision}
+    path = os.path.join(sdk_root, PROVENANCE_FILE)
+    with open(path, "w", encoding="utf-8") as handle:
+        json.dump(records, handle, indent=2, sort_keys=True)
+        handle.write("\n")
+
+
+def _read_provenance(sdk_root: str) -> dict[str, str]:
+    """讀不到或壞掉一律當成空的。
+
+    這份檔案只是加速用的紀錄，不是真相來源——壞掉的後果應該是「回頭報告
+    漂移」，而不是讓整支工具崩潰。壞掉的來源可能是手動編輯、磁碟寫到一半，
+    或單純是舊版格式。
+    """
+    path = os.path.join(sdk_root, PROVENANCE_FILE)
+    try:
+        with open(path, encoding="utf-8") as handle:
+            records = json.load(handle)
+    except (OSError, ValueError):
+        return {}
+    return records if isinstance(records, dict) else {}
+
+
 def installed_revision(sdk_root: str, install_path: str) -> str | None:
     """`None` ＝ 沒裝；`""` ＝ 裝了但版本讀不出來。
 
     這兩者必須分得開：現裝的 google_apis_playstore 映像就是後者——目錄在、
     但沒有 `package.xml`，版本無從追溯。那正是 D33 記載的手工環境問題本體。
+
+    **優先序**：`package.xml` 存在就用它——那是 `sdkmanager`／Android Studio
+    寫的，代表這份是別人（或使用者事後用官方工具）裝的，比我們自己的紀錄
+    更該相信。沒有的話才查 `PROVENANCE_FILE`：那是 `record_installed` 留下的，
+    只涵蓋「本工具自己裝的東西」。兩者都沒有才回空字串。
     """
     target = os.path.join(sdk_root, install_path)
     if not os.path.isdir(target):
         return None
     package_xml = os.path.join(target, "package.xml")
-    if not os.path.isfile(package_xml):
-        return ""
-    try:
-        with open(package_xml, encoding="utf-8") as handle:
-            return parse_local_revision(handle.read())
-    except (OSError, ManifestError):
-        return ""
+    if os.path.isfile(package_xml):
+        try:
+            with open(package_xml, encoding="utf-8") as handle:
+                return parse_local_revision(handle.read())
+        except (OSError, ManifestError):
+            return ""
+    return _read_provenance(sdk_root).get(install_path, "")
