@@ -135,6 +135,8 @@
 | **D37** | **`tools/probe/tests/` 的 13 個測試檔從未被跑過**。全部用 pytest，而本機沒裝 pytest（`python3 -m pytest` → `No module named pytest`）、沒有 requirements、沒有入口、不在 `ci.sh` 裡 | 與 D3（假 skip）同一族：**存在但不執行的測試比沒有測試更糟**，因為它讓人以為有涵蓋。13 個檔案涵蓋 coords／gesture／targets／framebuffer 等 probe 的核心邏輯，全都沒有保護 | 改寫成 unittest 併入 `ci.sh` 閘門 6，或加 requirements 並讓閘門裝 pytest。前者與 D33 的選擇一致（零依賴） | 半天 | P2 |
 | **D38** | `mirage-poc.avd/config.ini` 帶字面上未取代的範本佔位符（`avd.id = <build>`、`avd.name = <build>`、`disk.dataPartition.path = <temp>`） | 它照樣能跑，所以不是功能問題；但它是**手工環境的具體證據**，也說明當初的建立程序沒有任何檢查 | `tools/provision/provision.py --apply` 會修正 | 1 分鐘 | P3 |
 | **D39** | **MMAP transport 的重驗前提可能已經成立**。當初記載「等含上游修正的 build 發布」時，manifest 上 aarch64 只有 37.2.1(canary)／37.1.10(beta)／36.6.11(stable)；**現在 stable 是 37.1.11，build 15917651 比我們在跑的 canary 37.2.1（15875889）還新** | 「阻礙已消失但沒人回頭驗」那一類。MMAP 目前預設關閉，而 `FallbackTransport` 只認全零、認不出凍結幀（黑色像素是 `00 00 00 FF`），所以它不能靠自動降級兜住 | 升到 stable 37.1.11 後跑 `app/scripts/verify_mmap.sh`；拿到 ≥3 個非零且互異的幀才考慮改預設。**先確認它要解的問題還存在**——2026-07-28 實測顯示頻寬不是 fps 的瓶頸 | 1 小時 | P3 |
+| **D40** | **`tools/provision` 碰網路與 AVD 寫入的那一層測試 0 覆蓋**：`fetch.download`、`fetch.fetch_text`、`provision._resolve`、`provision._avd_rows` 四者在 `tests/` 裡零直接呼叫（`_resolve` 一律被 mock）。| 這條分支已經發生過兩次「mocked 測試全綠卻藏著 Critical bug」（`zipfile` 不還原權限、Google 原始 zip 不含 `package.xml`），兩次都長在這一層。`download` 的 `.part` 清理、size 檢查、`os.replace` 順序目前沒有任何回歸哨兵 | 用 `http.server` 起一個本機 server 餵已知 bytes，就能離線測 `download`／`fetch_text` 的完整路徑 | 半天 | P2 |
+| **D41** | **`image.sysdir.1` 與 pin 的 `install_path` 是兩個各寫各的字串，沒有任何程式或測試把它們綁在一起**，且 `android-35` 散在 4 個檔案 8 處 | 升 android-36 時只改 `versions.py` 沒改 `avdspec.py`，會裝好新映像但 config.ini 指向已不存在的舊路徑，而**工具回報 ✓ exit 0**、`emulator -avd` 以「Cannot find system image」失敗。另有今天就成立的失效：`--sdk-root /opt/sdk` 寫出的 `image.sysdir.1` 是相對路徑，模擬器用它自己的 SDK root 去解 | 讓 `image.sysdir.1` 由 pin 的 `install_path` 導出；API 版本收斂成單一常數 | 2 小時 | P2 |
 
 > **關於 `P0`**：這一級是 2026-07-29 為 D6 新增的。原本最高只有 P1，而 D6 在 D2 上線後
 > 多了一種「不會自癒」的失效模式（永久卡鍵），與其他 P1 不同級。優先序欄位仍然是建議。
@@ -223,7 +225,7 @@ recon 文件那句講的是 `poc`。量 fps 用的 `game` 機已是最佳設定�
 
 | 驗收線 | 狀態 | 瓶頸 | Mirage 佔比 |
 |---|---|---|---|
-| 1 款指標遊戲開箱即玩 | ⚠️ **✅（有前提）** | **前提：先跑 `tools/provision/provision.py --apply --upgrade`，再人工登入 Play Store 或 sideload APK** | — |
+| 1 款指標遊戲開箱即玩 | ⚠️ **✅（有前提）** | **前提：新機器先跑 `tools/provision/provision.py`（無旗標即可），再人工登入 Play Store 或 sideload APK** | — |
 | 60fps 穩定 | ❌ 29–44fps | guest 出幀（⚠️ 仍是推論，未直接量到 guest render fps） | 無額外損失 |
 | 輸入延遲 < 80ms | ❌ ~110ms | 傳輸佔 ~2/3 | 20–28ms |
 | 冷啟動 < 30 秒 | ❌ ~37s | emulator 開機佔 89% | 4.2s |
@@ -238,7 +240,7 @@ recon 文件那句講的是 `poc`。量 fps 用的 `game` 機已是最佳設定�
 2. **三台的不一致確認屬實，且比原記載多一項**：`mirage-poc` 除了 `gpu.enabled=no / mode=auto / ram=2G`，還有 `hw.keyboard=no`；另兩台是 `yes / host / 4096 / yes`。RAM 2G vs 4G 是實質差異——**跑在 poc 上與跑在 bench 上的 fps 數字不可直接比較**。
 3. **兩份 system image 的來源不一致**：`default/arm64-v8a` 帶 `package.xml`（來自官方 repository zip），`google_apis_playstore/arm64-v8a` **沒有 `package.xml`**（手工組裝，來源與版本無從追溯）。
 
-**另有一段是腳本永遠補不上的**：`mirage-game` 用的是 playstore image，要在上面裝遊戲需要登入 Google 帳號——那一步不可自動化。所以「開箱即玩」可自動化的邊界最多到「**三台一致的 AVD 可被重建**」，遊戲本身得靠 sideload APK（`verify_apk_install.sh` 已涵蓋）或人工登入。這條邊界必須寫在這裡，否則寫了 provisioning 腳本之後這個 ✅ 仍然是半裸的。
+**另有一段是腳本永遠補不上的**：`mirage-game` 用的是 playstore image，要在上面裝遊戲需要登入 Google 帳號——那一步不可自動化。所以「開箱即玩」可自動化的邊界最多到「**兩台一致的 AVD 可被重建**」，遊戲本身得靠 sideload APK（`verify_apk_install.sh` 已涵蓋）或人工登入。這條邊界必須寫在這裡，否則寫了 provisioning 腳本之後這個 ✅ 仍然是半裸的。
 
 ---
 
