@@ -23,6 +23,20 @@ class SdkRootTests(unittest.TestCase):
         照用會得到相對路徑，把 SDK 裝進當下的工作目錄。"""
         self.assertEqual(sdk_root({"ANDROID_SDK_ROOT": ""}, HOME), "/Users/tester/Library/Android/sdk")
 
+    def test_whitespace_only_value_is_treated_as_unset(self):
+        """`.strip()` 只有在純空白字串（例如被別的腳本設成 " "）時才起作用，
+        沒有這條測試的話拿掉 .strip() 不會有任何東西變紅。"""
+        self.assertEqual(sdk_root({"ANDROID_SDK_ROOT": "   "}, HOME),
+                         "/Users/tester/Library/Android/sdk")
+
+    def test_empty_first_var_falls_through_to_the_second(self):
+        """外層的 `if explicit:` 會把 _first_non_empty 內部的缺陷蓋住，
+        所以只有「空值 + 有備援」這個交叉情境才驗得到優先序真的有跳過空值
+        繼續往下找。少了它，把 _first_non_empty 改成「回傳第一個存在的 key」
+        也不會有任何測試變紅。"""
+        env = {"ANDROID_SDK_ROOT": "", "ANDROID_HOME": "/b"}
+        self.assertEqual(sdk_root(env, HOME), "/b")
+
 
 class AvdHomeTests(unittest.TestCase):
     def test_android_avd_home_wins(self):
