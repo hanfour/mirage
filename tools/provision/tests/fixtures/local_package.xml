@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<ns2:repository xmlns:ns2="http://schemas.android.com/repository/android/common/02">
+  <localPackage path="emulator" obsolete="false">
+    <revision><major>37</major><minor>2</minor><micro>1</micro></revision>
+    <display-name>Android Emulator</display-name>
+  </localPackage>
+</ns2:repository>
