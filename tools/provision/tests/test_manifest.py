@@ -137,5 +137,25 @@ class LocalPackageTests(unittest.TestCase):
             parse_local_revision("<ns2:repository xmlns:ns2='x'/>")
 
 
+class MalformedXmlTests(unittest.TestCase):
+    """package.xml／manifest 損毀（例如寫到一半就中斷）是「看起來裝好了但其實
+    壞掉」的典型狀態。兩個進入點都要把 ElementTree 的 ParseError 包成
+    ManifestError，不能讓「內部用了 ElementTree」這件事漏給呼叫端——
+    fetch.installed_revision 的 except 子句接的是 (OSError, ManifestError)，
+    沒接 ParseError，漏掉就會讓它直接崩潰而不是回傳空字串。"""
+
+    # 缺少 xmlns:ns2 宣告，ElementTree 的 expat 解析器會在還沒看到結構之前
+    # 就先炸「unbound prefix」——與 reviewer 用截斷檔案重現的錯誤同一類。
+    MALFORMED = "<ns2:repository><localPackage/></ns2:repository>"
+
+    def test_parse_manifest_wraps_parse_error_as_manifest_error(self):
+        with self.assertRaises(ManifestError):
+            parse_manifest(self.MALFORMED, REPO_BASE, host_os="macosx", host_arch="aarch64")
+
+    def test_parse_local_revision_wraps_parse_error_as_manifest_error(self):
+        with self.assertRaises(ManifestError):
+            parse_local_revision(self.MALFORMED)
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -3,6 +3,7 @@ import os
 import pathlib
 import tempfile
 import unittest
+import unittest.mock
 import zipfile
 
 from fetch import FetchError, ensure_space, extract_into, installed_revision, verify_sha1
@@ -80,9 +81,11 @@ class ExtractTests(unittest.TestCase):
             self.assertTrue(os.path.exists(os.path.join(install, "new")))
             self.assertFalse(os.path.exists(os.path.join(install, "old")))
 
-    def test_failure_restores_the_previous_directory(self):
-        """任何時刻都必須有一份可用的。中途失敗卻把舊的刪了，
-        等於用一次失敗的升級換掉一個本來能跑的環境。"""
+    def test_failure_before_backup_leaves_previous_directory_untouched(self):
+        """這裡的壞 zip 觸發的是「entries 數量檢查」，而那個檢查發生在
+        backup 被賦值**之前**——所以這條測的是「根本還沒動舊目錄」，
+        不是「動了之後救回來」。後面那條 test_failure_after_backup_
+        restores_the_previous_directory 才是真正守著還原邏輯的測試。"""
         with tempfile.TemporaryDirectory() as tmp:
             install = os.path.join(tmp, "emulator")
             os.makedirs(install)
@@ -91,6 +94,37 @@ class ExtractTests(unittest.TestCase):
             with self.assertRaises(FetchError):
                 extract_into(bad_zip, install)
             self.assertTrue(os.path.exists(os.path.join(install, "old")))
+
+    def test_failure_after_backup_restores_the_previous_directory(self):
+        """原本那條測試用壞 zip 觸發的是「entries 數量檢查」，而那發生在 backup
+        被賦值**之前**——走的是「根本還沒動舊目錄」，不是「動了之後救回來」。
+        把還原邏輯整段拿掉，原測試仍然全綠。要驗還原，失敗就必須發生在
+        backup 建立之後。"""
+        with tempfile.TemporaryDirectory() as tmp:
+            install = os.path.join(tmp, "emulator")
+            os.makedirs(install)
+            pathlib.Path(os.path.join(install, "old")).write_text("old")
+            zip_path = _make_zip(tmp, "emulator", {"new": "new"})
+
+            real_rename = os.rename
+            calls = []
+
+            def failing_rename(src, dst):
+                calls.append((src, dst))
+                # 第一次 rename 是「舊目錄 → backup」，要讓它成功；
+                # 第二次是「新內容 → install_dir」，讓它炸，才會走到還原路徑。
+                if len(calls) == 2:
+                    raise OSError("注入的失敗")
+                return real_rename(src, dst)
+
+            with unittest.mock.patch("os.rename", failing_rename):
+                with self.assertRaises(OSError):
+                    extract_into(zip_path, install)
+
+            self.assertTrue(os.path.exists(os.path.join(install, "old")),
+                            "還原後舊內容必須還在")
+            self.assertFalse(os.path.exists(install + ".provision-old"),
+                             "還原後不該留下 backup 目錄")
 
 
 class InstalledRevisionTests(unittest.TestCase):
@@ -110,6 +144,19 @@ class InstalledRevisionTests(unittest.TestCase):
         它與「沒裝」是兩件不同的事，回傳值必須能區分。"""
         with tempfile.TemporaryDirectory() as tmp:
             os.makedirs(os.path.join(tmp, "emulator"))
+            self.assertEqual(installed_revision(tmp, "emulator"), "")
+
+    def test_corrupt_package_xml_returns_empty_string_not_raise(self):
+        """package.xml 存在但內容壞掉（例如寫到一半就中斷），正是本檔案檔頭
+        說的「看起來裝好了但其實壞掉」的典型狀態。installed_revision 的契約
+        是「讀不出來就回空字串」，不能讓底層 ElementTree 的 ParseError
+        漏出去變成呼叫端沒接住的例外。"""
+        with tempfile.TemporaryDirectory() as tmp:
+            target = os.path.join(tmp, "emulator")
+            os.makedirs(target)
+            pathlib.Path(os.path.join(target, "package.xml")).write_text(
+                "<ns2:repository><localPackage/></ns2:repository>"
+            )
             self.assertEqual(installed_revision(tmp, "emulator"), "")
 
 

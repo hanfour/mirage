@@ -28,6 +28,20 @@ class PackageRef:
     size: int
 
 
+def _parse_xml(xml_text: str):
+    """把 ElementTree 的 ParseError 包成 ManifestError。
+
+    這個模組的契約是「形狀不對就拋 ManifestError」。讓 ParseError 漏出去的話，
+    每個呼叫端都得知道我們內部用了 ElementTree——而且真的會漏：截斷寫入的
+    package.xml 會讓 fetch.installed_revision 直接崩潰，而它的契約說那種情況
+    應該回傳空字串（「裝了但版本讀不出來」）。
+    """
+    try:
+        return ElementTree.fromstring(xml_text)
+    except ElementTree.ParseError as error:
+        raise ManifestError(f"XML 格式錯誤：{error}") from error
+
+
 def _revision(node) -> str:
     """`<revision><major>37</major><minor>1</minor><micro>11</micro></revision>` → `"37.1.11"`
 
@@ -85,7 +99,7 @@ def parse_manifest(
     理由：`repository2-3.xml` 裡 `emulator` 這個 path 出現兩次（stable 與
     dev 各一）。用 dict 會讓其中一個靜默消失，而消失的那個很可能正是 pin 的。
     """
-    root = ElementTree.fromstring(xml_text)
+    root = _parse_xml(xml_text)
     channels = {node.get("id"): (node.text or "") for node in root if node.tag == "channel"}
 
     refs: list[PackageRef] = []
@@ -145,7 +159,7 @@ def parse_local_revision(xml_text: str) -> str:
 
     `<localPackage>` 與 `<remotePackage>` 的 `<revision>` 同形，共用 `_revision`。
     """
-    root = ElementTree.fromstring(xml_text)
+    root = _parse_xml(xml_text)
     for node in root.iter():
         if node.tag == "localPackage":
             revision_node = node.find("revision")
