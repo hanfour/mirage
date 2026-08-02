@@ -205,9 +205,39 @@ else
 fi
 
 echo ""
+echo "=== 閘門 6：tools/provision 的 Python 測試 ==="
+# 2026-07-31 新增（D33）。**加這道閘門的理由是「沒有它，測試就是死的」**：
+# tools/probe/tests/ 有 13 個測試檔全部用 pytest，而本機沒有裝 pytest
+# （`python3 -m pytest` → `No module named pytest`），也沒有任何腳本或 CI 步驟
+# 會跑它們。寫了但沒有任何東西會執行的測試比沒有測試更糟——它讓人以為有涵蓋。
+#
+# 所以 tools/provision 一律用標準函式庫的 unittest（零依賴），並由這道閘門執行。
+#
+# **路徑**：本腳本開頭 `cd "$(dirname "$0")/.."`，工作目錄是 app/，
+# 所以要往上一層找 tools/。
+# **`-t .`**：把 top-level 設為 tools/provision，測試才 import 得到 lib/。
+# tests/__init__.py 必須存在，否則 unittest 會回
+# `ImportError: Start directory is not importable`（實測）。
+PROVISION_DIR="../tools/provision"
+if [ ! -d "${PROVISION_DIR}/tests" ]; then
+    fail "找不到 ${PROVISION_DIR}/tests——閘門 6 沒有東西可跑"
+else
+    PROVISION_LOG=$(mktemp)
+    if (cd "${PROVISION_DIR}" && python3 -m unittest discover -s tests -t .) \
+        > "${PROVISION_LOG}" 2>&1; then
+        ok "tools/provision 測試通過（$(grep -oE 'Ran [0-9]+ tests?' "${PROVISION_LOG}" | tail -1)）"
+        rm -f "${PROVISION_LOG}"
+    else
+        fail "tools/provision 測試失敗："
+        tail -20 "${PROVISION_LOG}"
+        echo "   完整 log 保留在：${PROVISION_LOG}"
+    fi
+fi
+
+echo ""
 echo "======================================"
 if [ "$FAILURES" -eq 0 ]; then
-    echo "全部通過（$RUNS 次跑次、0 行 NIO ERROR、無假 skip、無全形標點陷阱、無永不紅的 #expect）"
+    echo "全部通過（$RUNS 次跑次、0 行 NIO ERROR、無假 skip、無全形標點陷阱、無永不紅的 #expect、provision 測試綠）"
     exit 0
 fi
 echo "$FAILURES 項失敗"

@@ -1,0 +1,17 @@
+<?xml version='1.0' encoding='utf-8'?>
+<sys-img:sdk-sys-img xmlns:sys-img="http://schemas.android.com/sdk/android/repo/sys-img2/03">
+  <channel id="channel-0">stable</channel>
+  <remotePackage path="system-images;android-35;default;arm64-v8a">
+    <revision><major>2</major></revision>
+    <channelRef ref="channel-0"/>
+    <archives>
+      <archive>
+        <complete>
+          <size>769099654</size>
+          <checksum type="sha1">2026a06409db630b56711afdbffb457c1dbaed49</checksum>
+          <url>arm64-v8a-35_r02.zip</url>
+        </complete>
+      </archive>
+    </archives>
+  </remotePackage>
+</sys-img:sdk-sys-img>
