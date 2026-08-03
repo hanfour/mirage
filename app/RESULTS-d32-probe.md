@@ -1,5 +1,15 @@
 # D32 驗收線 6 探測結果——真 GUI 下的音訊健康量測（零斷言）
 
+> **2026-08-03 審查後追記**：`audio_stats` 的 awk 邏輯審查發現一個問題——缺
+> `pkt=`／`under=` 欄位的畸形行原本會被靜默算成 `pkt=0`／`under=0`，污染下一行的
+> delta 計算且不留任何痕跡。已修正：畸形行改計入新的 `MALFORMED` 計數並整行跳過，
+> 不更新基準；函式也已抽到 `app/scripts/lib/audio_stats.sh` 並附自我測試
+> （`app/scripts/lib/audio_stats_selftest.sh`）。**用修正後的 `audio_stats` 重跑
+> 下面三次量測留存的原始 log，數字與下表完全一致，且三次皆 `MALFORMED=0`**——這
+> 三次實測都沒有出現畸形行，本次修正是補上防護，不是推翻下面的數字。完整修法與
+> 驗證見 `.superpowers/sdd/2026-08-03-d32-acceptance-6-automation/task-3-report.md`
+> 的追加章節。
+
 - **日期**：2026-08-03
 - **腳本**：`app/scripts/verify_audio_gui.sh`（探測版，`set -uo pipefail`，退出碼永遠 0）
 - **模擬器**：`emulator-5556`（gRPC `8556`，開機完成，未 `loadSnapshot`、未重啟）

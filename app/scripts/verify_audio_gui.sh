@@ -24,6 +24,7 @@
 set -uo pipefail
 source "$(dirname "$0")/lib/verify_common.sh"
 source "$(dirname "$0")/lib/gui_session.sh"
+source "$(dirname "$0")/lib/audio_stats.sh"
 
 SERIAL="emulator-5556"
 GRPC_PORT="8556"
@@ -50,44 +51,10 @@ if [ -z "$PACKAGE" ]; then
     exit 2
 fi
 
-# 解析 MIRAGE_AUDIO_LOG 的每秒一行：
-#   [audio] pkt=42 sr=48000 ch=2 under=0 over=0 depth=96ms
-#
-# **只統計「本秒 pkt>0 且前一秒也 pkt>0」的 underrun 增量**。這一刀砍掉兩個結構上
-# 不可能的區間：
-#   1. 啟動期——App 一啟動 AudioPlayer 就在 render，連線還沒建立，前幾秒必然狂
-#      underrun。這是 D32 記載的「drain 從 t=0 就開始讀」在真 AudioPlayer 下的等價物，
-#      換成真消費端並不會讓它消失。
-#   2. 靜音期與它的過渡秒——spec §5 明說靜音沒封包是正常的。靜音秒本身 pkt=0 被排除；
-#      緊接其後的第一個有聲秒，其增量包含靜音期末尾的欠位，靠「前一秒也有聲」一併排除。
-#
-# 用「前一秒也有聲」取代「固定丟掉前 N 秒的 warm-up」是刻意的：後者要選一個魔術數字，
-# 前者自適應，消除特殊情況。
-audio_stats() {
-    awk '
-      /\[audio\]/ {
-          lines++
-          pkt = 0; under = 0
-          for (i = 1; i <= NF; i++) {
-              if ($i ~ /^pkt=/)   { sub(/^pkt=/, "", $i);   pkt = $i + 0 }
-              if ($i ~ /^under=/) { sub(/^under=/, "", $i); under = $i + 0 }
-          }
-          if (pkt > 0) sound++
-          if (pkt > 0 && prev_pkt > 0) {
-              d = under - prev_under
-              if (d < 0) d = 0          # 累積計數理論上單調，防禦性下限
-              usum += d
-              if (d > umax) umax = d
-              windows++
-          }
-          prev_pkt = pkt; prev_under = under
-      }
-      END {
-          printf "AUDIO_LINES=%d\nSOUND_SECS=%d\nUSUM=%d\nUMAX=%d\nUWINDOWS=%d\n",
-                 lines + 0, sound + 0, usum + 0, umax + 0, windows + 0
-      }
-    ' "$1"
-}
+# `audio_stats` 解析 MIRAGE_AUDIO_LOG 的每秒一行，算出六個可 eval 的 KEY=VAL
+# （含 MALFORMED——缺 pkt=/under= 欄位的畸形行計數）。完整設計說明（判準邏輯、
+# 畸形行處理、AUDIO_LINES 語意）見 `lib/audio_stats.sh` 的檔頭註解；本檔只 source 它，
+# 不重複定義，理由與 `lib/gui_session.sh` 同一條：只有一份要驗。
 
 require_device "$SERIAL"
 require_grpc "$GRPC_PORT"
