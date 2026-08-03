@@ -117,32 +117,53 @@ eval "$(audio_stats "$LOG")"
 FPS_N=$(fps_samples "$LOG")
 FPS_A=$(fps_average "$LOG")
 
+# 跟時長成正比的門檻一律用 $DURATION 現場算，不寫死絕對值。腳本檔頭把 `-d 90` 列為
+# 合法用法，`DURATION` 預設只是 60——寫死用 60 秒推出來的絕對值，換一個時長跑就會
+# 產生**假紅燈**（時長變短時 A1/A2 這種下限先紅、蓋掉真正該紅的斷言；例如
+# `-d 30` 搭配沒有發聲來源，預期只有 A2 該紅，但寫死 48 的 A1 會在 A2 之前先紅，
+# 「有紅」卻紅錯地方）或**假綠燈**（時長變長時上限門檻沒跟著放寬，看起來更嚴格，
+# 但也可能在 `-d 120` 之類的長跑次上因為門檻算法本身沒被檢驗過而默默失效）。
+#
+# 下面所有比例常數（8/10、350/60、72/60）都是以 `DURATION=60`（腳本預設值）下的
+# 五次實測（本次三次 + 控制端兩次：USUM 129–175、PRIMES 34–36、AUDIO_LINES／
+# SOUND_SECS 60–63）換算回來的每秒基準——看到 `/ 60` 就是在問「60 秒下量到多少」。
+
 # A1：App 活到最後。**這行日誌的 Task 跑在 MainActor 上**（AppModel+Audio.swift:35）
 # ——MainActor 被打死就是 0 行。P1-e 那個 interleaved 格式丟 NSException 打死 MainActor、
 # 讓 Mirage 三個階段黑畫面的回歸，這條是直接守門。
-assert_at_least "A1 音訊日誌行數（App 存活）" "$AUDIO_LINES" 48
+# 門檻＝DURATION 的 80%（規則本來就是比例，寫死 48 只是把 60 代進去而已）。
+assert_at_least "A1 音訊日誌行數（App 存活）" "$AUDIO_LINES" $((DURATION * 8 / 10))
 
 # A2：串流真的活著。排除「App 活著但音訊根本沒進來」的假綠燈——沒有這條，
 # 一個從頭到尾靜音的 60 秒會讓 A3 以 0 個取樣窗「通過」。
-assert_at_least "A2 有封包的秒數" "$SOUND_SECS" 48
+# 門檻同 A1：五次實測的 SOUND_SECS 都等於 AUDIO_LINES（Pixel Flow 全程有聲），
+# 同一個比例成立。
+assert_at_least "A2 有封包的秒數" "$SOUND_SECS" $((DURATION * 8 / 10))
 
 # A3：核心判準。只統計連續有聲期間的 underrun 增量（見 audio_stats 註解）。
 # **必須排在 A2 之後**：assert_at_most 對空值/0 是通過的，A2 先確認「有東西可量」，
 # 這條才有意義。兩個斷言各自單純，組合起來才完整（見 verify_common.sh 的
 # assert_at_most 註解）。
-assert_at_most "A3 連續有聲期間的 underrun 增量總和" "$USUM" 350
+# 門檻是上限，也跟時長成正比：五次最大值 175 的兩倍是 350（60 秒下），換算成
+# 每秒 350/60 再乘上實際 DURATION。上限門檻時長變短只會更寬鬆、不會假紅，但不按
+# 比例縮放的話，時長變長時就形同沒有這條斷言。
+assert_at_most "A3 連續有聲期間的 underrun 增量總和" "$USUM" $((DURATION * 350 / 60))
 
 # A4：畫面沒被拖垮。同一個行程、同一份 log——音訊真的拖垮鏡像時，這條與 A1 會一起紅。
+# fps 是速率（每秒張數），不隨量測時長變化，門檻**不**跟著 DURATION 縮放。
 assert_at_least "A4 fps 取樣筆數" "$FPS_N" 1
 assert_at_least "A4 平均 fps" "$FPS_A" 27
 
 # A5：重新蓄水次數。**沒有這條，A3 可以靠反覆蓄水作弊**——蓄水期 under 不增加、
 # depth 看起來在健康地爬升、pkt 照常 > 0，所以 audio_stats 的窗口不會排除它。
 # 一個每 2 秒就重新蓄水一次、每次賠 100ms 靜音的緩衝，只看 A3 會顯示為「很健康」。
-assert_at_most "A5 重新蓄水次數" "$PRIMES" 72
+# 門檻跟 A3 同理，也是跟時長成正比的上限：五次最大值 36 的兩倍是 72（60 秒下），
+# 換算成每秒 72/60 再乘上實際 DURATION。
+assert_at_most "A5 重新蓄水次數" "$PRIMES" $((DURATION * 72 / 60))
 
 # A6：畸形日誌行。這不是品質門檻是**解析可信度**門檻——有畸形行代表這次量測的
-# 數字本身不可信（缺欄位會讓 delta 跨越遺失的取樣點），該紅。
+# 數字本身不可信（缺欄位會讓 delta 跨越遺失的取樣點），該紅。跟時長無關，永遠是 0，
+# **不**跟著 DURATION 縮放。
 assert_at_most "A6 畸形日誌行" "$MALFORMED" 0
 
 echo ""
