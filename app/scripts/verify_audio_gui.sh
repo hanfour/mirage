@@ -112,6 +112,52 @@ echo "FPS_SAMPLES=$(fps_samples "$LOG")"
 echo "FPS_AVG=$(fps_average "$LOG")"
 
 echo ""
-echo "⚠️ 探測版：本腳本目前**沒有任何斷言**，退出碼永遠是 0。"
-echo "   門檻要依這份輸出決定後才加（見 docs/plans/2026-08-03-d32-acceptance-6-automation.md Task 4）。"
+echo "===== 判定 ====="
+eval "$(audio_stats "$LOG")"
+FPS_N=$(fps_samples "$LOG")
+FPS_A=$(fps_average "$LOG")
+
+# A1：App 活到最後。**這行日誌的 Task 跑在 MainActor 上**（AppModel+Audio.swift:35）
+# ——MainActor 被打死就是 0 行。P1-e 那個 interleaved 格式丟 NSException 打死 MainActor、
+# 讓 Mirage 三個階段黑畫面的回歸，這條是直接守門。
+assert_at_least "A1 音訊日誌行數（App 存活）" "$AUDIO_LINES" 48
+
+# A2：串流真的活著。排除「App 活著但音訊根本沒進來」的假綠燈——沒有這條，
+# 一個從頭到尾靜音的 60 秒會讓 A3 以 0 個取樣窗「通過」。
+assert_at_least "A2 有封包的秒數" "$SOUND_SECS" 48
+
+# A3：核心判準。只統計連續有聲期間的 underrun 增量（見 audio_stats 註解）。
+# **必須排在 A2 之後**：assert_at_most 對空值/0 是通過的，A2 先確認「有東西可量」，
+# 這條才有意義。兩個斷言各自單純，組合起來才完整（見 verify_common.sh 的
+# assert_at_most 註解）。
+assert_at_most "A3 連續有聲期間的 underrun 增量總和" "$USUM" 350
+
+# A4：畫面沒被拖垮。同一個行程、同一份 log——音訊真的拖垮鏡像時，這條與 A1 會一起紅。
+assert_at_least "A4 fps 取樣筆數" "$FPS_N" 1
+assert_at_least "A4 平均 fps" "$FPS_A" 27
+
+# A5：重新蓄水次數。**沒有這條，A3 可以靠反覆蓄水作弊**——蓄水期 under 不增加、
+# depth 看起來在健康地爬升、pkt 照常 > 0，所以 audio_stats 的窗口不會排除它。
+# 一個每 2 秒就重新蓄水一次、每次賠 100ms 靜音的緩衝，只看 A3 會顯示為「很健康」。
+assert_at_most "A5 重新蓄水次數" "$PRIMES" 72
+
+# A6：畸形日誌行。這不是品質門檻是**解析可信度**門檻——有畸形行代表這次量測的
+# 數字本身不可信（缺欄位會讓 delta 跨越遺失的取樣點），該紅。
+assert_at_most "A6 畸形日誌行" "$MALFORMED" 0
+
+echo ""
+echo "================================================================"
+echo "⚠️  以上六條是**回歸偵測**，不是驗收線 6 的通過判準。"
+echo "    全綠只代表「沒有比 2026-08-03 的基準更糟」。"
+echo ""
+echo "    驗收線 6（spec §8-6）目前判定為 **未通過（已大幅改善）**："
+echo "    pre-roll（AudioRingBuffer.primeThresholdSamples）讓 underrun 總量降約 97%"
+echo "    （USUM 5481 → ~150），但本次 PRIMES=${PRIMES} —— 每次重新蓄水都賠約 100ms"
+echo "    靜音，實測平均每 1.7 秒排乾一次、全程約 5.8% 在靜音。"
+echo ""
+echo "    根因：生產端供應量長期約為消費需求的 94%，兩個獨立時鐘之間沒有任何"
+echo "    rate adaptation。這不在 D32 範圍內，已記為獨立債務。"
+echo "    完整推導見 docs/specs/2026-08-03-d32-acceptance-6-automation-design.md"
+echo "    與 app/RESULTS-d32.md。"
+echo "================================================================"
 echo "log：$LOG"
