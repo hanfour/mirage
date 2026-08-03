@@ -739,7 +739,7 @@ Expected: 退出碼 0，輸出裡有「解析結果」那一段的五個 KEY=VAL
 
 ```bash
 cd app && for i in 2 3; do
-  ./scripts/verify_audio_gui.sh 2>&1 | tee "/tmp/d32-probe-${i}.txt" | grep -E "^(AUDIO_LINES|SOUND_SECS|USUM|UMAX|UWINDOWS|FPS_)"
+  ./scripts/verify_audio_gui.sh 2>&1 | tee "/tmp/d32-probe-${i}.txt" | grep -E "^(AUDIO_LINES|SOUND_SECS|USUM|UMAX|UWINDOWS|PRIMES|MALFORMED|FPS_)"
   echo "--- 第 ${i} 次結束 ---"
 done
 ```
@@ -1058,6 +1058,27 @@ Task 4 改了產品行為，所以 Task 3 的探測數字**已經作廢**。這�
 | A2 `SOUND_SECS` | 三次的**最小值**再打 8 折。這條擋的是「完全沒發聲」，不是品質門檻 |
 | A3 `USUM` | 三次的**最大值** × 2，且**至少** `UWINDOWS` 的 5%（每 20 秒容許 1 次）。取兩者較大者 |
 | A4 `FPS_AVG` | 三次的**最小值**再打 8 折，且不高於 55（spec §8-7 的原始要求）|
+| A5 `PRIMES` | 三次的**最大值** × 2，下限 2。見下方判讀表——這條擋的是「靠反覆蓄水把 underrun 藏起來」|
+| A6 `MALFORMED` | **0**。畸形日誌行代表解析不可信，不是品質問題；有就該紅 |
+
+### `PRIMES` 與 `USUM` 要一起讀，單看任一個都會誤判
+
+Task 4 的審查指出一個會讓整個判準變成安慰劑的路徑：重新蓄水期間 `under` 不增加、
+`depth` 從 0 一路長到門檻（每秒取樣看起來像水位健康）、`pkt` 照常 > 0——所以
+`audio_stats` 的「本秒與前一秒都有封包」窗口**不會排除蓄水期**。一個反覆重新蓄水、
+每次賠 100ms 靜音的緩衝，在只看 `USUM` 的判準下會顯示為「比修正前更健康」。
+
+`PRIMES`（重新蓄水次數）就是拆開這個歧義的指標：
+
+| `PRIMES` | `USUM` | 判讀 | 該怎麼辦 |
+|---|---|---|---|
+| 小（個位數） | 低 | **真的健康**。蓄水一次就穩住 | 驗收線 6 通過 |
+| 小 | 仍高 | **pre-roll 形同虛設**——卡在「部分讀」的低水位帶，`n` 從沒歸零所以不重置 | 停下來回報。正解是低水位滯後（跌破門檻的某個分數就重置），不是把重置條件改成 `n < frames`（那會讓每次部分讀都賠一段靜音）|
+| 大 | 低 | **假性健康**。靠反覆蓄水把 underrun 藏起來，聽感是週期性整段靜音，可能比修正前更差 | 停下來回報 |
+| 大 | 高 | 兩種病都有 | 停下來回報 |
+
+⚠️ **只有第一列可以宣稱驗收線 6 通過。** 其餘三列都要停下來回報，不要因為門檻套得上去
+就當作過了——那正是 D32 這條債務一開始的形狀。
 
 ⚠️ **A3 不論實測多低都不要定成 0。** 生產端（emulator 音訊時鐘）與消費端（Mac
 CoreAudio 時鐘）是兩個獨立時鐘，系統裡沒有任何 rate adaptation 機制對抗漂移；pre-roll
@@ -1071,7 +1092,7 @@ cd app && swift build -c release 2>&1 | tail -3
 for i in 1 2 3; do
   ./scripts/verify_audio_gui.sh > "/tmp/d32-postfix-${i}.txt" 2>&1
   echo "--- 第 ${i} 次 ---"
-  grep -E "^(AUDIO_LINES|SOUND_SECS|USUM|UMAX|UWINDOWS|FPS_)" "/tmp/d32-postfix-${i}.txt"
+  grep -E "^(AUDIO_LINES|SOUND_SECS|USUM|UMAX|UWINDOWS|PRIMES|MALFORMED|FPS_)" "/tmp/d32-postfix-${i}.txt"
 done
 ```
 
@@ -1086,11 +1107,16 @@ done
 把三次的 `USUM`／`UMAX`／`depth` 跟 `RESULTS-d32-probe.md` 已記載的 pre-roll 前數字
 （`USUM` 5481／5467／5384，`depth` 全程 0ms）並排，追加一節「pre-roll 前後對照」。
 
-**這是 Task 4 是否真的有效的唯一證據。** 如果 `USUM` 沒有明顯下降、`depth` 仍然貼
-0ms，**停下來回報**——那代表病因不是缺 pre-roll，繼續定門檻只是把一個沒被解決的問題
-包裝成通過。
+**這是 Task 4 是否真的有效的唯一證據。** 依上方「`PRIMES` 與 `USUM` 要一起讀」那張表
+判讀，**只有「`PRIMES` 小且 `USUM` 低」那一列可以繼續往下做**。其餘三列一律停下來回報：
 
-依上表規則從**新的三次**算出四個門檻，寫進 `RESULTS-d32-probe.md` 的結論。
+- `USUM` 沒有明顯下降、`depth` 仍貼 0ms、而 `PRIMES` 很小 → pre-roll 卡在低水位帶沒
+  介入，病因不是缺蓄水
+- `USUM` 下降但 `PRIMES` 很大 → 是靠反覆蓄水把 underrun 藏起來，聽感可能比修正前更差
+
+繼續定門檻只會把一個沒被解決的問題包裝成通過。
+
+依上表規則從**新的三次**算出六個門檻，寫進 `RESULTS-d32-probe.md` 的結論。
 
 - [ ] **Step 2: 把探測版尾段換成斷言**
 
@@ -1122,6 +1148,15 @@ assert_at_most "A3 連續有聲期間的 underrun 增量總和" "$USUM" <A3>
 # A4：畫面沒被拖垮。同一個行程、同一份 log——音訊真的拖垮鏡像時，這條與 A1 會一起紅。
 assert_at_least "A4 fps 取樣筆數" "$FPS_N" 1
 assert_at_least "A4 平均 fps" "$FPS_A" <A4>
+
+# A5：重新蓄水次數。**沒有這條，A3 可以靠反覆蓄水作弊**——蓄水期 under 不增加、
+# depth 看起來在健康地爬升、pkt 照常 > 0，所以 audio_stats 的窗口不會排除它。
+# 一個每 2 秒就重新蓄水一次、每次賠 100ms 靜音的緩衝，只看 A3 會顯示為「很健康」。
+assert_at_most "A5 重新蓄水次數" "$PRIMES" <A5>
+
+# A6：畸形日誌行。這不是品質門檻是**解析可信度**門檻——有畸形行代表這次量測的
+# 數字本身不可信（缺欄位會讓 delta 跨越遺失的取樣點），該紅。
+assert_at_most "A6 畸形日誌行" "$MALFORMED" 0
 
 echo ""
 echo "驗收線 6（spec §8-6）：**判準已重新表述**，字面的 underruns == 0 與 §5"
