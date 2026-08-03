@@ -29,11 +29,21 @@ Android emulator gRPC、macOS `open`/`osascript`。
 - **Task 4 是執行途中新增的**（Task 3 的實測揭露產品缺陷），原計畫只有 6 個 task。
   舊的 Task 4／5／6 已順延為 5／6／7。
 - 提交訊息格式 `<type>: <description>`，型別限 feat/fix/refactor/docs/test/chore/perf/ci。
-- **驗證步驟一律用 `${PIPESTATUS[0]}` 取退出碼，不用 `$?`**。`cmd | tail -5; echo "EXIT=$?"`
-  取到的是 `tail` 的退出碼（永遠 0），腳本紅了也看不出來——這正是 D9 修掉的那類假訊號，
-  `verify_common.sh:58` 的註解早就記載過。單一指令也算長度 1 的 pipeline，所以
-  `${PIPESTATUS[0]}` 在沒有管線時同樣正確。
-  （2026-08-03：本計畫原本 8 處寫成 `$?`，Task 2 執行時被實作者實測抓到。）
+- **驗證步驟不得把待驗指令接管線**。`cmd | tail -5; echo "EXIT=$?"` 取到的是 `tail`
+  的退出碼（永遠 0），腳本紅了也看不出來——正是 D9 修掉的那類假訊號。本計畫一律寫成
+  「先重導向到檔案、立刻取 `$?`、再 `tail` 檔案」：
+
+  ```bash
+  cmd > /tmp/d32-step.log 2>&1; RC=$?; tail -12 /tmp/d32-step.log; echo "EXIT=$RC"
+  ```
+
+  ⚠️ **不要改用 `${PIPESTATUS[0]}`**。本專案的互動 shell 是 **zsh**，而 zsh 的陣列是
+  1-indexed——`${PIPESTATUS[0]}` 在 zsh 下永遠是空字串（zsh 的對應變數是
+  `${pipestatus[1]}`）。`verify_*.sh` 腳本內部用 `${PIPESTATUS[0]}` 是**正確的**，因為
+  它們有 `#!/usr/bin/env bash` shebang、實際跑在 bash 上；但計畫裡給人逐字貼進終端機
+  的指令跑在 zsh，同一個寫法就會靜默失效。
+  （2026-08-03：本計畫先寫成 `$?`（Task 2 抓到），改成 `${PIPESTATUS[0]}` 後又發現
+  zsh 問題，最終定為上面的重導向寫法——兩次都是「退出碼沒取對」，同一類坑踩兩次。）
 
 ## 環境前置（Task 2 起需要）
 
@@ -93,7 +103,7 @@ check "assert_at_most 中止後不執行後續指令" \
 - [ ] **Step 2: 跑自我測試，確認它紅**
 
 ```bash
-cd app && ./scripts/lib/verify_common_selftest.sh; echo "EXIT=${PIPESTATUS[0]}"
+cd app && ./scripts/lib/verify_common_selftest.sh; echo "EXIT=$?"
 ```
 
 Expected: 5 項失敗（新加的 5 筆全部退出碼 127 —— `assert_at_most: command not found`
@@ -128,7 +138,7 @@ assert_at_most() {
 - [ ] **Step 4: 跑自我測試，確認全綠**
 
 ```bash
-cd app && ./scripts/lib/verify_common_selftest.sh; echo "EXIT=${PIPESTATUS[0]}"
+cd app && ./scripts/lib/verify_common_selftest.sh; echo "EXIT=$?"
 ```
 
 Expected: 最後一行「全部通過」，`EXIT=0`。
@@ -139,7 +149,7 @@ Expected: 最後一行「全部通過」，`EXIT=0`。
 
 ```bash
 cd app && sed -i.bak 's/^        exit 1$/        :/' scripts/lib/verify_common.sh \
-  && ./scripts/lib/verify_common_selftest.sh; echo "EXIT=${PIPESTATUS[0]}"
+  && ./scripts/lib/verify_common_selftest.sh; echo "EXIT=$?"
 ```
 
 Expected: **具名失敗**，至少要看到「assert_at_most 超過門檻 → 中止」與
@@ -200,7 +210,7 @@ Step 5 的突變檢查（已涵蓋同一條邏輯），把本步驟留到最後�
 - [ ] **Step 8: 跑完整 ci.sh 確認七道閘門全綠**
 
 ```bash
-cd app && ./scripts/ci.sh 2>&1 | tail -20; echo "EXIT=${PIPESTATUS[0]}"
+cd app && ./scripts/ci.sh > /tmp/d32-step.log 2>&1; RC=$?; tail -20 /tmp/d32-step.log; echo "EXIT=$RC"
 ```
 
 Expected: 「全部通過」，`EXIT=0`，且輸出裡看得到「閘門 7」。
@@ -451,7 +461,7 @@ Expected: 與 Step 1 抄下的數字**同一個量級**（fps 每次會有波動
 
 ```bash
 cd app && ./scripts/verify_game_fps.sh -s emulator-5556 -p 8556 -n -d 10 \
-    -a /nonexistent/MirageApp 2>&1 | tail -5; echo "EXIT=${PIPESTATUS[0]}"
+    -a /nonexistent/MirageApp > /tmp/d32-step.log 2>&1; RC=$?; tail -5 /tmp/d32-step.log; echo "EXIT=$RC"
 ```
 
 Expected: 打包失敗並 `EXIT=1`（不是靜默用了預設二進位）。這證明 `-a` 沒有在重構中
@@ -874,7 +884,7 @@ Task 3 三次量測全部呈現同一個病徵：
 - [ ] **Step 2: 跑測試，確認新測試紅、且既有 5 個也紅**
 
 ```bash
-cd app && swift test --filter AudioRingBufferTests 2>&1 | tail -30; echo "EXIT=${PIPESTATUS[0]}"
+cd app && swift test --filter AudioRingBufferTests > /tmp/d32-step.log 2>&1; RC=$?; tail -30 /tmp/d32-step.log; echo "EXIT=$RC"
 ```
 
 Expected: 編譯失敗（`AudioRingBuffer` 還沒有 `primeThresholdSamples` 參數）。這是對的
@@ -976,7 +986,7 @@ Expected: 編譯失敗（`AudioRingBuffer` 還沒有 `primeThresholdSamples` 參
 - [ ] **Step 5: 跑測試，確認全綠**
 
 ```bash
-cd app && swift test --filter AudioRingBufferTests 2>&1 | tail -10; echo "EXIT=${PIPESTATUS[0]}"
+cd app && swift test --filter AudioRingBufferTests > /tmp/d32-step.log 2>&1; RC=$?; tail -10 /tmp/d32-step.log; echo "EXIT=$RC"
 ```
 
 Expected: 全部通過，`EXIT=0`。
@@ -984,7 +994,7 @@ Expected: 全部通過，`EXIT=0`。
 - [ ] **Step 6: 跑完整測試套件，確認沒有連帶破壞**
 
 ```bash
-cd app && swift test 2>&1 | tail -10; echo "EXIT=${PIPESTATUS[0]}"
+cd app && swift test > /tmp/d32-step.log 2>&1; RC=$?; tail -10 /tmp/d32-step.log; echo "EXIT=$RC"
 ```
 
 Expected: 全綠。特別注意 `EmulatorClientAudioTests` 與 `ShellSmokeTests` ——它們建
@@ -1123,7 +1133,7 @@ echo "log：$LOG"
 - [ ] **Step 3: 跑一次，確認全綠**
 
 ```bash
-cd app && ./scripts/verify_audio_gui.sh 2>&1 | tail -20; echo "EXIT=${PIPESTATUS[0]}"
+cd app && ./scripts/verify_audio_gui.sh > /tmp/d32-step.log 2>&1; RC=$?; tail -20 /tmp/d32-step.log; echo "EXIT=$RC"
 ```
 
 Expected: 五條 ✅（A1、A2、A3、A4 取樣、A4 平均），`EXIT=0`。
@@ -1132,7 +1142,7 @@ Expected: 五條 ✅（A1、A2、A3、A4 取樣、A4 平均），`EXIT=0`。
 
 ```bash
 cd app && for i in 1 2; do ./scripts/verify_audio_gui.sh > /tmp/d32-assert-$i.log 2>&1; \
-  echo "第 ${i} 次 EXIT=${PIPESTATUS[0]}"; done
+  echo "第 ${i} 次 EXIT=$?"; done
 ```
 
 Expected: 兩次都 `EXIT=0`。**任一次紅就代表門檻定太緊**，回 Step 1 放寬並在
@@ -1172,8 +1182,8 @@ A3 刻意排在 A2 之後：assert_at_most 對 0 是通過的，靠 A2 先確認
 而不是前置檢查），而且不發聲。
 
 ```bash
-cd app && ./scripts/verify_audio_gui.sh -g com.android.settings -d 30 2>&1 | tail -12
-echo "EXIT=${PIPESTATUS[0]}"
+cd app && ./scripts/verify_audio_gui.sh -g com.android.settings -d 30 > /tmp/d32-step.log 2>&1
+RC=$?; tail -12 /tmp/d32-step.log; echo "EXIT=$RC"
 ```
 
 Expected: **A2 紅**（`SOUND_SECS` 為 0 或遠低於門檻），`EXIT=1`。A1 應該是綠的——
@@ -1183,7 +1193,7 @@ App 活著、日誌在印，只是沒有封包。這正是這條斷言存在的�
 - [ ] **Step 1b: 順帶驗空 package 被擋下**
 
 ```bash
-cd app && ./scripts/verify_audio_gui.sh -g "" 2>&1 | tail -3; echo "EXIT=${PIPESTATUS[0]}"
+cd app && ./scripts/verify_audio_gui.sh -g "" > /tmp/d32-step.log 2>&1; RC=$?; tail -3 /tmp/d32-step.log; echo "EXIT=$RC"
 ```
 
 Expected: `❌ -g 不接受空字串`，`EXIT=2`。這條擋的是 `case "$FG" in *""*)` 會匹配
@@ -1195,7 +1205,7 @@ Expected: `❌ -g 不接受空字串`，`EXIT=2`。這條擋的是 `case "$FG" i
 
 ```bash
 cd app && sed -i.bak 's/"MIRAGE_AUDIO_LOG=1"/"MIRAGE_AUDIO_LOG=0"/' scripts/verify_audio_gui.sh
-./scripts/verify_audio_gui.sh 2>&1 | tail -8; echo "EXIT=${PIPESTATUS[0]}"
+./scripts/verify_audio_gui.sh > /tmp/d32-step.log 2>&1; RC=$?; tail -8 /tmp/d32-step.log; echo "EXIT=$RC"
 mv scripts/verify_audio_gui.sh.bak scripts/verify_audio_gui.sh
 ```
 
@@ -1211,7 +1221,7 @@ cd app && sed -i.bak 's/primeThresholdSamples: Int = 9_600/primeThresholdSamples
     Sources/MirageCore/Audio/AudioRingBuffer.swift
 grep -n "primeThresholdSamples: Int =" Sources/MirageCore/Audio/AudioRingBuffer.swift
 swift build -c release 2>&1 | tail -3
-./scripts/verify_audio_gui.sh 2>&1 | tail -12; echo "EXIT=${PIPESTATUS[0]}"
+./scripts/verify_audio_gui.sh > /tmp/d32-step.log 2>&1; RC=$?; tail -12 /tmp/d32-step.log; echo "EXIT=$RC"
 ```
 
 Expected: **A3 紅**（`USUM` 回到數千的量級，遠超門檻），`EXIT=1`。
@@ -1236,7 +1246,7 @@ git status --short   # 必須乾淨
 cd app && sed -i.bak 's/interleaved: false/interleaved: true/' Sources/MirageShell/Audio/AudioPlayer.swift
 grep -n "interleaved" Sources/MirageShell/Audio/AudioPlayer.swift   # 確認改到了
 swift build -c release 2>&1 | tail -3
-./scripts/verify_audio_gui.sh 2>&1 | tail -12; echo "EXIT=${PIPESTATUS[0]}"
+./scripts/verify_audio_gui.sh > /tmp/d32-step.log 2>&1; RC=$?; tail -12 /tmp/d32-step.log; echo "EXIT=$RC"
 ```
 
 Expected: A1 紅（`AUDIO_LINES=0` —— NSException 打死 MainActor，那個每秒迴圈從未
@@ -1257,7 +1267,7 @@ git status --short   # 必須乾淨（無 .bak、無殘留改動）
 - [ ] **Step 4: 還原後再跑一次，確認回到綠**
 
 ```bash
-cd app && ./scripts/verify_audio_gui.sh 2>&1 | tail -12; echo "EXIT=${PIPESTATUS[0]}"
+cd app && ./scripts/verify_audio_gui.sh > /tmp/d32-step.log 2>&1; RC=$?; tail -12 /tmp/d32-step.log; echo "EXIT=$RC"
 ```
 
 Expected: 五條 ✅，`EXIT=0`。這證明 Step 3 的紅燈來自注入的 bug，不是腳本壞了。
