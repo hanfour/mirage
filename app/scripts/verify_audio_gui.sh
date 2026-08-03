@@ -1,0 +1,149 @@
+#!/usr/bin/env bash
+# P1-e 驗收線 6：真 GUI + 真 AudioPlayer 下的音訊健康與畫面存活。
+#
+# **與 verify_audio.sh 的分工**：那支驗 transport 層（封包率／驗收線 5，5 秒視窗，
+# 消費端是測試裡的 Task.sleep 假件）；這支驗 playback 層（消費端健康／驗收線 6，
+# 60 秒，消費端是真的 AVAudioSourceNode）。名字取 _gui 不取 _60s，因為關鍵差別
+# 不是時長而是「需要真 GUI session」——那也是跑之前最需要知道的前置條件。
+#
+# **為什麼驗收線 6 的字面判準（underruns == 0）不能直接用**：
+# spec §8-6 要求「連續 60 秒 underruns == 0」，但同一份 spec 的 §5 寫著「遊戲靜音時
+# 本來就沒有封包」「緩衝欠位/溢位不是錯誤，是要被計數與觀測的正常現象」。render
+# callback 每 ~10ms 要一次資料（AudioPlayer.swift:35），guest 只要有一刻不發聲，
+# readStereo 就走 underrunCount.wrappingIncrement（AudioRingBuffer.swift:100）。
+# 所以 == 0 在任何含靜音期的 60 秒裡結構上不可能。
+# 本腳本改判「連續有聲期間的 underrun 增量」——見 audio_stats 的註解。
+# 完整推導見 docs/specs/2026-08-03-d32-acceptance-6-automation-design.md §0。
+#
+# 用法：
+#   ./scripts/verify_audio_gui.sh                                  # 預設 5556 / 8556 / Pixel Flow，量 60 秒
+#   ./scripts/verify_audio_gui.sh -s emulator-5558 -p 8558 -d 90
+#
+# 前置：模擬器**不可**用 -no-audio 啟動。建議：
+#   emulator -avd mirage-game -port 5556 -grpc 8556 -gpu host
+set -uo pipefail
+source "$(dirname "$0")/lib/verify_common.sh"
+source "$(dirname "$0")/lib/gui_session.sh"
+
+SERIAL="emulator-5556"
+GRPC_PORT="8556"
+PACKAGE="com.loomgames.pixelflow"
+DURATION=60
+
+while getopts "s:p:g:d:h" opt; do
+  case "$opt" in
+    s) SERIAL="$OPTARG" ;;
+    p) GRPC_PORT="$OPTARG" ;;
+    g) PACKAGE="$OPTARG" ;;
+    d) DURATION="$OPTARG" ;;
+    h) sed -n '2,30p' "$0"; exit 0 ;;
+    *) echo "用法：$0 [-s serial] [-p grpc_port] [-g package] [-d seconds]" >&2; exit 2 ;;
+  esac
+done
+
+# **空 package 一律拒絕。** 下面前景檢查用的 `case "$FG" in *"$PACKAGE"*)`，在 PACKAGE
+# 為空時 pattern 變成 `**`，會匹配任何字串——前景檢查誤判通過，然後跑完一個沒有發聲源
+# 的 60 秒量測。verify_game_fps.sh 允許 `-g ""`（量 launcher 的 fps 仍然有意義），
+# 這支不行：沒有發聲源，A2/A3 就沒有意義。
+if [ -z "$PACKAGE" ]; then
+    echo "❌ -g 不接受空字串：本腳本必須有發聲來源。" >&2
+    exit 2
+fi
+
+# 解析 MIRAGE_AUDIO_LOG 的每秒一行：
+#   [audio] pkt=42 sr=48000 ch=2 under=0 over=0 depth=96ms
+#
+# **只統計「本秒 pkt>0 且前一秒也 pkt>0」的 underrun 增量**。這一刀砍掉兩個結構上
+# 不可能的區間：
+#   1. 啟動期——App 一啟動 AudioPlayer 就在 render，連線還沒建立，前幾秒必然狂
+#      underrun。這是 D32 記載的「drain 從 t=0 就開始讀」在真 AudioPlayer 下的等價物，
+#      換成真消費端並不會讓它消失。
+#   2. 靜音期與它的過渡秒——spec §5 明說靜音沒封包是正常的。靜音秒本身 pkt=0 被排除；
+#      緊接其後的第一個有聲秒，其增量包含靜音期末尾的欠位，靠「前一秒也有聲」一併排除。
+#
+# 用「前一秒也有聲」取代「固定丟掉前 N 秒的 warm-up」是刻意的：後者要選一個魔術數字，
+# 前者自適應，消除特殊情況。
+audio_stats() {
+    awk '
+      /\[audio\]/ {
+          lines++
+          pkt = 0; under = 0
+          for (i = 1; i <= NF; i++) {
+              if ($i ~ /^pkt=/)   { sub(/^pkt=/, "", $i);   pkt = $i + 0 }
+              if ($i ~ /^under=/) { sub(/^under=/, "", $i); under = $i + 0 }
+          }
+          if (pkt > 0) sound++
+          if (pkt > 0 && prev_pkt > 0) {
+              d = under - prev_under
+              if (d < 0) d = 0          # 累積計數理論上單調，防禦性下限
+              usum += d
+              if (d > umax) umax = d
+              windows++
+          }
+          prev_pkt = pkt; prev_under = under
+      }
+      END {
+          printf "AUDIO_LINES=%d\nSOUND_SECS=%d\nUSUM=%d\nUMAX=%d\nUWINDOWS=%d\n",
+                 lines + 0, sound + 0, usum + 0, umax + 0, windows + 0
+      }
+    ' "$1"
+}
+
+require_device "$SERIAL"
+require_grpc "$GRPC_PORT"
+
+echo ""
+echo "=== 啟動遊戲：$PACKAGE ==="
+"$ADB" -s "$SERIAL" shell monkey -p "$PACKAGE" -c android.intent.category.LAUNCHER 1 \
+    > /dev/null 2>&1
+sleep 8
+FG=$("$ADB" -s "$SERIAL" shell dumpsys activity activities 2>/dev/null \
+     | grep topResumedActivity | tr -d '\r' | head -1)
+echo "前景：${FG:-（查不到）}"
+# **前景確認失敗一律中止**，不像 verify_game_fps.sh 只發警告：那支腳本沒有遊戲仍能量
+# 到 launcher 的 fps，這支沒有發聲源則後面每一條斷言都失去意義，繼續跑只會產生一個
+# 看起來像產品缺陷、其實是環境沒備好的紅燈。
+case "$FG" in
+  *"$PACKAGE"*) echo "✅ $PACKAGE 在前景" ;;
+  *) echo "❌ $PACKAGE 不在前景——沒有發聲來源，後面的量測沒有意義。"; exit 1 ;;
+esac
+
+echo ""
+echo "=== 媒體音量頂到最大 ==="
+# `adb shell media volume` 在本機映像上不存在（verify_audio.sh:8 記載），
+# 連按 15 次 KEYCODE_VOLUME_UP 是已驗證的替代手段。
+for _ in $(seq 1 15); do "$ADB" -s "$SERIAL" shell input keyevent 24 > /dev/null; done
+"$ADB" -s "$SERIAL" shell dumpsys audio 2>&1 | grep -A3 "STREAM_MUSIC:" | grep streamVolume
+
+LOG=$(mktemp -t mirage_audio_gui)
+BUNDLE=$(mktemp -d -t mirage_audio_bundle)
+trap 'gui_session_cleanup "${BUNDLE:-}"' EXIT INT TERM
+
+echo ""
+echo "=== 啟動 Mirage（.app bundle）→ localhost:${GRPC_PORT}，量測 ${DURATION}s ==="
+# 不注入動畫：遊戲進行中畫面本來就在變化，而注入器會真的去點畫面，可能叫出暫停選單
+# 或退出關卡（verify_game_fps.sh:32-36 記載的同一個理由）。
+if ! gui_session_start "$LOG" "$BUNDLE" "" \
+        "MIRAGE_PORT=$GRPC_PORT" "MIRAGE_AUDIO_LOG=1" "MIRAGE_FPS_LOG=1" "MIRAGE_CONN_LOG=1"; then
+    exit 1
+fi
+sleep "$DURATION"
+
+echo ""
+echo "===== 音訊每秒日誌（全部）====="
+grep '\[audio\]' "$LOG"
+
+echo ""
+echo "===== 畫面 ====="
+fps_summary "$LOG"
+
+echo ""
+echo "===== 解析結果 ====="
+audio_stats "$LOG"
+echo "FPS_SAMPLES=$(fps_samples "$LOG")"
+echo "FPS_AVG=$(fps_average "$LOG")"
+
+echo ""
+echo "⚠️ 探測版：本腳本目前**沒有任何斷言**，退出碼永遠是 0。"
+echo "   門檻要依這份輸出決定後才加（見 docs/plans/2026-08-03-d32-acceptance-6-automation.md Task 4）。"
+echo "log：$LOG"
