@@ -22,6 +22,12 @@
 #
 # 前置：模擬器**不可**用 -no-audio 啟動。建議：
 #   emulator -avd mirage-game -port 5556 -grpc 8556 -gpu host
+#
+# 前置（同樣必要）：遊戲必須停在**會連續發聲**的畫面。A2 假紅是這支腳本最常見的一種
+# 紅——不是斷言邏輯錯，是環境沒備好：Pixel Flow 停在只有點擊才出聲的收集/選單畫面時，
+# `pkt` 全程為 0，A2（有封包的秒數）先攔下、後面每一條斷言都失去意義。故障注入會期
+# 就被它擋掉四次（`app/RESULTS-d32.md` 附錄 C）。**A2 紅時先檢查**：截圖或 `dumpsys
+# activity` 確認遊戲當下停留的關卡畫面，而不是先懷疑腳本或產品程式碼。
 set -uo pipefail
 source "$(dirname "$0")/lib/verify_common.sh"
 source "$(dirname "$0")/lib/gui_session.sh"
@@ -177,6 +183,9 @@ assert_at_most "A3 連續有聲期間的 underrun 增量總和" "$USUM" $((DURAT
 
 # A4：畫面沒被拖垮。同一個行程、同一份 log——音訊真的拖垮鏡像時，這條與 A1 會一起紅。
 # fps 是速率（每秒張數），不隨量測時長變化，門檻**不**跟著 DURATION 縮放。
+# 門檻 1 是刻意保守，不是量出來的：streamScreenshot 是變化驅動，`fps=` 只在有幀真的
+# 被 present 時才印，畫面靜止的秒本來就不出幀。這條目前抓得到的只有「從頭到尾一幀
+# 都沒 present」（例如 MainActor 被打死）——「畫面跑到一半凍住」抓不到，見 D47。
 assert_at_least "A4 fps 取樣筆數" "$FPS_N" 1
 assert_at_least "A4 平均 fps" "$FPS_A" 27
 
