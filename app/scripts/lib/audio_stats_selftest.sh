@@ -113,6 +113,38 @@ EOF
 check_case "案例 F：新格式，primes= 取最後一行的累積值" "$TMPDIR/case_f.log" \
     AUDIO_LINES:3 SOUND_SECS:3 USUM:2 UMAX:2 UWINDOWS:2 MALFORMED:0 PRIMES:2
 
+# 案例 G／H：**2026-08-03 Task 6 審查後新增**（Important-1）。前面 A–F 全是手造的
+# 幾行日誌，用來驗 awk 邏輯本身；G／H 改用**真實發生過的完整 60 秒日誌**（Task 3
+# 的原始量測、Task 6 注入 2b 的原始量測，逐字存檔於 fixtures/，非手造），把「拿掉
+# pre-roll 的日誌長什麼樣、A3 對它會不會紅」永久釘在測試裡——不然這個區別只活在
+# RESULTS-d32.md 的文字說明裡，下次沒人回頭看文件就會被遺忘。
+FIXTURES="$(dirname "$0")/fixtures"
+
+# 案例 G：pre-roll 修法**之前**的真實量測（Task 3，`AudioRingBuffer.primeThresholdSamples`
+# 尚不存在時的產品行為，見 app/RESULTS-d32.md §6）。遊戲全程有聲、`pkt` 恆為 90–100，
+# 是「緩衝從未積過水」的真實指紋：`under` 幾乎每秒 +90，60 秒累積到 5481。
+# 這份日誌若餵進 verify_audio_gui.sh 的 A3（門檻 `DURATION*350/60`，60 秒下是 350），
+# 5481 遠超 350（超標近 16 倍）——**這就是 A3 這條斷言真的會紅的證據**，離線、
+# 不需要模擬器、可重現。PRIMES=0 是預期值，不是遺漏：這份日誌是舊格式（無 primes=
+# 欄位），驗的是「真實的舊格式資料」而不是案例 A 那種手造的舊格式資料。
+check_case "案例 G：pre-roll 前真實日誌（Task 3）——USUM 遠超 A3 門檻 350" \
+    "$FIXTURES/audio_preroll_before_real.log" \
+    AUDIO_LINES:62 SOUND_SECS:62 USUM:5481 UMAX:92 UWINDOWS:61 MALFORMED:0 PRIMES:0
+
+# 案例 H：Task 6 注入 2b 的真實量測——把 `primeThresholdSamples` 改回 0（拿掉
+# pre-roll）之後跑出來的日誌，但**遊戲畫面當下停在不發聲的收集畫面**，`pkt` 全程
+# 為 0（見 app/RESULTS-d32.md §3.1／附錄 C）。這份日誌解析出 USUM=0——若誤把它當
+# A3 的證據餵進 `assert_at_most`，會印出**綠燈**，因為 `assert_at_most` 對 0 一律
+# 通過。這正是 Important-1 的核心：`under == primes` 逐行相等（見下方 primes 欄位，
+# 每行都跟 under 同值）是「完全沒有資料流過」的指紋，不是「拿掉 pre-roll」的指紋——
+# 真正有資料時的指紋是案例 G 那種恆正的獨立遞增。
+# 但這份日誌不是沒有訊號：PRIMES 取最後一行的累積值是 6093，遠超 A5 的上限 72
+# （60 秒下）——超標 85 倍。這證明**這份日誌真正會讓斷言紅的是 A5，不是 A3**，
+# 只是 A2（SOUND_SECS 0 < 門檻）先攔下，A5 排在 A3 之後同樣沒被腳本實際評估到。
+check_case "案例 H：注入 2b 真實日誌（畫面靜音）——USUM=0 但 PRIMES 遠超 A5 門檻 72" \
+    "$FIXTURES/audio_injection_2b_silent_screen.log" \
+    AUDIO_LINES:63 SOUND_SECS:0 USUM:0 UMAX:0 UWINDOWS:0 MALFORMED:0 PRIMES:6093
+
 echo ""
 if [ "$FAILURES" -eq 0 ]; then
     echo "全部通過"
