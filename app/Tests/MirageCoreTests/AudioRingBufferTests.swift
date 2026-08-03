@@ -126,9 +126,14 @@ private func readStereoSamples(_ ring: AudioRingBuffer, frames: Int)
     // docs/specs/2026-07-28-mirror-never-rendered-investigation.md）。而環形緩衝存的是
     // guest 送來的交錯樣本，拆交錯這一步無法避免；它必須發生在即時執行緒上，
     // 所以放在這裡——零配置、零鎖，和既有的 `read` 同一套不變式。
+    //
+    // **為什麼這一組全部傳 `primeThresholdSamples: 0`**：它們驗的是拆交錯與邊界機制，
+    // 不是蓄水策略。用生產預設值（9600）的話，這些容量只有 4–16 samples 的緩衝永遠
+    // 達不到門檻，每個測試都只會讀到 0，驗不到任何它們該驗的東西。蓄水本身由下方
+    // 「pre-roll」那一組專門涵蓋。
 
     @Test func readStereoSplitsInterleavedIntoChannels() {
-        let ring = AudioRingBuffer(capacitySamples: 16)
+        let ring = AudioRingBuffer(capacitySamples: 16, primeThresholdSamples: 0)
         ring.write([1, -1, 2, -2, 3, -3])          // L,R,L,R,L,R
         let (got, left, right) = readStereoSamples(ring, frames: 3)
         #expect(got == 3)
@@ -138,7 +143,7 @@ private func readStereoSamples(_ ring: AudioRingBuffer, frames: Int)
 
     /// 消費快於生產：只回傳完整 frame 數，餘下由呼叫端補靜音（與 `read` 同語意）。
     @Test func readStereoPartialReturnsWholeFramesAndCountsUnderrun() {
-        let ring = AudioRingBuffer(capacitySamples: 16)
+        let ring = AudioRingBuffer(capacitySamples: 16, primeThresholdSamples: 0)
         ring.write([1, -1, 2, -2])
         let (got, left, right) = readStereoSamples(ring, frames: 5)
         #expect(got == 2)
@@ -150,7 +155,7 @@ private func readStereoSamples(_ ring: AudioRingBuffer, frames: Int)
     /// 半個 frame（樣本數為奇數）不得被當成完整 frame 讀出去——那會讓左右聲道錯位，
     /// 之後每一個 frame 都反相。緩衝裡本來就該永遠是偶數個樣本，這條守的是防禦性下限。
     @Test func readStereoLeavesDanglingHalfFrameInBuffer() {
-        let ring = AudioRingBuffer(capacitySamples: 16)
+        let ring = AudioRingBuffer(capacitySamples: 16, primeThresholdSamples: 0)
         ring.write([1, -1, 2])                     // 一個完整 frame + 半個
         let (got, left, right) = readStereoSamples(ring, frames: 2)
         #expect(got == 1)
@@ -160,7 +165,7 @@ private func readStereoSamples(_ ring: AudioRingBuffer, frames: Int)
     }
 
     @Test func readStereoOnEmptyReturnsZeroAndCountsUnderrun() {
-        let ring = AudioRingBuffer(capacitySamples: 16)
+        let ring = AudioRingBuffer(capacitySamples: 16, primeThresholdSamples: 0)
         let (got, _, _) = readStereoSamples(ring, frames: 4)
         #expect(got == 0)
         #expect(ring.stats.underruns == 1)
@@ -168,7 +173,7 @@ private func readStereoSamples(_ ring: AudioRingBuffer, frames: Int)
 
     /// 環繞：讀寫位置跨越實體陣列尾端時，左右聲道仍須各自保持順序且不互相汙染。
     @Test func readStereoWrapAroundPreservesChannelOrder() {
-        let ring = AudioRingBuffer(capacitySamples: 6)
+        let ring = AudioRingBuffer(capacitySamples: 6, primeThresholdSamples: 0)
         ring.write([1, -1, 2, -2])
         _ = readStereoSamples(ring, frames: 2)
         ring.write([3, -3, 4, -4])                 // 寫入位置跨過陣列尾端
@@ -176,6 +181,58 @@ private func readStereoSamples(_ ring: AudioRingBuffer, frames: Int)
         #expect(got == 2)
         #expect(Array(left.prefix(2)) == [3, 4])
         #expect(Array(right.prefix(2)) == [-3, -4])
+    }
+
+    // MARK: - pre-roll（蓄水）
+    //
+    // 為什麼需要它：生產端與消費端的速率相等（都是 48kHz），若不先積一段水就開始
+    // 消費，穩態深度會停在 0——每次 render callback 都拿到不足的資料然後補靜音。
+    // 2026-08-03 實測 60 秒：under 每秒增加約 90、depth 全程 0ms、over 恆為 0
+    // （見 app/RESULTS-d32-probe.md）。pre-roll 讓深度從門檻起跳，把「幾乎每次都欠位」
+    // 變成「只有真的斷流才欠位」。
+
+    /// 未達門檻前一律不出貨，且**不計 underrun**——那不是欠位，是還沒開始播。
+    /// 這個區分很重要：若計入，驗收指標會把正常的啟動蓄水期算成缺陷。
+    @Test func primeWithheldBelowThresholdAndNotCountedAsUnderrun() {
+        let ring = AudioRingBuffer(capacitySamples: 64, primeThresholdSamples: 16)
+        ring.write([1, -1, 2, -2])                 // 4 samples < 門檻 16
+        let (got, _, _) = readStereoSamples(ring, frames: 2)
+        #expect(got == 0)
+        #expect(ring.stats.underruns == 0)
+        #expect(ring.stats.depthSamples == 4)      // 沒被消費掉
+    }
+
+    /// 達到門檻就開始正常供應。
+    @Test func primeReleasesOnceThresholdReached() {
+        let ring = AudioRingBuffer(capacitySamples: 64, primeThresholdSamples: 8)
+        ring.write([1, -1, 2, -2])                 // 4 < 8：還不出貨
+        #expect(readStereoSamples(ring, frames: 2).0 == 0)
+        ring.write([3, -3, 4, -4])                 // 累積到 8：達標
+        let (got, left, right) = readStereoSamples(ring, frames: 4)
+        #expect(got == 4)
+        #expect(Array(left.prefix(4)) == [1, 2, 3, 4])
+        #expect(Array(right.prefix(4)) == [-1, -2, -3, -4])
+    }
+
+    /// 被排乾之後要重新蓄水，不能一路空轉供應——否則斷流時會退回沒有 pre-roll 的行為。
+    @Test func primeResetsAfterBufferDrained() {
+        let ring = AudioRingBuffer(capacitySamples: 64, primeThresholdSamples: 8)
+        ring.write([1, -1, 2, -2, 3, -3, 4, -4])   // 達標
+        #expect(readStereoSamples(ring, frames: 4).0 == 4)   // 全部讀走 → 空了
+        #expect(readStereoSamples(ring, frames: 4).0 == 0)   // 空讀 → 計 underrun 並重置
+        #expect(ring.stats.underruns == 1)
+        ring.write([5, -5])                        // 2 < 8：重新蓄水中，不出貨
+        #expect(readStereoSamples(ring, frames: 1).0 == 0)
+        #expect(ring.stats.underruns == 1)         // 蓄水期不再累加 underrun
+    }
+
+    /// 門檻不得超過容量的一半：超過的話蓄水期就會先撞到 overrun，變成永遠 prime 不起來。
+    /// 這條守的是「小容量緩衝配大門檻」這個組態陷阱，讓它降級成可用而不是靜默鎖死。
+    @Test func primeThresholdIsClampedToHalfCapacity() {
+        let ring = AudioRingBuffer(capacitySamples: 8, primeThresholdSamples: 9_600)
+        ring.write([1, -1, 2, -2])                 // 4 samples == 容量 8 的一半
+        let (got, _, _) = readStereoSamples(ring, frames: 2)
+        #expect(got == 2)
     }
 
     /// P1-e fast-follow：`stats` 先讀 readIndex 再讀 writeIndex，故 depthSamples 永不為負。

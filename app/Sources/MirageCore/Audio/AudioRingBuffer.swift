@@ -33,11 +33,21 @@ public final class AudioRingBuffer: @unchecked Sendable {
     private let underrunCount = ManagedAtomic<Int>(0)
     private let overrunCount = ManagedAtomic<Int>(0)
     private let writeCount = ManagedAtomic<Int>(0)
+    private let primeThreshold: Int
+    /// 是否已蓄滿水並開始供應。生產者不碰它，只有消費者（即時執行緒）讀寫，
+    /// 所以 relaxed 就夠——它不用來同步任何資料，只是消費端自己的狀態。
+    private let primed = ManagedAtomic<Bool>(false)
 
-    /// 預設 19200 = 48kHz × 2ch × 200ms。這是**溢位前的天花板**，不是目標深度；
-    /// 穩態深度由生產端節奏自然決定（~100ms），不另設節流。
-    public init(capacitySamples: Int = 19_200) {
+    /// 預設 19200 = 48kHz × 2ch × 200ms。這是**溢位前的天花板**，不是目標深度。
+    ///
+    /// `primeThresholdSamples` 預設 9600 = 100ms：消費端要等緩衝積到這個深度才開始
+    /// 供應。**沒有它，穩態深度會是 0**——生產與消費速率相等時，每次 render callback
+    /// 都拿到不足的資料然後補靜音，2026-08-03 實測 60 秒 under 每秒增加約 90、
+    /// depth 全程 0ms（見 app/RESULTS-d32-probe.md）。傳 0 表示不蓄水（測試用）。
+    public init(capacitySamples: Int = 19_200, primeThresholdSamples: Int = 9_600) {
         capacity = max(capacitySamples, 1)
+        // 門檻不得超過容量的一半：超過的話蓄水期會先撞到 overrun，永遠 prime 不起來。
+        primeThreshold = max(0, min(primeThresholdSamples, capacity / 2))
         storage = UnsafeMutableBufferPointer<Float>.allocate(capacity: capacity)
         storage.initialize(repeating: 0)
     }
@@ -95,8 +105,17 @@ public final class AudioRingBuffer: @unchecked Sendable {
         guard frames > 0 else { return 0 }
         let r = readIndex.load(ordering: .relaxed)
         let w = writeIndex.load(ordering: .acquiring)
+        // 蓄水期：還沒積到門檻就整塊不出貨（呼叫端補靜音），**且不計 underrun**——
+        // 那不是欠位，是還沒開始播。把兩者混在一起，驗收指標就會把正常的啟動期
+        // 算成缺陷。
+        if !primed.load(ordering: .relaxed) {
+            guard (w - r) >= primeThreshold else { return 0 }
+            primed.store(true, ordering: .relaxed)
+        }
         let n = min(frames, (w - r) / 2)
         guard n > 0 else {
+            // 被排乾了：回到蓄水狀態。不重置的話，斷流之後就退回沒有 pre-roll 的行為。
+            primed.store(false, ordering: .relaxed)
             underrunCount.wrappingIncrement(ordering: .relaxed)
             return 0
         }
