@@ -238,9 +238,9 @@ assert_at_least。補上反向斷言。
 **Interfaces:**
 - Consumes: `package_app.sh <目標目錄> <release|debug> [二進位覆寫路徑]`（既有）
 - Produces:
-  - `gui_session_start <log路徑> <bundle路徑> [env KEY=VAL ...]` — 打包並以 `.app`
-    啟動 MirageApp，stdout/stderr 導向 log，等待 6 秒後用 `osascript` 拉前景。
-    打包失敗回傳 1。
+  - `gui_session_start <log路徑> <bundle路徑> <二進位覆寫路徑或空字串> [env KEY=VAL ...]`
+    — 打包並以 `.app` 啟動 MirageApp，stdout/stderr 導向 log，等待 6 秒後用 `osascript`
+    拉前景。打包失敗回傳 1。第三個參數原樣轉給 `package_app.sh`，空字串表示用預設二進位。
   - `gui_session_cleanup <bundle路徑>` — `pkill -x MirageApp` 並移除 bundle。
   - `fps_summary <log路徑>` — 印「取樣 N 筆　平均 X fps　最低 A　最高 B」與串流尺寸；
     取樣為 0 時印診斷（分辨「幀有進來但視窗沒合成」vs「幀根本沒進來」）並回傳 1。
@@ -281,8 +281,9 @@ Step 6 要拿它對照，確認重構沒改變行為。
 # 得到有時完全量不到），所以不是「偏低」而是「不可信」。包成 bundle 之後 activation
 # policy 才是 .regular。
 gui_session_start() {
-    local log="$1" bundle="$2"; shift 2
-    if ! "$(dirname "${BASH_SOURCE[0]}")/../package_app.sh" "$bundle" release "" > /dev/null; then
+    local log="$1" bundle="$2" app_override="$3"; shift 3
+    if ! "$(dirname "${BASH_SOURCE[0]}")/../package_app.sh" \
+            "$bundle" release "$app_override" > /dev/null; then
         echo "❌ 打包 .app 失敗（見上方訊息）" >&2
         return 1
     fi
@@ -390,7 +391,7 @@ cleanup() {
 
 ```bash
 echo "[fps] 啟動 Mirage（.app bundle）→ localhost:${GRPC_PORT}，量測 ${DURATION}s"
-if ! gui_session_start "$LOG" "$BUNDLE" \
+if ! gui_session_start "$LOG" "$BUNDLE" "$APP_OVERRIDE" \
         "MIRAGE_PORT=$GRPC_PORT" "MIRAGE_FPS_LOG=1" "MIRAGE_CONN_LOG=1"; then
     exit 1
 fi
@@ -416,20 +417,9 @@ fi
 echo "[fps] 二進位：${APP_OVERRIDE:-（預設 .build/release/MirageApp）}"
 ```
 
-⚠️ `APP_OVERRIDE` 目前不再被傳進打包流程（`gui_session_start` 寫死第三參數為 `""`）。
-**`-a` 選項因此失效**，這是本次重構的行為改變。處理方式：把 `gui_session_start` 的
-打包呼叫改成讀取可選的全域 `GUI_SESSION_APP_OVERRIDE`：
-
-```bash
-    if ! "$(dirname "${BASH_SOURCE[0]}")/../package_app.sh" \
-            "$bundle" release "${GUI_SESSION_APP_OVERRIDE:-}" > /dev/null; then
-```
-
-並在 `verify_game_fps.sh` 的 source 之後加：
-
-```bash
-GUI_SESSION_APP_OVERRIDE="$APP_OVERRIDE"
-```
+⚠️ `-a` 的覆寫路徑走 `gui_session_start` 的第三個位置參數（見上方的啟動區塊
+`gui_session_start "$LOG" "$BUNDLE" "$APP_OVERRIDE" ...`）。Step 7 會實測它沒有在重構
+中變成死參數。
 
 - [ ] **Step 5: 語法檢查**
 
@@ -638,7 +628,7 @@ echo ""
 echo "=== 啟動 Mirage（.app bundle）→ localhost:${GRPC_PORT}，量測 ${DURATION}s ==="
 # 不注入動畫：遊戲進行中畫面本來就在變化，而注入器會真的去點畫面，可能叫出暫停選單
 # 或退出關卡（verify_game_fps.sh:32-36 記載的同一個理由）。
-if ! gui_session_start "$LOG" "$BUNDLE" \
+if ! gui_session_start "$LOG" "$BUNDLE" "" \
         "MIRAGE_PORT=$GRPC_PORT" "MIRAGE_AUDIO_LOG=1" "MIRAGE_FPS_LOG=1" "MIRAGE_CONN_LOG=1"; then
     exit 1
 fi
