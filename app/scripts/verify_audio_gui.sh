@@ -10,7 +10,8 @@
 # spec §8-6 要求「連續 60 秒 underruns == 0」，但同一份 spec 的 §5 寫著「遊戲靜音時
 # 本來就沒有封包」「緩衝欠位/溢位不是錯誤，是要被計數與觀測的正常現象」。render
 # callback 每 ~10ms 要一次資料（AudioPlayer.swift:35），guest 只要有一刻不發聲，
-# readStereo 就走 underrunCount.wrappingIncrement（AudioRingBuffer.swift:100）。
+# readStereo 排乾時就走 underrunCount.wrappingIncrement（AudioRingBuffer.swift 的
+# readStereo 函式——引用函式名而非行號，因為 pre-roll 修法已把它往下推過一次）。
 # 所以 == 0 在任何含靜音期的 60 秒裡結構上不可能。
 # 本腳本改判「連續有聲期間的 underrun 增量」——見 audio_stats 的註解。
 # 完整推導見 docs/specs/2026-08-03-d32-acceptance-6-automation-design.md §0。

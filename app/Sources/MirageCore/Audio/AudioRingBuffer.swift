@@ -6,12 +6,20 @@ public struct AudioStats: Equatable, Sendable {
     public let overruns: Int
     public let depthSamples: Int
     public let writes: Int
+    /// 重新蓄水次數：`primed` 由 false 轉 true 的累積次數（含開機後第一次）。
+    /// **這個數字存在的理由**：重新蓄水期間 `underruns` 不增加、`depth` 看起來像
+    /// 「正常爬升」，對只看 underrun/depth 的驗收判準完全隱形——一個反覆重新蓄水、
+    /// 每次賠一段 pre-roll 靜音的緩衝，不看這個數字會被誤判成「比沒有 pre-roll
+    /// 更健康」。`primes` 很大代表反覆蓄水；`primes` 很小而 underrun 增量仍高，
+    /// 代表卡在低水位帶（見 `readStereo` 的已知限制段落）。
+    public let primes: Int
 
-    public init(underruns: Int, overruns: Int, depthSamples: Int, writes: Int) {
+    public init(underruns: Int, overruns: Int, depthSamples: Int, writes: Int, primes: Int) {
         self.underruns = underruns
         self.overruns = overruns
         self.depthSamples = depthSamples
         self.writes = writes
+        self.primes = primes
     }
 }
 
@@ -37,6 +45,9 @@ public final class AudioRingBuffer: @unchecked Sendable {
     /// 是否已蓄滿水並開始供應。生產者不碰它，只有消費者（即時執行緒）讀寫，
     /// 所以 relaxed 就夠——它不用來同步任何資料，只是消費端自己的狀態。
     private let primed = ManagedAtomic<Bool>(false)
+    /// 見 `AudioStats.primes` 的說明。只在 `primed` 由 false 轉 true 的那一刻加一，
+    /// 不是每次 read 都加——它數的是「進入蓄水又放行」的次數，不是供應中的 read 次數。
+    private let primeCount = ManagedAtomic<Int>(0)
 
     /// 預設 19200 = 48kHz × 2ch × 200ms。這是**溢位前的天花板**，不是目標深度。
     ///
@@ -46,7 +57,10 @@ public final class AudioRingBuffer: @unchecked Sendable {
     /// depth 全程 0ms（見 app/RESULTS-d32-probe.md）。傳 0 表示不蓄水（測試用）。
     public init(capacitySamples: Int = 19_200, primeThresholdSamples: Int = 9_600) {
         capacity = max(capacitySamples, 1)
-        // 門檻不得超過容量的一半：超過的話蓄水期會先撞到 overrun，永遠 prime 不起來。
+        // 門檻不得超過容量的一半：超過的話蓄水期會先撞到 overrun，永遠 prime 不起來
+        //（前提：封包大小均勻；`write` 是整包丟棄語意——若封包大小不均勻，例如先來一包
+        // 小的把水位卡在剛好低於門檻、之後每包都比剩餘空間大，仍可能永遠丟棄、永遠
+        // prime 不起來。實務上封包等長（960 samples／包），這個前提成立）。
         primeThreshold = max(0, min(primeThresholdSamples, capacity / 2))
         storage = UnsafeMutableBufferPointer<Float>.allocate(capacity: capacity)
         storage.initialize(repeating: 0)
@@ -65,7 +79,8 @@ public final class AudioRingBuffer: @unchecked Sendable {
         return AudioStats(underruns: underrunCount.load(ordering: .relaxed),
                           overruns: overrunCount.load(ordering: .relaxed),
                           depthSamples: w - r,
-                          writes: writeCount.load(ordering: .relaxed))
+                          writes: writeCount.load(ordering: .relaxed),
+                          primes: primeCount.load(ordering: .relaxed))
     }
 
     /// 生產者執行緒（gRPC 消費 task）呼叫。空間不足 → **整包丟棄** + overruns += 1。
@@ -99,6 +114,9 @@ public final class AudioRingBuffer: @unchecked Sendable {
     ///
     /// **只讀完整 frame**：緩衝裡剩單數個樣本時把落單的那個留著不動。少讀半個 frame
     /// 只是晚一個 render 週期補上，錯開一個樣本卻會讓其後每一個 frame 的左右聲道永久反相。
+    ///
+    /// **蓄水期**：建構後（或被排乾後）累積深度未達 `primeThresholdSamples` 前一律回 0
+    /// 且**不計 underrun**——那不是欠位，是還沒開始播。
     public func readStereo(left: UnsafeMutablePointer<Float>,
                            right: UnsafeMutablePointer<Float>,
                            frames: Int) -> Int {
@@ -111,6 +129,9 @@ public final class AudioRingBuffer: @unchecked Sendable {
         if !primed.load(ordering: .relaxed) {
             guard (w - r) >= primeThreshold else { return 0 }
             primed.store(true, ordering: .relaxed)
+            // 只在「由未蓄滿轉為蓄滿」的這一刻加一，不是每次成功 read 都加——
+            // 見 AudioStats.primes 的說明：它數的是重新蓄水的次數。
+            primeCount.wrappingIncrement(ordering: .relaxed)
         }
         let n = min(frames, (w - r) / 2)
         guard n > 0 else {
@@ -131,6 +152,11 @@ public final class AudioRingBuffer: @unchecked Sendable {
     /// 即時執行緒（AVAudioSourceNode render block）呼叫。
     /// 回傳實際寫入 `dst` 的樣本數；不足 `count` 時 underruns += 1，餘下由呼叫端補靜音。
     /// 不配置、不加鎖、不 log。
+    ///
+    /// **本方法不參與 pre-roll**：不看也不重置 `primed`。若某個呼叫端同時混用
+    /// `read(into:count:)` 與 `readStereo`，`primed` 會停在 `readStereo` 上次寫入的值，
+    /// 變成陳舊狀態——目前沒有生產路徑這樣混用（`AudioPlayer` 只走 `readStereo`），
+    /// 但 `AudioLiveTests` 的測試輔助函式是用 `read(into:)` 排空，這是特例，不是慣例。
     public func read(into dst: UnsafeMutablePointer<Float>, count: Int) -> Int {
         guard count > 0 else { return 0 }
         let r = readIndex.load(ordering: .relaxed)

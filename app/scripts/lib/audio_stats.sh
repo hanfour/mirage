@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# 解析 MIRAGE_AUDIO_LOG 的每秒一行，算出音訊健康量測用的六個 KEY=VAL。
+# 解析 MIRAGE_AUDIO_LOG 的每秒一行，算出音訊健康量測用的七個 KEY=VAL。
 # 用法：source "$(dirname "$0")/lib/audio_stats.sh"
 #
 # **存在的理由與 verify_common.sh／gui_session.sh 同一條**：這段 awk 是 D32 判準的
@@ -8,7 +8,19 @@
 # sed 範圍就可能挖錯或挖到半截）。
 #
 # 輸入格式（MIRAGE_AUDIO_LOG=1，AppModel+Audio.swift）：
-#   [audio] pkt=42 sr=48000 ch=2 under=0 over=0 depth=96ms
+#   [audio] pkt=42 sr=48000 ch=2 under=0 over=0 primes=1 depth=96ms
+#
+# **PRIMES 是什麼、為什麼要單獨列一欄**：`AudioRingBuffer` 加了 pre-roll 之後，
+# 重新蓄水期間 under 不增加、depth 看起來像正常爬升——對 USUM/UMAX/UWINDOWS 這三個
+# 既有指標完全隱形，會讓「反覆重新蓄水、每次賠一段靜音」的緩衝被誤判成比沒有
+# pre-roll 更健康。PRIMES 取自 `AudioStats.primes`（累積計數），只取最後一行的值——
+# 它本身就是累積量，不需要像 USUM 那樣算 delta。
+#
+# **`primes=` 缺失時不算畸形行**（2026-08-03 審查裁決）：畸形判定維持只看 pkt= 與
+# under= 這兩個既有欄位。理由是向後相容——已經存檔的舊格式日誌（例如 Task 3 那三次
+# 量測）沒有 primes= 欄位，若把它納入畸形判定，這些檔案會被整批打成畸形、SOUND_SECS
+# 等既有指標全部歸零，等於用一個新欄位追溯性地弄壞了舊資料。舊格式日誌因此解析出
+# PRIMES=0（awk 變數從未被設定，未初始化即為 0），這是刻意的預設值，不是遺漏。
 #
 # **只統計「本秒 pkt>0 且前一秒也 pkt>0」的 underrun 增量**。這一刀砍掉兩個結構上
 # 不可能的區間：
@@ -41,8 +53,12 @@ audio_stats() {
           pkt = 0; under = 0
           pkt_found = 0; under_found = 0
           for (i = 1; i <= NF; i++) {
-              if ($i ~ /^pkt=/)   { sub(/^pkt=/, "", $i);   pkt = $i + 0;   pkt_found = 1 }
-              if ($i ~ /^under=/) { sub(/^under=/, "", $i); under = $i + 0; under_found = 1 }
+              if ($i ~ /^pkt=/)    { sub(/^pkt=/, "", $i);    pkt = $i + 0;    pkt_found = 1 }
+              if ($i ~ /^under=/)  { sub(/^under=/, "", $i);  under = $i + 0;  under_found = 1 }
+              # primes 刻意不參與畸形判定、也不每行重設——它是累積計數，缺欄位時
+              # 沿用上一次看到的值（初始為 awk 未初始化變數的 0），讓舊格式日誌
+              # 解析出 PRIMES=0 而不是被打成畸形行。
+              if ($i ~ /^primes=/) { sub(/^primes=/, "", $i); primes = $i + 0 }
           }
           if (!pkt_found || !under_found) {
               malformed++
@@ -59,8 +75,8 @@ audio_stats() {
           prev_pkt = pkt; prev_under = under
       }
       END {
-          printf "AUDIO_LINES=%d\nSOUND_SECS=%d\nUSUM=%d\nUMAX=%d\nUWINDOWS=%d\nMALFORMED=%d\n",
-                 lines + 0, sound + 0, usum + 0, umax + 0, windows + 0, malformed + 0
+          printf "AUDIO_LINES=%d\nSOUND_SECS=%d\nUSUM=%d\nUMAX=%d\nUWINDOWS=%d\nMALFORMED=%d\nPRIMES=%d\n",
+                 lines + 0, sound + 0, usum + 0, umax + 0, windows + 0, malformed + 0, primes + 0
       }
     ' "$1"
 }

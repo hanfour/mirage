@@ -40,6 +40,9 @@ echo "=== audio_stats 自我測試 ==="
 
 # 案例 A：task-3-brief.md Step 3 的原始 8 行案例。期待值不變，現在多驗
 # MALFORMED=0——這 8 行全部欄位齊全，不應該被判為畸形。
+# **這份 log 完全沒有 primes= 欄位**（Task 3 存檔時 pre-roll 還不存在）——
+# 兼作「舊格式日誌向後相容」的驗證案例：PRIMES 應解析為 0，而不是被判為畸形
+# 或讓其他既有欄位（USUM/SOUND_SECS 等）跟著壞掉。
 cat > "$TMPDIR/case_a.log" <<'EOF'
 [audio] pkt=0 sr=48000 ch=2 under=10 over=0 depth=0ms
 [audio] pkt=0 sr=48000 ch=2 under=25 over=0 depth=0ms
@@ -50,8 +53,8 @@ cat > "$TMPDIR/case_a.log" <<'EOF'
 [audio] pkt=39 sr=48000 ch=2 under=140 over=0 depth=80ms
 [audio] pkt=40 sr=48000 ch=2 under=147 over=0 depth=88ms
 EOF
-check_case "案例 A：brief 原始 8 行" "$TMPDIR/case_a.log" \
-    AUDIO_LINES:8 SOUND_SECS:5 USUM:9 UMAX:7 UWINDOWS:3 MALFORMED:0
+check_case "案例 A：brief 原始 8 行（舊格式，無 primes=）" "$TMPDIR/case_a.log" \
+    AUDIO_LINES:8 SOUND_SECS:5 USUM:9 UMAX:7 UWINDOWS:3 MALFORMED:0 PRIMES:0
 
 # 案例 B：under 遞減，直接觸發「d<0 防禦性下限」那條分支——這條分支在案例 A
 # 與三次真實量測裡都從未被觸發過（under 全程單調遞增），本案例補上這個空白。
@@ -92,10 +95,23 @@ check_case "案例 D：缺 pkt= 整行跳過" "$TMPDIR/case_d.log" \
     AUDIO_LINES:3 SOUND_SECS:2 USUM:100 UMAX:100 UWINDOWS:1 MALFORMED:1
 
 # 案例 E：空檔案——全部為 0，不當機（awk 沒有任何 /\[audio\]/ 命中時，
-# END 區塊仍要印出六個 0，不能因為變數從未初始化就印空字串或整個不輸出）。
+# END 區塊仍要印出七個 0，不能因為變數從未初始化就印空字串或整個不輸出）。
 : > "$TMPDIR/case_e.log"
 check_case "案例 E：空檔案全部為 0" "$TMPDIR/case_e.log" \
-    AUDIO_LINES:0 SOUND_SECS:0 USUM:0 UMAX:0 UWINDOWS:0 MALFORMED:0
+    AUDIO_LINES:0 SOUND_SECS:0 USUM:0 UMAX:0 UWINDOWS:0 MALFORMED:0 PRIMES:0
+
+# 案例 F：新格式日誌，帶 primes= 欄位。**2026-08-03 審查後新增**（Important-B）：
+# PRIMES 要能從有 primes= 的日誌正確解析出「最後一行的值」（累積計數，不是 delta）。
+# 手算：3 行皆有 pkt_found/under_found，非畸形。sound=3（三行 pkt 皆 >0）。
+# under 序列 0→0→2：第 1→2 行 d=0-0=0，第 2→3 行 d=2-0=2，USUM=0+2=2，UMAX=2，
+# UWINDOWS=2。primes 序列 1→1→2，取最後一行的值 → PRIMES=2（不是加總、不是次數）。
+cat > "$TMPDIR/case_f.log" <<'EOF'
+[audio] pkt=40 sr=48000 ch=2 under=0 over=0 primes=1 depth=90ms
+[audio] pkt=42 sr=48000 ch=2 under=0 over=0 primes=1 depth=95ms
+[audio] pkt=41 sr=48000 ch=2 under=2 over=0 primes=2 depth=10ms
+EOF
+check_case "案例 F：新格式，primes= 取最後一行的累積值" "$TMPDIR/case_f.log" \
+    AUDIO_LINES:3 SOUND_SECS:3 USUM:2 UMAX:2 UWINDOWS:2 MALFORMED:0 PRIMES:2
 
 echo ""
 if [ "$FAILURES" -eq 0 ]; then

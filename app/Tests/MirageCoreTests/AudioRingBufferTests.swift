@@ -235,6 +235,33 @@ private func readStereoSamples(_ ring: AudioRingBuffer, frames: Int)
         #expect(got == 2)
     }
 
+    /// 釘住生產預設值：`AppModel` 用的是無參數建構（AppModel.swift:69），
+    /// 而這個預設值正是本次修正唯一在生產上生效的東西。沒有這條，把預設改回 0
+    /// （等同整個 revert pre-roll）整套測試依然全綠。
+    @Test func productionDefaultsWithholdUntil100msAccumulated() {
+        let ring = AudioRingBuffer()                              // 19200 / 9600
+        ring.write([Float](repeating: 0.5, count: 9_598))
+        #expect(readStereoSamples(ring, frames: 1).0 == 0)        // 差 2 個樣本，不出貨
+        ring.write([0.5, 0.5])                                    // 累積到 9600
+        #expect(readStereoSamples(ring, frames: 1).0 == 1)
+    }
+
+    /// `primes` 只在「由未蓄滿轉為蓄滿」的那一刻加一：蓄水 → 放行 →排乾 → 再蓄水
+    /// 一輪應為 2，不是每次成功 read 都加。這個指標存在的理由是 Important-B 審查
+    /// 指出的隱形問題——重新蓄水期間 underruns 不增加、depth 看起來像正常爬升，
+    /// 沒有 primes 就完全看不出「反覆重新蓄水」這件事正在發生
+    /// （見 `AudioStats.primes` 的說明）。
+    @Test func primesCountsEachReEntryIntoPrimedState() {
+        let ring = AudioRingBuffer(capacitySamples: 64, primeThresholdSamples: 8)
+        ring.write([1, -1, 2, -2, 3, -3, 4, -4])   // 達標 → primed 第 1 次轉 true
+        #expect(readStereoSamples(ring, frames: 4).0 == 4)   // 全部讀走 → 空了
+        #expect(readStereoSamples(ring, frames: 4).0 == 0)   // 空讀 → 觸發重置回蓄水狀態
+        #expect(ring.stats.primes == 1)
+        ring.write([5, -5, 6, -6, 7, -7, 8, -8])   // 重新蓄水達標 → primed 第 2 次轉 true
+        #expect(readStereoSamples(ring, frames: 4).0 == 4)
+        #expect(ring.stats.primes == 2)
+    }
+
     /// P1-e fast-follow：`stats` 先讀 readIndex 再讀 writeIndex，故 depthSamples 永不為負。
     ///
     /// 用**真實 OS 執行緒**（非 cooperative Task）緊迴圈，因為要打中的窗口只有 `stats`

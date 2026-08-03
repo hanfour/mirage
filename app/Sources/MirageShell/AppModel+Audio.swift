@@ -39,7 +39,7 @@ extension AppModel {
                 let s = audioRing.stats
                 let depthMs = s.depthSamples * 1000 / (48_000 * 2)
                 print("[audio] pkt=\(s.writes - lastWrites) sr=48000 ch=2 " +
-                      "under=\(s.underruns) over=\(s.overruns) depth=\(depthMs)ms")
+                      "under=\(s.underruns) over=\(s.overruns) primes=\(s.primes) depth=\(depthMs)ms")
                 lastWrites = s.writes
             }
         }
