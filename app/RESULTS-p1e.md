@@ -73,7 +73,7 @@
 驗收線 6 已由 `app/scripts/verify_audio_gui.sh` 自動化涵蓋（D32）——但**該驗收線本身判定為未通過**，
 殘餘缺陷記為 D44，見 `project-review.md`。
 
-**驗收線 7 的人工驗收理由同樣可疑，但本次未重驗**——見 `project-review.md` 的 D32 那列。
+**驗收線 7 的 pending-human 理由同樣可疑，但本次未重驗**——見 `project-review.md` 的 D32 那列。
 
 1. 實際聽得到聲音，且無爆音／破音／延遲感（spec §9-1）。
 2. 全螢幕 letterbox 目視：置中、黑邊純黑、畫面不變形（spec §9-2）。
@@ -126,7 +126,7 @@ P1-e 新增檔案的個別數字（合併後的完整量測）：
   > **⚠️ 2026-07-28 更正**：此處引為證據的「fps 日誌 0 行輸出」，其原因**不是**「需要真 GUI session」。
   > 在真 GUI session、螢幕未鎖、使用者自己的終端機執行的條件下仍是 0 行——鏡像顯示自 P1-a 起
   > 從未運作過（連線成功、幀有進來，但狀態傳不到 UI，且有合成視窗時會 SIGSEGV）。
-  > 見 `docs/specs/2026-07-28-mirror-never-rendered-investigation.md`。這條不是人工驗收待驗，是待修。
+  > 見 `docs/specs/2026-07-28-mirror-never-rendered-investigation.md`。這條不是 pending-human，是 pending-fix。
 - **驗收線 6 已由 `app/scripts/verify_audio_gui.sh` 自動化涵蓋（2026-08-03，D32）**：用真 GUI + 真 `AudioPlayer` 量測 60 秒，判定為**未通過（已大幅改善）**——pre-roll 修正後 `USUM` 降約 97%，但 `PRIMES`≈35（平均每 1.7 秒排乾一次），殘餘缺陷記為 D44，完整數據見 `app/RESULTS-d32.md`。舊有的 underruns 累計 7 次獨立執行範圍 3–426、從未量到 0 這批數字來自假消費端 harness，僅供歷史脈絡參考，不可與本次真 GUI 量測直接比較。
 - **spec §9 五項人工驗收項目** 全數列出，皆需真 GUI session。
 - **overruns/underruns 歸因與緩衝深度兩極分佈**（含本次校正後的完整範圍與反例資料點）已在「已知限制」明確記錄為 caveat，未包裝成已證實的結論。

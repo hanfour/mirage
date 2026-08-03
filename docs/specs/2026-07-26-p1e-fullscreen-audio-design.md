@@ -257,7 +257,7 @@ render block 的唯一工作：`ringBuffer.read(into:count:)`，回傳數不足�
    > §5 寫著「`streamAudio` 無封包 ≠ 斷線。遊戲靜音時本來就沒有封包」與「緩衝欠位/
    > 溢位不是錯誤，是要被計數與觀測的正常現象」。而 `AudioPlayer` 的 render callback
    > 每 ~10ms 要一次資料（`AudioPlayer.swift:35`），guest 只要有一刻不發聲，
-   > `readStereo` 就走 `underrunCount.wrappingIncrement`（`AudioRingBuffer.swift:100`）。
+   > `readStereo` 就走 `underrunCount.wrappingIncrement`（`AudioRingBuffer.readStereo`）。
    > 所以 `== 0` 在任何含靜音期的 60 秒裡不可能成立。
    >
    > 這與 D32 原本記載的「drain 情境下不成立」是**不同的第二個原因**：前者出在測試
