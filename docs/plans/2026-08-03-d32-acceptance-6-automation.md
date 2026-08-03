@@ -27,6 +27,11 @@ Android emulator gRPC、macOS `open`/`osascript`。
   `docs/plans/2026-07-22-phase0c-sck-validation.md:70`），帶了本計畫整件事就沒有意義。
 - 門檻數字**一律待 Task 4 實測後才填**。D32 本身就是「先定門檻再實測」踩出來的坑。
 - 提交訊息格式 `<type>: <description>`，型別限 feat/fix/refactor/docs/test/chore/perf/ci。
+- **驗證步驟一律用 `${PIPESTATUS[0]}` 取退出碼，不用 `$?`**。`cmd | tail -5; echo "EXIT=$?"`
+  取到的是 `tail` 的退出碼（永遠 0），腳本紅了也看不出來——這正是 D9 修掉的那類假訊號，
+  `verify_common.sh:58` 的註解早就記載過。單一指令也算長度 1 的 pipeline，所以
+  `${PIPESTATUS[0]}` 在沒有管線時同樣正確。
+  （2026-08-03：本計畫原本 8 處寫成 `$?`，Task 2 執行時被實作者實測抓到。）
 
 ## 環境前置（Task 2 起需要）
 
@@ -86,7 +91,7 @@ check "assert_at_most 中止後不執行後續指令" \
 - [ ] **Step 2: 跑自我測試，確認它紅**
 
 ```bash
-cd app && ./scripts/lib/verify_common_selftest.sh; echo "EXIT=$?"
+cd app && ./scripts/lib/verify_common_selftest.sh; echo "EXIT=${PIPESTATUS[0]}"
 ```
 
 Expected: 5 項失敗（新加的 5 筆全部退出碼 127 —— `assert_at_most: command not found`
@@ -121,7 +126,7 @@ assert_at_most() {
 - [ ] **Step 4: 跑自我測試，確認全綠**
 
 ```bash
-cd app && ./scripts/lib/verify_common_selftest.sh; echo "EXIT=$?"
+cd app && ./scripts/lib/verify_common_selftest.sh; echo "EXIT=${PIPESTATUS[0]}"
 ```
 
 Expected: 最後一行「全部通過」，`EXIT=0`。
@@ -132,7 +137,7 @@ Expected: 最後一行「全部通過」，`EXIT=0`。
 
 ```bash
 cd app && sed -i.bak 's/^        exit 1$/        :/' scripts/lib/verify_common.sh \
-  && ./scripts/lib/verify_common_selftest.sh; echo "EXIT=$?"
+  && ./scripts/lib/verify_common_selftest.sh; echo "EXIT=${PIPESTATUS[0]}"
 ```
 
 Expected: **具名失敗**，至少要看到「assert_at_most 超過門檻 → 中止」與
@@ -193,7 +198,7 @@ Step 5 的突變檢查（已涵蓋同一條邏輯），把本步驟留到最後�
 - [ ] **Step 8: 跑完整 ci.sh 確認七道閘門全綠**
 
 ```bash
-cd app && ./scripts/ci.sh 2>&1 | tail -20; echo "EXIT=$?"
+cd app && ./scripts/ci.sh 2>&1 | tail -20; echo "EXIT=${PIPESTATUS[0]}"
 ```
 
 Expected: 「全部通過」，`EXIT=0`，且輸出裡看得到「閘門 7」。
@@ -444,7 +449,7 @@ Expected: 與 Step 1 抄下的數字**同一個量級**（fps 每次會有波動
 
 ```bash
 cd app && ./scripts/verify_game_fps.sh -s emulator-5556 -p 8556 -n -d 10 \
-    -a /nonexistent/MirageApp 2>&1 | tail -5; echo "EXIT=$?"
+    -a /nonexistent/MirageApp 2>&1 | tail -5; echo "EXIT=${PIPESTATUS[0]}"
 ```
 
 Expected: 打包失敗並 `EXIT=1`（不是靜默用了預設二進位）。這證明 `-a` 沒有在重構中
@@ -832,7 +837,7 @@ echo "log：$LOG"
 - [ ] **Step 3: 跑一次，確認全綠**
 
 ```bash
-cd app && ./scripts/verify_audio_gui.sh 2>&1 | tail -20; echo "EXIT=$?"
+cd app && ./scripts/verify_audio_gui.sh 2>&1 | tail -20; echo "EXIT=${PIPESTATUS[0]}"
 ```
 
 Expected: 五條 ✅（A1、A2、A3、A4 取樣、A4 平均），`EXIT=0`。
@@ -841,7 +846,7 @@ Expected: 五條 ✅（A1、A2、A3、A4 取樣、A4 平均），`EXIT=0`。
 
 ```bash
 cd app && for i in 1 2; do ./scripts/verify_audio_gui.sh > /tmp/d32-assert-$i.log 2>&1; \
-  echo "第 $i 次 EXIT=$?"; done
+  echo "第 ${i} 次 EXIT=${PIPESTATUS[0]}"; done
 ```
 
 Expected: 兩次都 `EXIT=0`。**任一次紅就代表門檻定太緊**，回 Step 1 放寬並在
@@ -882,7 +887,7 @@ A3 刻意排在 A2 之後：assert_at_most 對 0 是通過的，靠 A2 先確認
 
 ```bash
 cd app && ./scripts/verify_audio_gui.sh -g com.android.settings -d 30 2>&1 | tail -12
-echo "EXIT=$?"
+echo "EXIT=${PIPESTATUS[0]}"
 ```
 
 Expected: **A2 紅**（`SOUND_SECS` 為 0 或遠低於門檻），`EXIT=1`。A1 應該是綠的——
@@ -892,7 +897,7 @@ App 活著、日誌在印，只是沒有封包。這正是這條斷言存在的�
 - [ ] **Step 1b: 順帶驗空 package 被擋下**
 
 ```bash
-cd app && ./scripts/verify_audio_gui.sh -g "" 2>&1 | tail -3; echo "EXIT=$?"
+cd app && ./scripts/verify_audio_gui.sh -g "" 2>&1 | tail -3; echo "EXIT=${PIPESTATUS[0]}"
 ```
 
 Expected: `❌ -g 不接受空字串`，`EXIT=2`。這條擋的是 `case "$FG" in *""*)` 會匹配
@@ -904,7 +909,7 @@ Expected: `❌ -g 不接受空字串`，`EXIT=2`。這條擋的是 `case "$FG" i
 
 ```bash
 cd app && sed -i.bak 's/"MIRAGE_AUDIO_LOG=1"/"MIRAGE_AUDIO_LOG=0"/' scripts/verify_audio_gui.sh
-./scripts/verify_audio_gui.sh 2>&1 | tail -8; echo "EXIT=$?"
+./scripts/verify_audio_gui.sh 2>&1 | tail -8; echo "EXIT=${PIPESTATUS[0]}"
 mv scripts/verify_audio_gui.sh.bak scripts/verify_audio_gui.sh
 ```
 
@@ -918,7 +923,7 @@ Expected: A1 紅（`AUDIO_LINES` 為 0），`EXIT=1`。
 cd app && sed -i.bak 's/interleaved: false/interleaved: true/' Sources/MirageShell/Audio/AudioPlayer.swift
 grep -n "interleaved" Sources/MirageShell/Audio/AudioPlayer.swift   # 確認改到了
 swift build -c release 2>&1 | tail -3
-./scripts/verify_audio_gui.sh 2>&1 | tail -12; echo "EXIT=$?"
+./scripts/verify_audio_gui.sh 2>&1 | tail -12; echo "EXIT=${PIPESTATUS[0]}"
 ```
 
 Expected: A1 紅（`AUDIO_LINES=0` —— NSException 打死 MainActor，那個每秒迴圈從未
@@ -939,7 +944,7 @@ git status --short   # 必須乾淨（無 .bak、無殘留改動）
 - [ ] **Step 4: 還原後再跑一次，確認回到綠**
 
 ```bash
-cd app && ./scripts/verify_audio_gui.sh 2>&1 | tail -12; echo "EXIT=$?"
+cd app && ./scripts/verify_audio_gui.sh 2>&1 | tail -12; echo "EXIT=${PIPESTATUS[0]}"
 ```
 
 Expected: 五條 ✅，`EXIT=0`。這證明 Step 3 的紅燈來自注入的 bug，不是腳本壞了。
