@@ -36,6 +36,8 @@
 # 畫面，不會把遊戲重啟回主選單。
 set -uo pipefail
 
+source "$(dirname "$0")/lib/gui_session.sh"
+
 SERIAL="emulator-5558"
 GRPC_PORT="8558"
 PACKAGE="com.loomgames.pixelflow"
@@ -83,15 +85,11 @@ ANIM_PID=""
 #
 # 順帶讓「怎麼組 .app」只有一份定義——這裡與 D30 除錯時各組一份的重複，正是漂移的起點。
 BUNDLE=$(mktemp -d -t mirage_fps_bundle)
-if ! "$(dirname "$0")/package_app.sh" "$BUNDLE" release "$APP_OVERRIDE" >/dev/null; then
-  echo "打包 .app 失敗（見上方訊息）" >&2; exit 1
-fi
 ORIG_POINTER=$("$ADB" -s "$SERIAL" shell settings get system pointer_location 2>/dev/null | tr -d '\r')
 
 cleanup() {
   [ -n "$ANIM_PID" ] && kill "$ANIM_PID" 2>/dev/null
-  pkill -x MirageApp 2>/dev/null
-  [ -n "${BUNDLE:-}" ] && rm -rf "$BUNDLE"
+  gui_session_cleanup "${BUNDLE:-}"
   # 還原：疊層是為了量測而開的，不還原會一直留在使用者的裝置上。
   case "$ORIG_POINTER" in
     ""|null) "$ADB" -s "$SERIAL" shell settings put system pointer_location 0 >/dev/null 2>&1 ;;
@@ -100,7 +98,7 @@ cleanup() {
 }
 trap cleanup EXIT INT TERM
 
-echo "[fps] 二進位：$APP"
+echo "[fps] 二進位：${APP_OVERRIDE:-（預設 .build/release/MirageApp）}"
 if [ -n "$PACKAGE" ]; then
   echo "[fps] 啟動 $PACKAGE 於 $SERIAL"
   "$ADB" -s "$SERIAL" shell monkey -p "$PACKAGE" -c android.intent.category.LAUNCHER 1 >/dev/null 2>&1
@@ -129,48 +127,19 @@ else
 fi
 
 echo "[fps] 啟動 Mirage（.app bundle）→ localhost:${GRPC_PORT}，量測 ${DURATION}s"
-open -a "$BUNDLE/Mirage.app" --stdout "$LOG" --stderr "$LOG" \
-  --env MIRAGE_PORT="$GRPC_PORT" --env MIRAGE_FPS_LOG=1 --env MIRAGE_CONN_LOG=1
-sleep 6
-# 視窗要在前景才會被合成。取不到就繼續——量測本身仍可能成功，而下面的
-# 診斷會分辨得出來。
-osascript -e 'tell application "System Events" to set frontmost of process "MirageApp" to true' >/dev/null 2>&1
+if ! gui_session_start "$LOG" "$BUNDLE" "$APP_OVERRIDE" \
+        "MIRAGE_PORT=$GRPC_PORT" "MIRAGE_FPS_LOG=1" "MIRAGE_CONN_LOG=1"; then
+    exit 1
+fi
 sleep "$DURATION"
 
-# grep -c 沒命中時**已經會印出 0**、同時回傳 1。寫成 `|| echo 0` 會再補一個 0，
-# 讓 SAMPLES 變成兩行、後面的 -eq 直接爆掉——而那正是沒量到幀時必然走到的路徑。
-SAMPLES=$(grep -c 'fps=' "$LOG" 2>/dev/null || true)
 echo ""
 echo "===== 結果 ====="
 grep 'fps=' "$LOG" | tail -20
 echo ""
-if [ "$SAMPLES" -eq 0 ]; then
-  FRAMES=$(grep -c '幀 #' "$LOG" 2>/dev/null || true)
-  echo "取樣數 0——Mirage 沒有 present 任何一幀。"
-  echo ""
-  if [ "$FRAMES" -gt 0 ]; then
-    echo "但幀有進來（log 裡有 $FRAMES 行「幀 #N」）。**所以問題不在串流，在視窗**："
-    echo "視窗沒有被合成上螢幕，MTKView 的 currentDrawable 為 nil，Renderer 早退。"
-    echo "檢查：Mirage 視窗有沒有真的出現在螢幕上、有沒有被其他視窗完全遮住、"
-    echo "螢幕是否鎖定。這條路徑實測是不穩定的，重跑一次往往就好。"
-  else
-    echo "而且幀也沒進來（log 裡沒有「幀 #N」）。問題在串流或連線："
-    head -3 "$LOG"
-    echo "（若上面出現 [transport]，代表健康探測通過、狀態已連上，那就是串流不出幀；"
-    echo "  記得 streamScreenshot 是變化驅動的，畫面靜止時本來就不出幀。）"
-  fi
-  echo ""
-  echo "log：$LOG"
-  exit 1
+if ! fps_summary "$LOG"; then
+    exit 1
 fi
-grep 'fps=' "$LOG" | sed 's/.*fps=//' | awk -v n="$SAMPLES" '
-  { s += $1; if (min == "" || $1 < min) min = $1; if ($1 > max) max = $1 }
-  END { printf "取樣 %d 筆　平均 %.1f fps　最低 %d　最高 %d\n", n, s/n, min, max }'
-# 沒有串流尺寸就無法解讀 fps（見檔頭）。實際請求的尺寸由視窗大小經 resizeDebounced 決定，
-# 可能與初始的 540x1200 不同；全部列出來，換源過就看得見。
-echo -n "串流尺寸："
-grep 'attachStream' "$LOG" | sed 's/.*請求 //' | sort -u | tr '\n' ' '
-echo ""
 if [ "$INJECT" -eq 1 ]; then
   echo "動畫來源：注入（疊層＋持續滑動）——這是人造負載，不代表真實遊玩"
 else
