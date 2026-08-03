@@ -67,6 +67,21 @@ assert_ok() {
     echo "✅ ${desc}通過"
 }
 
+# 斷言某個值等於期待值。
+#
+# 存在的理由與 assert_at_least 同一條：**「印出來讓人自己看」不是驗證**。
+# D42 那次要驗的是「產出的 AVD 規格有沒有真的生效」——解析度、density、abi、
+# 記憶體。這些都是等值比較而非門檻比較，沒有這個函式就會退回「印出來自己判讀」，
+# 而那正是 D9 記載的假訊號來源。
+assert_equals() {
+    local desc="$1" actual="$2" expected="$3"
+    if [ "$actual" != "$expected" ]; then
+        echo "❌ ${desc}：實測 '${actual}'，期待 '${expected}'"
+        exit 1
+    fi
+    echo "✅ ${desc}：${actual}"
+}
+
 # 斷言某個數值達到門檻。把「印出數字讓人自己判讀」換成真的斷言——
 # 人工判讀是這批腳本最常見的假訊號來源：門檻寫在說明裡，卻沒有任何東西檢查它。
 assert_at_least() {

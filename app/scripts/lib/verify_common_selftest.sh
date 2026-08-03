@@ -36,6 +36,11 @@ check "assert_at_least 達標 → 繼續"         "$(run_case 'assert_at_least "
 check "assert_at_least 剛好達標 → 繼續"     "$(run_case 'assert_at_least "包數" 75 75')" 0
 check "assert_at_least 未達標 → 中止"       "$(run_case 'assert_at_least "包數" 74 75')" 1
 check "assert_at_least 值為空 → 當作 0 中止" "$(run_case 'assert_at_least "包數" "" 75')" 1
+check "assert_equals 相等 → 繼續"           "$(run_case 'assert_equals "abi" "arm64-v8a" "arm64-v8a"')" 0
+check "assert_equals 不等 → 中止"           "$(run_case 'assert_equals "abi" "x86_64" "arm64-v8a"')"    1
+# 空字串是這個函式最需要擋的輸入：`adb shell getprop` 在裝置沒回應時回空字串，
+# 若把空字串當成「相等」，整組蒐證會在裝置根本沒起來時回報全綠。
+check "assert_equals 實測為空 → 中止"       "$(run_case 'assert_equals "abi" "" "arm64-v8a"')"          1
 
 # 中止之後不得繼續執行後面的步驟——這是整組斷言的重點：
 # 「印了 ❌ 但腳本照樣跑完並回傳 0」正是 D9 要修掉的那種假綠燈（verify_mmap.sh 的原狀）。
