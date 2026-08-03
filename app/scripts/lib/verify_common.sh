@@ -92,3 +92,19 @@ assert_at_least() {
     fi
     echo "✅ ${desc}：${actual}（門檻 ${threshold}）"
 }
+
+# 斷言某個數值不超過上限。`assert_at_least` 的反向。
+#
+# **為什麼空字串在這裡當作 0（通過），與 assert_at_least 相反**：at_least 把空字串
+# 當 0 會中止，那是安全的方向（抓不到數字 → 紅）。at_most 若照抄，抓不到數字就會
+# **通過**——正好是 D9 要修掉的那種假綠燈。這裡不加特殊分支去猜呼叫端的意圖，而是
+# 把責任放在呼叫端：先用 assert_at_least 確認「有東西可量」（例如日誌行數 > 0），
+# 再用本函式判上限。兩個斷言各自單純，組合起來才完整。
+assert_at_most() {
+    local desc="$1" actual="$2" threshold="$3"
+    if [ "${actual:-0}" -gt "$threshold" ]; then
+        echo "❌ ${desc}：實測 ${actual:-0}，上限 ${threshold}"
+        exit 1
+    fi
+    echo "✅ ${desc}：${actual:-0}（上限 ${threshold}）"
+}
