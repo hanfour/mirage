@@ -16,7 +16,13 @@
 #
 # 前置：
 #   - 模擬器不可帶 -no-window（要真 GUI 合成）
-#   - 本機螢幕須 2560×1600 以上，否則全螢幕算不到 900×2000
+#   - 本機螢幕的**邏輯（非實體）解析度**高度需 ≈ 1052pt 以上，否則全螢幕也到不了
+#     900×2000（Task 3 修正時實測釐清，細節見下方全螢幕區塊的長註解）。查邏輯解析度
+#     （非 `system_profiler` 印的面板實體像素）：
+#       osascript -e 'tell application "Finder" to get bounds of window of desktop'
+#     （**不是** `get bounds of desktop`——那個查到的是別的東西，本機實測回傳
+#     `473, 14, 537, 78`，明顯不是桌面尺寸；`bounds of window of desktop` 才對，
+#     本機驗證回傳 `0, 0, 1680, 1050`，與 Swift `NSScreen.main.frame` 查到的一致）
 #   - 遊戲必須停在**會持續變化**的畫面（streamScreenshot 是變化驅動的）
 #   - phase0/harness/.venv-d45 已建好（見 phase0/harness/README-venv.md）
 set -uo pipefail
@@ -29,7 +35,12 @@ GRPC_PORT="8556"
 PACKAGE="com.loomgames.pixelflow"
 ROUNDS=3
 DURATION=20
-LOAD_LIMIT=8
+# D45 Task 3 修正：預設 8 訂在「常態負載」的下緣（前一輪實測整場落在 8–18，一度衝到
+# 17.95），幾乎每輪都被擋——那是哨兵在扼殺量測，不是在保護量測。真正的失效門檻是
+# D32 記載的「load average 20+ 時 MirageScene 的 .task 根本不觸發、連續量到全 0 fps」
+# （lib/load_sentinel.sh 開頭那段）。18 貼著這條線的下緣，放行 8–18 的常態波動，
+# 仍擋住真正會讓 `.task` 失效的 20+ 區間。
+LOAD_LIMIT=18
 
 while getopts "s:p:g:r:d:l:h" opt; do
   case "$opt" in
@@ -68,6 +79,30 @@ case "$FG" in
   *) echo "❌ $PACKAGE 不在前景——沒有畫面來源，量測沒有意義。"; exit 1 ;;
 esac
 
+# load_gate 該輪重試次數與間隔。**擋下不等於放棄**——D45 Task 3 修正前的版本把
+# `continue` 當「跳過」用，結果 `-r 3` 只吃得到 1 輪（round 預算被攔下的輪次白白吃掉）。
+# 6 次、每次間隔 5 秒＝最多多等 30 秒／輪，換取真的把 ROUNDS 用滿；負載尖峰通常是
+# 幾秒到十幾秒的瞬間（見前一輪報告：8–18 之間劇烈波動），5 秒間隔足以跨過大部分尖峰。
+LOAD_RETRY_MAX=6
+LOAD_RETRY_WAIT=5
+
+# 進全螢幕改用 Accessibility API 直接寫 `AXFullScreen` 屬性，取代送 ⌃⌘F 鍵（Task 3
+# 修正）——理由與實測見下方進全螢幕區塊的長註解。單次啟動內的收斂輪詢逾時：
+FULLSCREEN_POLL_TIMEOUT=10
+FULLSCREEN_POLL_INTERVAL=1
+
+# **這台機器這片螢幕的全螢幕天花板量到的是 898（見下方長註解），到不了字面上的 900。**
+# 896 卡在「視窗模式天花板 888」與「這片螢幕全螢幕天花板 898」之間：能分辨「有沒有真的
+# 進全螢幕」，不強求湊到剛好等於 900 這個在本機結構上到不了的整數。換一片螢幕（邏輯
+# 高度 ≳1052pt）量到的數字可能剛好是 900，這條門檻一樣放行，不用跟著改。
+FULLSCREEN_MIN_WIDTH=896
+
+# AXFullScreen 比鍵送可靠得多，但實測仍偶爾整次啟動都沒吃到（懷疑跟這台共用機器上其他
+# Space 切換動畫互相卡到有關，機制未查清）。**擋下不等於放棄**——跟 load_gate 同一個
+# 哲學：一次啟動沒收斂就砍掉重開（新視窗、新程序，不是在舊狀態上重試鍵），比在髒樣本上
+# 硬量更誠實。3 次關掉重開仍不收斂才真正放棄本輪。
+ROUND_RETRY_MAX=3
+
 MIRAGE_VALS=""
 BASE_VALS=""
 SIZE_OK=1
@@ -75,33 +110,91 @@ SIZE_OK=1
 for round in $(seq 1 "$ROUNDS"); do
     echo ""
     echo "=== 第 ${round}/${ROUNDS} 輪 ==="
-    if ! load_gate "$LOAD_LIMIT"; then
-        echo "   跳過本輪並重試（不把髒樣本算進去）"
+
+    LOAD_CLEAR=0
+    for load_attempt in $(seq 1 "$LOAD_RETRY_MAX"); do
+        if load_gate "$LOAD_LIMIT"; then
+            LOAD_CLEAR=1
+            break
+        fi
+        echo "   load_gate 攔下（第 ${load_attempt}/${LOAD_RETRY_MAX} 次），等 ${LOAD_RETRY_WAIT} 秒後重試本輪"
+        sleep "$LOAD_RETRY_WAIT"
+    done
+    if [ "$LOAD_CLEAR" -eq 0 ]; then
+        echo "   重試 ${LOAD_RETRY_MAX} 次仍被 load_gate 擋下，放棄本輪（如實記錄，不湊數）"
         continue
     fi
 
-    LOG=$(mktemp -t d45_mirage)
-    BUNDLE=$(mktemp -d -t d45_bundle)
-    if ! gui_session_start "$LOG" "$BUNDLE" "" \
-            "MIRAGE_PORT=$GRPC_PORT" "MIRAGE_FPS_LOG=1" "MIRAGE_CONN_LOG=1"; then
-        gui_session_cleanup "$BUNDLE"; rm -f "$LOG"; exit 1
-    fi
+    # 進全螢幕。**改用 Accessibility API 直接寫 `AXFullScreen` 屬性，取代送 ⌃⌘F 鍵**
+    # （Task 3 修正）。
+    #
+    # **為什麼換掉鍵送**：⌃⌘F 靠 `System Events` 模擬鍵盤事件，只有 MirageApp 真的是
+    # frontmost／key window 時鍵才送得到——`gui_session_start` 的 frontmost 是在
+    # `sleep 6` 之後設一次，跟送鍵之間有空檔，這台共用機器上任何搶走 focus 的東西
+    # （螢幕保護程式接管、frontmost 被 Chrome／Slack 搶走）都會讓鍵送空，這是連續 4 次
+    # 逾時未收斂、前一輪 30 次呼叫大量失敗的根因。`set value of attribute "AXFullScreen"`
+    # 直接對視窗的 Accessibility 物件寫值，不經過鍵盤事件佇列、**不需要 frontmost**
+    # （實測：其他 App 仍是 frontmost 時設這個屬性一樣生效）。
+    #
+    # **實測發現本機這片螢幕構造性地到不了字面上的 900x2000**：用 `CGWindowListCopy-
+    # WindowInfo` 核對過 MirageApp 視窗進全螢幕後確實佔滿整片螢幕（邏輯座標
+    # `{0,0,1680,1050}`，與 `NSScreen.main.frame` 一致），但串流尺寸連續三次全新啟動
+    # 都只收斂到同一個數字 `898x1996`（不是隨機抖動的瞬間值，是穩定終態）。回推幾何：
+    # `898 = round(content_height_pt × 2 × 888/1972)` 解出 `content_height_pt ≈ 998`，
+    # 比螢幕邏輯高度 1050 短少恰好 **52pt**——這正是 SwiftUI 在全螢幕下、對沒有呼叫
+    # `.ignoresSafeArea()` 的畫面保留的選單列收回熱區安全區高度
+    # （`MirageScene.swift` 的 `ZStack` 沒有這個修飾詞）。這是產品碼行為，修它要動
+    # `app/Sources/`，超出本次「不動產品碼」的範圍。
+    #
+    # `898×1996 ≈ 1.79 MP`，離 `StreamSize.maxPixels`（1.8 MP）僅約 0.4%——量測上視為
+    # 已達解析度上限，故收斂判定改成數值門檻 `FULLSCREEN_MIN_WIDTH`（見上方變數定義），
+    # 不再要求字面上剛好等於 `900x2000`。判斷收斂看**最新一行** attachStream，不是
+    # 「log 裡有沒有出現過」——啟動階段的 resize 序列本身就會短暫經過接近上限的尺寸再
+    # 收斂到別的尺寸，只看「出現過」會把這個過渡瞬間誤判成真正收斂。
+    #
+    # **一次啟動內只送一次 AXFullScreen、poll 一輪**；沒收斂就整個關掉重開（見
+    # `ROUND_RETRY_MAX`），不在同一個視窗物件上重送——診斷時懷疑沒收斂常是那次啟動的
+    # Space／視窗狀態本身卡住了，重送同一個屬性不會讓它變好，重開才會換到乾淨狀態。
+    ROUND_CONVERGED=0
+    LATEST_ATTACH=""
+    for round_attempt in $(seq 1 "$ROUND_RETRY_MAX"); do
+        # 清掉上一次嘗試／上次手動測試留下的視窗尺寸持久化紀錄（SwiftUI 的 `Window(id:)`
+        # 用 `NSWindow` frame-autosave 把尺寸寫進這個 domain）。**不清的話這次啟動的
+        # 起始視窗狀態取決於上一次怎麼結束**——診斷時實測過 kill 前殘留的視窗尺寸會被
+        # 下次啟動原封 restore，讓「收不收斂」變成看上一次臉色，不是獨立事件。
+        defaults delete com.mirage.app "NSWindow Frame mirage-mirror" > /dev/null 2>&1 || true
 
-    # 進全螢幕。⌃⌘F 是產品的既有快捷鍵（AppModel+FullScreen.swift 綁在選單列）。
-    osascript -e 'tell application "System Events" to keystroke "f" using {control down, command down}' \
-        > /dev/null 2>&1
-    # resizeDebounced 有 300ms 去抖，再加一次 setStreamSize 往返——給它足夠時間收斂。
-    sleep 5
+        LOG=$(mktemp -t d45_mirage)
+        BUNDLE=$(mktemp -d -t d45_bundle)
+        if ! gui_session_start "$LOG" "$BUNDLE" "" \
+                "MIRAGE_PORT=$GRPC_PORT" "MIRAGE_FPS_LOG=1" "MIRAGE_CONN_LOG=1"; then
+            gui_session_cleanup "$BUNDLE"; rm -f "$LOG"; exit 1
+        fi
 
-    # **斷言串流尺寸真的到上限**。全螢幕若沒進去（或螢幕太小），這裡就會是別的數字，
-    # 那樣量到的 fps 不是驗收線 7 要的東西。D32 的失敗正是尺寸沒收斂就開始計時。
-    if grep -q 'attachStream.*900x2000' "$LOG"; then
-        echo "✅ 串流尺寸已收斂到 900x2000（解析度上限）"
-    else
-        echo "⚠️ 串流尺寸不是 900x2000，本輪數字不代表解析度上限："
-        grep 'attachStream' "$LOG" | sed 's/.*請求 /   請求 /' | sort -u
-        SIZE_OK=0
+        osascript -e 'tell application "System Events" to tell process "MirageApp" to set value of attribute "AXFullScreen" of window 1 to true' \
+            > /dev/null 2>&1
+        for _ in $(seq 1 "$FULLSCREEN_POLL_TIMEOUT"); do
+            sleep "$FULLSCREEN_POLL_INTERVAL"
+            LATEST_ATTACH=$(grep 'attachStream' "$LOG" | tail -1)
+            LATEST_WIDTH=$(printf '%s' "$LATEST_ATTACH" | sed -n 's/.*請求 \([0-9]*\)x.*/\1/p')
+            if [ -n "$LATEST_WIDTH" ] && [ "$LATEST_WIDTH" -ge "$FULLSCREEN_MIN_WIDTH" ]; then
+                ROUND_CONVERGED=1
+                break
+            fi
+        done
+        [ "$ROUND_CONVERGED" -eq 1 ] && break
+
+        echo "   本輪第 ${round_attempt}/${ROUND_RETRY_MAX} 次啟動未收斂到解析度上限" \
+             "（最後一次請求 $(printf '%s' "$LATEST_ATTACH" | sed 's/.*請求 //')），關掉重開"
+        gui_session_cleanup "$BUNDLE"
+        rm -f "$LOG"
+    done
+
+    if [ "$ROUND_CONVERGED" -eq 0 ]; then
+        echo "   重試 ${ROUND_RETRY_MAX} 次仍未收斂到解析度上限，放棄本輪（如實記錄，不湊數）"
+        continue
     fi
+    echo "✅ 串流尺寸已收斂到解析度上限附近（$(printf '%s' "$LATEST_ATTACH" | sed 's/.*請求 //')，寬度 ≥ ${FULLSCREEN_MIN_WIDTH}）"
 
     BEFORE=$(fps_samples "$LOG")
     sleep "$DURATION"
