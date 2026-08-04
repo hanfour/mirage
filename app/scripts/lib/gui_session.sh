@@ -55,6 +55,23 @@ fps_average() {
     grep 'fps=' "$1" | sed 's/.*fps=//' | awk -v n="$n" '{ s += $1 } END { printf "%d\n", s/n }'
 }
 
+# fps 中位數（整數，無條件捨去）。沒有取樣時回 0。
+#
+# **為什麼 D45 要中位數而不是 fps_average**：這台開發機是共用的，一次 CPU 負載尖峰
+# 會讓某一秒量到 0，平均被整組拖歪而中位數不受影響（見 lib/load_sentinel_selftest.sh
+# 的「離群的 0」案例：同一份資料平均 47、中位數 59）。D45 的判準是比值，被拖歪的
+# 分子或分母會直接變成錯誤的結論。
+#
+# 偶數筆取中間兩筆的**下位**，不做內插——樣本本身是整數 fps，內插只會製造假精度。
+fps_median() {
+    local n
+    n=$(fps_samples "$1")
+    [ "$n" -eq 0 ] && { echo 0; return 0; }
+    grep 'fps=' "$1" | sed 's/.*fps=//' | sort -n | awk -v n="$n" '
+        { v[NR] = $1 }
+        END { printf "%d\n", v[int((n + 1) / 2)] }'
+}
+
 # 人看的摘要。取樣為 0 時印診斷並回傳 1。
 fps_summary() {
     local log="$1" samples frames

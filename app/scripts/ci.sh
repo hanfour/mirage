@@ -257,10 +257,20 @@ else
     ./scripts/lib/audio_stats_selftest.sh 2>&1 | grep "❌" | sed 's/^/   /'
 fi
 
+# load_sentinel_selftest.sh 是 D45 新增的第三支自我測試，同一道閘門一併跑：
+# load_sentinel.sh 與 fps_median 是驗收線 7 重驗（比值判準）的核心，壞掉等於
+# 那條驗收線的分子分母都不可信，理由與上面兩段完全相同，只是換了一個函式庫。
+if ./scripts/lib/load_sentinel_selftest.sh > /dev/null 2>&1; then
+    ok "load_sentinel.sh 自我測試通過"
+else
+    fail "load_sentinel.sh 自我測試失敗（重跑 ./scripts/lib/load_sentinel_selftest.sh 看細節）："
+    ./scripts/lib/load_sentinel_selftest.sh 2>&1 | grep "❌" | sed 's/^/   /'
+fi
+
 echo ""
 echo "======================================"
 if [ "$FAILURES" -eq 0 ]; then
-    echo "全部通過（$RUNS 次跑次、0 行 NIO ERROR、無假 skip、無全形標點陷阱、無永不紅的 #expect、provision 測試綠、兩支共用函式庫自我測試（verify_common／audio_stats）皆綠）"
+    echo "全部通過（$RUNS 次跑次、0 行 NIO ERROR、無假 skip、無全形標點陷阱、無永不紅的 #expect、provision 測試綠、三支共用函式庫自我測試（verify_common／audio_stats／load_sentinel）皆綠）"
     exit 0
 fi
 echo "$FAILURES 項失敗"
