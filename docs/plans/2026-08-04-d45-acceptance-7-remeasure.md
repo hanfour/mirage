@@ -238,11 +238,16 @@ cd /Users/hanfourhuang/Projects/mirage/phase0/harness
 RC=$?; cat /tmp/d45-smoke.log; echo "EXIT=$RC"
 ```
 
-Expected: 印出 `fps=... frames=... elapsed=... size=900x2000`。
+Expected: 印出 `fps=... frames=... elapsed=... size=900x2000 status=measured`，`EXIT=0`。
 
-**`frames=0` 且 `EXIT=1` 是預期的**，只要當下 guest 畫面是靜止的——`streamScreenshot`
-變化驅動。此時用 `adb -s emulator-5556 shell input swipe 400 900 700 1500 250` 製造變化再
-跑一次確認拿得到幀。**這一步只驗「工具能連上並收到幀」，不是量效能**。
+**`status=static` 且 `EXIT=2` 也是合法結果**，只要當下 guest 畫面是靜止的——
+`streamScreenshot` 是變化驅動的。此時用
+`adb -s emulator-5556 shell input swipe 400 900 700 1500 250` 製造變化再跑一次，確認拿得到
+幀（`status=measured`、`EXIT=0`）。
+
+**`EXIT=1`（`status=error`）不是預期的**——那代表連線或工具本身有問題，要查。
+
+**這一步只驗「工具能連上、能收到幀、三種狀態分得開」，不是量效能。**
 
 若模擬器沒在跑，跳過本步並在報告中標明未做煙霧測試。
 
@@ -676,10 +681,21 @@ for round in $(seq 1 "$ROUNDS"); do
     gui_session_cleanup "$BUNDLE"
     sleep 3
 
-    B=$("$VENV" "$BASELINE" --endpoint "localhost:${GRPC_PORT}" \
-        --seconds "$DURATION" --width 900 --height 2000 2>/dev/null \
-        | sed 's/.*fps=\([0-9.]*\).*/\1/')
-    echo "   對照組：${B:-（失敗）} fps"
+    # 對照組是三態的（Task 1 定案）：退出碼 0=measured、2=static（畫面靜止，合法但無
+    # 樣本）、1=error（連線或工具失敗）。**必須分流**——把 static 與 error 都當成
+    # 「0 fps 的合法樣本」算進中位數，會把「這輪沒量到」偽裝成「這輪很慢」。
+    BASE_OUT=$("$VENV" "$BASELINE" --endpoint "localhost:${GRPC_PORT}" \
+        --seconds "$DURATION" --width 900 --height 2000 2>/tmp/d45-baseline-err.log)
+    BASE_RC=$?
+    case "$BASE_RC" in
+        0) B=$(printf '%s' "$BASE_OUT" | sed 's/.*fps=\([0-9.]*\).*/\1/')
+           echo "   對照組：${B} fps" ;;
+        2) B=""
+           echo "   對照組：畫面靜止、整個窗口沒有出幀——本輪不計入" ;;
+        *) B=""
+           echo "   對照組：失敗（退出碼 ${BASE_RC}）——本輪不計入"
+           sed 's/^/     /' /tmp/d45-baseline-err.log ;;
+    esac
 
     if [ -n "$M" ] && [ -n "$B" ]; then
         R=$(awk -v m="$M" -v b="$B" 'BEGIN { printf "%d", (b > 0) ? m * 100 / b : 0 }')
