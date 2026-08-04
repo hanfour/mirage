@@ -563,8 +563,29 @@ Task 5 依實測決定——D32 就是「先定門檻再實測」踩出來的坑
 `contentWidth = 888`（串流尺寸 888×1972），**只要 ≥ 900 就會被 `StreamSize.maxPixels`
 clamp 到 900×2000——只差 12 像素**。
 
-**改法**：用 `osascript` 直接設 MirageApp 視窗的大小（`set bounds of window 1`），把寬度
-設到足以讓 `contentWidth ≥ 900`，取代送 ⌃⌘F。收斂判定不變（仍是輪詢 log 等 `900x2000`）。
+~~**改法**：用 `osascript` 直接設 MirageApp 視窗的大小（`set bounds of window 1`），把寬度
+設到足以讓 `contentWidth ≥ 900`，取代送 ⌃⌘F。~~
+
+> **⚠️ 再更正（2026-08-04，執行時實測）：放大視窗的方案結構上不可行，已改用 `AXFullScreen`。**
+>
+> macOS 的 `NSWindow.constrainFrameRect(_:to:)` 會把任何視窗 clamp 到螢幕可視範圍（扣掉
+> 選單列與 Dock），所以 `set size` 給多大都沒用——實測穩定停在 **888×1972**，是**低於**
+> 900 而不是高於。上面「只差 12 像素、加大就能過」的推論**前提就是錯的**。
+>
+> **實際採用**：`osascript -e 'tell application "System Events" to tell process "MirageApp"
+> to set value of attribute "AXFullScreen" of window 1 to true'`——直接寫 Accessibility
+> 屬性，不經過鍵盤事件佇列，**不需要 frontmost**，比送 ⌃⌘F 可靠得多。
+>
+> **但即使真全螢幕也只到 898×1996**（≈1.79 MP vs 目標 1.8 MP，差 0.4%），根因是
+> `app/Sources/MirageShell/MirageScene.swift` 的 `ZStack` 保留了約 52pt 的 safe-area
+> inset（沒有 `.ignoresSafeArea()`）。那是產品碼，不在 D45 範圍。
+>
+> 因此收斂判定從字面 `900x2000` 改成**數值門檻** `FULLSCREEN_MIN_WIDTH=896`：擋得住
+> 視窗模式的 888，放得過全螢幕的 898。
+>
+> ⚠️ 這三個數字（888／896／898）都綁定**這台機器的螢幕幾何**（邏輯 1680×1050）。
+> 換機器必須重新驗證——換到「視窗天花板更接近 896」的螢幕，這條門檻會把「沒進全螢幕」
+> 誤判成收斂。
 
 ⚠️ **這是對驗收線 7 字面條件（「全螢幕」）的偏離，必須記進 `RESULTS`**：量到的是解析度
 上限下的 fps，但視窗狀態不是全螢幕。全螢幕額外會有 letterbox 合成成本，理論上 fps 只會更
