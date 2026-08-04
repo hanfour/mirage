@@ -689,7 +689,23 @@ for round in $(seq 1 "$ROUNDS"); do
     BASE_RC=$?
     case "$BASE_RC" in
         0) B=$(printf '%s' "$BASE_OUT" | sed 's/.*fps=\([0-9.]*\).*/\1/')
-           echo "   對照組：${B} fps" ;;
+           # **兩側的 fps 定義不對稱，這裡要抓出會放大它的情況。**
+           # Mirage 側：Renderer 只在有幀 present 時才印 `fps=` 行，靜止的秒根本不產生
+           # 日誌行 → fps_median 天然排除靜止期。
+           # 對照組：fps = frames / elapsed，而 elapsed 是完整壁鐘時間 → 靜止的尾段會
+           # 把它拉低。
+           # 所以畫面若「前段有動、後段靜止」，分母被低估、比值被高估，7a 反而更容易過
+           # ——這是系統性偏誤，方向剛好是最不該有的那個。
+           # elapsed 明顯超過 DURATION，就是踩到這個情況的指紋（工具的 RPC timeout 是
+           # DURATION+2，正常收工應該貼近 DURATION）。
+           BE=$(printf '%s' "$BASE_OUT" | sed 's/.*elapsed=\([0-9.]*\).*/\1/')
+           if awk -v e="$BE" -v d="$DURATION" 'BEGIN { exit !(e > d * 1.1) }'; then
+               echo "   ⚠️ 對照組 elapsed=${BE}s 明顯超過 ${DURATION}s——畫面可能有靜止尾段，"
+               echo "      這一輪的比值會偏高（分母被低估）。本輪不計入。"
+               B=""
+           else
+               echo "   對照組：${B} fps（elapsed=${BE}s）"
+           fi ;;
         2) B=""
            echo "   對照組：畫面靜止、整個窗口沒有出幀——本輪不計入" ;;
         *) B=""
