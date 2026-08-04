@@ -269,6 +269,27 @@ render block 的唯一工作：`ringBuffer.read(into:count:)`，回傳數不足�
    > 完整推導見 `docs/specs/2026-08-03-d32-acceptance-6-automation-design.md`。
 7. fps 不回歸：`MIRAGE_FPS_LOG` 在全螢幕串流解析度上限下 **≥ 55**。
 
+   > **⚠️ 更正（2026-08-04，D45）：本條先前被列為 `pending-human`，理由已失效；本次已重驗，判定未通過。**
+   >
+   > 原本列為人工驗收的理由是「本機 GUI App headless 不驅動 `.task`」（見 §9）。這個理由
+   > 與 §8-6 同一批，已於 **2026-07-28** 失效——真因是 `AudioPlayer` 的 NSException 打死
+   > MainActor（見 §8-6 更正與 `docs/specs/2026-07-28-mirror-never-rendered-investigation.md`），
+   > 修好後非互動 session 一樣量得到 fps。`Sources/MirageCore/Viewport/StreamSize.swift` 的
+   > doc comment 從 2026-07-29 起就寫著「該驗收線現在量得了」，但沒人回頭量。
+   >
+   > **2026-08-04 已重驗**（`docs/specs/2026-08-04-d45-acceptance-7-remeasure-design.md`）。
+   > 全螢幕解析度上限下（本機實際收斂到 898×1996，非字面 900×2000，差距約 0.4%，
+   > 原因與判定不受影響——見該設計文件 §9），四次乾淨的三輪量測 `MIRAGE_FPS_LOG` 中位數
+   > 為 **49／43／51／43**，全部低於門檻 55。**判定：未通過。**
+   >
+   > 判準本身（`≥ 55`）**保留不改**。原提案「改成相對於對照組的相對判準」在執行途中被
+   > 實測推翻——對照組同條件下量到 41–59.93，一度超過 55，證明 55 是「差一點」而非
+   > 「結構上不可能」，使用者因此裁決維持絕對值不改（完整推翻過程見設計文件 §9）。
+   >
+   > 自動化涵蓋：`app/scripts/verify_fps_fullscreen.sh`（兩條前置斷言 + 一條驗收判定，
+   > 皆已用故障注入驗證會正確判紅／轉綠）。完整數據見 `app/RESULTS-d45-probe.md`；
+   > guest 端排除分析見 `app/RESULTS-d45-guest-render.md`。
+
 ## 9. pending-human（本機 GUI App headless 不驅動 `.task`，無法自動驗）
 
 1. 實際聽得到聲音，且無爆音／破音／延遲感。

@@ -37,7 +37,7 @@
 | 4 | `swift build -c release` 零非-deprecation 警告 | 完整乾淨重建（先 `rm -rf .build/release .build/arm64-apple-macosx/release`）：`Build complete! (146.29s)`；`grep -ci warning` 與 `grep -ci deprecat` 對完整建置 log **皆為 0**——本次是零警告（連 deprecation 警告都沒有），非僅「零非-deprecation 警告」 | ✅ PASS |
 | 5 | 活體：audio packet 率 **≥ 30 pkt/s**，格式 48000/stereo/S16 | `./scripts/verify_audio.sh` 本次獨立重跑兩次：第一次 `writes=344 depth=17778 under=3 over=85`，第二次 `writes=344 depth=18752 under=3 over=85`——5 秒視窗內 344 包 ≈ **68.8 pkt/s**，遠超 30 pkt/s 門檻。格式讀碼確認：`GrpcAudioTransport.packets()` 對 `streamAudio` 請求 `samplingRate=48000`、`channels=.stereo`（`AudioStreamFormat.standard` = 48_000/2ch）、`format=.audFmtS16`、`mode=.modeRealTime` | ✅ PASS |
 | 6 | 活體：連續 **60 秒** `underruns == 0` | **2026-08-03 補充：本次終於量得到了**。原本歸為人工驗收項目的原因（本機 GUI App headless 不驅動 SwiftUI `WindowGroup` 的 `.task`）在 2026-07-28 就已失效——真因是 `AudioPlayer` 的 NSException 打死 MainActor（見 `docs/specs/2026-07-28-mirror-never-rendered-investigation.md`），修好之後在非互動 session 一樣量得到 fps（見 `verify_game_fps.sh:11-16`）。用真 GUI + 真 `AudioPlayer` 跑 `app/scripts/verify_audio_gui.sh` 60 秒：pre-roll 修正前 `USUM`（underrun 總量）5481，`depth` 全程貼 0ms；修正後（`AudioRingBuffer.primeThresholdSamples` 預設 100ms）`USUM` 降到約 150（**-97%**）、`depth` 中位 46ms，可積到 94–96ms。**但 `PRIMES`（重新蓄水次數）≈35**——60 秒內平均每 1.7 秒排乾一次，每次賠約 100ms 靜音，全程約 **5.8%** 時間在靜音，反推生產端供應量長期約為消費需求的 94%。**判定為未通過（已大幅改善）**，殘餘缺陷記為 **D44**，完整數據見 `app/RESULTS-d32.md` 與 `app/RESULTS-d32-probe.md`。**2026-08-03 D32 補充**：以下 7 次 `underruns` 3–426 的歷史數字來自 Task 9 的假消費端（測試專用背景排空器，非真 `AudioPlayer`），未排除啟動期與靜音期，與本次真 GUI 量測的判準不可直接比較，僅存供歷史脈絡參考——**無法用當時的 harness 判定**。Task 9 的活體測試用測試專用背景排空器（`Task.sleep` 節流模擬 `AudioPlayer` render callback，非真正 CoreAudio），視窗僅 **5 秒**、非 60 秒。逐筆核對 task-9/task-10 兩份報告全部「guest 確實在發聲」的 `[audio-live]` 輸出，共 **7 次獨立執行**（完整清單見「Task 9 Step 1 的發聲手段結論」）：`underruns` 範圍 **3–426**，**從未量到 0**——不能拿來宣稱驗收線 6 通過。（其中一筆 `overruns` 量到 **0**，見下方「已知限制」——但 `underruns` 仍非零，不影響本條判定。） | ❌ 未通過（已大幅改善） |
-| 7 | fps 不回歸（`MIRAGE_FPS_LOG` ≥ 55，全螢幕串流解析度上限下） | 本機顯示器目前 `Display Asleep: Yes`（`ioreg -n IODisplayWrangler` 確認），與 `RESULTS-p1a.md` 記載的同一類本機限制。本次仍實際嘗試：`MIRAGE_FPS_LOG=1 ./.build/release/MirageApp` 背景跑 8 秒後 kill，輸出檔案 **0 行**（無 fps 日誌、無任何輸出）——證實 headless/螢幕關閉下 SwiftUI `WindowGroup` 的 `.task` 未被驅動，`MIRAGE_FPS_LOG` 迴圈從未執行。**不可**拿 transport 層或活體測試的任何數字冒充 App 合成層 fps——本階段沒有任何 fps 數字可回報。**⚠️ 更正（2026-08-03）**：上面「headless 不驅動 `.task`」這個理由，與驗收線 6 同一批，已於 2026-07-28 失效（真因是 `AVAudioEngine` 的 NSException 打死 MainActor），但**本列尚未重驗**——見 `project-review.md` D45。旁證：D32 這次順帶量到五次 `FPS_AVG`＝34–46，全部低於本列要求的 55；但那五次**不是**在全螢幕串流解析度上限下量的（Pixel Flow 停在視窗大小，非全螢幕），與本列條件不能直接比較，僅供旁證，不能當作本列的重驗結果 | ⬜ pending-human（**理由已失效，尚未重驗，見 D45**） |
+| 7 | fps 不回歸（`MIRAGE_FPS_LOG` ≥ 55，全螢幕串流解析度上限下） | **2026-08-04（D45）本次終於重驗到，取代先前的舊歸因**：先前（本列曾）以「`MIRAGE_FPS_LOG=1 ./.build/release/MirageApp` 背景跑 8 秒後輸出 0 行」宣稱「headless／螢幕關閉下 `.task` 未被驅動」——這個歸因已於 2026-07-28 失效，真因是 `AudioPlayer` 的 NSException 打死 MainActor（見 `docs/specs/2026-07-28-mirror-never-rendered-investigation.md`），與螢幕是否鎖定/休眠無關；修好後非互動 session 一樣量得到 fps。全螢幕解析度上限下（本機實際收斂到 **898×1996**，非字面 900×2000——本機螢幕邏輯高度不足以讓 SwiftUI 全螢幕安全區收到剛好 1052pt，短少約 0.4% 畫面資訊量，對判定影響極小，見 `app/RESULTS-d45-probe.md` 詳細推導），四次乾淨的三輪量測 `MIRAGE_FPS_LOG` 中位數為 **49／43／51／43**，全部低於門檻 55。判準本身（`≥ 55`）依使用者裁決保留不改（原「改相對判準」提案已被實測推翻，見 `docs/specs/2026-08-04-d45-acceptance-7-remeasure-design.md` §9）。完整數據、對照組版本鎖定、環境地雷記錄見 `app/RESULTS-d45-probe.md`；guest 端排除分析見 `app/RESULTS-d45-guest-render.md`。自動化涵蓋：`app/scripts/verify_fps_fullscreen.sh` | ❌ 未通過 |
 
 ## Task 9 Step 1 的發聲手段結論
 
@@ -62,7 +62,7 @@
 - **修法的副作用（本次新發現，見驗收線 3 與下方「已知限制」）**：這道閘門讓「一般 live 測試套件」與「音訊活體」變成兩個必須分別觸發的入口——單獨跑文件既有的覆蓋率量測指令不再涵蓋 `GrpcAudioTransport`，需要額外合併 `verify_audio.sh` 的覆蓋率資料才能拿到完整數字。
 - **另一項先前未收錄的 Task 9 發現（審查員 Minor，本次補齊）**：計畫（brief）原本給的 `AudioLiveTests.swift` 程式碼**沒有消費者排空 `AudioRingBuffer`**。`AudioRingBuffer` 容量只有 200ms（19_200 samples）天花板，沒有消費者的話幾秒內就會填滿，之後每一包都被計為 `overrun` 而非 `write`——`writes` 會結構性地卡在 ~17–20，跟 guest 是否真的在發聲完全無關（Task 9 實測到這個現象：`writes=17, overruns=436, depth` 貼著容量上限）。Task 9 的修法是在測試裡加一個**測試專用**的背景排空器（`drainRingAtRealTimeRate`，以 48kHz/stereo 的真實節奏——960 samples/10ms——呼叫 `ring.read(into:count:)`，模擬 `AudioPlayer` 的 `AVAudioSourceNode` render callback 角色），**未調整門檻、未調整 `AudioRingBuffer` 容量、未動任何產品程式碼**。這件事目前完整記載於 `AudioLiveTests.swift` 的 doc comment（第 5–13 行），但先前未收進 RESULTS——它是「計畫本身有缺陷、被活體實測抓出來」的具體案例，對未來維護者理解為何測試檔比 brief 原文多一段背景排空邏輯有價值，故在此正式記錄。
 
-## pending-human 清單（spec §9 五項 + 驗收線 7）
+## pending-human 清單（spec §9 五項）
 
 原因統一：**本機 GUI App headless（螢幕 `Display Asleep: Yes`）不驅動 SwiftUI `WindowGroup` 的 `.task`**，需真 GUI session（有顯示器、螢幕已解鎖）才能驗證。本次已用實際嘗試（8 秒背景跑 App、輸出 0 行）佐證此限制仍然存在，而非憑印象宣稱。
 
@@ -73,14 +73,17 @@
 驗收線 6 已由 `app/scripts/verify_audio_gui.sh` 自動化涵蓋（D32）——但**該驗收線本身判定為未通過**，
 殘餘缺陷記為 D44，見 `project-review.md`。
 
-**驗收線 7 的 pending-human 理由同樣可疑，但本次未重驗**——見 `project-review.md` 的 D32 那列。
+**⚠️ 2026-08-04 更正（D45）**：驗收線 7 的 pending-human 理由同樣已失效，**這次已回頭重驗**
+（不再是「同樣可疑，但本次未重驗」）——理由失效的時間、真因、重驗結果見上表第 7 列與
+`app/RESULTS-d45-probe.md`。**驗收線 7 已不是 pending-human**：它已由
+`app/scripts/verify_fps_fullscreen.sh` 自動化涵蓋，判定為未通過。下面清單因此只剩
+spec §9 原本的五項——那五項仍需真 GUI session，本次未重驗。
 
 1. 實際聽得到聲音，且無爆音／破音／延遲感（spec §9-1）。
 2. 全螢幕 letterbox 目視：置中、黑邊純黑、畫面不變形（spec §9-2）。
 3. 橫向遊戲的全螢幕表現（spec §9-3）。
 4. 遊戲模式 chrome 隱藏的實際手感——keymap overlay 消失、`ConnectionBanner`／`InstallBanner` 仍可見（spec §9-4）。
 5. 全螢幕下 keymap 與 mouse capture 的實際手感（spec §9-5）。
-6. 驗收線 7：`MIRAGE_FPS_LOG ≥ 55`（需真 GUI 合成，見上表）。
 
 ## 覆蓋率細節
 
@@ -108,7 +111,7 @@ P1-e 新增檔案的個別數字（合併後的完整量測）：
 
 ## 已知限制／移交
 
-- **驗收線 7 需 GUI，本次已如實列 pending-human**（見上）。
+- **驗收線 7 曾因「需 GUI」被列 pending-human，該理由已於 2026-08-04（D45）失效並重驗**：現由 `app/scripts/verify_fps_fullscreen.sh` 自動化涵蓋，判定為未通過（`MIRAGE_FPS_LOG` 中位數 49／43／51／43，皆低於門檻 55），見上表第 7 列與 `app/RESULTS-d45-probe.md`。
 - **驗收線 6 已於 2026-08-03（D32）由 `app/scripts/verify_audio_gui.sh` 自動化涵蓋**，判定為未通過（已大幅改善），見上表與 `app/RESULTS-d32.md`。
 - **overruns/underruns 的歸因是合理推論、非已證明（本次校正：先前版本的彙總範圍有事實錯誤，已修正）**：先前版本宣稱「overruns 落在 83–86、underruns 落在 3–6、underruns 從未量到 0」——這條彙總被一筆同批工作產出的真實資料反駁：`task-9-report.md`「審查回應」記錄的一次獨立執行量到 `writes=450 depth=68 under=426 over=0`，`over=0` 確實被量到過，`under=426` 遠在「3–6」之外。逐筆核對兩份報告的全部 7 次獨立執行（清單見「Task 9 Step 1 的發聲手段結論」）後，正確範圍是 `underruns` **3–426**、`overruns` **0–87**。**這筆資料點不是要被藏起來的例外，反而是支持「harness 排空節奏不穩」假說最直接的證據**：同一份測試程式碼、同一套 `drainRingAtRealTimeRate` 背景排空器，在 6 次執行中呈現「buffer 常態逼近容量、overruns 主導（83–87）、underruns 個位數（3–5）」的體制，卻在這一次執行中呈現完全相反的體制——「buffer 幾乎全空（depth=68／容量 0.35%）、underruns 高達 426、overruns 掉到 0」。同一段程式碼在不同排程條件下量到光譜兩端，正說明 `Task.sleep` 驅動的排空器與 gRPC 送達之間的相對時序（哪一方先跑、跑得多穩）才是決定 under/over 落在哪一端的關鍵變因，而非任何產品邏輯缺陷；真正的 `AVAudioSourceNode` render callback 由 CoreAudio 硬體時脈驅動，不會有這種跨越整個光譜的擺盪。**這個推論仍有機制支撐但非已證明**——沒有人實際量測排空迴圈的 wall-clock 漂移來精確解釋為何某次執行會落在光譜的哪一端；維護者不應把「harness 侷限」這個歸因當作已證實的結論，但這筆極端資料點是目前為止最有力的間接佐證。
 - **緩衝深度並非「常態逼近容量上限」，而是兩極分佈（本次校正：先前版本的彙總範圍有事實錯誤，已修正）**：先前版本宣稱「深度常態逼近容量上限」並列出 4 筆全部落在 89.5–99.7% 區間的數字——這條彙總同樣被上述 `depth=68`（容量的 0.35%，幾乎全空）反駁。7 次獨立執行的完整 `depth` 分佈是：6 次落在 **89.50%–99.74%**（逼近容量上限），1 次落在 **0.35%**（幾乎全空）。正確的描述是「多數執行中緩衝逼近容量上限（消費端跟不上、由 `overruns` 顯現），但至少 1 次執行呈現相反的近乎全空狀態（消費端跑贏、由 `underruns` 顯現）」——兩極分佈本身就是 harness 排空節奏不穩定的又一佐證（見上一條）。未來任何人只看 `writes=344` 這類 headline 數字、或只看多數執行的「逼近容量」印象，會漏掉這個兩極分佈，故在此明確記錄兩端數字，不只記錄多數情況。
@@ -122,7 +125,7 @@ P1-e 新增檔案的個別數字（合併後的完整量測）：
 ## 判定
 
 - **P1-e GO（可量測部分）**：驗收線 1–5 全數 **PASS**，附真實輸出（測試 127/127（一般套件與 live 套件皆全綠，`MIRAGE_LIVE_AUDIO` 閘門修法後確認）、`ViewportFit`/`AudioRingBuffer` 逐行 100%、MirageCore 合併覆蓋率 95.92%（高於 ~94% 基準，方法論見上）、release 零警告、活體封包率 68.8 pkt/s／48k/stereo/S16 格式確認）。
-- **驗收線 7 誠實列 pending-human**：現有 harness（headless App）無法判定，需真 GUI session；本次已附上實際嘗試的證據（fps 日誌 0 行輸出）而非僅憑印象標註。這條的 pending-human 理由與下一條同樣已失效，但本次未重驗——見 `project-review.md` D32 那列。
+- **驗收線 7 已不再是 pending-human**：先前誠實列為 pending-human 的理由是「現有 harness（headless App）無法判定，需真 GUI session」，並附上實際嘗試的證據（fps 日誌 0 行輸出）——但這個理由本身已於 2026-07-28 失效（見下方更正），且**已於 2026-08-04（D45）回頭重驗**：全螢幕解析度上限下四次乾淨量測 `MIRAGE_FPS_LOG` 中位數 49／43／51／43，**判定未通過**（門檻 55 未達）。現由 `app/scripts/verify_fps_fullscreen.sh` 自動化涵蓋，完整數據見 `app/RESULTS-d45-probe.md`。
   > **⚠️ 2026-07-28 更正**：此處引為證據的「fps 日誌 0 行輸出」，其原因**不是**「需要真 GUI session」。
   > 在真 GUI session、螢幕未鎖、使用者自己的終端機執行的條件下仍是 0 行——鏡像顯示自 P1-a 起
   > 從未運作過（連線成功、幀有進來，但狀態傳不到 UI，且有合成視窗時會 SIGSEGV）。
