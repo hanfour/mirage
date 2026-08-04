@@ -235,9 +235,32 @@ else
 fi
 
 echo ""
+echo "=== 閘門 7：共用函式庫的自我測試 ==="
+# 2026-08-03 新增（D32）。**加這道閘門的理由與閘門 6 完全相同**：
+# verify_common_selftest.sh 從 D9（2026-07-30）就存在、不需要模擬器、可以隨時跑，
+# 但沒有任何 CI 步驟會執行它——寫了卻沒人跑的測試比沒有測試更糟，它讓人以為有涵蓋。
+# 而 verify_common.sh 是五支 verify_* 腳本的共用判斷層，它壞掉等於那五支全部失去斷言。
+if ./scripts/lib/verify_common_selftest.sh > /dev/null 2>&1; then
+    ok "verify_common.sh 自我測試通過"
+else
+    fail "verify_common.sh 自我測試失敗（重跑 ./scripts/lib/verify_common_selftest.sh 看細節）："
+    ./scripts/lib/verify_common_selftest.sh 2>&1 | grep "❌" | sed 's/^/   /'
+fi
+
+# audio_stats_selftest.sh 是 2026-08-03 審查後新增的第二支自我測試，同一道
+# 閘門一併跑：audio_stats.sh 是驗收線 6 判準的核心 awk，壞掉等於整條驗收線
+# 的數字都不可信，理由與上面 verify_common.sh 那段完全相同，只是換了一個函式庫。
+if ./scripts/lib/audio_stats_selftest.sh > /dev/null 2>&1; then
+    ok "audio_stats.sh 自我測試通過"
+else
+    fail "audio_stats.sh 自我測試失敗（重跑 ./scripts/lib/audio_stats_selftest.sh 看細節）："
+    ./scripts/lib/audio_stats_selftest.sh 2>&1 | grep "❌" | sed 's/^/   /'
+fi
+
+echo ""
 echo "======================================"
 if [ "$FAILURES" -eq 0 ]; then
-    echo "全部通過（$RUNS 次跑次、0 行 NIO ERROR、無假 skip、無全形標點陷阱、無永不紅的 #expect、provision 測試綠）"
+    echo "全部通過（$RUNS 次跑次、0 行 NIO ERROR、無假 skip、無全形標點陷阱、無永不紅的 #expect、provision 測試綠、兩支共用函式庫自我測試（verify_common／audio_stats）皆綠）"
     exit 0
 fi
 echo "$FAILURES 項失敗"

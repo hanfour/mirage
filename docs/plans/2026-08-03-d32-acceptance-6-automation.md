@@ -25,8 +25,25 @@ Android emulator gRPC、macOS `open`/`osascript`。
 - 組 `.app` **一律用 `app/scripts/package_app.sh`**，不得自己 `cp` executable（D25）。
 - 啟動 emulator **絕不可帶 `-no-audio`**。其他計畫的啟動範例常帶它（例如
   `docs/plans/2026-07-22-phase0c-sck-validation.md:70`），帶了本計畫整件事就沒有意義。
-- 門檻數字**一律待 Task 4 實測後才填**。D32 本身就是「先定門檻再實測」踩出來的坑。
+- 門檻數字**一律待 Task 5 實測後才填**。D32 本身就是「先定門檻再實測」踩出來的坑。
+- **Task 4 是執行途中新增的**（Task 3 的實測揭露產品缺陷），原計畫只有 6 個 task。
+  舊的 Task 4／5／6 已順延為 5／6／7。
 - 提交訊息格式 `<type>: <description>`，型別限 feat/fix/refactor/docs/test/chore/perf/ci。
+- **驗證步驟不得把待驗指令接管線**。`cmd | tail -5; echo "EXIT=$?"` 取到的是 `tail`
+  的退出碼（永遠 0），腳本紅了也看不出來——正是 D9 修掉的那類假訊號。本計畫一律寫成
+  「先重導向到檔案、立刻取 `$?`、再 `tail` 檔案」：
+
+  ```bash
+  cmd > /tmp/d32-step.log 2>&1; RC=$?; tail -12 /tmp/d32-step.log; echo "EXIT=$RC"
+  ```
+
+  ⚠️ **不要改用 `${PIPESTATUS[0]}`**。本專案的互動 shell 是 **zsh**，而 zsh 的陣列是
+  1-indexed——`${PIPESTATUS[0]}` 在 zsh 下永遠是空字串（zsh 的對應變數是
+  `${pipestatus[1]}`）。`verify_*.sh` 腳本內部用 `${PIPESTATUS[0]}` 是**正確的**，因為
+  它們有 `#!/usr/bin/env bash` shebang、實際跑在 bash 上；但計畫裡給人逐字貼進終端機
+  的指令跑在 zsh，同一個寫法就會靜默失效。
+  （2026-08-03：本計畫先寫成 `$?`（Task 2 抓到），改成 `${PIPESTATUS[0]}` 後又發現
+  zsh 問題，最終定為上面的重導向寫法——兩次都是「退出碼沒取對」，同一類坑踩兩次。）
 
 ## 環境前置（Task 2 起需要）
 
@@ -193,7 +210,7 @@ Step 5 的突變檢查（已涵蓋同一條邏輯），把本步驟留到最後�
 - [ ] **Step 8: 跑完整 ci.sh 確認七道閘門全綠**
 
 ```bash
-cd app && ./scripts/ci.sh 2>&1 | tail -20; echo "EXIT=$?"
+cd app && ./scripts/ci.sh > /tmp/d32-step.log 2>&1; RC=$?; tail -20 /tmp/d32-step.log; echo "EXIT=$RC"
 ```
 
 Expected: 「全部通過」，`EXIT=0`，且輸出裡看得到「閘門 7」。
@@ -238,9 +255,9 @@ assert_at_least。補上反向斷言。
 **Interfaces:**
 - Consumes: `package_app.sh <目標目錄> <release|debug> [二進位覆寫路徑]`（既有）
 - Produces:
-  - `gui_session_start <log路徑> <bundle路徑> [env KEY=VAL ...]` — 打包並以 `.app`
-    啟動 MirageApp，stdout/stderr 導向 log，等待 6 秒後用 `osascript` 拉前景。
-    打包失敗回傳 1。
+  - `gui_session_start <log路徑> <bundle路徑> <二進位覆寫路徑或空字串> [env KEY=VAL ...]`
+    — 打包並以 `.app` 啟動 MirageApp，stdout/stderr 導向 log，等待 6 秒後用 `osascript`
+    拉前景。打包失敗回傳 1。第三個參數原樣轉給 `package_app.sh`，空字串表示用預設二進位。
   - `gui_session_cleanup <bundle路徑>` — `pkill -x MirageApp` 並移除 bundle。
   - `fps_summary <log路徑>` — 印「取樣 N 筆　平均 X fps　最低 A　最高 B」與串流尺寸；
     取樣為 0 時印診斷（分辨「幀有進來但視窗沒合成」vs「幀根本沒進來」）並回傳 1。
@@ -281,8 +298,9 @@ Step 6 要拿它對照，確認重構沒改變行為。
 # 得到有時完全量不到），所以不是「偏低」而是「不可信」。包成 bundle 之後 activation
 # policy 才是 .regular。
 gui_session_start() {
-    local log="$1" bundle="$2"; shift 2
-    if ! "$(dirname "${BASH_SOURCE[0]}")/../package_app.sh" "$bundle" release "" > /dev/null; then
+    local log="$1" bundle="$2" app_override="$3"; shift 3
+    if ! "$(dirname "${BASH_SOURCE[0]}")/../package_app.sh" \
+            "$bundle" release "$app_override" > /dev/null; then
         echo "❌ 打包 .app 失敗（見上方訊息）" >&2
         return 1
     fi
@@ -390,7 +408,7 @@ cleanup() {
 
 ```bash
 echo "[fps] 啟動 Mirage（.app bundle）→ localhost:${GRPC_PORT}，量測 ${DURATION}s"
-if ! gui_session_start "$LOG" "$BUNDLE" \
+if ! gui_session_start "$LOG" "$BUNDLE" "$APP_OVERRIDE" \
         "MIRAGE_PORT=$GRPC_PORT" "MIRAGE_FPS_LOG=1" "MIRAGE_CONN_LOG=1"; then
     exit 1
 fi
@@ -416,20 +434,9 @@ fi
 echo "[fps] 二進位：${APP_OVERRIDE:-（預設 .build/release/MirageApp）}"
 ```
 
-⚠️ `APP_OVERRIDE` 目前不再被傳進打包流程（`gui_session_start` 寫死第三參數為 `""`）。
-**`-a` 選項因此失效**，這是本次重構的行為改變。處理方式：把 `gui_session_start` 的
-打包呼叫改成讀取可選的全域 `GUI_SESSION_APP_OVERRIDE`：
-
-```bash
-    if ! "$(dirname "${BASH_SOURCE[0]}")/../package_app.sh" \
-            "$bundle" release "${GUI_SESSION_APP_OVERRIDE:-}" > /dev/null; then
-```
-
-並在 `verify_game_fps.sh` 的 source 之後加：
-
-```bash
-GUI_SESSION_APP_OVERRIDE="$APP_OVERRIDE"
-```
+⚠️ `-a` 的覆寫路徑走 `gui_session_start` 的第三個位置參數（見上方的啟動區塊
+`gui_session_start "$LOG" "$BUNDLE" "$APP_OVERRIDE" ...`）。Step 7 會實測它沒有在重構
+中變成死參數。
 
 - [ ] **Step 5: 語法檢查**
 
@@ -454,7 +461,7 @@ Expected: 與 Step 1 抄下的數字**同一個量級**（fps 每次會有波動
 
 ```bash
 cd app && ./scripts/verify_game_fps.sh -s emulator-5556 -p 8556 -n -d 10 \
-    -a /nonexistent/MirageApp 2>&1 | tail -5; echo "EXIT=$?"
+    -a /nonexistent/MirageApp > /tmp/d32-step.log 2>&1; RC=$?; tail -5 /tmp/d32-step.log; echo "EXIT=$RC"
 ```
 
 Expected: 打包失敗並 `EXIT=1`（不是靜默用了預設二進位）。這證明 `-a` 沒有在重構中
@@ -638,7 +645,7 @@ echo ""
 echo "=== 啟動 Mirage（.app bundle）→ localhost:${GRPC_PORT}，量測 ${DURATION}s ==="
 # 不注入動畫：遊戲進行中畫面本來就在變化，而注入器會真的去點畫面，可能叫出暫停選單
 # 或退出關卡（verify_game_fps.sh:32-36 記載的同一個理由）。
-if ! gui_session_start "$LOG" "$BUNDLE" \
+if ! gui_session_start "$LOG" "$BUNDLE" "" \
         "MIRAGE_PORT=$GRPC_PORT" "MIRAGE_AUDIO_LOG=1" "MIRAGE_FPS_LOG=1" "MIRAGE_CONN_LOG=1"; then
     exit 1
 fi
@@ -732,7 +739,7 @@ Expected: 退出碼 0，輸出裡有「解析結果」那一段的五個 KEY=VAL
 
 ```bash
 cd app && for i in 2 3; do
-  ./scripts/verify_audio_gui.sh 2>&1 | tee "/tmp/d32-probe-${i}.txt" | grep -E "^(AUDIO_LINES|SOUND_SECS|USUM|UMAX|UWINDOWS|FPS_)"
+  ./scripts/verify_audio_gui.sh 2>&1 | tee "/tmp/d32-probe-${i}.txt" | grep -E "^(AUDIO_LINES|SOUND_SECS|USUM|UMAX|UWINDOWS|PRIMES|MALFORMED|FPS_)"
   echo "--- 第 ${i} 次結束 ---"
 done
 ```
@@ -768,12 +775,276 @@ under=426 的光譜兩端。"
 
 ---
 
-### Task 4: 定門檻並加上 A1–A4 斷言
+### Task 4: `AudioRingBuffer` 的 pre-roll（產品修正）
 
-依 Task 3 的三次探測數字填門檻。本 task **需要模擬器**。
+**這個 task 是 Task 3 的實測結果逼出來的，原計畫沒有它。**
+
+Task 3 三次量測全部呈現同一個病徵：
+
+```
+[audio] pkt=94 sr=48000 ch=2 under=96  over=0 depth=0ms
+[audio] pkt=92 sr=48000 ch=2 under=183 over=0 depth=0ms
+...
+[audio] pkt=96 sr=48000 ch=2 under=5577 over=0 depth=0ms
+```
+
+`under` 每秒增加約 90、`depth` 全程 `0ms`、`over` 恆為 0。三個數字合起來只有一個解讀：
+**環形緩衝從來沒有積過水**。生產端每秒送約 96 包（每包約 10ms 的資料），消費端每
+約 10ms 要一次，兩者速率相等但**零裕度**——`readStereo` 幾乎每次都拿到不足的資料，
+走 `if n < frames { underrunCount++ }` 那條路，然後由 `AudioPlayer` 補靜音。
+
+這不是判準寫錯，是產品缺陷：**沒有任何 pre-roll 機制**。`AudioPlayer` 一啟動就開始
+消費，緩衝一有資料就被立刻抽乾，穩態深度必然是 0。
+
+修法放在 `AudioRingBuffer` 而不是 `AudioPlayer`，理由有二：
+
+1. **水位管理本來就是緩衝的職責。** 放在播放器等於讓兩個地方管同一件事。
+2. **`AudioPlayer` 在 `MirageShell`（executable target）裡，沒有任何單元測試能碰它**
+   （`RESULTS-p1e.md` 記載的既有架構債）；`AudioRingBuffer` 在 `MirageCore`，有一份
+   逐行 100% 覆蓋的測試檔。同樣一段邏輯，放對地方就能 TDD，放錯地方只能靠讀碼。
+
+本 task **不需要模擬器**（純單元測試），但完成後 Task 5 會重新量測。
+
+**Files:**
+- Modify: `app/Sources/MirageCore/Audio/AudioRingBuffer.swift`（`init` 與 `readStereo`）
+- Modify: `app/Tests/MirageCoreTests/AudioRingBufferTests.swift`（5 個既有 `readStereo`
+  測試要顯式關掉蓄水；新增 4 個 pre-roll 測試）
+
+**Interfaces:**
+- Produces: `AudioRingBuffer(capacitySamples: Int = 19_200, primeThresholdSamples: Int = 9_600)`
+  — 新增第二個參數。`readStereo` 在累積深度未達門檻前一律回 0 且**不計 underrun**
+  （那不是欠位，是還沒開始播）；一旦達標就轉入正常供應；被排乾（`n == 0`）時回到
+  未蓄水狀態重新積水。`read(into:count:)` 的行為**不變**。
+
+⚠️ **既有的 5 個 `readStereo` 測試會全部變紅**（`AudioRingBufferTests.swift` 的第 130、
+140、152、162、170 行附近）。它們用的容量是 16／16／16／16／6 samples，寫入 2–6 個
+樣本就讀——加了預設門檻之後一律回 0。這是**預期的**，處理方式見 Step 3：那 5 個測試
+驗的是「拆交錯機制」不是「蓄水策略」，要顯式傳 `primeThresholdSamples: 0` 並註明理由。
+
+- [ ] **Step 1: 先寫會紅的 pre-roll 測試**
+
+在 `app/Tests/MirageCoreTests/AudioRingBufferTests.swift` 的
+`readStereoWrapAroundPreservesChannelOrder`（第 170 行那個測試）結尾大括號之後插入：
+
+```swift
+
+    // MARK: - pre-roll（蓄水）
+    //
+    // 為什麼需要它：生產端與消費端的速率相等（都是 48kHz），若不先積一段水就開始
+    // 消費，穩態深度會停在 0——每次 render callback 都拿到不足的資料然後補靜音。
+    // 2026-08-03 實測 60 秒：under 每秒增加約 90、depth 全程 0ms、over 恆為 0
+    // （見 app/RESULTS-d32-probe.md）。pre-roll 讓深度從門檻起跳，把「幾乎每次都欠位」
+    // 變成「只有真的斷流才欠位」。
+
+    /// 未達門檻前一律不出貨，且**不計 underrun**——那不是欠位，是還沒開始播。
+    /// 這個區分很重要：若計入，驗收指標會把正常的啟動蓄水期算成缺陷。
+    @Test func primeWithheldBelowThresholdAndNotCountedAsUnderrun() {
+        let ring = AudioRingBuffer(capacitySamples: 64, primeThresholdSamples: 16)
+        ring.write([1, -1, 2, -2])                 // 4 samples < 門檻 16
+        let (got, _, _) = readStereoSamples(ring, frames: 2)
+        #expect(got == 0)
+        #expect(ring.stats.underruns == 0)
+        #expect(ring.stats.depthSamples == 4)      // 沒被消費掉
+    }
+
+    /// 達到門檻就開始正常供應。
+    @Test func primeReleasesOnceThresholdReached() {
+        let ring = AudioRingBuffer(capacitySamples: 64, primeThresholdSamples: 8)
+        ring.write([1, -1, 2, -2])                 // 4 < 8：還不出貨
+        #expect(readStereoSamples(ring, frames: 2).0 == 0)
+        ring.write([3, -3, 4, -4])                 // 累積到 8：達標
+        let (got, left, right) = readStereoSamples(ring, frames: 4)
+        #expect(got == 4)
+        #expect(Array(left.prefix(4)) == [1, 2, 3, 4])
+        #expect(Array(right.prefix(4)) == [-1, -2, -3, -4])
+    }
+
+    /// 被排乾之後要重新蓄水，不能一路空轉供應——否則斷流時會退回沒有 pre-roll 的行為。
+    @Test func primeResetsAfterBufferDrained() {
+        let ring = AudioRingBuffer(capacitySamples: 64, primeThresholdSamples: 8)
+        ring.write([1, -1, 2, -2, 3, -3, 4, -4])   // 達標
+        #expect(readStereoSamples(ring, frames: 4).0 == 4)   // 全部讀走 → 空了
+        #expect(readStereoSamples(ring, frames: 4).0 == 0)   // 空讀 → 計 underrun 並重置
+        #expect(ring.stats.underruns == 1)
+        ring.write([5, -5])                        // 2 < 8：重新蓄水中，不出貨
+        #expect(readStereoSamples(ring, frames: 1).0 == 0)
+        #expect(ring.stats.underruns == 1)         // 蓄水期不再累加 underrun
+    }
+
+    /// 門檻不得超過容量的一半：超過的話蓄水期就會先撞到 overrun，變成永遠 prime 不起來。
+    /// 這條守的是「小容量緩衝配大門檻」這個組態陷阱，讓它降級成可用而不是靜默鎖死。
+    @Test func primeThresholdIsClampedToHalfCapacity() {
+        let ring = AudioRingBuffer(capacitySamples: 8, primeThresholdSamples: 9_600)
+        ring.write([1, -1, 2, -2])                 // 4 samples == 容量 8 的一半
+        let (got, _, _) = readStereoSamples(ring, frames: 2)
+        #expect(got == 2)
+    }
+```
+
+- [ ] **Step 2: 跑測試，確認新測試紅、且既有 5 個也紅**
+
+```bash
+cd app && swift test --filter AudioRingBufferTests > /tmp/d32-step.log 2>&1; RC=$?; tail -30 /tmp/d32-step.log; echo "EXIT=$RC"
+```
+
+Expected: 編譯失敗（`AudioRingBuffer` 還沒有 `primeThresholdSamples` 參數）。這是對的
+起點——先讓它編不過，再實作。
+
+- [ ] **Step 3: 讓既有 5 個 `readStereo` 測試顯式關掉蓄水**
+
+這 5 個測試驗的是拆交錯、部分讀、半個 frame、空讀、環繞——都是**機制**，不是蓄水策略。
+把它們的 `AudioRingBuffer(capacitySamples: N)` 改成
+`AudioRingBuffer(capacitySamples: N, primeThresholdSamples: 0)`，並在 `MARK: - readStereo`
+那段註解（第 122–128 行）的結尾追加一句：
+
+```swift
+    //
+    // **為什麼這一組全部傳 `primeThresholdSamples: 0`**：它們驗的是拆交錯與邊界機制，
+    // 不是蓄水策略。用生產預設值（9600）的話，這些容量只有 4–16 samples 的緩衝永遠
+    // 達不到門檻，每個測試都只會讀到 0，驗不到任何它們該驗的東西。蓄水本身由下方
+    // 「pre-roll」那一組專門涵蓋。
+```
+
+要改的 5 個測試：`readStereoSplitsInterleavedIntoChannels`（容量 16）、
+`readStereoPartialReturnsWholeFramesAndCountsUnderrun`（16）、
+`readStereoLeavesDanglingHalfFrameInBuffer`（16）、
+`readStereoOnEmptyReturnsZeroAndCountsUnderrun`（16）、
+`readStereoWrapAroundPreservesChannelOrder`（6）。
+
+⚠️ **只改這 5 個。** `read(into:count:)` 那一組（檔案上半部）不受影響，因為本 task
+不動 `read`。`EmulatorClientAudioTests.swift` 與 `ShellSmokeTests.swift` 裡的
+`AudioRingBuffer(capacitySamples:)` 也不要動——它們只寫不用 `readStereo` 讀。
+
+- [ ] **Step 4: 實作 pre-roll**
+
+在 `app/Sources/MirageCore/Audio/AudioRingBuffer.swift`：
+
+(a) 新增兩個儲存屬性，放在 `writeCount` 那一行之後：
+
+```swift
+    private let primeThreshold: Int
+    /// 是否已蓄滿水並開始供應。生產者不碰它，只有消費者（即時執行緒）讀寫，
+    /// 所以 relaxed 就夠——它不用來同步任何資料，只是消費端自己的狀態。
+    private let primed = ManagedAtomic<Bool>(false)
+```
+
+(b) 改 `init`：
+
+```swift
+    /// 預設 19200 = 48kHz × 2ch × 200ms。這是**溢位前的天花板**，不是目標深度。
+    ///
+    /// `primeThresholdSamples` 預設 9600 = 100ms：消費端要等緩衝積到這個深度才開始
+    /// 供應。**沒有它，穩態深度會是 0**——生產與消費速率相等時，每次 render callback
+    /// 都拿到不足的資料然後補靜音，2026-08-03 實測 60 秒 under 每秒增加約 90、
+    /// depth 全程 0ms（見 app/RESULTS-d32-probe.md）。傳 0 表示不蓄水（測試用）。
+    public init(capacitySamples: Int = 19_200, primeThresholdSamples: Int = 9_600) {
+        capacity = max(capacitySamples, 1)
+        // 門檻不得超過容量的一半：超過的話蓄水期會先撞到 overrun，永遠 prime 不起來。
+        primeThreshold = max(0, min(primeThresholdSamples, capacity / 2))
+        storage = UnsafeMutableBufferPointer<Float>.allocate(capacity: capacity)
+        storage.initialize(repeating: 0)
+    }
+```
+
+(c) 改 `readStereo`，在既有的 `let n = min(...)` 之前插入蓄水判斷，並在空讀分支重置：
+
+```swift
+    public func readStereo(left: UnsafeMutablePointer<Float>,
+                           right: UnsafeMutablePointer<Float>,
+                           frames: Int) -> Int {
+        guard frames > 0 else { return 0 }
+        let r = readIndex.load(ordering: .relaxed)
+        let w = writeIndex.load(ordering: .acquiring)
+        // 蓄水期：還沒積到門檻就整塊不出貨（呼叫端補靜音），**且不計 underrun**——
+        // 那不是欠位，是還沒開始播。把兩者混在一起，驗收指標就會把正常的啟動期
+        // 算成缺陷。
+        if !primed.load(ordering: .relaxed) {
+            guard (w - r) >= primeThreshold else { return 0 }
+            primed.store(true, ordering: .relaxed)
+        }
+        let n = min(frames, (w - r) / 2)
+        guard n > 0 else {
+            // 被排乾了：回到蓄水狀態。不重置的話，斷流之後就退回沒有 pre-roll 的行為。
+            primed.store(false, ordering: .relaxed)
+            underrunCount.wrappingIncrement(ordering: .relaxed)
+            return 0
+        }
+        for i in 0..<n {
+            left[i] = storage[(r + i * 2) % capacity]
+            right[i] = storage[(r + i * 2 + 1) % capacity]
+        }
+        readIndex.store(r + n * 2, ordering: .releasing)
+        if n < frames { underrunCount.wrappingIncrement(ordering: .relaxed) }
+        return n
+    }
+```
+
+⚠️ 保留 `readStereo` 既有的 doc comment（`AudioRingBuffer.swift:77-91` 那一大段），
+只在它下面加上述蓄水邏輯。那段註解記載了 NSException 與「只讀完整 frame」的理由，
+不可刪。
+
+- [ ] **Step 5: 跑測試，確認全綠**
+
+```bash
+cd app && swift test --filter AudioRingBufferTests > /tmp/d32-step.log 2>&1; RC=$?; tail -10 /tmp/d32-step.log; echo "EXIT=$RC"
+```
+
+Expected: 全部通過，`EXIT=0`。
+
+- [ ] **Step 6: 跑完整測試套件，確認沒有連帶破壞**
+
+```bash
+cd app && swift test > /tmp/d32-step.log 2>&1; RC=$?; tail -10 /tmp/d32-step.log; echo "EXIT=$RC"
+```
+
+Expected: 全綠。特別注意 `EmulatorClientAudioTests` 與 `ShellSmokeTests` ——它們建
+`AudioRingBuffer` 但不透過 `readStereo` 讀，不該受影響；若它們紅了，代表 pre-roll
+的影響範圍超出預期，**停下來回報**，不要改那些測試去遷就。
+
+- [ ] **Step 7: 確認覆蓋率沒有掉**
+
+```bash
+cd app && ./scripts/coverage.sh 2>&1 | grep -E "AudioRingBuffer|TOTAL"
+```
+
+Expected: `AudioRingBuffer.swift` 維持 100%（新增的分支都有測試涵蓋）。
+
+- [ ] **Step 8: Commit**
+
+```bash
+git add app/Sources/MirageCore/Audio/AudioRingBuffer.swift app/Tests/MirageCoreTests/AudioRingBufferTests.swift
+git commit -m "fix: AudioRingBuffer 加上 pre-roll——緩衝從來沒有積過水
+
+Task 3 的實測逼出來的產品修正，原計畫沒有這一項。
+
+三次 60 秒量測全部同一個病徵：under 每秒增加約 90、depth 全程 0ms、
+over 恆為 0（見 app/RESULTS-d32-probe.md）。生產端每秒送約 96 包、消費端
+每約 10ms 要一次，速率相等但零裕度——readStereo 幾乎每次都拿到不足的資料
+然後補靜音。沒有任何 pre-roll，AudioPlayer 一啟動就把緩衝抽乾，穩態深度
+必然是 0。
+
+修法放在 AudioRingBuffer 而非 AudioPlayer：水位管理是緩衝的職責，而且
+AudioPlayer 在 executable target 裡沒有任何單元測試碰得到（RESULTS-p1e
+記載的既有架構債），同樣一段邏輯放對地方就能 TDD。
+
+蓄水期不計 underrun——那不是欠位是還沒開始播；混在一起會讓驗收指標把
+正常的啟動期算成缺陷。被排乾時重置回蓄水狀態，否則斷流後就退回原行為。
+
+既有 5 個 readStereo 測試顯式傳 primeThresholdSamples: 0 並註明理由：
+它們驗的是拆交錯與邊界機制，容量只有 4-16 samples，用生產預設值的話
+永遠達不到門檻、什麼都驗不到。"
+```
+
+---
+
+### Task 5: 定門檻並加上 A1–A4 斷言
+
+Task 4 改了產品行為，所以 Task 3 的探測數字**已經作廢**。這個 task 先重新量三次，
+再依新數字定門檻。本 task **需要模擬器**。
 
 **Files:**
 - Modify: `app/scripts/verify_audio_gui.sh`（把「⚠️ 探測版」那一段換成斷言）
+- Modify: `app/RESULTS-d32-probe.md`（追加 pre-roll 後的三次量測與前後對照）
 
 **Interfaces:**
 - Consumes: `audio_stats`（Task 3）、`assert_at_least`／`assert_at_most`（Task 1）、
@@ -784,22 +1055,103 @@ under=426 的光譜兩端。"
 | 斷言 | 門檻怎麼定 |
 |---|---|
 | A1 `AUDIO_LINES` | `DURATION` 的 80%。60 秒該有 ~60 行，留 20% 給啟動與收尾的抖動 |
-| A2 `SOUND_SECS` | 三次探測的**最小值**再打 8 折。這條擋的是「完全沒發聲」，不是品質門檻 |
-| A3 `USUM` | 三次探測的**最大值** × 2。留一倍裕度——這條要擋的是「明顯的回歸」，不是把當前狀態鎖死。若三次最大值為 0，門檻取 `UWINDOWS` 的 5%（每 20 秒容許 1 次），**不要定成 0** |
-| A4 `FPS_AVG` | 三次探測的**最小值**再打 8 折，且不高於 55（spec §8-7 的原始要求）|
+| A2 `SOUND_SECS` | 三次的**最小值**再打 8 折。這條擋的是「完全沒發聲」，不是品質門檻 |
+| A3 `USUM` | 三次的**最大值** × 2，且**至少** `UWINDOWS` 的 5%（每 20 秒容許 1 次）。取兩者較大者 |
+| A4 `FPS_AVG` | 三次的**最小值**再打 8 折，且不高於 55（spec §8-7 的原始要求）|
+| A5 `PRIMES` | 三次的**最大值** × 2，下限 2。見下方判讀表——這條擋的是「靠反覆蓄水把 underrun 藏起來」|
+| A6 `MALFORMED` | **0**。畸形日誌行代表解析不可信，不是品質問題；有就該紅 |
 
-⚠️ **A3 若定成 0**，就是把 D32 的錯誤換個地方再犯一次。時鐘漂移（emulator 音訊時鐘 vs
-Mac CoreAudio 時鐘）在系統裡沒有任何 rate adaptation 機制對抗，60 秒內漂移掉 200ms
-緩衝只需要 0.33% 偏差。門檻由實測決定，不從理論推導。
+### `PRIMES` 與 `USUM` 要一起讀，單看任一個都會誤判
 
-- [ ] **Step 1: 從三次探測算出四個門檻**
+Task 4 的審查指出一個會讓整個判準變成安慰劑的路徑：重新蓄水期間 `under` 不增加、
+`depth` 從 0 一路長到門檻（每秒取樣看起來像水位健康）、`pkt` 照常 > 0——所以
+`audio_stats` 的「本秒與前一秒都有封包」窗口**不會排除蓄水期**。一個反覆重新蓄水、
+每次賠 100ms 靜音的緩衝，在只看 `USUM` 的判準下會顯示為「比修正前更健康」。
+
+`PRIMES`（重新蓄水次數）就是拆開這個歧義的指標：
+
+| `PRIMES` | `USUM` | 判讀 | 該怎麼辦 |
+|---|---|---|---|
+| 小（個位數） | 低 | **真的健康**。蓄水一次就穩住 | 驗收線 6 通過 |
+| 小 | 仍高 | **pre-roll 形同虛設**——卡在「部分讀」的低水位帶，`n` 從沒歸零所以不重置 | 停下來回報。正解是低水位滯後（跌破門檻的某個分數就重置），不是把重置條件改成 `n < frames`（那會讓每次部分讀都賠一段靜音）|
+| 大 | 低 | **假性健康**。靠反覆蓄水把 underrun 藏起來，聽感是週期性整段靜音，可能比修正前更差 | 停下來回報 |
+| 大 | 高 | 兩種病都有 | 停下來回報 |
+
+⚠️ **只有第一列可以宣稱驗收線 6 通過。** 其餘三列都要停下來回報，不要因為門檻套得上去
+就當作過了——那正是 D32 這條債務一開始的形狀。
+
+### 📌 已實測並裁決（2026-08-03）：落在第三列，驗收線 6 判「未通過」
+
+控制端在 pre-roll 上樹後親自跑了兩次 60 秒量測：
+
+| | pre-roll 前（Task 3） | pre-roll 後 |
+|---|---|---|
+| `USUM` | 5481 / 5467 / 5384 | **138 / 170** |
+| `UMAX` | 92 / 161 / 92 | **8 / 9** |
+| `depth` | 全程 0ms | **中位 46ms、最大 94ms、最小 0** |
+| `PRIMES` | （當時無此指標） | **35 / 36** |
+| `FPS_AVG` | 56 / 48 / 49 | **40 / 46** |
+
+pre-roll 讓 underrun 總量降約 **97%**，緩衝終於會積水——這是真實且值得保留的改善。
+但 `PRIMES≈35` 表示 60 秒內排乾 35 次、**平均每 1.7 秒一次**，每次賠約 100ms 靜音
+≈ 全程 5.8% 在靜音。`depth` 呈鋸齒狀：蓄到 ~94ms 後被磨到 0，週而復始。從「蓄滿
+100ms 到排乾要 1.7 秒」反推，生產端供應量長期約為消費需求的 94%——兩個獨立時鐘之間
+沒有任何 rate adaptation。
+
+**使用者裁決：驗收線 6 判「未通過（已大幅改善）」，不修到通過為止，改開一筆新債務。**
+
+這對本 task 的直接影響——**腳本的綠燈語意必須寫清楚**：
+
+- 六條斷言全部是**回歸偵測**（「不要變得比現在更糟」），**不是**驗收線 6 的通過判準
+- 腳本 `exit 0` 代表「沒有回歸」，**不代表驗收線 6 通過**
+- 判定段落最後必須印出這個區別與現況數字，任何人跑完都看得到
+
+把這件事只寫在 `RESULTS` 而不寫進腳本輸出是不夠的——腳本是日後最常被單獨執行的東西，
+它自己不說，綠燈就會被當成通過。
+
+⚠️ **A3 不論實測多低都不要定成 0。** 生產端（emulator 音訊時鐘）與消費端（Mac
+CoreAudio 時鐘）是兩個獨立時鐘，系統裡沒有任何 rate adaptation 機制對抗漂移；pre-roll
+給的是 100ms 裕度，60 秒內漂移掉它只需要 0.17% 偏差。定成 0 就是把 D32 的錯誤換個
+地方再犯一次。
+
+- [ ] **Step 1: pre-roll 之後重新量三次**
 
 ```bash
-cd app && grep -hE "^(AUDIO_LINES|SOUND_SECS|USUM|UMAX|UWINDOWS|FPS_)" \
-    /tmp/d32-probe-1.txt /tmp/d32-probe-2.txt /tmp/d32-probe-3.txt | sort | uniq -c
+cd app && swift build -c release 2>&1 | tail -3
+for i in 1 2 3; do
+  ./scripts/verify_audio_gui.sh > "/tmp/d32-postfix-${i}.txt" 2>&1
+  echo "--- 第 ${i} 次 ---"
+  grep -E "^(AUDIO_LINES|SOUND_SECS|USUM|UMAX|UWINDOWS|PRIMES|MALFORMED|FPS_)" "/tmp/d32-postfix-${i}.txt"
+done
 ```
 
-依上表規則手算出四個數字，寫進 `RESULTS-d32-probe.md` 的結論那一句。
+⚠️ **`swift build -c release` 不可省略**：`verify_audio_gui.sh` 透過 `package_app.sh`
+打包 release 二進位，不重建的話量到的還是沒有 pre-roll 的舊版本，整個 task 就白做了。
+
+⚠️ 若某次量到全 0（log 空白），那是 `verify_game_fps.sh:155` 記載的已知不穩定路徑，
+重跑該次即可，但要在報告裡記下發生過幾次。
+
+**控制端已跑過兩次**（見上方「已實測並裁決」那節）：
+`USUM` 138／170、`UMAX` 8／9、`PRIMES` 35／36、`FPS_AVG` 40／46、`MALFORMED` 0／0、
+`AUDIO_LINES` 60／61、`SOUND_SECS` 60／61、`UWINDOWS` 59／60。
+**把你這三次跟這兩次合起來共五次算門檻**，樣本更穩。若你的三次與這兩次差異很大
+（例如 `PRIMES` 掉到個位數或衝破 80），先回報再定門檻——那代表環境有變因沒被控制住。
+
+- [ ] **Step 1b: 與 pre-roll 前的數字對照**
+
+把三次的 `USUM`／`UMAX`／`depth` 跟 `RESULTS-d32-probe.md` 已記載的 pre-roll 前數字
+（`USUM` 5481／5467／5384，`depth` 全程 0ms）並排，追加一節「pre-roll 前後對照」。
+
+**這是 Task 4 是否真的有效的唯一證據。** 依上方「`PRIMES` 與 `USUM` 要一起讀」那張表
+判讀，**只有「`PRIMES` 小且 `USUM` 低」那一列可以繼續往下做**。其餘三列一律停下來回報：
+
+- `USUM` 沒有明顯下降、`depth` 仍貼 0ms、而 `PRIMES` 很小 → pre-roll 卡在低水位帶沒
+  介入，病因不是缺蓄水
+- `USUM` 下降但 `PRIMES` 很大 → 是靠反覆蓄水把 underrun 藏起來，聽感可能比修正前更差
+
+繼續定門檻只會把一個沒被解決的問題包裝成通過。
+
+依上表規則從**新的三次**算出六個門檻，寫進 `RESULTS-d32-probe.md` 的結論。
 
 - [ ] **Step 2: 把探測版尾段換成斷言**
 
@@ -832,17 +1184,37 @@ assert_at_most "A3 連續有聲期間的 underrun 增量總和" "$USUM" <A3>
 assert_at_least "A4 fps 取樣筆數" "$FPS_N" 1
 assert_at_least "A4 平均 fps" "$FPS_A" <A4>
 
+# A5：重新蓄水次數。**沒有這條，A3 可以靠反覆蓄水作弊**——蓄水期 under 不增加、
+# depth 看起來在健康地爬升、pkt 照常 > 0，所以 audio_stats 的窗口不會排除它。
+# 一個每 2 秒就重新蓄水一次、每次賠 100ms 靜音的緩衝，只看 A3 會顯示為「很健康」。
+assert_at_most "A5 重新蓄水次數" "$PRIMES" <A5>
+
+# A6：畸形日誌行。這不是品質門檻是**解析可信度**門檻——有畸形行代表這次量測的
+# 數字本身不可信（缺欄位會讓 delta 跨越遺失的取樣點），該紅。
+assert_at_most "A6 畸形日誌行" "$MALFORMED" 0
+
 echo ""
-echo "驗收線 6（spec §8-6）：**判準已重新表述**，字面的 underruns == 0 與 §5"
-echo "「靜音時本來就沒封包」「欠位不是錯誤」自相矛盾，結構上不可能成立。"
-echo "推導見 docs/specs/2026-08-03-d32-acceptance-6-automation-design.md §0。"
+echo "================================================================"
+echo "⚠️  以上六條是**回歸偵測**，不是驗收線 6 的通過判準。"
+echo "    全綠只代表「沒有比 2026-08-03 的基準更糟」。"
+echo ""
+echo "    驗收線 6（spec §8-6）目前判定為 **未通過（已大幅改善）**："
+echo "    pre-roll（AudioRingBuffer.primeThresholdSamples）讓 underrun 總量降約 97%"
+echo "    （USUM 5481 → ~150），但本次 PRIMES=${PRIMES} —— 每次重新蓄水都賠約 100ms"
+echo "    靜音，實測平均每 1.7 秒排乾一次、全程約 5.8% 在靜音。"
+echo ""
+echo "    根因：生產端供應量長期約為消費需求的 94%，兩個獨立時鐘之間沒有任何"
+echo "    rate adaptation。這不在 D32 範圍內，已記為獨立債務。"
+echo "    完整推導見 docs/specs/2026-08-03-d32-acceptance-6-automation-design.md"
+echo "    與 app/RESULTS-d32.md。"
+echo "================================================================"
 echo "log：$LOG"
 ```
 
 - [ ] **Step 3: 跑一次，確認全綠**
 
 ```bash
-cd app && ./scripts/verify_audio_gui.sh 2>&1 | tail -20; echo "EXIT=$?"
+cd app && ./scripts/verify_audio_gui.sh > /tmp/d32-step.log 2>&1; RC=$?; tail -20 /tmp/d32-step.log; echo "EXIT=$RC"
 ```
 
 Expected: 五條 ✅（A1、A2、A3、A4 取樣、A4 平均），`EXIT=0`。
@@ -851,7 +1223,7 @@ Expected: 五條 ✅（A1、A2、A3、A4 取樣、A4 平均），`EXIT=0`。
 
 ```bash
 cd app && for i in 1 2; do ./scripts/verify_audio_gui.sh > /tmp/d32-assert-$i.log 2>&1; \
-  echo "第 $i 次 EXIT=$?"; done
+  echo "第 ${i} 次 EXIT=$?"; done
 ```
 
 Expected: 兩次都 `EXIT=0`。**任一次紅就代表門檻定太緊**，回 Step 1 放寬並在
@@ -877,7 +1249,7 @@ A3 刻意排在 A2 之後：assert_at_most 對 0 是通過的，靠 A2 先確認
 
 ---
 
-### Task 5: 故障注入——證明它會紅
+### Task 6: 故障注入——證明它會紅
 
 不證明會紅的斷言，跟沒有斷言沒有差別。這是 D42 立下的規矩。本 task **需要模擬器**。
 
@@ -891,8 +1263,8 @@ A3 刻意排在 A2 之後：assert_at_most 對 0 是通過的，靠 A2 先確認
 而不是前置檢查），而且不發聲。
 
 ```bash
-cd app && ./scripts/verify_audio_gui.sh -g com.android.settings -d 30 2>&1 | tail -12
-echo "EXIT=$?"
+cd app && ./scripts/verify_audio_gui.sh -g com.android.settings -d 30 > /tmp/d32-step.log 2>&1
+RC=$?; tail -12 /tmp/d32-step.log; echo "EXIT=$RC"
 ```
 
 Expected: **A2 紅**（`SOUND_SECS` 為 0 或遠低於門檻），`EXIT=1`。A1 應該是綠的——
@@ -902,7 +1274,7 @@ App 活著、日誌在印，只是沒有封包。這正是這條斷言存在的�
 - [ ] **Step 1b: 順帶驗空 package 被擋下**
 
 ```bash
-cd app && ./scripts/verify_audio_gui.sh -g "" 2>&1 | tail -3; echo "EXIT=$?"
+cd app && ./scripts/verify_audio_gui.sh -g "" > /tmp/d32-step.log 2>&1; RC=$?; tail -3 /tmp/d32-step.log; echo "EXIT=$RC"
 ```
 
 Expected: `❌ -g 不接受空字串`，`EXIT=2`。這條擋的是 `case "$FG" in *""*)` 會匹配
@@ -914,11 +1286,38 @@ Expected: `❌ -g 不接受空字串`，`EXIT=2`。這條擋的是 `case "$FG" i
 
 ```bash
 cd app && sed -i.bak 's/"MIRAGE_AUDIO_LOG=1"/"MIRAGE_AUDIO_LOG=0"/' scripts/verify_audio_gui.sh
-./scripts/verify_audio_gui.sh 2>&1 | tail -8; echo "EXIT=$?"
+./scripts/verify_audio_gui.sh > /tmp/d32-step.log 2>&1; RC=$?; tail -8 /tmp/d32-step.log; echo "EXIT=$RC"
 mv scripts/verify_audio_gui.sh.bak scripts/verify_audio_gui.sh
 ```
 
 Expected: A1 紅（`AUDIO_LINES` 為 0），`EXIT=1`。
+
+- [ ] **Step 2b: 注入 2b——把 pre-roll 關掉**
+
+這條直接驗證 A3 守不守得住 Task 4 的產品修正。把 `AudioRingBuffer.swift` 的 `init`
+預設門檻暫時改成 0（等同 pre-roll 前的行為），重建、重跑：
+
+```bash
+cd app && sed -i.bak 's/primeThresholdSamples: Int = 9_600/primeThresholdSamples: Int = 0/' \
+    Sources/MirageCore/Audio/AudioRingBuffer.swift
+grep -n "primeThresholdSamples: Int =" Sources/MirageCore/Audio/AudioRingBuffer.swift
+swift build -c release 2>&1 | tail -3
+./scripts/verify_audio_gui.sh > /tmp/d32-step.log 2>&1; RC=$?; tail -12 /tmp/d32-step.log; echo "EXIT=$RC"
+```
+
+Expected: **A3 紅**（`USUM` 回到數千的量級，遠超門檻），`EXIT=1`。
+
+還原並重建：
+
+```bash
+cd app && mv Sources/MirageCore/Audio/AudioRingBuffer.swift.bak Sources/MirageCore/Audio/AudioRingBuffer.swift
+grep -n "primeThresholdSamples: Int =" Sources/MirageCore/Audio/AudioRingBuffer.swift  # 必須是 9_600
+swift build -c release 2>&1 | tail -3
+git status --short   # 必須乾淨
+```
+
+⚠️ 這一步改的是**產品碼**。還原沒做乾淨會把已知的音訊缺陷放回樹上。`git status`
+不乾淨就不要往下走。
 
 - [ ] **Step 3: 注入 3——重現打死 MainActor 的那個回歸**
 
@@ -928,7 +1327,7 @@ Expected: A1 紅（`AUDIO_LINES` 為 0），`EXIT=1`。
 cd app && sed -i.bak 's/interleaved: false/interleaved: true/' Sources/MirageShell/Audio/AudioPlayer.swift
 grep -n "interleaved" Sources/MirageShell/Audio/AudioPlayer.swift   # 確認改到了
 swift build -c release 2>&1 | tail -3
-./scripts/verify_audio_gui.sh 2>&1 | tail -12; echo "EXIT=$?"
+./scripts/verify_audio_gui.sh > /tmp/d32-step.log 2>&1; RC=$?; tail -12 /tmp/d32-step.log; echo "EXIT=$RC"
 ```
 
 Expected: A1 紅（`AUDIO_LINES=0` —— NSException 打死 MainActor，那個每秒迴圈從未
@@ -949,7 +1348,7 @@ git status --short   # 必須乾淨（無 .bak、無殘留改動）
 - [ ] **Step 4: 還原後再跑一次，確認回到綠**
 
 ```bash
-cd app && ./scripts/verify_audio_gui.sh 2>&1 | tail -12; echo "EXIT=$?"
+cd app && ./scripts/verify_audio_gui.sh > /tmp/d32-step.log 2>&1; RC=$?; tail -12 /tmp/d32-step.log; echo "EXIT=$RC"
 ```
 
 Expected: 五條 ✅，`EXIT=0`。這證明 Step 3 的紅燈來自注入的 bug，不是腳本壞了。
@@ -965,6 +1364,11 @@ Create `app/RESULTS-d32.md`，須含：
    而 `verify_game_fps.sh:11-16` 記載該歸因在 2026-07-28 被推翻
 5. **已知限制**：本腳本需要真 GUI session 與模擬器，**不能進 `ci.sh`**；
    `verify_common_selftest.sh` 那部分已由閘門 7 涵蓋
+6. **pre-roll 產品修正（Task 4）**：為什麼原計畫沒有它、Task 3 的實測揭露了什麼
+   （`under` 每秒 +90、`depth` 全程 0ms、`over` 恆 0）、修法為何放在 `AudioRingBuffer`
+   而非 `AudioPlayer`、以及 pre-roll 前後的 `USUM` 對照數字。**這一節是本次工作最
+   重要的產出**——驗收線 6 原本被當成「缺自動化涵蓋」，實際上它一直是實質不通過，
+   只是沒有人量過
 
 - [ ] **Step 6: Commit**
 
@@ -982,7 +1386,7 @@ git commit -m "test: D32 故障注入——三條都證明會紅
 
 ---
 
-### Task 6: 更新既有文件
+### Task 7: 更新既有文件
 
 把三份記載著過期事實的文件修正。本 task **不需要模擬器**。
 
@@ -1018,11 +1422,19 @@ git commit -m "test: D32 故障注入——三條都證明會紅
 
 - [ ] **Step 2: `RESULTS-p1e.md` 驗收線 6 改判**
 
-把第 39 行整列的判定從 `⬜ pending-human` 改成 `✅ PASS`，證據欄改寫為：**本次改判的
-理由**（pending-human 的原因已失效）＋ 四條斷言的實際數字 ＋ 指向
-`app/RESULTS-d32.md`。保留原本記載的 7 次 `underruns` 3–426 那段歷史，在後面接
-「**2026-08-03 D32 補充**」說明為何那個範圍與新判準不衝突（舊數字來自假消費端且未
-排除啟動期與靜音期）。
+把第 39 行整列的判定從 `⬜ pending-human` 改成 **`❌ 未通過（已大幅改善）`**。
+
+⚠️ **不要改成 PASS。** 使用者已裁決：pre-roll 讓 underrun 降約 97%，但實測每 1.7 秒
+排乾一次、全程約 5.8% 在靜音，這不是通過。把它寫成 PASS 就是把 D32 這條債務的形狀
+原封不動再做一次。
+
+證據欄要含：(a) **本次終於量得到的理由**——pending-human 的原因（headless 不驅動
+`.task`）在 2026-07-28 就失效了；(b) pre-roll 前後的對照數字（`USUM` 5481 → ~150、
+`depth` 全程 0ms → 中位 46ms、`PRIMES`≈35）；(c) 為什麼判未通過（每 1.7 秒一次的
+100ms 靜音）；(d) 指向 `app/RESULTS-d32.md` 與新開的債務編號。
+
+保留原本記載的 7 次 `underruns` 3–426 那段歷史，在後面接「**2026-08-03 D32 補充**」
+說明那批舊數字來自假消費端、未排除啟動期與靜音期，與本次的判準不可直接比較。
 
 - [ ] **Step 3: `RESULTS-p1e.md` pending-human 清單移除第 6 項**
 
@@ -1035,24 +1447,44 @@ git commit -m "test: D32 故障注入——三條都證明會紅
 該歸因在 2026-07-28 被推翻——真因是 `AudioPlayer` 的 NSException 打死 MainActor
 （見 `docs/specs/2026-07-28-mirror-never-rendered-investigation.md`），修好之後
 `verify_game_fps.sh` 在非互動 session 一樣量得到 fps（見該檔 line 11-16）。
-驗收線 6 已由 `app/scripts/verify_audio_gui.sh` 自動化涵蓋（D32）。
+驗收線 6 已由 `app/scripts/verify_audio_gui.sh` 自動化涵蓋（D32）——但**該驗收線本身判定為未通過**，
+殘餘缺陷記為 D44，見 `project-review.md`。
 **驗收線 7 的 pending-human 理由同樣可疑，但本次未重驗**——見 `project-review.md` 的 D32 那列。
 ```
 
-- [ ] **Step 4: `project-review.md` 標記 D32 已修**
+- [ ] **Step 4: `project-review.md` 標記 D32 已修，並新增 D44**
 
-把第 130 行 D32 那列的 `**D32**` 改成 `~~**D32**~~`，並在「修法」欄位結尾追加：
+把 D32 那列的 `**D32**` 改成 `~~**D32**~~`，並在「修法」欄位結尾追加：
 
 ```markdown
-**✅ 已修（2026-08-03）**：`app/scripts/verify_audio_gui.sh` 在真 GUI + 真 `AudioPlayer`
-下量 60 秒，四條斷言（App 存活／串流活著／連續有聲期間的 underrun 增量／fps），
-三條故障注入皆證明會紅——其中一條是把 `AudioPlayer.swift:30` 的 `interleaved` 改回
-`true` 重現三階段黑畫面的 NSException。**過程中發現兩件事**：(1) pending-human 的
-理由（headless 不驅動 `.task`）在 2026-07-28 就被推翻了，沒人回頭驗；(2) 驗收線 6
-的字面判準與 spec §5 自相矛盾，換成真消費端也不可能成立，已重新表述並在 spec 加更正
-註記。順帶補了 `ci.sh` 閘門 7——`verify_common_selftest.sh` 從 D9 就存在卻從沒被 CI
-跑過。**新記一筆債**：驗收線 7（fps ≥ 55）被列 pending-human 的理由與驗收線 6 完全
-相同、同樣已失效，而 `verify_game_fps.sh` 早就在量 fps，但本次未重驗。
+**✅ 自動化涵蓋已建立（2026-08-03）；驗收線 6 本身判定為未通過。**
+`app/scripts/verify_audio_gui.sh` 在真 GUI + 真 `AudioPlayer` 下量 60 秒，六條斷言
+（App 存活／串流活著／連續有聲期間的 underrun 增量／fps／重新蓄水次數／畸形行），
+四條故障注入皆證明會紅。
+
+**真正的發現不是自動化本身**：第一次量出來就揭露驗收線 6 一直是**實質不通過**，而且
+從來沒有人量過——`under` 每秒增加約 90、`depth` 全程 0ms、`over` 恆為 0，環形緩衝從來
+沒有積過水。根因是**完全沒有 pre-roll**，已修（`AudioRingBuffer.primeThresholdSamples`
+預設 100ms；修法放在緩衝而非播放器，因為 `AudioPlayer` 在 executable target 裡沒有
+任何單元測試碰得到）。修正後 `USUM` 從 5481 降到約 150（**-97%**）、`depth` 中位 46ms。
+
+**但仍判未通過**：`PRIMES`≈35，即 60 秒內排乾 35 次、平均每 1.7 秒一次，每次賠約
+100ms 靜音 ≈ 全程 5.8% 在靜音。殘餘缺陷另記為 **D44**。`verify_audio_gui.sh` 的六條
+斷言因此定位為**回歸偵測**（不要比 2026-08-03 的基準更糟），腳本自己會印出這個區別，
+**綠燈不等於驗收線 6 通過**。
+
+**另外發現三件事**：(1) pending-human 的理由（headless 不驅動 `.task`）在 2026-07-28
+就被推翻了，沒人回頭驗；(2) 驗收線 6 的字面判準（`underruns == 0`）與 spec §5 自相
+矛盾（靜音期必然欠位），已重新表述並在 spec 加更正註記；(3) `verify_common_selftest.sh`
+從 D9 就存在卻從沒被 CI 跑過，已補為閘門 7（現在跑兩支自我測試）。**另記一筆**：
+驗收線 7（fps ≥ 55）被列 pending-human 的理由與驗收線 6 完全相同、同樣已失效，而
+`verify_game_fps.sh` 早就在量 fps，但本次未重驗。
+```
+
+然後在債務表**末尾新增 D44**（沿用該表既有的欄位格式：編號｜問題｜修法｜工時｜優先級）：
+
+```markdown
+| **D44** | **音訊每 1.7 秒靜音一次**：pre-roll（D32）讓 underrun 降 97%，但實測 `PRIMES`≈35／60 秒——緩衝蓄到約 94ms 後被磨到 0，週而復始，每次重新蓄水賠約 100ms 靜音，全程約 5.8% 在靜音。反推生產端供應量長期約為消費需求的 **94%**：emulator 的音訊時鐘與 Mac CoreAudio 時鐘是兩個獨立時鐘，系統裡**沒有任何 rate adaptation** 對抗漂移 | 三個方向，未定案：(a) 加大緩衝容量（現 200ms）並提高 pre-roll 門檻——治標，延長週期但仍會排乾；(b) 低水位滯後（跌破門檻某個分數就重置），能減少「排乾瞬間」的硬切但不解決供應不足；(c) 真正的 rate adaptation（消費端偵測水位持續偏低就輕微重採樣放慢）——正解但複雜度高。**決定前應先量清楚 94% 這個數字的來源**：是時鐘漂移、還是 guest 端本來就有丟包／靜音段落，兩者的解法完全不同 | 未估 | P2 |
 ```
 
 - [ ] **Step 5: 確認沒有殘留的過期宣稱**

@@ -33,7 +33,8 @@ harness 直接能用。
 
 `AudioPlayer` 的 `AVAudioSourceNode` render callback 每 ~10ms 就要一次資料
 （`AudioPlayer.swift:35-51`），guest 只要有一刻不發聲，`readStereo` 就走
-`underrunCount.wrappingIncrement`（`AudioRingBuffer.swift:100`）。所以 `== 0` 在
+`underrunCount.wrappingIncrement`（`AudioRingBuffer.readStereo`——引用函式名而非行號，
+因為 pre-roll 修法已把它往下推過一次，見下方「2026-08-03 追記」）。所以 `== 0` 在
 任何含靜音期的 60 秒裡**結構上不可能**。
 
 這與 D32 已記載的「drain 情境下不成立」是**不同的第二個原因**：前者是測試 harness
@@ -198,3 +199,38 @@ Mirage 三個階段黑畫面的那個具體回歸。改完立刻 revert，不留
   次只在 `project-review.md` 記一句，不順手做掉。
 - **rate adaptation**：若 §5 探測顯示時鐘漂移確實造成穩態 underrun，那是產品層的設計
   問題，不在一支驗證腳本的職責範圍內。本次只如實量測並記錄，需要時另開債務。
+
+## 2026-08-03 追記（實作後）
+
+本文件寫成時（§0–§8）還是「四條斷言／A1–A4／無 pre-roll／無判定」的版本。實作過程中
+發生的事，指過去的人若只看到這裡會完全不知道，補記於此——`verify_audio_gui.sh` 的結尾
+橫幅與 spec §8-6 的更正註記都把讀者指向本文件當作「完整推導」，不能讓它停在實作前。
+
+**pre-roll 是實測逼出來的產品修正，不是本文件原本的設計。** Task 3 用本文件描述的
+harness 跑第一次真 GUI + 真 `AudioPlayer` 量測時，量到 `under` 每秒穩定增加約 90、
+`depth` 全程貼 0ms、`over` 恆為 0——環形緩衝從來沒有積過水。根因是 `AudioRingBuffer`
+原本沒有任何蓄水機制，`readStereo` 從建構起就照單全收。修法（`primeThresholdSamples`
+預設 9_600＝100ms）加在 `AudioRingBuffer` 而非 `AudioPlayer`，理由與本文件 §3 抽
+`gui_session.sh`／§7 選 library target 測試的邏輯一致：`AudioPlayer` 在 executable
+target 裡沒有任何單元測試碰得到，`AudioRingBuffer` 有。完整推導見 `app/RESULTS-d32.md` §6。
+
+**斷言從四條變六條**：本文件 §2 只設計了 A1–A4。實作後新增：
+
+- **A5**（`PRIMES`，重新蓄水次數上限）——沒有這條，A3 可以靠反覆蓄水作弊：蓄水期
+  `under` 不增、`depth` 看似健康、`pkt>0` 所以窗口不排除，一個每 2 秒就重新蓄水一次、
+  每次賠 100ms 靜音的緩衝，只看 A3 會顯示為「很健康」。
+- **A6**（`MALFORMED`，畸形日誌行數，固定 `≤ 0`）——解析可信度門檻，不是品質門檻：
+  缺 `pkt=`／`under=` 欄位的畸形行會讓 delta 跨越遺失的取樣點，該紅。
+
+六條門檻的完整推導（五次實測值的比例換算）見 `app/RESULTS-d32-probe.md` §「六個門檻的
+計算過程」。
+
+**最終判定：未通過（已大幅改善）**，不是本文件原本設想的「通過／不通過」二選一，而是
+兩者之間的第三種結果——pre-roll 讓 `USUM` 降約 97%（5481 → 約 150），但 `PRIMES`≈35
+（60 秒內平均每 1.7 秒排乾一次重新蓄水，每次賠約 100ms 靜音，全程約 5.8% 時間在靜音）。
+`verify_audio_gui.sh` 的六條斷言因此定位為**回歸偵測**（不要比 2026-08-03 的基準更糟），
+不是驗收線 6 本身的通過判準——腳本自己在結尾會印出這個區別。
+
+**殘餘缺陷記為 D44**：生產端（emulator 音訊時鐘）供應量長期約為消費端需求的 94%，
+兩個獨立時鐘之間沒有任何 rate adaptation。三個候選方向（加大緩衝／低水位滯後／真正的
+rate adaptation）均未定案，見 `project-review.md` D44。

@@ -251,6 +251,22 @@ render block 的唯一工作：`ringBuffer.read(into:count:)`，回傳數不足�
 4. `swift build -c release` 零非-deprecation 警告。
 5. 活體：audio packet 率 **≥ 30 pkt/s**（proto 稱 20–30ms 一包），格式 48000 / stereo / S16。
 6. 活體：連續 60 秒 `underruns == 0`。
+
+   > **⚠️ 更正（2026-08-03，D32）：這條字面判準與本文件 §5 自相矛盾，結構上不可能成立。**
+   >
+   > §5 寫著「`streamAudio` 無封包 ≠ 斷線。遊戲靜音時本來就沒有封包」與「緩衝欠位/
+   > 溢位不是錯誤，是要被計數與觀測的正常現象」。而 `AudioPlayer` 的 render callback
+   > 每 ~10ms 要一次資料（`AudioPlayer.swift:35`），guest 只要有一刻不發聲，
+   > `readStereo` 就走 `underrunCount.wrappingIncrement`（`AudioRingBuffer.readStereo`）。
+   > 所以 `== 0` 在任何含靜音期的 60 秒裡不可能成立。
+   >
+   > 這與 D32 原本記載的「drain 情境下不成立」是**不同的第二個原因**：前者出在測試
+   > harness 的假消費端，後者在真 `AudioPlayer` 下一樣存在。把 harness 換成真的並
+   > 不會讓這條判準變得可達。
+   >
+   > **新表述**：只統計「本秒與前一秒皆有封包」的 underrun 增量，並與「App 存活」
+   > 「串流活著」「畫面 fps」三條一起判。自動化涵蓋在 `app/scripts/verify_audio_gui.sh`，
+   > 完整推導見 `docs/specs/2026-08-03-d32-acceptance-6-automation-design.md`。
 7. fps 不回歸：`MIRAGE_FPS_LOG` 在全螢幕串流解析度上限下 **≥ 55**。
 
 ## 9. pending-human（本機 GUI App headless 不驅動 `.task`，無法自動驗）

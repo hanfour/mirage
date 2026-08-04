@@ -42,6 +42,19 @@ check "assert_equals 不等 → 中止"           "$(run_case 'assert_equals "ab
 # 若把空字串當成「相等」，整組蒐證會在裝置根本沒起來時回報全綠。
 check "assert_equals 實測為空 → 中止"       "$(run_case 'assert_equals "abi" "" "arm64-v8a"')"          1
 
+# assert_at_most 是 assert_at_least 的反向：驗收線 6 的 underrun 增量要的是上限。
+# 邊界（剛好等於門檻）刻意與 assert_at_least 同樣視為通過——門檻是「可接受的最大值」，
+# 不是「必須低於」。
+check "assert_at_most 低於門檻 → 繼續"      "$(run_case 'assert_at_most "欠位" 3 5')"  0
+check "assert_at_most 剛好等於門檻 → 繼續"  "$(run_case 'assert_at_most "欠位" 5 5')"  0
+check "assert_at_most 超過門檻 → 中止"      "$(run_case 'assert_at_most "欠位" 6 5')"  1
+# 空字串當作 0：解析 log 沒抓到數字時，`assert_at_least` 的既有語意是「當作 0 → 中止」，
+# 反向斷言若照抄「當作 0」則會**通過**——那就是假綠燈。所以這裡的空字串必須是呼叫端
+# 自己先擋掉的（Task 4 的 A1/A2 斷言負責），本函式只保證行為明確可預期，不自作聰明。
+check "assert_at_most 值為空 → 當作 0 通過" "$(run_case 'assert_at_most "欠位" "" 5')" 0
+check "assert_at_most 中止後不執行後續指令" \
+      "$(run_case 'assert_at_most "欠位" 6 5; exit 0')" 1
+
 # 中止之後不得繼續執行後面的步驟——這是整組斷言的重點：
 # 「印了 ❌ 但腳本照樣跑完並回傳 0」正是 D9 要修掉的那種假綠燈（verify_mmap.sh 的原狀）。
 check "assert_ok 中止後不執行後續指令" \
