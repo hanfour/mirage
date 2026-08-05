@@ -55,6 +55,17 @@ echo "=== 前置：預先 build 測試 target（不計入動畫窗口）==="
 swift build --build-tests > /dev/null 2>&1
 assert_ok "測試 target build" "$?"
 
+# **開跑前先把場地掃乾淨，理由不是整潔而是斷言的正確性**：收尾那條殘留檢查掃的是
+# `mirage_mmap_*`，而 `phase0/harness/probe_mmap.py`／`probe_mmap_explicit.py` **也**用
+# 這個前綴（`tempfile.mktemp(prefix="mirage_mmap_")`）。有人先手動跑過那兩支、留下殘留，
+# 收尾就會紅在別人的垃圾上——一個因為別人而紅的斷言，跟恆綠的假斷言一樣沒有價值。
+# 先清再量，收尾抓到的就一定是這次跑出來的。
+echo ""
+echo "=== 前置：清掉既有的映射檔殘留（收尾那條斷言的基準）==="
+PRE=$(find "${TMPDIR:-/tmp}" /tmp -maxdepth 1 -name 'mirage_mmap_*' 2>/dev/null | wc -l | tr -d ' ')
+find "${TMPDIR:-/tmp}" /tmp -maxdepth 1 -name 'mirage_mmap_*' -delete 2>/dev/null
+echo "   清掉 ${PRE} 個（非本次產生，可能來自 probe_mmap*.py 或上一次中斷的跑次）"
+
 echo ""
 echo "=== 前置：動畫供應器（streamScreenshot 是變化驅動，靜止畫面不出幀）==="
 ( cd "$HARNESS" && "$PY" animate.py --seconds "$ANIM_SECONDS" >/tmp/mirage_anim.log 2>&1 & )
@@ -105,6 +116,8 @@ echo "=== 驗收線 6：跑完不得有映射檔殘留（close() 的 unlink 有�
 # 因為那是對照組的檔案不是產品的——但那等於自己開一道後門，而後門後面真的有東西：
 # `mmap_client_parity.py` 第一版就漏了 5 個檔（`buf.close()` 在提早 break 時必然拋
 # BufferError，unlink 掛在它後面就永遠不會執行）。兩邊都該清乾淨，一條斷言管兩邊。
+# 前面那道「開跑前先清乾淨」是這條斷言成立的前提——沒有它，這個較寬的 glob 會被
+# 別人（probe_mmap*.py）留下的殘留誤觸發。
 LEFT=0
 for dir in "${TMPDIR:-/tmp}" /tmp; do
   n=$(find "$dir" -maxdepth 1 -name 'mirage_mmap_*' 2>/dev/null | wc -l | tr -d ' ')
