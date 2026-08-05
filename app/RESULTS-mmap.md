@@ -422,11 +422,45 @@ grpc-swift 自己發請求時出現**，不是行程的屬性。
 **所以：grpc-swift 發出的 `streamScreenshot` 請求本身，會讓 emulator 停止更新映射區。**
 而 wire 上的請求 protobuf 已確認與 Python 語意等價、HTTP/2 SETTINGS 也不是原因。
 
-**下一輪該做的**：兩邊的 HEADERS 還沒比對過——proxy 抓到 Swift 送 92 bytes 的 HPACK
-（用索引壓縮）、Python 送 258 bytes（多為字面值）。**需要解 HPACK 才能比對實際的
-header 值**（`grpc-encoding`、`grpc-accept-encoding`、`user-agent`、`te`、或任何
-metadata）。這是目前唯一還沒檢視過的 wire 層面。替代路徑是開 grpc-swift 自己的
-debug logging 把送出的 headers 印出來，成本更低。
+### 七、HEADERS 解開了，**wire 層內容全部等價**——嫌疑轉向 TCP／時序
+
+裝了 `hpack` 解開既有 dump 裡的 HPACK。**Swift 送出的 headers 完全正常**：
+
+```
+:method: POST
+:path: /android.emulation.control.EmulatorController/streamScreenshot
+:authority: localhost
+:scheme: http
+content-type: application/grpc
+te: trailers
+user-agent: grpc-swift-nio/1.27.0
+```
+
+沒有多餘的 metadata、沒有 `grpc-encoding`、沒有異常。
+
+> ⚠️ **第一版解碼是錯的，差點據此下結論。** HPACK 的動態表是**每個方向各一份**，
+> 而第一版用同一個 decoder 解了 `C->S` 與 `S->C` 兩個方向，動態表被污染，解出了
+> `grpc-status: 0`（不可能出現在請求裡）並漏掉 `:authority`／`te`。每個方向各一個
+> decoder 之後才是上面這組。**這是本輪第三次「差點基於錯誤資料下結論」**，前兩次是
+> 儀器污染與拿兩次一致當穩定。
+
+**唯一的實際差異是 `:authority`**——Swift 送 `localhost`（不含 port）、Python 送
+`localhost:8554`。**測了，不是原因**（讓 Python 用 `grpc.default_authority='localhost'`：
+194 vs 195，無差異）。**假設 14 排除。**
+
+**所以：請求的 protobuf 等價、HTTP/2 SETTINGS 等價、HEADERS 等價，但行為不同。**
+差異不在「送出的內容」，只可能在**時序或 TCP 層行為**。
+
+**目前最重要的未解線索**（一直沒有解釋，現在浮上來）：在 client 與 emulator 之間插
+一個純 TCP relay（Python 寫的 `h2proxy.py`，只轉發 bytes），**Swift 的 distinct 從 16
+跳到 92，改善近 6 倍**。proxy 唯一做的事就是改變封包切分與時序——這是 TCP 層有事的
+直接證據。
+
+**下一輪該做的**：
+1. 用 `tcpdump -i lo0` 比對兩邊的封包時序與切分（需要 sudo）
+2. 或在 grpc-swift 的 NIO pipeline 插一個 `ChannelHandler` 記錄 read/write 的時間戳
+3. 檢查 grpc-swift 有沒有設 `TCP_NODELAY`（Nagle 與 delayed ACK 的病理互動會產生
+   數十到數百毫秒的延遲，量級與觀察到的更新率吻合）
 
 ---
 
