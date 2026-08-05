@@ -125,8 +125,20 @@ Python 對照是**同一台 emulator、同尺寸 540×1200、同樣把 handle �
 | 2 | **400** | **109** | 10.3 ／ 9.7 |
 | 3 | **399** | **110** | 9.8 ／ 9.0 |
 
-第 2、3 輪穩定：**Python ≈ 100%、Swift ≈ 27.5%**。差異是真的，且與負載無關（負載只會
-放大它）。這是後續任何實驗該用的基準，取代先前「Swift 凍結／Python 正常」那個二元描述。
+第 2、3 輪：**Python ≈ 100%、Swift ≈ 27.5%**。
+
+> ⚠️ **同日稍晚更正：「Swift ≈ 27.5%」不是穩定基準，這句話寫早了。** 幾小時後在
+> **同一個 emulator 版本（37.2.1）、更低的負載（6.5–6.7）**下重測三次，量到
+> **15／16／13**——不是 109／110。同一份測試、同一個版本、更好的條件，差 7 倍。
+> Python 同時段仍是 393/400。
+>
+> **所以唯一穩定的是方向（Python 380–400、Swift 遠低於它），量值不穩定**（Swift 這一天
+> 量到 1、2、5、13、15、16、17、18、75、92、102、103、109、110、119）。造成 109 vs 15
+> 的變數**至今不明**——負載更低反而更差，所以不是負載；候選包括 emulator 已運行時間
+> （稍早那台已開機約 45 分鐘，重測這台剛開機幾分鐘）。這使 D54 比原記載更嚴重：
+> **不只負載與觀察者，還有一個未知變數讓同一版本差 7 倍。**
+>
+> 任何拿這條路徑的數字做判斷之前，先重量一次基準——**不要引用上面那個 27.5%**。
 
 ### 三、已排除的 8 個假設（全部有實測，非讀碼推論）
 
@@ -176,6 +188,90 @@ client 側訊號（不是 flow control——假設 3 已排除），而 grpc-swi
 Swift  : INITIAL_WINDOW_SIZE=8388608  MAX_FRAME_SIZE=16384   MAX_CONCURRENT_STREAMS=0
 Python : INITIAL_WINDOW_SIZE=4194304  MAX_FRAME_SIZE=4194304 ENABLE_PUSH=0
 ```
+
+---
+
+## 2026-08-05（同日）：上游回覆 + 37.2.3 可靠重測 + AOSP 原始碼
+
+### 一、上游說 37.2.3 Canary 已修，**實測對我們的問題無效**
+
+Google 在 b/537802959 回覆：「A fix for this issue is now available in: **Android Emulator
+37.2.3 Canary**」。
+
+**先更正本文件上一節一個證據不足的判定**：上一節寫「37.2.3 也凍結（`frames=3 distinct=1`）」
+——那是用**已知會誤判的 3 幀窗口**量的。當時所有 400 幀量測都跑在 37.2.1 上，**37.2.3
+從來沒有用可靠窗口測過**。本節補上。
+
+| emulator | Swift distinct/400 | Python distinct/400 | load |
+|---|---|---|---|
+| **37.2.3**（build 15982021） | 18 ／ 15 ／ 17 | 396 ／ 394 ／ 379 | 7.1–7.6 |
+| **37.2.1**（build 15875889，同 session 對照） | 15 ／ 16 ／ 13 | 393 | 6.5–6.7 |
+
+**兩版無差異。** 這與本文件早就寫下的預測一致：上游修的是 0×0 pre-borrow 毒化 cache，
+而「Mirage 從一開始就帶明確尺寸」，本來就踩不到那個 bug。**b/537802959 已修 ≠ 我們的
+問題已修**，這兩件事從頭到尾就不是同一個。
+
+版本命名的註記：manifest（`repository2-3.xml`）定義 `channel-3=canary`，而 37.2.3 的
+`channelRef` 是 **`channel-2`（dev）**，manifest 上沒有任何 canary channel 的 emulator。
+37.2.3 只有一個 build（15982021），所以 Google 口中的「Canary」與 manifest 的 dev
+指的應該是同一個東西——但**下次引用「某某版已修」時，要先確認 build number 對得上**。
+
+### 二、AOSP 原始碼：定位到具體的可疑分支
+
+`android/android-grpc/services/emulator-controller/server/src/android/emulation/control/EmulatorService.cpp`
+（`emu-master-dev`）。
+
+**`streamScreenshot` 的迴圈**（約 line 763-812）：
+
+```cpp
+auto framesArrived  = frameEvent->next(kTimeToWaitForFrame);   // 125ms
+auto sensorsChanged = sensorEvent->next(0ms);
+if ((framesArrived || sensorsChanged || firstTime) && !context->IsCancelled()) {
+    auto status = getScreenshot(context, request, &reply);      // ← 寫入映射區
+    if (status.error_code() == FAILED_PRECONDITION) continue;   // ← 不送通知
+    ...
+    clientAvailable = writer->Write(reply);                     // ← 送通知
+}
+```
+
+寫入與通知在同一個分支，所以「通知 52Hz 但內容只變 15 次」不該發生——**除非
+`getScreenshot` 成功回傳了，卻沒有寫進我們的映射區**。而它確實有這條路徑：
+
+**`getScreenshot` 的 MMAP 分支**（約 line 991-1050）：
+
+```cpp
+std::shared_ptr<SharedMemory> shm;
+uint8_t* pixels;                        // ← 未初始化
+...
+if (request->transport().channel() == ImageTransport::MMAP) {
+    shm = mSharedMemoryLibrary.borrow(request->transport().handle(), cPixels);
+    if (shm->isOpen() && shm->isMapped()) {
+        cPixels = shm->size();
+        pixels  = reinterpret_cast<uint8_t*>(shm->get());   // ← 只有這裡才指向我們的區域
+        auto transport = format->mutable_transport();       // ← 也只有這裡才回填 transport
+        transport->set_handle(request->transport().handle());
+        transport->set_channel(ImageTransport::MMAP);
+    }
+}   // ← 沒有 else，條件不成立時 pixels 保持前值
+...
+ScreenshotUtils::getScreenshot(..., pixels, &cPixels, ...);   // ← 無條件寫入 pixels
+```
+
+**若 `isOpen() && isMapped()` 為 false，`pixels` 不會指向我們的共享記憶體，但函式照樣回
+`OK`、client 照樣收到通知。** 這個形狀正好對應「通知照來、內容不變」。
+
+**兩個可據以設計實驗的具體觀察**：
+1. **`borrow` 在一次串流裡被呼叫兩次，size 不同**——串流開頭是
+   `request->width() * request->height() * bpp`，每幀是 `cPixels`（由前一個「fast call」
+   算出的實際位元組數）。上游修的 pre-borrow bug 正是動這裡。
+2. **回應裡的 `transport` 欄位只在成功路徑被回填。** 這是**可以從 client 端直接觀察的**：
+   我們抓到的 wire dump 顯示通知 payload 裡確實帶著 `file://…` handle，代表那些通知走的
+   是成功路徑——**所以嫌疑要往「成功寫入了，但寫到不是我們讀的那塊」的方向查**，
+   而不是「條件不成立」。
+
+`SharedMemoryLibrary::borrow` 的實作**沒有在 `emu-master-dev` 上找到**
+（`android-grpc/utils/include/.../Library.h` 只有通用的 `acquire`，沒有依 handle 快取的
+`borrow`）。那是下一輪該補上的一塊——它決定了「同一個 handle 借兩次」會發生什麼事。
 
 ---
 
