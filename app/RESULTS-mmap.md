@@ -393,9 +393,40 @@ pread 看到 167 種不同內容
 
 **剩下的範圍**：現象需要 emulator 當寫入端才會出現，而 client 端的建立方式、mmap
 本身、fd 保留、負載、CPU、emulator 版本都已排除。下一輪最有價值的實驗是**把兩者拆開**
-——由 Python 送 gRPC 請求、但 handle 指向 Swift 行程建立並持有的檔案，看 Swift 讀不讀
-得到。那會直接分離「誰發的 gRPC 請求」與「誰持有那個檔案」這兩個變數，而目前為止
-所有實驗都把它們綁在一起。
+——由 Python 送 gRPC 請求、但 handle 指向 Swift 行程建立並持有的檔案。
+
+### 六、拆開之後：問題跟著 gRPC client 走，**不是**跟著持有檔案的行程走
+
+上一段那個實驗做了（`scratchpad/split_roles.swift`：Swift 完全照 `MmapBuffer.init`
+建檔、mmap、保留 fd 並負責讀，而 gRPC 請求由 Python 子行程送出，handle 指向 Swift
+建的那個檔案）：
+
+| 角色分配 | Swift 讀到的相異內容 |
+|---|---|
+| Swift 建檔＋持有＋**發請求** | 0–23 種 |
+| Swift 建檔＋持有，**Python 發請求** | **277 種**（376 次取樣） |
+
+**同一個 Swift 行程、同樣的建檔與 mmap 方式，只要改由 Python 發請求就完全正常。**
+
+這推翻了上一節「Swift 行程對該 vnode 的檢視凍結」那個描述——那個現象**只在
+grpc-swift 自己發請求時出現**，不是行程的屬性。
+
+**接著又排除兩個**：
+
+- **假設 12：HTTP/2 SETTINGS**。讓 Python 模仿 Swift 的設定（`max_frame_size=16384`、
+  8MB window）：106／143／130，全在正常範圍，沒有重現。
+- **假設 13：`MmapStreamTransport` 的 `AsyncThrowingStream` 包裝**。在測試裡繞過它，
+  直接在 grpc-swift 的 `responseStream` 上讀 mmap：`distinct=23`，與經過包裝的 22
+  一樣壞。**不是那層包裝。**
+
+**所以：grpc-swift 發出的 `streamScreenshot` 請求本身，會讓 emulator 停止更新映射區。**
+而 wire 上的請求 protobuf 已確認與 Python 語意等價、HTTP/2 SETTINGS 也不是原因。
+
+**下一輪該做的**：兩邊的 HEADERS 還沒比對過——proxy 抓到 Swift 送 92 bytes 的 HPACK
+（用索引壓縮）、Python 送 258 bytes（多為字面值）。**需要解 HPACK 才能比對實際的
+header 值**（`grpc-encoding`、`grpc-accept-encoding`、`user-agent`、`te`、或任何
+metadata）。這是目前唯一還沒檢視過的 wire 層面。替代路徑是開 grpc-swift 自己的
+debug logging 把送出的 headers 印出來，成本更低。
 
 ---
 
