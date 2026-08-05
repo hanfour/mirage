@@ -9,13 +9,46 @@
 # 而這兩者的下一步完全相反。D39 之前這個對照是手工搭的，只做過一次。
 set -uo pipefail
 export ANDROID_SERIAL=emulator-5554
-cd "$(dirname "$0")/.." || exit 1
-source "$(dirname "$0")/lib/verify_common.sh"
+# **路徑要在 cd 之前解析成絕對路徑。** 原本是 `cd "$(dirname "$0")/.."` 之後再
+# `source "$(dirname "$0")/lib/..."`——`$0` 是相對路徑時，cd 完那個相對路徑就失效了，
+# 於是這支腳本只在「從 app/ 目錄呼叫」時才正確。從 repo root 呼叫時兩個 source 都
+# 靜默失敗，而 `set -u` 不管函式，缺少的函式要到被呼叫時才炸成 command not found。
+# D54 加負載門檻時才踩到：門檻看起來有作動（腳本確實中止了），實際上是
+# `load_gate: command not found` 的退出碼 127 讓 `if !` 成立——**一道從未執行過的閘門**。
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+cd "$SCRIPT_DIR/.." || exit 1
+source "$SCRIPT_DIR/lib/verify_common.sh"
+source "$SCRIPT_DIR/lib/load_sentinel.sh"
 HARNESS="$(cd ../phase0/harness && pwd)"
 # animate 要涵蓋「build + Python 對照 + Swift 測試」整段，不只測試本身。
 ANIM_SECONDS="${ANIM_SECONDS:-90}"
+# **12 不是隨便挑的**（D54）：2026-08-05 的根因調查裡，`swift build -c release` 把
+# load 推到 22，緊接著跑的同一份測試量到 1–2；build 快取、load≈9 時量到 75–110。
+# 12 落在兩者之間。可用 LOAD_LIMIT 覆寫，但覆寫等於宣告「我知道這批數字不可信」。
+LOAD_LIMIT="${LOAD_LIMIT:-12}"
 
 require_grpc 8554
+
+# **量測前的負載門檻（D54）**。這條在 2026-08-05 之前不存在，於是那天所有 MMAP 數字
+# 都可能是在量負載而不是量行為——同一份測試在那一天量到 1 到 119。
+#
+# **超標就中止，不是印個警告繼續**：`load_sentinel.sh` 自己寫的規則是「寧可重測，
+# 不要留一筆自己都不相信的數字」。印警告繼續的版本，等於把判讀責任丟給下一個人，
+# 而那個人多半只會看最後一行的 ✅。
+echo ""
+echo "=== 前置：主機負載門檻（上限 ${LOAD_LIMIT}）==="
+LOAD_BEFORE=$(load_avg_1min)
+if ! load_gate "$LOAD_LIMIT"; then
+  echo "❌ 量測前負載 ${LOAD_BEFORE} 已超標，中止。"
+  # **這一行不能用反引號**：雙引號裡的反引號是命令替換，第一版寫成
+  # 「（`swift build` 剛跑完時…）」，於是每次負載超標時腳本都會真的去跑一次
+  # swift build——把一支「因為機器太忙而中止」的路徑，變成再加一份負載。
+  # 與閘門 4 擋的全形標點同型：中文說明文字裡混進 shell 語法。
+  echo "   等機器安靜下來再跑（swift build 剛跑完時特別容易踩到），"
+  echo "   或 LOAD_LIMIT=<更高> 覆寫——但那等於宣告你知道這批數字不可信。"
+  exit 1
+fi
+echo "✅ 量測前負載 ${LOAD_BEFORE}（上限 ${LOAD_LIMIT}）"
 
 echo ""
 echo "=== 前置：具備 grpc+protobuf 的 python ==="
@@ -104,6 +137,28 @@ else
   echo "   對照組同時是綠的 → 缺陷在 grpc-swift 這條路徑上，不在 emulator。"
   echo "   刻意不讓它中止本腳本——但它不再是靜默丟棄，退出碼現在看得見。"
 fi
+
+# **量測後回檢（D54／D50）**。量測前的門檻擋不住「開始時安靜、擷取途中才飆高」，
+# 那正是 D50 記載的形狀：D45 有兩個樣本因此被污染，靠人工比對既有基準才被識別。
+# 這裡不猜門檻，只做一件事——把前後兩個負載都印出來，並在明顯上升時明講。
+echo ""
+echo "=== 收尾：量測期間的負載變化 ==="
+LOAD_AFTER=$(load_avg_1min)
+echo "   量測前 ${LOAD_BEFORE} → 量測後 ${LOAD_AFTER}"
+if awk -v a="$LOAD_BEFORE" -v b="$LOAD_AFTER" 'BEGIN { exit !(b > a * 1.5 && b > 8) }'; then
+  echo "⚠️  負載在量測期間明顯上升——**本次的 distinct 數字不可信，請重測**。"
+  echo "   （量測前的門檻擋不住這種情況，這就是 D50 的形狀。）"
+fi
+
+# **這段警語不是客套，是這批數字唯一誠實的讀法**（D54）。2026-08-05 的根因調查裡，
+# 同一份 Swift 測試在同一天量到 1、2、5、13、15、16、17、18、75、92、102、103、
+# 109、110、119——差 100 倍以上，而其中一次「同版本、更低負載卻更差 7 倍」的變數
+# 至今不明。文件一度把某次量到的 27.5% 寫成「穩定基準」，幾小時後就被自己推翻。
+echo ""
+echo "⚠️  **不要單獨引用上面任何一個 distinct 絕對值。** 這條路徑的量測已知極不穩定"
+echo "   （同一天、同一份測試量到 1 到 119），且造成波動的變數尚未完全查明（D54）。"
+echo "   唯一穩定的是**方向**：Python 應該接近滿分，Swift 遠低於它。要做比較時，"
+echo "   在同一次跑次內比兩者，不要跨跑次比絕對值。"
 
 echo ""
 echo "=== 驗收線 6：跑完不得有映射檔殘留（close() 的 unlink 有沒有生效）==="
