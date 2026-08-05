@@ -269,9 +269,79 @@ ScreenshotUtils::getScreenshot(..., pixels, &cPixels, ...);   // ← 無條件�
    是成功路徑——**所以嫌疑要往「成功寫入了，但寫到不是我們讀的那塊」的方向查**，
    而不是「條件不成立」。
 
-`SharedMemoryLibrary::borrow` 的實作**沒有在 `emu-master-dev` 上找到**
-（`android-grpc/utils/include/.../Library.h` 只有通用的 `acquire`，沒有依 handle 快取的
-`borrow`）。那是下一輪該補上的一塊——它決定了「同一個 handle 借兩次」會發生什麼事。
+### 三、補齊：`SharedMemoryLibrary` 與 `SharedMemory` 的完整寫入路徑
+
+上一段說「`borrow` 的實作沒找到」，現在找到了，連底層的 `SharedMemory` 一起：
+
+- `…/emulator-controller/server/src/android/emulation/control/utils/SharedMemoryLibrary.{h,cpp}`
+- `platform/hardware/google/aemu`（**獨立 repo**，不在 `external/qemu` 裡）的
+  `base/include/aemu/base/memory/SharedMemory.h` 與 `base/SharedMemory_posix.cpp`
+
+**`SharedMemoryLibrary::borrow` 有兩個真實缺陷**：
+
+```cpp
+if (mHandlesCnt.count(handle) == 0) {
+    auto shm = std::make_unique<SharedMemory>(handle, size);
+    shm->open(SharedMemory::AccessMode::READ_WRITE);   // ← 回傳值沒有被檢查
+    mMemMap.emplace(handle, std::move(shm));
+}
+SharedMemory* shm = mMemMap[handle].get();
+assert(shm->size() >= size);                           // ← release build 裡是 no-op
+```
+
+開啟失敗時 `shm` 照樣進 map，之後 `isOpen()/isMapped()` 為 false，正好落進上一段那個
+**沒有 else** 的分支。header 註解也證實「only the **initial** size specification will be
+used」——而 `streamScreenshot` 開頭用 `w*h*bpp` pre-borrow、每幀用 `cPixels`，第二個
+size 被忽略。這條因果鏈本身是完整且合理的。
+
+**但底層實作推翻了「寫到別處」這個方向**（`SharedMemory_posix.cpp`）：
+
+```cpp
+mFd  = ::open(mName.c_str(), O_CREAT|O_RDWR, mode);              // file:// → 檔案
+mAddr = mmap(nullptr, mSize, PROT_READ|PROT_WRITE, MAP_SHARED, mFd, 0);
+```
+
+**emulator 用的是檔案映射 + `MAP_SHARED`，與我們的 client 完全一致**（我們是
+`PROT_READ|MAP_SHARED` 同一個檔案）。兩邊映射同一批 physical page，內容必然一致——
+沒有「emulator 寫到我們看不到的地方」這回事。
+
+### 四、兩個實驗，把最後的環境疑慮清乾淨
+
+讀完原始碼後產生一個新假設：`getScreenshot` 在 guest 沒有新畫面時回
+`FAILED_PRECONDITION`，而 `streamScreenshot` 對它 `continue`（**不送通知**）。所以
+**通知數 = 成功取得新畫面的次數**——Swift 收到 400 個通知卻只有 15 種內容，意味著
+guest 那段時間只產生了 15 個不同畫面。而 qemu 產生畫面要吃 CPU，`swift test` 是重載體、
+Python 對照是輕載體。**若這就是差異來源，那「grpc-swift 有問題」這個前提本身就錯了。**
+
+**實驗 A——給 Python 加等量的 CPU 競爭**（假設 10，推翻）：
+
+| 競爭行程數 | Python distinct/400 | load |
+|---|---|---|
+| 0 | 238 | 13.93 |
+| 2 | 174 | 14.42 |
+| 4 | 180 | 16.68 |
+| 6 | **174** | **23.41** |
+
+CPU 競爭確實會壓低 Python（238→174，−27%），但**遠遠到不了 Swift 的量級**。
+load 23.4 下的 Python 是 43.5%，而 load 6.5 下的 Swift 是 3.75%。**CPU 是放大因子，
+不是成因。**
+
+**實驗 B——兩個 client 同時對同一台 emulator**（決定性）：
+
+| client | distinct/400 | load |
+|---|---|---|
+| Python（**與 Swift 同時跑**） | **376（94%）** | 28.05 |
+| Swift（單獨跑、負載更低） | **19（4.75%）** | 18.10 |
+
+Python 在**更高的負載下、且與 Swift 競爭同一個 GPU 事件源**時，仍拿到 94%。
+
+**這一次對照把三件事同時排除了**：guest 的畫面產生速率（Python 同時證明 guest 在高速
+產生新畫面）、CPU 競爭（load 28 下仍 94%）、emulator 端的 MMAP 寫入（同一個 emulator
+行程同時服務兩個 client，一個好一個壞）。
+
+**結論：根因確定在 grpc-swift 這條 client 路徑上。** 這是本輪最重要的產出——先前
+「Swift 慢」的判斷一直帶著「會不會只是環境／負載偽影」的疑慮（而那個疑慮是有根據的，
+見 D54），現在它被一次同時對照清掉了。**方向從未動搖過，現在證據也硬了。**
 
 ---
 
