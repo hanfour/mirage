@@ -456,11 +456,62 @@ user-agent: grpc-swift-nio/1.27.0
 跳到 92，改善近 6 倍**。proxy 唯一做的事就是改變封包切分與時序——這是 TCP 層有事的
 直接證據。
 
-**下一輪該做的**：
-1. 用 `tcpdump -i lo0` 比對兩邊的封包時序與切分（需要 sudo）
-2. 或在 grpc-swift 的 NIO pipeline 插一個 `ChannelHandler` 記錄 read/write 的時間戳
-3. 檢查 grpc-swift 有沒有設 `TCP_NODELAY`（Nagle 與 delayed ACK 的病理互動會產生
-   數十到數百毫秒的延遲，量級與觀察到的更新率吻合）
+### 八、時序層也查完了——三個假設全排除，核心矛盾原封不動
+
+**假設 15：grpc-swift 沒設 `TCP_NODELAY`。** 排除——原始碼有設
+（`ConnectionManagerChannelProvider.swift:240`，client 端 `channelOption`）。
+
+**假設 16：client 每幀的處理成本拖慢整條鏈。** 排除，而且是被自己的量測推翻的。
+在 `MmapStreamTransport.consume` 裡分別量「await 等待下一個通知」與「snapshot 複製
+2.5MB」：
+
+```
+n=400 平均 await=37.5ms 平均 snapshot=0.7ms
+```
+
+**snapshot 只花 0.7ms**——client 處理極快，時間全花在等通知上。順帶推翻了「批次到達」
+的猜測：逐幀記錄到達時間後，**簇數=400、簇大小全是 1、相鄰間隔 <1ms 的比例 0/399**，
+幀是均勻分散到達的，不是成簇。
+
+**假設 17：8MB 的 HTTP/2 target window 讓 grpc-swift 從不送 `WINDOW_UPDATE`。**
+這是 wire dump 上唯一還沒被測試的差異（Swift 送 0 個、Python 送 15 個），而且它能同時
+解釋 proxy 效應（proxy 有自己的 window 管理、會產生 `WINDOW_UPDATE`）。
+`GRPCChannelPool.Configuration.http2.targetWindowSize` 預設 8MB，把它調到 64KB 與 16KB：
+
+| targetWindowSize | 平均 await | distinct |
+|---|---|---|
+| 8MB（預設） | 15.7ms | **1** |
+| 64KB | 15.9ms | **1** |
+| 16KB | 15.9ms | **1** |
+
+**沒有差異。排除。**
+
+**這一輪還量到一個推翻我自己前提的數字**：`await` 是 **15.7ms（≈60Hz）——通知速率
+完全正常**，而 `distinct` 仍是 1。先前那次 37.5ms 只是機器狀態。**所以「通知慢」從來
+不是問題，問題自始至終都是「內容不更新」。**
+
+### 九、目前的核心矛盾（給下一輪的交接）
+
+把所有已確立的事實並排，矛盾非常尖銳：
+
+| 事實 | 證據 |
+|---|---|
+| emulator 為 Swift 這條 stream 做了 400 次**成功**的 `getScreenshot` | `Image.seq` = 1–400 連續、零重複 |
+| 那 400 次都走了 **MMAP 成功路徑** | 通知裡帶著 `file://` handle，而該欄位**只在 `if (shm->isOpen() && shm->isMapped())` 內回填** |
+| emulator 寫入用的是檔案映射、與 client 同一批 physical page | `SharedMemory_posix.cpp`：`mmap(..., MAP_SHARED, fd, 0)` |
+| client 端讀取正常、極快 | mmap 與 `pread` 400 次比對零不一致；snapshot 0.7ms |
+| **但映射區內容從不改變** | `distinct=1` |
+| **同一個檔案、同一時刻，改由 Python 發請求就完全正常** | 角色拆分實驗：277 種 |
+
+**這六條同時成立**，而它們在邏輯上互相排斥——除非 emulator 端為兩個 client 開啟的
+`SharedMemory` 物件不同，但 `SharedMemoryLibrary` 是以 handle 字串為 key 的
+（`std::unordered_map<std::string, ...>`），而兩者的 handle 字串格式相同。
+
+**這已經超出 client 側能觀測的範圍。** 下一輪只有兩條路：
+1. **自己 build 一份帶 log 的 emulator**（原始碼位置本文件都已記錄），在
+   `SharedMemoryLibrary::borrow` 與 `getScreenshot` 的 MMAP 分支插 log
+2. **回報上游**——我們現在有極精確的重現條件與 17 項排除清單，比 2026-07-27 那次
+   （「只收到一次寫入」）精確得多，值得開一個新的 issue
 
 ---
 
