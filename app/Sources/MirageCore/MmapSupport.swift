@@ -115,15 +115,23 @@ public enum DisplayTransportChoice: Equatable, Sendable {
 /// `00 00 00 FF`，非全零），會直接通過探測。使用者看到的是一張永遠凍結、卻沒有任何降級
 /// 或錯誤訊號的畫面——比乾脆不支援 MMAP 更糟。
 ///
-/// 上游 b/537802959 已於 2026-07-25 標記 fixed，但**含修正的 emulator build 尚未發布**
-/// （aarch64 可取得的最新版仍是我們驗證時用的 37.2.1.0）。修正版存在與否目前無法驗證，
 /// 所以先把預設收回 raw、MMAP 留著但要靠環境變數 `MIRAGE_TRANSPORT=mmap` 主動選擇加入
 /// 才會啟用——啟用仍需**兩個條件同時成立**：`mmapOptIn == true` **且**版本 ≥37
 /// （版本閘是獨立的安全互鎖，36.x 收到 MMAP 請求會 SIGSEGV，見 MmapVersionGate，
 /// 與「MMAP 在 37.x 上是否真的可用」無關，故不可移除）。
 ///
-/// **未來若要把預設改回 MMAP**：必須先在含上游修正的 emulator 版本上重新做一次活體驗證，
-/// 確認凍結問題確實消失，不能只憑上游 issue 狀態變成 fixed 就恢復預設。
+/// **2026-08-05 重驗（D39）更正**：原本這裡寫著「上游 b/537802959 已標記 fixed 但含修正
+/// 的 build 尚未發布，等新版再驗」。實測 37.1.11(stable)／37.2.1(canary)／37.2.3(dev)
+/// 三個版本，Swift 全部凍結、同條件的 Python client 全部正常——**凍結與 emulator 版本
+/// 無關，不要再等新版**。要恢復預設，該做的是查 grpc-swift 這條路徑，不是升 emulator。
+///
+/// 同一次重驗還推翻了「MMAP 幫不上 fps」：在全螢幕解析度 898×1996 上，raw RGBA 這條路徑
+/// 撞到約 273 MiB/s 的吞吐天花板、fps 掉到 40.0，而 MMAP 是 56.7（驗收線 7 的門檻是 55）。
+/// 原結論是在 540×1200 量的，那個解析度只用到 147 MiB/s、根本沒到天花板。
+/// 兩者的完整數據與限定條件見 `app/RESULTS-mmap.md` 的「2026-08-05 重驗」一節。
+///
+/// **未來若要把預設改回 MMAP**：必須先在真模擬器上重新做一次活體驗證（`verify_mmap.sh`
+/// 現在會同時跑 Python 對照組），確認凍結問題確實消失，不能只憑上游 issue 狀態恢復預設。
 public enum DisplayTransportSelector {
     public static func choose(emulatorVersion: String, mmapOptIn: Bool) -> DisplayTransportChoice {
         guard mmapOptIn, MmapVersionGate.allows(versionString: emulatorVersion) else {

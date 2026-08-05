@@ -16,7 +16,10 @@ import Testing
         #expect(a != b)
     }
 
-    /// 路徑必須含 mirage_mmap_ 前綴——驗收線 6 靠這個前綴檢查 /tmp 殘留。
+    /// 路徑必須含 mirage_mmap_ 前綴——驗收線 6 靠這個前綴檢查殘留。
+    /// （本測試傳入的 tempDir 是 `/tmp`；產品實際拿的是 `NSTemporaryDirectory()`，
+    /// 在 macOS 上回傳 `$TMPDIR`。`verify_mmap.sh` 因此兩個目錄都掃——它原本只掃
+    /// `/tmp`，於是那條檢查恆為 PASS，2026-08-05 D39 修掉。）
     @Test func handlePathCarriesRecognisablePrefix() {
         let p = MmapSupport.handlePath(tempDir: "/tmp/", pid: 42, seq: 1, width: 900, height: 2000)
         #expect(p.hasPrefix("/tmp/mirage_mmap_"))

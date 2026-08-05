@@ -240,9 +240,20 @@ P1-a 迴歸的證據，改列為未量測（**當時記為 pending-unlock，該�
 活體驗證發現 `MmapStreamTransport` 在 emulator canary 37.2.1.0 上會**凍結**：Swift client
 只收到映射區的一次真實寫入，之後畫面不再更新，而現有降級機制（只認「前 3 幀全零」）攔不住
 這個「凍結但非全零」的失敗模式——使用者會看到一張永遠凍結的畫面，且沒有任何降級或錯誤訊號。
-三輪排查未能鎖定根因，上游 bug（b/537802959）雖已標記 fixed，但含修正的 emulator build
-尚未發布，無法驗證是否已解決。完整細節見 `RESULTS-mmap.md`。**因此預設收回 raw RGBA，MMAP
-需主動選擇加入才會啟用**，供未來在含修正的 emulator 上重新驗證用。
+三輪排查未能鎖定根因。完整細節見 `RESULTS-mmap.md`。**因此預設收回 raw RGBA，MMAP
+需主動選擇加入才會啟用**。
+
+**⚠️ 2026-08-05（D39）重驗：不要再等 emulator 新版了。** 這裡原本寫著「上游 bug
+（b/537802959）雖已標記 fixed 但含修正的 build 尚未發布，無法驗證」。實測 37.1.11(stable)／
+37.2.1(canary)／37.2.3(dev) 三個版本，Swift 全部凍結（`frames=3 distinct=1`），而同一台
+emulator、同尺寸、同條件的 **Python(grpcio) 對照全部正常**（`frames=30 distinct=30`）——
+**凍結與 emulator 版本無關，缺陷在 grpc-swift 這條路徑上**。
+
+同一次重驗還推翻了「MMAP 幫不上 fps」：raw RGBA 這條路徑的吞吐天花板在 **270–290 MiB/s**，
+而全螢幕 898×1996 要跑滿 60fps 需要 **410 MiB/s**——結構上到不了。同機同內容下
+raw **40.0** fps／MMAP **56.7** fps（驗收線 7 的門檻是 55）。所以這個凍結擋著的是驗收線 7
+本身。原本「MMAP 幫不上」的結論是在 540×1200 量的，那個解析度只需要 148 MiB/s，剛好貼著
+天花板下緣、本來就在滿速——觀察沒錯，錯的是外推。完整數據與限定條件見 `RESULTS-mmap.md`。
 
 ## 版本閘為何不放寬
 
@@ -276,12 +287,19 @@ raw RGBA——opt-in 不能繞過版本閘，兩者是正交的兩道判斷。
 
 ## 活體驗證：`./scripts/verify_mmap.sh`
 
-需要一個正在跑的 emulator 與動畫供應器（畫面需要在變動，`streamScreenshot` 是變化驅動，
+需要一個正在跑的 emulator（腳本會自己起動畫供應器——`streamScreenshot` 是變化驅動，
 靜止畫面不出幀）。腳本本身已加上 `MIRAGE_TRANSPORT=mmap` 觸發 opt-in 路徑。
 
-**目前預期會紅**：在 emulator 37.2.1.0 上，`MmapStreamLiveTests` 會因凍結缺陷而失敗
-（收到的幀非零但互異數不足），這是已知產品缺陷，不是測試腳本或環境問題。等含上游修正的
-emulator build 發布並重新驗證確認凍結消失後，這條測試才應該轉綠。
+**它量的是兩條路徑，不是一條**（D39，2026-08-05 改）：
+
+| 段落 | 是什麼 | 現況 |
+|---|---|---|
+| Python 對照（`mmap_client_parity.py`） | emulator 的 MMAP 寫入端正不正常 | ✅ **硬斷言**，失敗即中止 |
+| Swift 活體（`MmapStreamLiveTests`） | 產品實際會走的路徑正不正常 | ❌ 已知凍結，印退出碼不中止 |
+
+只量 Swift 那條時，紅燈分不出「上游壞了」與「只有我們的 client 壞了」，而這兩者的下一步
+完全相反。**Swift 那條目前預期會紅**，這是已知產品缺陷，不是測試腳本或環境問題；對照組
+同時是綠的，就是「缺陷在 client 側」的證據。腳本會在 Swift 那條轉綠時明確喊「狀態已改變」。
 
 ## 驗收與設計文件
 

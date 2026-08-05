@@ -16,6 +16,89 @@ MMAP 需 `MIRAGE_TRANSPORT=mmap` 環境變數主動選擇加入**，基礎建設
 
 ---
 
+## ⚠️ 2026-08-05 重驗（D39）：兩個結論被推翻
+
+本文件下方「沒有含修正的 emulator build 可測」與「MMAP 幫不上 fps」兩節記載的結論，
+在 2026-08-05 的重驗中**都被實測推翻**。原文全部保留（推翻的過程本身是證據），
+但讀下面任何一節之前先讀這裡。
+
+### 推翻一：凍結與 emulator 版本無關，「等新版」是錯的等待
+
+原本的處置是「等含上游修正的 build 發布後重驗」。實測三個版本，**全部凍結**：
+
+| emulator | channel | build | Swift(grpc-swift) | Python(grpcio) |
+|---|---|---|---|---|
+| 37.2.1.0 | canary | 15875889 | ❌ `frames=3 distinct=1` | ✅（2026-07-27 記錄） |
+| 37.1.11.0 | stable（pin） | 15917651 | ❌ `frames=3 distinct=1` | ✅ `frames=30 distinct=30` |
+| 37.2.3.0 | dev（最新） | 15982021 | ❌ `frames=3 distinct=1` | ✅ `frames=30 distinct=30` |
+
+Python 對照是**同一台 emulator、同尺寸 540×1200、同樣把 handle 放 `$TMPDIR`、同樣先
+`getStatus` 再 `streamScreenshot`**——唯一的變數是 client 實作。2026-07-27 的對照只在
+37.2.1 上做過一次且是手工搭的；本次把它固化成 `phase0/harness/mmap_client_parity.py`，
+並接進 `app/scripts/verify_mmap.sh` 當硬斷言。
+
+**這件事其實本文件自己早就預告過**：下方「沒有含修正的 emulator build 可測」一節寫著
+「上游修的 0×0 pre-borrow 與本階段觀察到的凍結**不是同一個現象**」。既然如此，等一個
+修別的 bug 的 build，本來就沒有理由會解決這個凍結。這個等待前提從寫下的那天起就站不住，
+只是沒人回頭質疑它——與 D32／D45 同型（「阻礙已消失／從未成立，但沒人回頭驗」）。
+
+**因此**：`MmapStreamLiveTests` 與各處註解裡「等含修正的 emulator 發布後才應該轉綠」
+的敘述全部作廢。要修這個缺陷，該查的是 grpc-swift 這條路徑，不是等上游。根因仍未鎖定
+（2026-07-27 那三輪排查推翻的 8 個假設依然有效，本次沒有新增排除項）。
+
+一個取樣上的坑，順帶記下來：重驗時 Python 對照第一次跑出 `frames=5 distinct=1`，看起來
+像「Python 也凍結了」。實際是 5 幀在 60Hz 下只跨 **83ms**，而 `animate.py` 供應的畫面
+變化率低於 60Hz——窗口內畫面本來就沒變。拉到 30 幀／525ms 後 `distinct=30`。
+`MmapStreamLiveTests` 只取 3 幀（約 150ms）有同樣的偽陰性風險，見 D52。
+
+### 推翻二：MMAP 對全螢幕解析度的 fps **有決定性幫助**
+
+`memory` 與 `investigation.md` §11.2 記載「頻寬不是瓶頸，所以 MMAP 幫不上」。該結論是在
+**540×1200** 下得出的，而 Phase-1 全螢幕實際跑在 **898×1996**（D45 實測收斂值）。
+本次在同一台機器上用 `bench_mmap_vs_rgba.py` 重掃：
+
+| 解析度 | raw RGBA fps | MMAP fps | 差 | raw 的 gRPC 吞吐 |
+|---|---|---|---|---|
+| 540×1200 | 59.5 | 59.8 | +0.3 | 147 MiB/s |
+| **898×1996（全螢幕）** | **40.0** | **56.7** | **+16.7** | **273 MiB/s** |
+| 1080×2400 | 29.0 | 58.0 | +29.0 | 287 MiB/s |
+
+形狀很清楚：**raw RGBA 這條路徑的吞吐天花板在 270–290 MiB/s**。540×1200 只用到 147 MiB/s
+所以不受限——這正是 §11.2 在那個解析度上看不到頻寬瓶頸的原因，它的觀察沒錯，錯的是把
+「在 540×1200 上不是瓶頸」外推成「不是瓶頸」。一過天花板，fps 就隨解析度反比下降；
+而 MMAP 在**每一個**解析度都維持 55–60 fps。
+
+**這個模型可以直接對源驗算，而且三個點全中**——若 fps 真的只由「吞吐天花板 ÷ 幀大小」
+決定，那用實測吞吐除以幀大小就該還原出實測 fps：
+
+| 解析度 | 每幀 | 實測吞吐 ÷ 每幀 | 實測 fps | 跑滿 60fps 需要 |
+|---|---|---|---|---|
+| 540×1200 | 2.472 MiB | 147.2 ÷ 2.472 = **59.5** | 59.5 | 148 MiB/s（天花板之下，跑得滿）|
+| 898×1996 | 6.837 MiB | 273.1 ÷ 6.837 = **39.9** | 40.0 | **410 MiB/s** |
+| 1080×2400 | 9.888 MiB | 287.2 ÷ 9.888 = **29.0** | 29.0 | **593 MiB/s** |
+
+所以更精確的講法不是「898×1996 需要 273 MiB/s」（273 是它**實際達到**的吞吐，不是需求），
+而是：**全螢幕要跑滿 60fps 需要 410 MiB/s，而這條路徑最多給到 270–290**——差距是 1.4 倍，
+不是差一點。540×1200 需要 148 MiB/s、實測 147.2，剛好貼著天花板下緣過關；這也解釋了為什麼
+§11.2 在那個解析度上「降到 1/4 解析度 fps 幾乎不動」——它本來就已經在滿速，降下去自然沒有
+更多可拿。**同一份數據換一個解析度就導出相反的結論，這是外推的代價。**
+
+**這讓 MMAP 從「實驗性玩具」變成驗收線 7（fps ≥ 55）的關鍵路徑**：D48 記載全螢幕實測
+中位數 43–51、門檻 55，而這裡量到同一條鏈路換成 MMAP 就有 56.7。
+
+**但這組數字必須帶著它的限定讀**，理由與本文件驗收線 7 的但書完全相同：
+1. 這是 **Python client（grpcio 直連）**量到的**這條鏈路的能力上限**，不是 `MirageCore`
+   實際交付的收益——Swift 路徑目前凍結，一格都拿不到。
+2. 內容是 `animate.py` 的人造動畫，不是真遊戲；guest 端的畫面產生速率可能不同。
+3. 主機負載 load≈7，非安靜狀態。
+4. raw 的 40.0 fps 與 D45 量到的 43–51 不是同一種量法／同一台 AVD／同一種內容，
+   數量級相符但不可逐一對應。
+
+換句話說：**這條鏈路在全螢幕上有約 +17 fps 的空間，MMAP 是取得它的已知手段，而我們
+目前拿不到它。** 凍結根因從「等上游」變成「擋在驗收線 7 前面的東西」。
+
+---
+
 ## 驗收線逐條裁決（spec §8）
 
 | # | 驗收線 | 判定 | 實測 |
@@ -25,7 +108,7 @@ MMAP 需 `MIRAGE_TRANSPORT=mmap` 環境變數主動選擇加入**，基礎建設
 | 3 | `swift build -c release` 零非-deprecation 警告 | ✅ PASS | 完整重建：`Build complete! (11.43s)`；對完整 log `grep -ci warning` 與 `grep -ci deprecat` **皆為 0**——零警告，連 deprecation 警告都沒有 |
 | 4 | `coverage.sh` 的 `MirageCore` 段不低於 ~94% 基準 | ❌ **FAIL（如實記錄，屬預期後果，見下）** | 本次重新量測：`TOTAL` line **87.80%**（1238 行、151 未覆蓋），明顯低於 ~94% 基準。**根因非回歸**：`MmapStreamTransport.swift` 本次量到 **0.00%**（107 行全未覆蓋）——因為預設翻轉後該檔案是 opt-in 路徑，`coverage.sh` 沒有設定 `MIRAGE_TRANSPORT=mmap`，`MmapStreamLiveTests` 因三閘門缺一而 early return，一行產品程式碼都沒執行到。詳見下方「覆蓋率下降是預期的」一節 |
 | 5 | 活體：`MIRAGE_LIVE_MMAP=1` 下 `MmapStreamTransport` 收到 ≥3 個**非零且互異**的幀 | ❌ **FAIL** | `./scripts/verify_mmap.sh`（本次重新量測，已加 `MIRAGE_TRANSPORT=mmap`）：`[mmap-live] frames=3 distinct=1`；`✘ Test realEmulatorWritesIntoMappedBuffer() failed ... Expectation failed: (Set(digests).count → 1) >= 2`。收到 3 幀、`isValid` 與 `!isBlank` 皆通過（非全零），但 3 幀內容逐位元組相同——**這正是凍結缺陷**，見下方「凍結缺陷」一節的完整交叉驗證 |
-| 6 | 活體：跑完後 `/tmp` 無 `mirage_mmap_*` 殘留 | ⚠️ PASS（**檢查本身無驗證意義，見已知限制**） | `verify_mmap.sh` 輸出「殘留檔案數：0 / PASS」。但 `MmapSupport.handlePath` 用的 `NSTemporaryDirectory()` 在 macOS 實際回傳 `$TMPDIR`（`/var/folders/.../T/`），**不是** `/tmp`——這條檢查的 glob 恆對不到 Swift 實際建立的檔案，**恆為 PASS，不論 `close()`/`unlink` 有沒有真的生效**。此為 Task 8 已發現、本次複核仍然成立的既有缺陷，未修腳本（本任務範圍為文件） |
+| 6 | 活體：跑完後 `/tmp` 無 `mirage_mmap_*` 殘留 | ⚠️ PASS（**檢查本身無驗證意義，見已知限制**） | `verify_mmap.sh` 輸出「殘留檔案數：0 / PASS」。但 `MmapSupport.handlePath` 用的 `NSTemporaryDirectory()` 在 macOS 實際回傳 `$TMPDIR`（`/var/folders/.../T/`），**不是** `/tmp`——這條檢查的 glob 恆對不到 Swift 實際建立的檔案，**恆為 PASS，不論 `close()`/`unlink` 有沒有真的生效**。此為 Task 8 已發現、本次複核仍然成立的既有缺陷，未修腳本（本任務範圍為文件）。**✅ 2026-08-05（D39）已修**：改掃 `$TMPDIR` 與 `/tmp` 兩處，glob 也不排除對照腳本自己建的檔。已故障注入證明會紅（放一個假的 `mirage_mmap_99999_1_540x1200.bin` 進 `$TMPDIR` → `exit 1` 並指出是哪個目錄哪個檔）。**修好之後第一次跑就抓到東西**——抓到的不是產品，是同一次新寫的 `mmap_client_parity.py` 漏了 5 個檔（`buf.close()` 在提早 break 時必然拋 `BufferError`，unlink 掛在它後面永遠不執行，已改成 finally 裡無條件 `os.unlink`）。Swift 那邊實測 0 個殘留，`close()` 的 unlink 一直是好的 |
 | 7 | 收益複驗：client CPU/幀降幅 ≥80% | ⚠️ PASS（**範圍受限，非產品路徑證據**） | 引用 Task 8 Step 4 量測：`bench_mmap_vs_rgba.py`（900×2000）client CPU 4.04s→0.43s，**−89%**，達 ≥80% 門檻。**但這是 Python client 用 grpcio 直接發 RPC 量到的「這台主機 MMAP 能力上限」，完全不經過 `MirageCore.MmapStreamTransport`**——第 5 條驗收線已證明後者在活體環境下無法持續拿到新內容，因此 89% 降幅**不能**當作「Swift 產品路徑目前實際交付這個收益」的證據，兩者是不同的問題 |
 
 **裁決摘要**：PASS 5（#1、#2、#3、#6 帶但書、#7 帶但書）／FAIL 2（#4、#5）。**FAIL 的 #5 是本階段最關鍵的發現**：MMAP 之所以預設關閉，正是因為這條驗收線量不過。
@@ -179,6 +262,9 @@ liveUnaryMmapDeliversFrames」）與 `progress.md` 的精確帳，實際是 **�
    `NSTemporaryDirectory()` 實際回傳 `$TMPDIR`（`/var/folders/.../T/`），不是 `/tmp`，該檢查
    的 glob 永遠對不到 Swift 實際建立的檔案。這不是本次新發現（Task 8 已記錄），本次複核
    確認問題仍然存在，未修腳本（brief 要求逐字照用；本任務範圍為文件不含程式碼/腳本修改）。
+   **✅ 2026-08-05（D39）已修**——從 Task 8 發現到真正修掉隔了 9 天、跨三份文件都記著
+   「已知、仍然存在、未修」。這種「記錄得很清楚但沒有人修」的假斷言，成本其實只有五行
+   shell；會拖這麼久是因為它每次都被歸到「本任務範圍外」。修法與故障注入見裁決表 #6。
 
 ---
 
