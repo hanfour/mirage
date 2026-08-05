@@ -83,14 +83,15 @@ assert_ok "Python 對照（emulator 側 MMAP 寫入）" "$PARITY_STATUS"
 echo ""
 echo "=== 量測：MmapStreamTransport 活體（產品路徑）==="
 echo "MMAP 預設關閉（見 DisplayTransportSelector 裁決），本測試需 MIRAGE_TRANSPORT=mmap"
-echo "才會實際執行。**已知現況（D39，2026-08-05 重驗）**：37.1.11 / 37.2.1 / 37.2.3"
-echo "三個 emulator 版本上皆凍結，而同條件的 Python 對照三次皆正常——缺陷在 client 側，"
-echo "與 emulator 版本無關（原本「等含修正的 build 發布」那個等待前提已被推翻）。"
+echo "才會實際執行。**已知現況（D39，2026-08-05）**：37.1.11 / 37.2.1 / 37.2.3 三個"
+echo "emulator 版本行為一致，而同條件的 Python 對照皆正常——缺陷在 client 側，與版本無關。"
+echo "**它不是「凍結」而是更新率只有約 27.5%**（Swift 約 15Hz vs Python 約 50Hz）；下面這條"
+echo "測試只取 3 幀（約 150ms），在 15Hz 下必然全同，所以它報的是紅燈但理由是錯的（D52）。"
 MIRAGE_TRANSPORT=mmap MIRAGE_LIVE=1 MIRAGE_LIVE_MMAP=1 swift test --filter MmapStreamLiveTests 2>&1 \
   | grep -E "\[mmap-live\]|Test run with|✘"
 MMAP_STATUS=${PIPESTATUS[0]}
 
-# **這一條刻意不 `assert_ok`，而且理由要寫下來。** MMAP 的凍結是已知的產品缺陷，
+# **這一條刻意不 `assert_ok`，而且理由要寫下來。** MMAP 的低更新率是已知的產品缺陷，
 # 把它做成硬性閘門會產生一支永遠紅的腳本，而「永遠紅的燈」訓練人去無視紅燈——那正是
 # D24 的病理。折衷是：**明確印出退出碼**，但不因它中止；上面的 Python 對照與下面的
 # 殘留檢查才是本腳本會中止的斷言。

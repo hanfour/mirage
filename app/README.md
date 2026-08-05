@@ -237,27 +237,35 @@ P1-a 迴歸的證據，改列為未量測（**當時記為 pending-unlock，該�
 
 ## 為什麼預設不是 MMAP
 
-活體驗證發現 `MmapStreamTransport` 在 emulator canary 37.2.1.0 上會**凍結**：Swift client
-只收到映射區的一次真實寫入，之後畫面不再更新，而現有降級機制（只認「前 3 幀全零」）攔不住
-這個「凍結但非全零」的失敗模式——使用者會看到一張永遠凍結的畫面，且沒有任何降級或錯誤訊號。
-三輪排查未能鎖定根因。完整細節見 `RESULTS-mmap.md`。**因此預設收回 raw RGBA，MMAP
+活體驗證發現 `MmapStreamTransport` 拿不到足夠的更新率：**Swift 約 15Hz，而同條件的 Python
+client 約 50Hz**（交錯量測基準 Python 400/400 vs Swift 109–110/400）。現有降級機制（只認
+「前 3 幀全零」）攔不住這個失敗模式——畫面非全零，會通過探測，使用者看到的是一張嚴重掉幀
+卻沒有任何降級或錯誤訊號的畫面。三輪排查未能鎖定根因。完整細節見 `RESULTS-mmap.md`。
+
+> ⚠️ **這裡原本寫的是「凍結」，2026-08-05 的根因調查推翻了那個描述**（結論不變）。
+> 「凍結」來自 `MmapStreamLiveTests` 只取 3 幀（約 150ms）的窗口——在 15Hz 下必然全同。
+> 這個更正很重要：「凍結」會把人導向「emulator 沒寫」，而實際要查的是「為什麼只有
+> 1/3.6 的速率」。見 `RESULTS-mmap.md`「2026-08-05 根因調查」與 D52。
+
+**因此預設收回 raw RGBA，MMAP
 需主動選擇加入才會啟用**。
 
 **⚠️ 2026-08-05（D39）重驗：不要再等 emulator 新版了。** 這裡原本寫著「上游 bug
 （b/537802959）雖已標記 fixed 但含修正的 build 尚未發布，無法驗證」。實測 37.1.11(stable)／
-37.2.1(canary)／37.2.3(dev) 三個版本，Swift 全部凍結（`frames=3 distinct=1`），而同一台
+37.2.1(canary)／37.2.3(dev) 三個版本，Swift 在 3 幀窗口下全部 `distinct=1`，而同一台
 emulator、同尺寸、同條件的 **Python(grpcio) 對照全部正常**（`frames=30 distinct=30`）——
-**凍結與 emulator 版本無關，缺陷在 grpc-swift 這條路徑上**。
+**問題與 emulator 版本無關，缺陷在 grpc-swift 這條路徑上**。（那個 `distinct=1` 是窗口
+太短造成的，實際更新率約 27.5%，見上方的更正框。）
 
 同一次重驗還推翻了「MMAP 幫不上 fps」：raw RGBA 這條路徑的吞吐天花板在 **270–290 MiB/s**，
 而全螢幕 898×1996 要跑滿 60fps 需要 **410 MiB/s**——結構上到不了。同機同內容下
-raw **40.0** fps／MMAP **56.7** fps（驗收線 7 的門檻是 55）。所以這個凍結擋著的是驗收線 7
+raw **40.0** fps／MMAP **56.7** fps（驗收線 7 的門檻是 55）。所以這條缺陷擋著的是驗收線 7
 本身。原本「MMAP 幫不上」的結論是在 540×1200 量的，那個解析度只需要 148 MiB/s，剛好貼著
 天花板下緣、本來就在滿速——觀察沒錯，錯的是外推。完整數據與限定條件見 `RESULTS-mmap.md`。
 
 ## 版本閘為何不放寬
 
-`MmapVersionGate.allows(...)`（≥37 才允許）是一道**獨立於凍結缺陷之外**的安全互鎖：
+`MmapVersionGate.allows(...)`（≥37 才允許）是一道**獨立於這條缺陷之外**的安全互鎖：
 穩定版 emulator（36.x）收到 MMAP 請求會直接 **SIGSEGV**，把使用者正在跑的整台 VM 弄死
 （2/2 確定性重現）。即使 `MIRAGE_TRANSPORT=mmap` 主動選擇加入，版本 <37 一律強制走
 raw RGBA——opt-in 不能繞過版本閘，兩者是正交的兩道判斷。
@@ -295,7 +303,7 @@ raw RGBA——opt-in 不能繞過版本閘，兩者是正交的兩道判斷。
 | 段落 | 是什麼 | 現況 |
 |---|---|---|
 | Python 對照（`mmap_client_parity.py`） | emulator 的 MMAP 寫入端正不正常 | ✅ **硬斷言**，失敗即中止 |
-| Swift 活體（`MmapStreamLiveTests`） | 產品實際會走的路徑正不正常 | ❌ 已知凍結，印退出碼不中止 |
+| Swift 活體（`MmapStreamLiveTests`） | 產品實際會走的路徑正不正常 | ❌ 已知不足（約 15Hz），印退出碼不中止 |
 
 只量 Swift 那條時，紅燈分不出「上游壞了」與「只有我們的 client 壞了」，而這兩者的下一步
 完全相反。**Swift 那條目前預期會紅**，這是已知產品缺陷，不是測試腳本或環境問題；對照組
@@ -303,7 +311,7 @@ raw RGBA——opt-in 不能繞過版本閘，兩者是正交的兩道判斷。
 
 ## 驗收與設計文件
 
-完整驗收線裁決、凍結缺陷排查歷程、覆蓋率變化說明見 `RESULTS-mmap.md`；架構設計見
+完整驗收線裁決、缺陷排查歷程（含 2026-08-05 根因調查排除的 9 個假設）、覆蓋率變化說明見 `RESULTS-mmap.md`；架構設計見
 `../docs/specs/2026-07-27-mmap-stream-transport-design.md`（其 §1 的「實測確認現有 emulator
 版本即可繞過」一句已知只對 Python client 成立，對產品 Swift client 不成立，更正說明見
 `RESULTS-mmap.md`與`../docs/upstream/2026-07-22-emulator-mmap-macos.md`的「後續更正」小節）。
