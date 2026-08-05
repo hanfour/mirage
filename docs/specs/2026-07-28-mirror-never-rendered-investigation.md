@@ -374,6 +374,23 @@ Mirage 側是 20–35 fps。**兩者一致 → Mirage 的顯示路徑沒有額�
 > --latency`（這版 Android 拿不到資料）與 `getevent`（時序不可靠）。要坐實它，
 > 下一輪需要一個能直接讀 guest render 速率的方法。**在那之前這是推論，不是結論。**
 
+> ⚠️ **2026-08-04 更新：上面「瓶頸在 guest 端」這條推論被 D45 的直接量測推翻。**
+> D45 用 `dumpsys SurfaceFlinger --timestats` 直接量到了 guest 端（Pixel Flow
+> 的 Unity SurfaceView layer）的 render fps——過程中發現並修正了該指令
+> `averageFPS` 欄位本身約 3% 的系統性偏差（AOSP `TimeStats.cpp`／
+> `TimeStatsHelper.cpp` 對 present2present 間隔做 `duration_cast<milliseconds>`
+> 無條件捨去所致），修正後的數字是：guest 在主機安靜負載（load≈3）、選單畫面
+> 下穩定在約 **59.9 fps**，緊貼 60Hz vsync 天花板，`droppedFrames = 0`——沒有
+> 觀察到瓶頸跡象，方向與本節「瓶頸在 guest」的推論相反。**本段推論作廢。**
+> 上面「不是頻寬瓶頸」那半段（本節開頭的解析度掃描證據）不受影響，仍然成立
+> ——要推翻的只有「所以瓶頸在 guest」這個推論本身。
+>
+> D45 也發現這個結論**尚未在問題最可能發作的條件下驗證過**：量測是在主機
+> load≈3 下做的，而 7a 對照組／`verify_fps_fullscreen.sh` 的實際量測條件是
+> load 8–18，D45 沒有在那個負載區間量過 guest，不能排除 guest 在高負載/遊玩
+> 中的表現不同。細節、AOSP 原始碼引用、與建議的下一步實驗，見
+> `app/RESULTS-d45-guest-render.md`。
+
 ### 11.3 量 fps 的三個陷阱（踩滿了才記下來）
 
 1. **guest 畫面必須持續變化**——`streamScreenshot` 是變化驅動的。本輪拿 launcher 當

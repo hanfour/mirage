@@ -238,11 +238,16 @@ cd /Users/hanfourhuang/Projects/mirage/phase0/harness
 RC=$?; cat /tmp/d45-smoke.log; echo "EXIT=$RC"
 ```
 
-Expected: 印出 `fps=... frames=... elapsed=... size=900x2000`。
+Expected: 印出 `fps=... frames=... elapsed=... size=900x2000 status=measured`，`EXIT=0`。
 
-**`frames=0` 且 `EXIT=1` 是預期的**，只要當下 guest 畫面是靜止的——`streamScreenshot`
-變化驅動。此時用 `adb -s emulator-5556 shell input swipe 400 900 700 1500 250` 製造變化再
-跑一次確認拿得到幀。**這一步只驗「工具能連上並收到幀」，不是量效能**。
+**`status=static` 且 `EXIT=2` 也是合法結果**，只要當下 guest 畫面是靜止的——
+`streamScreenshot` 是變化驅動的。此時用
+`adb -s emulator-5556 shell input swipe 400 900 700 1500 250` 製造變化再跑一次，確認拿得到
+幀（`status=measured`、`EXIT=0`）。
+
+**`EXIT=1`（`status=error`）不是預期的**——那代表連線或工具本身有問題，要查。
+
+**這一步只驗「工具能連上、能收到幀、三種狀態分得開」，不是量效能。**
 
 若模擬器沒在跑，跳過本步並在報告中標明未做煙霧測試。
 
@@ -547,6 +552,45 @@ Task 5 依實測決定——D32 就是「先定門檻再實測」踩出來的坑
   結尾印彙總的 `MIRAGE_MEDIAN=`／`BASELINE_MEDIAN=`／`RATIO_PCT=`／`ROUNDS=`／`SIZE_OK=`
   五個可 eval 的 KEY=VAL。Task 5 會斷言它們。
 
+#### ⚠️ 2026-08-04 更正：改用「放大視窗」而非「進全螢幕」
+
+**全螢幕自動化在這台機器上證明不可靠。** 執行時實測：`osascript` 送 ⌃⌘F 連續 4 次全部
+逾時未收斂，前一輪 30 次呼叫也大量失敗。診斷指向共用機器上的 focus 不穩定——螢幕保護程式
+接管、frontmost 被其他 App（Chrome、Slack）搶走，keystroke 就送不到 MirageApp。
+
+**但真正要達成的條件是「串流解析度到上限」，全螢幕只是達成它的手段**（spec §4.3 的原文：
+「全螢幕時內容矩形寬 = 螢幕高 × aspect，會自動請求更高解析度」）。而視窗模式下實測
+`contentWidth = 888`（串流尺寸 888×1972），**只要 ≥ 900 就會被 `StreamSize.maxPixels`
+clamp 到 900×2000——只差 12 像素**。
+
+~~**改法**：用 `osascript` 直接設 MirageApp 視窗的大小（`set bounds of window 1`），把寬度
+設到足以讓 `contentWidth ≥ 900`，取代送 ⌃⌘F。~~
+
+> **⚠️ 再更正（2026-08-04，執行時實測）：放大視窗的方案結構上不可行，已改用 `AXFullScreen`。**
+>
+> macOS 的 `NSWindow.constrainFrameRect(_:to:)` 會把任何視窗 clamp 到螢幕可視範圍（扣掉
+> 選單列與 Dock），所以 `set size` 給多大都沒用——實測穩定停在 **888×1972**，是**低於**
+> 900 而不是高於。上面「只差 12 像素、加大就能過」的推論**前提就是錯的**。
+>
+> **實際採用**：`osascript -e 'tell application "System Events" to tell process "MirageApp"
+> to set value of attribute "AXFullScreen" of window 1 to true'`——直接寫 Accessibility
+> 屬性，不經過鍵盤事件佇列，**不需要 frontmost**，比送 ⌃⌘F 可靠得多。
+>
+> **但即使真全螢幕也只到 898×1996**（≈1.79 MP vs 目標 1.8 MP，差 0.4%），根因是
+> `app/Sources/MirageShell/MirageScene.swift` 的 `ZStack` 保留了約 52pt 的 safe-area
+> inset（沒有 `.ignoresSafeArea()`）。那是產品碼，不在 D45 範圍。
+>
+> 因此收斂判定從字面 `900x2000` 改成**數值門檻** `FULLSCREEN_MIN_WIDTH=896`：擋得住
+> 視窗模式的 888，放得過全螢幕的 898。
+>
+> ⚠️ 這三個數字（888／896／898）都綁定**這台機器的螢幕幾何**（邏輯 1680×1050）。
+> 換機器必須重新驗證——換到「視窗天花板更接近 896」的螢幕，這條門檻會把「沒進全螢幕」
+> 誤判成收斂。
+
+⚠️ **這是對驗收線 7 字面條件（「全螢幕」）的偏離，必須記進 `RESULTS`**：量到的是解析度
+上限下的 fps，但視窗狀態不是全螢幕。全螢幕額外會有 letterbox 合成成本，理論上 fps 只會更
+低或持平——所以這個偏離對「有沒有達到 55」這個判定是**保守的**（有利於通過），要寫明。
+
 #### 為什麼是「每輪重啟 Mirage」而不是讓它一直跑
 
 spec §3.3 要求交錯量測且**不並行**。但 Mirage 是持續運行的 App，它的 `[fps]` 日誌行
@@ -676,10 +720,37 @@ for round in $(seq 1 "$ROUNDS"); do
     gui_session_cleanup "$BUNDLE"
     sleep 3
 
-    B=$("$VENV" "$BASELINE" --endpoint "localhost:${GRPC_PORT}" \
-        --seconds "$DURATION" --width 900 --height 2000 2>/dev/null \
-        | sed 's/.*fps=\([0-9.]*\).*/\1/')
-    echo "   對照組：${B:-（失敗）} fps"
+    # 對照組是三態的（Task 1 定案）：退出碼 0=measured、2=static（畫面靜止，合法但無
+    # 樣本）、1=error（連線或工具失敗）。**必須分流**——把 static 與 error 都當成
+    # 「0 fps 的合法樣本」算進中位數，會把「這輪沒量到」偽裝成「這輪很慢」。
+    BASE_OUT=$("$VENV" "$BASELINE" --endpoint "localhost:${GRPC_PORT}" \
+        --seconds "$DURATION" --width 900 --height 2000 2>/tmp/d45-baseline-err.log)
+    BASE_RC=$?
+    case "$BASE_RC" in
+        0) B=$(printf '%s' "$BASE_OUT" | sed 's/.*fps=\([0-9.]*\).*/\1/')
+           # **兩側的 fps 定義不對稱，這裡要抓出會放大它的情況。**
+           # Mirage 側：Renderer 只在有幀 present 時才印 `fps=` 行，靜止的秒根本不產生
+           # 日誌行 → fps_median 天然排除靜止期。
+           # 對照組：fps = frames / elapsed，而 elapsed 是完整壁鐘時間 → 靜止的尾段會
+           # 把它拉低。
+           # 所以畫面若「前段有動、後段靜止」，分母被低估、比值被高估，7a 反而更容易過
+           # ——這是系統性偏誤，方向剛好是最不該有的那個。
+           # elapsed 明顯超過 DURATION，就是踩到這個情況的指紋（工具的 RPC timeout 是
+           # DURATION+2，正常收工應該貼近 DURATION）。
+           BE=$(printf '%s' "$BASE_OUT" | sed 's/.*elapsed=\([0-9.]*\).*/\1/')
+           if awk -v e="$BE" -v d="$DURATION" 'BEGIN { exit !(e > d * 1.1) }'; then
+               echo "   ⚠️ 對照組 elapsed=${BE}s 明顯超過 ${DURATION}s——畫面可能有靜止尾段，"
+               echo "      這一輪的比值會偏高（分母被低估）。本輪不計入。"
+               B=""
+           else
+               echo "   對照組：${B} fps（elapsed=${BE}s）"
+           fi ;;
+        2) B=""
+           echo "   對照組：畫面靜止、整個窗口沒有出幀——本輪不計入" ;;
+        *) B=""
+           echo "   對照組：失敗（退出碼 ${BASE_RC}）——本輪不計入"
+           sed 's/^/     /' /tmp/d45-baseline-err.log ;;
+    esac
 
     if [ -n "$M" ] && [ -n "$B" ]; then
         R=$(awk -v m="$M" -v b="$B" 'BEGIN { printf "%d", (b > 0) ? m * 100 / b : 0 }')
@@ -906,7 +977,23 @@ git commit -m "test: D45 坐實 guest render fps 的三次嘗試
 
 ---
 
-### Task 5: 定門檻並加上 7a／7b 斷言
+### ⚠️ Task 5 已於 2026-08-04 大幅簡化（執行途中）
+
+**實測推翻了「`≥ 55` 結構上達不到」**：對照組量到 57／41／54／**59.74**，Mirage 量到
+52／35／49／50。使用者裁決 **`≥ 55` 保留不改**，D45 收斂成「補上 1.8 MP 的量測點 + 如實
+判定 + 把 §11.1 的 30.4 標為低估」。完整推導見
+`docs/specs/2026-08-04-d45-acceptance-7-remeasure-design.md` §9。
+
+**因此下面的 Task 5 原文（定 N／M、加 7a／7b 斷言）作廢。** 新的 Task 5 是：
+
+1. 在**確認達到 900×2000** 的前提下量三次，取 `MIRAGE_MEDIAN` 的中位數
+2. 腳本加**兩條前置斷言**（`SIZE_OK == 1`、有效輪數 ≥ 2）與**一條如實的驗收判定**
+   （`MIRAGE_MEDIAN` 對 `55`）
+3. 驗收判定**會紅**，那是正確的——驗收線 7 現況就是未通過。腳本要明確印出
+   「這條紅燈代表驗收線 7 未達成，不是腳本壞了」，並指向效能債務編號
+4. 故障注入只需兩條：尺寸前置（不放大視窗）、驗收判定（把門檻暫時改成 1 應轉綠）
+
+### Task 5（原文，已作廢）: 定門檻並加上 7a／7b 斷言
 
 依 Task 3 的三次探測數字填門檻。本 task **需要模擬器**。
 
