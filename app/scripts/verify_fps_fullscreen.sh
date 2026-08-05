@@ -103,13 +103,13 @@ FULLSCREEN_POLL_INTERVAL=1
 # 進全螢幕」，不強求湊到剛好等於 900 這個在本機結構上到不了的整數。換一片螢幕（邏輯
 # 高度 ≳1052pt）量到的數字可能剛好是 900，這條門檻一樣放行，不用跟著改。
 #
-# ⚠️ **反向風險（複審指出，尚未論證過）**：888／896／898 這三個數字全部綁定在「這片
-# 邏輯 1680×1050 螢幕」上量出來的。896 目前卡在兩者中間有安全邊界，但那個邊界只有
-# 10（898−888）這麼窄。換一台視窗模式天花板剛好落在 890–896 附近的機器（例如螢幕更寬、
-# menu bar／dock 佔比不同），這條門檻可能會把「根本沒進全螢幕、只是視窗剛好夠寬」誤判
-# 成「已收斂」——方向與本機發現的「全螢幕到不了 900」相反，是這個數值門檻本身可能失準
-# 的情境，換機器跑之前應該重新用本檔前置說明那段 osascript 量一次邏輯解析度、核對
-# 視窗模式天花板與這個門檻的間距是否還夠。
+# ⚠️ **反向風險（複審指出，已記為 D51，見 docs/specs/2026-07-29-project-review.md）**：
+# 888／896／898 這三個數字全部綁定在「這片邏輯 1680×1050 螢幕」上量出來的。896 目前
+# 卡在兩者中間有安全邊界，但那個邊界只有 10（898−888）這麼窄。換一台視窗模式天花板
+# 剛好落在 890–896 附近的機器（例如螢幕更寬、menu bar／dock 佔比不同），這條門檻可能
+# 會把「根本沒進全螢幕、只是視窗剛好夠寬」誤判成「已收斂」——方向與本機發現的「全螢幕
+# 到不了 900」相反，是這個數值門檻本身可能失準的情境，換機器跑之前應該重新用本檔前置
+# 說明那段 osascript 量一次邏輯解析度、核對視窗模式天花板與這個門檻的間距是否還夠。
 FULLSCREEN_MIN_WIDTH=896
 
 # AXFullScreen 比鍵送可靠得多，但實測仍偶爾整次啟動都沒吃到（懷疑跟這台共用機器上其他
@@ -260,24 +260,50 @@ for round in $(seq 1 "$ROUNDS"); do
            sed 's/^/     /' /tmp/d45-baseline-err.log ;;
     esac
 
+    # D45 全分支最終審查修正（Important #1）：Mirage 的樣本不再綁在對照組的成功與否
+    # 上——§9 已把對照組定位成純診斷脈絡，不是驗收判準的一部分（使用者裁決 ≥55
+    # 絕對門檻保留不改）。M 有效就無條件計入 MIRAGE_VALS；只有 BASE_VALS 與 ratio
+    # 的印出才 gate 在 B 的有效性上。
+    #
+    # **為什麼原本的寫法是錯的**：B 為空的三個原因——對照組 status=error（工具本身
+    # 打嗝）、status=static（畫面靜止，合法但無樣本）、elapsed 超過 DURATION*1.1 的
+    # 靜止尾段偵測——全都跟 Mirage 那一側的量測是否有效無關。原寫法會讓一個完全
+    # 有效的 Mirage 讀數因為對照組那支 Python 工具的問題而從統計裡消失；而 D49 記載
+    # `phase0/harness/` 同目錄 12 支腳本有 11 支已死於 protobuf 版本變動，venv 生態
+    # 脆弱，這不是假設性風險。
+    if [ -n "$M" ]; then
+        MIRAGE_VALS="${MIRAGE_VALS}${M}\n"
+    fi
     if [ -n "$M" ] && [ -n "$B" ]; then
         R=$(awk -v m="$M" -v b="$B" 'BEGIN { printf "%d", (b > 0) ? m * 100 / b : 0 }')
         echo "[round ${round}] mirage=${M} baseline=${B} ratio=${R}%"
-        MIRAGE_VALS="${MIRAGE_VALS}${M}\n"
         BASE_VALS="${BASE_VALS}${B}\n"
+    elif [ -n "$M" ]; then
+        echo "[round ${round}] mirage=${M} baseline=（無資料，見上方對照組訊息）——本輪僅計入 Mirage 側，不計入 ratio"
     fi
     rm -f "$LOG"
 done
 
-median_of() { printf "%b" "$1" | grep -v '^$' | sort -n | awk '{ v[NR]=$1 } END { if (NR) printf "%d\n", v[int((NR+1)/2)]; else print 0 }'; }
+# 印中位數。**沒有樣本時印空字串，不印 0**——0 是「量到 0 fps」的合法數字，跟「根本
+# 沒有資料」是兩件不同的事，混在一起印會讓人誤讀成真的量到 0。呼叫端需要數字語意時
+# 自行用 ${VAR:-0}（例如最終驗收斷言刻意要空字串等同 0，因為那代表完全沒有有效輪次）。
+median_of() { printf "%b" "$1" | grep -v '^$' | sort -n | awk '{ v[NR]=$1 } END { if (NR) printf "%d\n", v[int((NR+1)/2)] }'; }
 
 echo ""
 echo "===== 解析結果 ====="
 MM=$(median_of "$MIRAGE_VALS")
 BM=$(median_of "$BASE_VALS")
-echo "MIRAGE_MEDIAN=${MM}"
-echo "BASELINE_MEDIAN=${BM}"
-echo "RATIO_PCT=$(awk -v m="$MM" -v b="$BM" 'BEGIN { printf "%d", (b > 0) ? m * 100 / b : 0 }')"
+echo "MIRAGE_MEDIAN=${MM:-無資料}"
+echo "BASELINE_MEDIAN=${BM:-無資料（對照組本輪全數失敗／被排除，見上方各輪訊息；不影響驗收線 7 的判定）}"
+if [ -n "$MM" ] && [ -n "$BM" ]; then
+    echo "RATIO_PCT=$(awk -v m="$MM" -v b="$BM" 'BEGIN { printf "%d", (b > 0) ? m * 100 / b : 0 }')"
+else
+    echo "RATIO_PCT=無資料（對照組樣本不足以取中位數；ratio 僅為診斷脈絡，不影響驗收線 7 的判定）"
+fi
+# **ROUNDS 的語意（本次修正後改變）**：現在數的是「有幾輪拿到有效的 Mirage 讀數」，
+# 與對照組是否成功無關——這正是下面「前置：有效輪數」該問的問題。修正前這裡數的其實
+# 是「Mirage 與對照組同時成功的輪數」，對照組工具打嗝就會讓這個數字被拉低，即使
+# Mirage 側的量測完全有效。
 echo "ROUNDS=$(printf "%b" "$MIRAGE_VALS" | grep -cv '^$')"
 echo "SIZE_OK=${SIZE_OK}"
 
