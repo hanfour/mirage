@@ -343,6 +343,60 @@ Python 在**更高的負載下、且與 Swift 競爭同一個 GPU 事件源**時
 「Swift 慢」的判斷一直帶著「會不會只是環境／負載偽影」的疑慮（而那個疑慮是有根據的，
 見 D54），現在它被一次同時對照清掉了。**方向從未動搖過，現在證據也硬了。**
 
+### 五、再往下四層，把現象縮到最小——但根因仍未鎖定
+
+接續上面往 grpc-swift 這側查。四個實驗，每個都推翻了一個看似合理的方向。
+
+**(1) `seq` 證明 emulator 為 Swift 寫了 400 次。** `Image` 訊息帶 `seq` 欄位
+（`reply.set_seq(frame)`，而 `frame += framesArrived`）。解析既有的 wire dump：
+
+| client | 通知數 | seq 範圍 | 重複的 seq |
+|---|---|---|---|
+| Swift | 400 | **1–400 連續** | **0 個** |
+| Python | 60 | 1–60 連續 | 0 個 |
+
+`framesArrived` 每次都是 1——**emulator 為 Swift 那條 stream 收到 400 個獨立的 GPU
+frame 事件、執行了 400 次成功的 `getScreenshot`、寫了 400 次映射區**。而 Swift 只讀到
+15–19 種內容。「emulator 沒寫」正式排除。
+
+**(2) `pread` 證明這不是 mmap 特有的問題。** 在 `MmapBuffer.snapshot()` 裡對**同一個
+fd**、同一段 offset 同時做 mmap 讀與 `pread`，比對 400 次：**不一致 0 次**，而兩者
+都看到內容從不改變。繞過 mmap 也讀不到——問題不在那塊 mapping。
+
+**(3) 同一次跑次的內外對照——這是現象最精確的描述。** 同時跑「帶 pread 診斷的 Swift
+測試」與「每 20ms 讀 4KB 的外部觀察者」（低干擾版，避免 D54 那種儀器污染）：
+
+| 觀察者 | 看到的內容變化 |
+|---|---|
+| Swift 行程內（mmap 與 pread 皆是） | **0 次**（`distinct=1`） |
+| 外部行程（每次重新 `open`+`read`） | **182 次**（27.4 次/秒，受取樣率限制） |
+
+而 Swift 行程內量到的 `fd.ino == path.ino == 182486324`、size 一致、mtime 一致且不變。
+
+**同一個 inode、同一段 offset，兩個行程看到完全不同的東西。** 精確的說法是：
+**Swift 那個行程對該 vnode 的整個檢視凍結了**（不只是 mmap，`pread` 也一樣），
+而外部行程一切正常。
+
+**(4) 最小重現——沒有重現，所以「建立方式」被排除。** 寫了一支不用 emulator、不用
+gRPC、不用 MMAP transport 的 `swift` 腳本，完全照 `MmapBuffer.init` 的順序
+（`open(O_RDWR|O_CREAT|O_TRUNC)` → `ftruncate` → `mmap(PROT_READ, MAP_SHARED)` →
+**保留 fd**），再讓另一個行程用 mmap 持續寫同一個檔案：
+
+```
+mmap  看到 168 種不同內容
+pread 看到 167 種不同內容
+→ 沒有重現：本行程看得到寫入
+```
+
+**所以「這樣建立檔案再 mmap 再保留 fd」本身完全正常**，macOS 的 UBC 一致性沒問題。
+第 11 個假設排除。
+
+**剩下的範圍**：現象需要 emulator 當寫入端才會出現，而 client 端的建立方式、mmap
+本身、fd 保留、負載、CPU、emulator 版本都已排除。下一輪最有價值的實驗是**把兩者拆開**
+——由 Python 送 gRPC 請求、但 handle 指向 Swift 行程建立並持有的檔案，看 Swift 讀不讀
+得到。那會直接分離「誰發的 gRPC 請求」與「誰持有那個檔案」這兩個變數，而目前為止
+所有實驗都把它們綁在一起。
+
 ---
 
 ## 驗收線逐條裁決（spec §8）
