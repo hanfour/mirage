@@ -5,8 +5,10 @@ import GRPC
 /// `streamScreenshot` + MMAP 共享記憶體的 DisplayTransport。
 ///
 /// **實驗性、預設關閉**：需 `MIRAGE_TRANSPORT=mmap` 主動選擇加入（見
-/// `DisplayTransportSelector`）。**已知在 emulator 37.2.1.0 上會凍結**——Swift client 只收到
-/// 映射區的一次寫入，之後畫面不再更新（同一時刻的 Python client 完全正常，根因未鎖定）。
+/// `DisplayTransportSelector`）。**已知會凍結**——Swift client 只收到映射區的一次寫入，
+/// 之後畫面不再更新，而同一台 emulator、同條件的 Python client 完全正常，根因未鎖定。
+/// D39（2026-08-05）在 37.1.11／37.2.1／37.2.3 三個版本上重驗，結果一致：**凍結與
+/// emulator 版本無關**，缺陷在 grpc-swift 這條路徑上。
 /// 完整交叉驗證與裁決過程見 `app/RESULTS-mmap.md`。
 ///
 /// 相對於 `GrpcStreamTransport`（raw RGBA payload 走 protobuf），本實作讓 emulator 直接把
