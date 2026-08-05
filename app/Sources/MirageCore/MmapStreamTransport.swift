@@ -5,11 +5,15 @@ import GRPC
 /// `streamScreenshot` + MMAP 共享記憶體的 DisplayTransport。
 ///
 /// **實驗性、預設關閉**：需 `MIRAGE_TRANSPORT=mmap` 主動選擇加入（見
-/// `DisplayTransportSelector`）。**已知會凍結**——Swift client 只收到映射區的一次寫入，
-/// 之後畫面不再更新，而同一台 emulator、同條件的 Python client 完全正常，根因未鎖定。
-/// D39（2026-08-05）在 37.1.11／37.2.1／37.2.3 三個版本上重驗，結果一致：**凍結與
-/// emulator 版本無關**，缺陷在 grpc-swift 這條路徑上。
-/// 完整交叉驗證與裁決過程見 `app/RESULTS-mmap.md`。
+/// `DisplayTransportSelector`）。**已知拿不到足夠的更新率**——同一台 emulator、同條件的
+/// Python client 拿得到約 50Hz 的內容更新，這條只有約 **15Hz**（交錯量測基準：Python
+/// 400/400、Swift 109–110/400）。根因未鎖定；D39（2026-08-05）在 37.1.11／37.2.1／37.2.3
+/// 三版上重驗結果一致，**與 emulator 版本無關**，缺陷在 grpc-swift 這條路徑上。
+///
+/// **先前這裡寫的是「凍結」，那是錯的**：那個描述來自 `MmapStreamLiveTests` 只取 3 幀
+/// （約 150ms）的窗口，在 15Hz 下必然全同。它一直在更新，只是慢。這個更正很重要——
+/// 「凍結」會把人導向「emulator 沒寫」，而實際要查的是「為什麼只有 1/3.6 的速率」。
+/// 完整交叉驗證與已排除的 9 個假設見 `app/RESULTS-mmap.md`。
 ///
 /// 相對於 `GrpcStreamTransport`（raw RGBA payload 走 protobuf），本實作讓 emulator 直接把
 /// 像素寫進我們提供的映射區，通知訊息的 payload 為空。**下面這組數字是 Python harness
