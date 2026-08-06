@@ -7,6 +7,12 @@
 > `app/RESULTS-mmap.md`。
 
 **已提交（2026-07-23）**: https://issuetracker.google.com/issues/537802959
+
+> **⚠️ 這一則已修（37.2.3），但 Mirage 的 MMAP 問題沒有跟著解決。** 2026-08-06 另開了
+> https://issuetracker.google.com/issues/543078932 —— 那是**不同的問題**：
+> streamScreenshot MMAP 只對 grpc-swift client 停止更新內容（同條件的 grpcio 正常）。
+> 本則修的是 `width*height` 為 0 的 pre-borrow 毒化 cache，而 Mirage 一直帶明確尺寸、
+> 從來踩不到。詳見 `2026-08-06-emulator-mmap-grpc-swift.md` 與 `app/RESULTS-mmap.md`。
 **提交當日狀態**: Assigned（Google 工程師）、P3/S3、2 hotlists。實際提交於 component Android Studio（192708，Emulator 子元件不開放外部直接建立），內文含 triage 轉派註記。
 
 ## 上游結案（2026-07-25 Marked as fixed）

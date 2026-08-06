@@ -1,9 +1,10 @@
-# [草稿，尚未提交] Issue Tracker — streamScreenshot MMAP 只對 grpc-swift client 停止更新
+# Issue Tracker — streamScreenshot MMAP 只對 grpc-swift client 停止更新
 
-**狀態**：草稿，**尚未提交**。提交前請人工審閱下方英文內文。
-**建議提交位置**：component Android Studio（192708），比照
-[537802959](https://issuetracker.google.com/issues/537802959) 的做法（Emulator 子元件
-不開放外部直接建立 issue）。
+**已提交（2026-08-06）**: https://issuetracker.google.com/issues/543078932
+
+**提交當日狀態**: _未記錄_——提交是由人在 Issue Tracker 上完成的，這裡沒有留下當日的
+component／優先序／assignee。比照 537802959 那份的慣例，這一列該補上，下次看 issue
+時順手填。**刻意留白而不是猜**：這個 repo 的教訓是查無出處的數字會被抓，狀態欄位同理。
 
 **與 537802959 的關係**：那一則已於 37.2.3 修正，**但對本問題無效**——我們用可靠的
 400 幀窗口在 37.2.3 上重測，Swift 15–18/400、Python 379–396/400，與 37.2.1 無差異。
@@ -15,7 +16,7 @@ Mirage 從一開始就帶明確尺寸、踩不到那個 bug。**這是不同的�
 
 ---
 
-## 以下為建議的 issue 內文（英文）
+## 提交的 issue 內文（英文）
 
 ### Title
 
