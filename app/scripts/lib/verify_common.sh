@@ -108,3 +108,54 @@ assert_at_most() {
     fi
     echo "✅ ${desc}：${actual:-0}（上限 ${threshold}）"
 }
+
+# === 建置快取暖機（D57）===
+#
+# **一次成功的 `swift build` 不保證下一次是 no-op。** 2026-08-06 實測：工作樹全程
+# 乾淨，連跑兩次相同的 `swift build -c release` → **73.85s（`Compiling SwiftProtobuf
+# AnyMessageStorage.swift`）然後 0.58s**。根因未鎖定（`SwiftProtobufPlugin` 每次都
+# 重跑，疑似讓下游 target 偶發失效），但不必鎖定就能防：**建到真的 no-op 為止再開始量測。**
+#
+# 為什麼這件事重要：`verify_fps_fullscreen.sh` 原本是**每一輪內**經 `package_app.sh`
+# 建置的，建置就落在該輪 20 秒擷取窗口之前。撞到冷快取的輪次會被 CPU 餓死——實測
+# 那一輪量到 31 fps，同跑次另兩輪是 48／54。這是 D50／D54「窗口沒對齊，量到的是別的
+# 東西」的第三次同形復發。
+
+# 判斷一次 `swift build` 的輸出裡有沒有 **target 原始檔**被重新編譯。
+#
+# **唯一的難點是必須排除 `Compiling plugin …`**：SwiftPM 每次建置都會重跑 build
+# plugin（`GRPCSwiftPlugin`／`SwiftProtobufPlugin`），那兩行在「73.85 秒的真重編」與
+# 「0.58 秒的 no-op」輸出裡**都會出現**。拿它當訊號會永遠判定成「還沒暖」，於是
+# build_warm 每次都建滿上限次數然後失敗——一個看起來很像環境壞掉的假紅燈。
+#
+# 抽成純函式是刻意的：這是 build_warm 唯一會判錯的地方，而純函式可以在**不跑
+# swift build** 的情況下用自我測試釘住（見 verify_common_selftest.sh）。
+build_output_recompiled() {
+    printf '%s\n' "$1" | grep -E '^\[[0-9]+/[0-9]+\] Compiling ' | grep -qv 'Compiling plugin'
+}
+
+# 反覆 `swift build` 直到某一次沒有 target 被重編，確保之後的量測窗口不含建置。
+# 用法：build_warm [release|debug] [最多幾次] [package 目錄]
+build_warm() {
+    local config="${1:-release}" max="${2:-3}" dir="${3:-$PWD}"
+    local attempt out rc
+    for attempt in $(seq 1 "$max"); do
+        out=$( cd "$dir" && swift build -c "$config" 2>&1 )
+        rc=$?
+        if [ "$rc" -ne 0 ]; then
+            printf '%s\n' "$out" | tail -20
+            echo "❌ swift build -c ${config} 失敗（退出碼 ${rc}）"
+            return 1
+        fi
+        if build_output_recompiled "$out"; then
+            echo "   第 ${attempt} 次仍有 target 被重編，再建一次"
+            continue
+        fi
+        echo "   第 ${attempt} 次已是 no-op，建置快取確定是暖的"
+        return 0
+    done
+    # **這裡回 1 而不是「算了繼續」是刻意的**：每次都在重編，代表下一輪的擷取窗口
+    # 一定會撞到建置，量出來的數字不可信。與其產出一個看起來正常的髒數字，不如紅。
+    echo "❌ 建了 ${max} 次仍每次都有 target 被重編——量測窗口會被建置污染，不繼續。"
+    return 1
+}

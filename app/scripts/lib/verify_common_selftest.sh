@@ -60,6 +60,38 @@ check "assert_at_most 中止後不執行後續指令" \
 check "assert_ok 中止後不執行後續指令" \
       "$(run_case 'assert_ok "測試" 1; exit 0')" 1
 
+# === build_output_recompiled（D57）===
+#
+# **這個純函式存在的唯一理由，就是這組測試釘得住它。** build_warm 會不會判對，全看
+# 它——而 build_warm 本身要跑 `swift build`（動輒 70 秒），在自我測試裡跑不起來。
+# 把判斷抽出來之後，這裡用**真實捕捉到的建置輸出**驗，不需要模擬器也不需要建置。
+#
+# 兩份樣本都取自 2026-08-06 那次連跑：73.85 秒的真重編與 0.58 秒的 no-op。
+# **注意兩份都含 `Compiling plugin` 兩行**——那正是這個判斷唯一會出錯的地方。
+BUILD_RECOMPILED='[1/1] Compiling plugin GRPCSwiftPlugin
+[2/2] Compiling plugin SwiftProtobufPlugin
+[4/5] Compiling SwiftProtobuf AnyMessageStorage.swift
+Build complete! (73.85s)'
+BUILD_NOOP='[1/1] Compiling plugin GRPCSwiftPlugin
+[2/2] Compiling plugin SwiftProtobufPlugin
+Build complete! (0.58s)'
+
+check "build_output_recompiled：有 target 被重編 → 0（真）" \
+      "$(run_case "build_output_recompiled '$BUILD_RECOMPILED'")" 0
+# 這一條是整組的核心。它紅掉代表 build_warm 會永遠判定「還沒暖」，建滿上限次數後
+# 以一個很像環境壞掉的假紅燈失敗。
+check "build_output_recompiled：只有 plugin 行 → 1（假）" \
+      "$(run_case "build_output_recompiled '$BUILD_NOOP'")" 1
+check "build_output_recompiled：完全沒有 Compiling 行 → 1（假）" \
+      "$(run_case "build_output_recompiled 'Build complete! (0.12s)'")" 1
+check "build_output_recompiled：空輸入 → 1（假）" \
+      "$(run_case "build_output_recompiled ''")" 1
+# `Compiling plugin` 必須靠**整行的形狀**排除，不能只看有沒有出現 "plugin" 這個字。
+# 一個叫 MiragePluginSupport 的 target 被重編時，行內同樣含 "plugin"（大小寫不同），
+# 若判斷寫成 `grep -qv plugin` 就會把真重編誤判成 no-op——那是靜默的量測污染。
+check "build_output_recompiled：target 名字裡含 Plugin 仍算重編 → 0（真）" \
+      "$(run_case "build_output_recompiled '[3/4] Compiling MiragePluginSupport Foo.swift'")" 0
+
 echo ""
 if [ "$FAILURES" -eq 0 ]; then
     echo "全部通過"
