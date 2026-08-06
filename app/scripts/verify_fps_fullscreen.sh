@@ -36,11 +36,15 @@ set -uo pipefail
 source "$(dirname "$0")/lib/verify_common.sh"
 source "$(dirname "$0")/lib/gui_session.sh"
 source "$(dirname "$0")/lib/load_sentinel.sh"
+source "$(dirname "$0")/lib/guest_fps.sh"
 
 SERIAL="emulator-5556"
 GRPC_PORT="8556"
 PACKAGE="com.loomgames.pixelflow"
-ROUNDS=3
+# D56：預設從 3 提到 5。guest 門檻會淘汰掉一部分輪次（那些輪次的 emulator 本來就
+# 沒產出足夠的幀，量到的 Mirage 數字對驗收線 7 沒有鑑別力），所以要多備幾輪才湊得到
+# 「前置：有效輪數 ≥ 2」。輪次內不再建置（D57）之後，每輪約 45 秒，5 輪仍在可接受範圍。
+ROUNDS=5
 DURATION=20
 # D45 Task 3 修正：預設 8 訂在「常態負載」的下緣（前一輪實測整場落在 8–18，一度衝到
 # 17.95），幾乎每輪都被擋——那是哨兵在扼殺量測，不是在保護量測。真正的失效門檻是
@@ -74,6 +78,26 @@ BASELINE="$(dirname "$0")/../../phase0/harness/fps_baseline.py"
 
 require_device "$SERIAL"
 require_grpc "$GRPC_PORT"
+
+# === 主機外來 CPU（D56 變異來源 (b)）===
+#
+# **只診斷、不擋。** 真正的防線是每輪的 guest 門檻——它擋的是「後果」（emulator 沒
+# 產出足夠的幀），這裡給的是「成因」，讓紅燈的人知道要去關掉什麼。原本這段在
+# `verify_fps_with_guest.sh` 裡是會中止的，但那支腳本已併入本檔（它的整段 timestats
+# 窗口與本檔逐輪的 `-clear` 互相衝突），而有了逐輪 guest 門檻之後，事前一刀切地中止
+# 整個跑次既多餘又更擾人：機器只是暫時忙的話，被影響的輪次自己會被判為無效。
+BUSY_GAP="${BUSY_GAP:-5}"
+# qemu（emulator 本體）、MirageApp、WindowServer（全螢幕合成）就是被量的東西，不算污染。
+MEASURED_PROCS="qemu-system|MirageApp|WindowServer"
+echo ""
+echo "=== 主機外來 CPU（取樣 ${BUSY_GAP} 秒）==="
+SNAP_A=$(cpu_snapshot)
+sleep "$BUSY_GAP"
+SNAP_B=$(cpu_snapshot)
+FOREIGN_TOTAL=$(cpu_delta_total "$SNAP_A" "$SNAP_B" "$BUSY_GAP" "$MEASURED_PROCS")
+echo "   非工作負載 CPU 總和：${FOREIGN_TOTAL}%（qemu／MirageApp／WindowServer 已排除）"
+cpu_delta_report "$SNAP_A" "$SNAP_B" "$BUSY_GAP" "$MEASURED_PROCS" \
+    | head -3 | awk '{ c = ""; for (i = 2; i <= NF; i++) { c = c (i > 2 ? " " : "") $i }; printf "     %5.1f%%  %s\n", $1, c }'
 
 # === 建置一次，在所有輪次之外（D57）===
 #
@@ -146,6 +170,24 @@ BASE_VALS=""
 # 這個不穩定本身也是要讓 Task 5 的前置閘門知道的事。複審抓到的 Critical：這裡原本只
 # 初始化成 1，卻沒有任何分支寫回 0，變成一個看似有檢查、實際上恆真的死變數。
 SIZE_OK=1
+
+# === guest 門檻（D56）===
+#
+# **為什麼門檻正好等於驗收線 7 的 55，而這不是「調鬆判準」**：Mirage 不可能比 guest
+# 產出的還快。某一輪 guest 只有 49 fps 時，Mirage ≥ 55 在那個窗口裡**算術上就不可能**
+# ——那一輪既不能證明 Mirage 慢、也不能證明它快，對驗收線 7 沒有任何鑑別力。把它算進
+# 中位數不是「保守」，是拿環境雜訊稀釋判定：同一顆 build、同一天量到 56／58（通過）
+# 與 31／48／54（未通過），差別就在 guest（實測 49.18 vs 安靜窗口的 59.9）。
+#
+# ⚠️ **這個門檻的失效方向是紅燈，不是綠燈**，這是它能存在的前提：guest 全部不達標時
+# 有效輪數會湊不到 2，前置斷言直接紅。它不可能把一次失敗變成通過。
+#
+# ⚠️ **但有一個它不該吸收掉的情況：Mirage 自己把 emulator 餓死。** 那時 guest 也會掉，
+# 而那是真的產品缺陷、不是環境問題。所以全部輪次都被這道門檻淘汰時，下方會印出明確
+# 警告要求人去分辨，而不是安靜地報「環境不佳」。
+GUEST_MIN="${GUEST_MIN:-55}"
+GUEST_VALS=""
+GUEST_REJECTED=0
 
 for round in $(seq 1 "$ROUNDS"); do
     echo ""
@@ -237,15 +279,49 @@ for round in $(seq 1 "$ROUNDS"); do
     fi
     echo "✅ 串流尺寸已收斂到解析度上限附近（$(printf '%s' "$LATEST_ATTACH" | sed 's/.*請求 //')，寬度 ≥ ${FULLSCREEN_MIN_WIDTH}）"
 
+    # **guest 的量測窗口必須與這裡的擷取窗口是同一段**（D56／D48 限制）。前一版把
+    # timestats 開在整個跑次外層，量到的 241 秒窗口涵蓋三輪＋輪次間隔＋App 啟動＋
+    # 一次 65.83 秒的重編——那個平均值不能與任何單輪的 Mirage 數字比較。
     BEFORE=$(fps_samples "$LOG")
+    guest_window_start "$SERIAL"
     sleep "$DURATION"
+    GUEST_RAW=$(guest_window_end "$SERIAL" "$PACKAGE") || GUEST_RAW=""
     M=$(fps_median "$LOG")
     echo "   Mirage 側：中位數 ${M} fps（取樣 $(fps_samples "$LOG") 筆，量測前已有 ${BEFORE} 筆）"
+
+    G=""
+    if [ -z "$GUEST_RAW" ]; then
+        echo "   guest 側：量不到——找不到 ${PACKAGE} 的 SurfaceView layer（遊戲可能不在前景，"
+        echo "            或整個窗口沒有出幀）"
+    else
+        G=$(printf '%s' "$GUEST_RAW" | cut -d' ' -f1)
+        GF=$(printf '%s' "$GUEST_RAW" | cut -d' ' -f2)
+        GD=$(printf '%s' "$GUEST_RAW" | cut -d' ' -f3)
+        GW=$(printf '%s' "$GUEST_RAW" | cut -d' ' -f4)
+        # **不印 dumpsys 自己的 averageFPS**，它系統性偏高約 3%（AOSP 的
+        # duration_cast<milliseconds> 無條件捨去，見 lib/guest_fps.sh 的長註解）。
+        echo "   guest 側：${G} fps（${GF} 幀 ÷ $(awk -v w="$GW" 'BEGIN { printf "%.2f", w / 1000 }')s，droppedFrames=${GD}）"
+        # ⚠️ droppedFrames=0 **不能**用來反駁「guest 是瓶頸」：它只表示 SurfaceFlinger
+        # 沒丟棄「已提交」的幀，不表示 Unity 送滿了 60。實測有過 fps=34.28 而
+        # droppedFrames=0 的窗口。判準一律看 fps，不看 droppedFrames。
+    fi
 
     # **關掉 Mirage 再量對照組**——不並行。兩個 client 同時拉同一條串流，
     # emulator 得做兩份工，量到的是「兩個消費者下的幀率」而非任一方的能力。
     gui_session_cleanup "$BUNDLE"
     sleep 3
+
+    # === 本輪有效性：guest 有沒有產出足以讓驗收線 7 成立的幀（D56）===
+    if [ -z "$G" ] || ! awk -v g="$G" -v t="$GUEST_MIN" 'BEGIN { exit !(g >= t) }'; then
+        GUEST_REJECTED=$((GUEST_REJECTED + 1))
+        echo "   ❌ 本輪判為無效：guest ${G:-（量不到）} fps 未達 ${GUEST_MIN}——"
+        echo "      這個窗口裡 Mirage 要達到 ${GUEST_MIN} 在算術上就不可能，本輪對驗收線 7"
+        echo "      沒有鑑別力，不計入中位數（如實記錄，不湊數）。"
+        [ -n "$G" ] && GUEST_VALS="${GUEST_VALS}${G}\n"
+        rm -f "$LOG"
+        continue
+    fi
+    GUEST_VALS="${GUEST_VALS}${G}\n"
 
     # 對照組是三態的（Task 1 定案）：退出碼 0=measured、2=static（畫面靜止，合法但無
     # 樣本）、1=error（連線或工具失敗）。**必須分流**——把 static 與 error 都當成
@@ -308,10 +384,26 @@ done
 # 自行用 ${VAR:-0}（例如最終驗收斷言刻意要空字串等同 0，因為那代表完全沒有有效輪次）。
 median_of() { printf "%b" "$1" | grep -v '^$' | sort -n | awk '{ v[NR]=$1 } END { if (NR) printf "%d\n", v[int((NR+1)/2)] }'; }
 
+list_of()   { printf "%b" "$1" | grep -v '^$' | sort -n | tr '\n' ' ' | sed 's/ $//'; }
+count_of()  { printf "%b" "$1" | grep -cv '^$'; }
+min_of()    { printf "%b" "$1" | grep -v '^$' | sort -n | head -1; }
+max_of()    { printf "%b" "$1" | grep -v '^$' | sort -n | tail -1; }
+
 echo ""
 echo "===== 解析結果 ====="
 MM=$(median_of "$MIRAGE_VALS")
 BM=$(median_of "$BASE_VALS")
+# === 離散度（D56）===
+#
+# **只印中位數會把判定的不確定性藏起來。** 2026-08-06 同一顆 build、同一天量到
+# 56／58（中位數 56，通過）與 31／48／54（中位數 48，未通過）——兩次跑次得出相反的
+# 判定，而兩個中位數各自看起來都很篤定。值域必須跟中位數一起印。
+echo "MIRAGE_VALUES=$(list_of "$MIRAGE_VALS")"
+if [ -n "$MM" ]; then
+    echo "MIRAGE_SPREAD=$(min_of "$MIRAGE_VALS")–$(max_of "$MIRAGE_VALS")（$(count_of "$MIRAGE_VALS") 個有效輪次）"
+fi
+echo "GUEST_VALUES=$(list_of "$GUEST_VALS")"
+echo "GUEST_REJECTED=${GUEST_REJECTED}（guest 未達 ${GUEST_MIN} 而判為無效的輪次數）"
 echo "MIRAGE_MEDIAN=${MM:-無資料}"
 echo "BASELINE_MEDIAN=${BM:-無資料（對照組本輪全數失敗／被排除，見上方各輪訊息；不影響驗收線 7 的判定）}"
 if [ -n "$MM" ] && [ -n "$BM" ]; then
@@ -332,7 +424,42 @@ echo "===== 判定 ====="
 # 前置：尺寸沒到上限，量的就不是驗收線 7 要的東西。**必須排在最前面**——
 # 尺寸不對的話，後面的驗收判定就算綠了也沒有意義。
 assert_equals "前置：串流尺寸收斂到上限" "$SIZE_OK" 1
-assert_at_least "前置：有效輪數" "$(printf "%b" "$MIRAGE_VALS" | grep -cv '^$')" 2
+
+# **全部輪次都被 guest 門檻淘汰時，不可以安靜地當成「環境不佳」。**（D56）
+# guest 掉幀有兩種成因，而它們的結論完全相反：
+#   - 主機被別的東西佔滿 → 環境問題，換個時間重跑
+#   - Mirage 自己把 emulator 餓死 → 真的產品缺陷，重跑幾次都一樣
+# 這道門檻分不出這兩者，所以它必須把問題交出去，而不是替人做結論。
+if [ "$(count_of "$MIRAGE_VALS")" -eq 0 ] && [ "$GUEST_REJECTED" -gt 0 ]; then
+    echo ""
+    echo "================================================================"
+    echo "⚠️  ${GUEST_REJECTED} 個輪次全部因為 guest 未達 ${GUEST_MIN} 而判為無效。"
+    echo "   guest 實測：$(list_of "$GUEST_VALS")"
+    echo "   **這不必然是環境問題。** 兩種成因結論相反，這道門檻分不出來："
+    echo "     (a) 主機被別的東西佔滿 → 換個安靜的時間重跑即可"
+    echo "     (b) Mirage 自己把 emulator 餓死 → 是產品缺陷，重跑幾次都一樣"
+    echo "   分辨方法：不開 Mirage、只跑對照組時 guest 是多少？兩者接近就是 (a)，"
+    echo "   開了 Mirage 才掉就是 (b)。（D45 在 headless、load≈3 下量到的是 59.9。）"
+    echo "   本次跑次開始時的非工作負載 CPU 總和是 ${FOREIGN_TOTAL}%——偏高就先往 (a) 查。"
+    echo "================================================================"
+fi
+
+assert_at_least "前置：有效輪數" "$(count_of "$MIRAGE_VALS")" 2
+
+# **值域跨越門檻時，這次量測判定不了驗收線 7。**（D56）
+# 一半輪次在 55 以上、一半在以下，中位數落在哪邊是抽樣運氣，不是產品狀態。
+# 這種情況印綠或印紅都是在假裝確定，正確的輸出是「這把尺這次沒量準」。
+if [ -n "$MM" ] && [ "$(min_of "$MIRAGE_VALS")" -lt 55 ] && [ "$(max_of "$MIRAGE_VALS")" -ge 55 ]; then
+    echo ""
+    echo "================================================================"
+    echo "⚠️  量測值域 $(min_of "$MIRAGE_VALS")–$(max_of "$MIRAGE_VALS") **跨越了門檻 55**，這次量測判定不了驗收線 7。"
+    echo "   實測值：$(list_of "$MIRAGE_VALS")"
+    echo "   中位數 ${MM} 落在哪一邊是抽樣運氣，不是產品狀態——2026-08-06 同一顆 build"
+    echo "   同一天量到 56／58（通過）與 31／48／54（未通過）就是這個現象（D56）。"
+    echo "   下一步：機器安靜下來後加輪數重跑（-r 9），或先處理仍在污染量測的變異來源。"
+    echo "   **下方的判定行仍會照中位數給出結果，但它的可信度就是這一段所說的。**"
+    echo "================================================================"
+fi
 
 # 驗收線 7（spec §8 第 7 條）：MIRAGE_FPS_LOG 中位數 ≥ 55。**這個門檻是固定值，不隨
 # 量測結果調整**——2026-08-04 的使用者裁決推翻了 D45 原先「對照組也只有 30.4、55

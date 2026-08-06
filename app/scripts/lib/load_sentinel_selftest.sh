@@ -60,6 +60,62 @@ check "load_avg_1min 印出數字" \
       "$(awk -v v="$LA" 'BEGIN { print (v + 0 == v && v >= 0) ? "yes" : "no" }')" "yes"
 
 echo ""
+echo "=== cpu_delta（D56）==="
+
+# 兩次快照，間隔 10 秒。**這組測試釘住的是 cputime 的格式解析**——macOS 上它可能是
+# `MM:SS.ss`、`HH:MM:SS`、甚至 `DD-HH:MM:SS`，而解錯的後果是靜默的：算出來的百分比
+# 只是「不太對」，不會有任何錯誤訊息。
+#
+# ⚠️ **高位欄位必須在兩次快照之間跨過進位邊界，否則這些測試驗不到任何東西。**
+# 第一版寫成 `1:00:00` → `1:00:02`：把 HH:MM:SS 誤解成 MM:SS 時，兩邊同樣少算 3600 秒，
+# **差值完全一樣**，解析壞掉的實作照樣通過（突變檢查當場證明：改壞了還是全綠）。
+# 這正是「結構上不可能失敗的測試」。改成跨過整點／跨過午夜之後，誤解會讓差值變成負數
+# 而被門檻濾掉，測試才真的紅。
+SNAP_A='  101 10:00.00 /usr/bin/busy
+  102 0:59:58 /Applications/iTerm.app/Contents/MacOS/iTerm2
+  103 00:10.00 /usr/bin/idle
+  104 0-23:59:58 /usr/bin/ancient
+  105 00:05.00 /usr/local/bin/qemu-system-aarch64'
+# busy 多 5 秒 → 50%；iTerm2 跨整點多 5 秒 → 50%；idle 多 0.5 秒 → 5%（低於門檻，濾掉）
+# ancient 跨午夜多 5 秒 → 50%；qemu 多 9 秒 → 90%（但被 skip 濾掉）
+SNAP_B='  101 10:05.00 /usr/bin/busy
+  102 1:00:03 /Applications/iTerm.app/Contents/MacOS/iTerm2
+  103 00:10.50 /usr/bin/idle
+  104 1-00:00:03 /usr/bin/ancient
+  105 00:14.00 /usr/local/bin/qemu-system-aarch64'
+
+check "cpu_delta_report：MM:SS.ss 解析（5 秒/10 秒 = 50%）" \
+      "$(cpu_delta_report "$SNAP_A" "$SNAP_B" 10 "qemu-system" | grep busy)" \
+      "50.0 /usr/bin/busy"
+# HH:MM:SS 若被當成 MM:SS 解析，1:00:00 會變成 60 秒而不是 3600 秒——差值仍是 2 秒，
+# 所以這條要能紅，關鍵在下面的總和：解析錯會讓 ancient 那筆整個歪掉。
+check "cpu_delta_report：HH:MM:SS 跨整點（5 秒/10 秒 = 50%）" \
+      "$(cpu_delta_report "$SNAP_A" "$SNAP_B" 10 "qemu-system" | grep iTerm2 | cut -d' ' -f1)" \
+      "50.0"
+check "cpu_delta_report：DD-HH:MM:SS 跨午夜（5 秒/10 秒 = 50%）" \
+      "$(cpu_delta_report "$SNAP_A" "$SNAP_B" 10 "qemu-system" | grep ancient | cut -d' ' -f1)" \
+      "50.0"
+# 低於 10% 的雜訊不該入列——不然每次跑都會印出一整頁系統背景行程。
+check "cpu_delta_report：5% 的行程被門檻濾掉" \
+      "$(cpu_delta_report "$SNAP_A" "$SNAP_B" 10 "qemu-system" | grep -c idle)" \
+      "0"
+# 被量的東西（qemu／MirageApp／WindowServer）不算污染，必須排除。
+check "cpu_delta_report：skip regex 濾掉被量的行程" \
+      "$(cpu_delta_report "$SNAP_A" "$SNAP_B" 10 "qemu-system" | grep -c qemu)" \
+      "0"
+check "cpu_delta_total：50+50+50 = 150" \
+      "$(cpu_delta_total "$SNAP_A" "$SNAP_B" 10 "qemu-system")" "150"
+# skip 為空字串時 qemu 的 90% 要算進來。
+check "cpu_delta_total：skip 為空 → 含 qemu 共 240" \
+      "$(cpu_delta_total "$SNAP_A" "$SNAP_B" 10 "")" "240"
+# 新出現的行程（第一次快照裡沒有）不能被當成「用了全部 CPU 時間」。
+check "cpu_delta_report：只在第二次快照出現的行程不列入" \
+      "$(cpu_delta_report "$SNAP_A" "$SNAP_B$(printf '\n  999 99:00.00 /usr/bin/newcomer')" 10 "" | grep -c newcomer)" \
+      "0"
+check "cpu_delta_total：完全沒有超標行程 → 0" \
+      "$(cpu_delta_total "$SNAP_A" "$SNAP_A" 10 "")" "0"
+
+echo ""
 if [ "$FAILURES" -eq 0 ]; then
     echo "全部通過"
     exit 0
