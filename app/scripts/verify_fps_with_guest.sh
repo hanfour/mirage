@@ -33,9 +33,33 @@ ts() { "$ADB" -s "$SERIAL" shell dumpsys SurfaceFlinger --timestats "$@" 2>/dev/
 # guest 表現」寫進結論。這正是 D50／D54 記的形狀：**窗口沒對齊，量到的是別的東西。**
 #
 # 修法：先把 release build 跑完（不計入窗口），再 enable，然後才跑 verify。
-echo "=== 預先建置 release（不計入量測窗口）==="
-( cd "$SCRIPT_DIR/.." && swift build -c release > /dev/null 2>&1 )
-assert_ok "release 預先建置" "$?"
+# **一次 `swift build` 不足以保證下一次是 no-op**，這是 2026-08-06 實測到的：
+# 確認跑次的第 1 輪在窗口內重編了 65.83 秒（`Compiling SwiftProtobuf …`），儘管本步驟
+# 剛剛才回報「預先建置通過」。之後直接連跑兩次相同的 `swift build -c release` 重現了
+# 同一件事——**73.85s 然後 0.58s**，工作樹全程乾淨。原因未鎖定（`SwiftProtobufPlugin`
+# 每次都會重跑，疑似讓下游 target 偶發失效），但不必鎖定就能防：**建到真的 no-op 為止。**
+#
+# 判準要排除 `Compiling plugin …`——那兩行在 73.85s 與 0.58s 的輸出裡都會出現，
+# 拿它當訊號會永遠判定成「還沒暖」。真正的訊號是有沒有 target 原始檔被編譯。
+echo "=== 預先建置 release（建到 no-op 為止，不計入量測窗口）==="
+PREBUILD_MAX="${PREBUILD_MAX:-3}"
+prebuild_warm=0
+for attempt in $(seq 1 "$PREBUILD_MAX"); do
+    out=$( cd "$SCRIPT_DIR/.." && swift build -c release 2>&1 )
+    rc=$?
+    if [ "$rc" -ne 0 ]; then
+        echo "$out" | tail -20
+        assert_ok "release 預先建置" "$rc"
+    fi
+    if printf '%s\n' "$out" | grep -E '^\[[0-9]+/[0-9]+\] Compiling ' | grep -qv 'Compiling plugin'; then
+        echo "   第 ${attempt} 次仍有 target 被重編，再建一次"
+        continue
+    fi
+    prebuild_warm=1
+    echo "   第 ${attempt} 次已是 no-op，建置快取確定是暖的"
+    break
+done
+assert_equals "release 建置快取已暖（未達則量測窗口會被重編污染）" "$prebuild_warm" "1"
 
 # 等負載從 build 的餘波回落。**門檻對齊 verify_fps_fullscreen.sh 自己的 LOAD_LIMIT
 # （預設 18），不要更嚴**——第一版寫死 8，比被包裝的腳本還嚴格，於是在這台機器的
@@ -53,12 +77,58 @@ echo "   目前負載 ${la}"
 # **量測前先確認機器上沒有別人的重負載工作。** 2026-08-06 第二次跑就撞到：三個 java
 # 行程吃掉 356% CPU（使用者的其他工作），load 卡在 25–32，verify 的 load gate 一直擋。
 # 那不是本腳本該解決的問題，但它該講清楚，而不是讓人盯著一個沒有進展的畫面。
-busy=$(ps aux | sort -nrk3 | awk 'NR<=5 && $3>50 {printf "%.0f%% %s\n", $3, $11}' \
-       | grep -vE "qemu-system|MirageApp" | head -3)
-if [ -n "$busy" ]; then
+# **兩個量測工具的坑，都是實測踩出來的**：
+#
+# 1. **不要用 `ps aux` 取欄位**：`STARTED` 是一或兩個 token（`5:12AM` vs `Wed08AM`），
+#    COMMAND 欄號會跟著移位。這裡就印出過 `61% 1384:40.74`——那是 TIME 欄，不是行程名。
+# 2. **更根本的：`ps` 的 `%cpu` 不是「現在吃多少」**，在 macOS 上是行程生命期的衰減
+#    平均。用它當中止門檻會永久卡住——實測 iTerm2 報 90.7%，而它的 etime 是 **7 天**。
+#    正確的瞬時用量要自己算：取兩次 `cputime`，相除以間隔。
+#
+# **門檻用「非工作負載 CPU 總和」而不是逐行程列白名單**：qemu（emulator 本體）、
+# MirageApp、WindowServer（全螢幕合成）三者本來就是被量的東西，不能算污染；剩下的
+# 全部加總，超過一整顆核心才中止。這樣「三個 java 行程吃 356%」會擋，而終端機自己
+# 畫輸出造成的 70% 不會——後者實測是這台機器的常態（iTerm2 持續約 73%）。
+BUSY_GAP="${BUSY_GAP:-5}"
+# 門檻 150% 不是隨手挑的：這台機器的**常態**外來負載實測就有約 97%（幾乎全部是
+# iTerm2 在畫這些腳本的輸出，持續約 73%）。門檻設 100% 會貼著常態值抖動，變成隨機
+# 中止；設 150% 讓「三個 java 行程吃 356%」那種真的異常擋下來，常態不擋。
+BUSY_LIMIT="${BUSY_LIMIT:-150}"
+cpu_snapshot() { ps -Ao pid=,cputime=,comm=; }
+snap_a=$(cpu_snapshot)
+sleep "$BUSY_GAP"
+snap_b=$(cpu_snapshot)
+foreign=$(awk -v gap="$BUSY_GAP" '
+    function secs(t,   n, p) {
+        n = split(t, p, ":")
+        if (n == 3) { return p[1] * 3600 + p[2] * 60 + p[3] }
+        if (n == 2) { return p[1] * 60 + p[2] }
+        return t + 0
+    }
+    NR == FNR { prev[$1] = secs($2); next }
+    {
+        pid = $1
+        if (!(pid in prev)) { next }
+        pct = (secs($2) - prev[pid]) / gap * 100
+        if (pct <= 10) { next }
+        cmd = ""
+        for (i = 3; i <= NF; i++) { cmd = cmd (i > 3 ? " " : "") $i }
+        if (cmd ~ /qemu-system|MirageApp|WindowServer/) { next }
+        printf "%6.1f%%  %s\n", pct, cmd
+    }
+' <(printf '%s\n' "$snap_a") <(printf '%s\n' "$snap_b") | sort -nr)
+foreign_total=$(printf '%s\n' "$foreign" | awk -F% '{ s += $1 } END { printf "%.0f", s }')
+echo "   非工作負載 CPU 總和：${foreign_total:-0}%（門檻 ${BUSY_LIMIT}%）"
+if [ "${foreign_total:-0}" -gt "$BUSY_LIMIT" ]; then
     echo "⚠️  機器上有其他高 CPU 行程，fps 量測會被 load gate 擋或被污染："
-    echo "$busy" | sed 's/^/      /'
-    echo "   建議等它們結束再跑；硬跑出來的數字不可信（D54）。"
+    printf '%s\n' "$foreign" | head -5 | sed 's/^/   /'
+    # **從「警告」升級成「中止」，理由是實測**：2026-08-06 的確認跑次照著這個警告
+    # （`83% shellcheck`）繼續跑，第 1 輪就量到 31 fps，而同一次的第 2、3 輪是 48／54。
+    # 一個大家都會忽略的警告，等於沒有這個檢查——這正是 D9 那類假訊號的形狀。
+    echo "   ❌ 中止：硬跑出來的數字不可信（D54）。等它們結束再跑，"
+    echo "      或明確承擔風險：ALLOW_BUSY=1 $0 $*"
+    [ "${ALLOW_BUSY:-0}" = "1" ] || exit 1
+    echo "   （ALLOW_BUSY=1，已承擔風險繼續）"
 fi
 
 echo ""
