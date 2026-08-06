@@ -152,16 +152,22 @@ specification will be used" — we could not determine whether that matters here
 
 ### Reproduction
 
-Attached: `split_roles.swift` — the decisive experiment above, as a single runnable
-script (`swift split_roles.swift`). It creates the file, maps it `PROT_READ|MAP_SHARED`,
-keeps the fd, spawns a Python child that issues the `streamScreenshot` MMAP request
-against that same path, and then reports how many distinct contents the Swift process
-observed via both `mmap` and `pread`.
+The split-role experiment above is the shortest path to seeing this. In one process:
 
-Requirements: a running emulator with gRPC on `localhost:8554`, a guest screen that is
-actually changing (`streamScreenshot` is change-driven — a static screen produces no
-frames), and a Python environment with `grpcio` plus the generated
-`emulator_controller_pb2{,_grpc}` stubs (adjust the `harness` path at the top).
+1. `open(path, O_RDWR|O_CREAT|O_TRUNC, 0600)` → `ftruncate(540*1200*4)` →
+   `mmap(NULL, size, PROT_READ, MAP_SHARED, fd, 0)`, keep the fd
+2. Issue `streamScreenshot` with `ImageFormat{RGBA8888, width: 540, height: 1200,
+   transport: {channel: MMAP, handle: "file://" + path}}`
+3. On each notification, read the mapped region and hash it
 
-To see the failing side, issue the same request from the Swift process itself instead of
-from the Python child — everything else identical.
+Do this twice — once with the request issued by grpc-swift, once by grpcio (from a child
+process, so the file is still created and owned by the same process in both cases). The
+grpcio run yields hundreds of distinct frames; the grpc-swift run yields a handful.
+
+Two preconditions that are easy to miss: the guest screen must actually be changing
+(`streamScreenshot` is change-driven — a static screen produces no frames at all), and
+the sampling window must be long enough. We initially used a 3-frame window and misread
+this as a hard freeze for over a week; at ~15 Hz effective update rate, 3 frames
+(~150 ms) are identical almost every time. 400 frames makes the difference obvious.
+
+We are happy to attach a runnable script if that would help.
