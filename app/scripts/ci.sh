@@ -267,10 +267,21 @@ else
     ./scripts/lib/load_sentinel_selftest.sh 2>&1 | grep "❌" | sed 's/^/   /'
 fi
 
+# guest_fps_selftest.sh 是 D56 新增的第四支自我測試。guest_fps.sh 的解析決定「本輪
+# 算不算有效」——解錯的後果是靜默的：一份 dumpsys 裡有檔頭的全域 totalFrames、目標
+# layer 的、還有其他 layer 的，取錯只會讓數字「不太對」而不會報錯，而那個數字現在
+# 直接決定驗收線 7 的樣本要不要採計。
+if ./scripts/lib/guest_fps_selftest.sh > /dev/null 2>&1; then
+    ok "guest_fps.sh 自我測試通過"
+else
+    fail "guest_fps.sh 自我測試失敗（重跑 ./scripts/lib/guest_fps_selftest.sh 看細節）："
+    ./scripts/lib/guest_fps_selftest.sh 2>&1 | grep "❌" | sed 's/^/   /'
+fi
+
 echo ""
 echo "======================================"
 if [ "$FAILURES" -eq 0 ]; then
-    echo "全部通過（$RUNS 次跑次、0 行 NIO ERROR、無假 skip、無全形標點陷阱、無永不紅的 #expect、provision 測試綠、三支共用函式庫自我測試（verify_common／audio_stats／load_sentinel）皆綠）"
+    echo "全部通過（$RUNS 次跑次、0 行 NIO ERROR、無假 skip、無全形標點陷阱、無永不紅的 #expect、provision 測試綠、四支共用函式庫自我測試（verify_common／audio_stats／load_sentinel／guest_fps）皆綠）"
     exit 0
 fi
 echo "$FAILURES 項失敗"
