@@ -75,6 +75,25 @@ BASELINE="$(dirname "$0")/../../phase0/harness/fps_baseline.py"
 require_device "$SERIAL"
 require_grpc "$GRPC_PORT"
 
+# === 建置一次，在所有輪次之外（D57）===
+#
+# **原本每一輪都在窗口內建置。** `gui_session_start` → `package_app.sh` →
+# `swift build -c release`，而那就發生在該輪 20 秒擷取窗口的正前方。平常它是 0.5 秒
+# 的 no-op 所以沒人注意，但 2026-08-06 實測到 `swift build` **不是冪等的**：工作樹
+# 全程乾淨，連跑兩次相同指令是 73.85s 然後 0.58s。撞到那 73 秒的輪次會被 CPU 餓死
+# ——實測量到 **31 fps**，而同一次跑次的另兩輪是 48／54。
+#
+# 修法是把建置整個移出輪次：這裡建到真的 no-op 為止（`build_warm` 的判斷有自我測試
+# 釘著，見 verify_common_selftest.sh），之後每輪的 `package_app.sh` 只做複製與自檢。
+# 這樣輪次之間的耗時也一致，`load_gate` 擋的才是真的環境負載，不是我們自己製造的。
+echo ""
+echo "=== 預先建置 release（一次，在所有輪次之外）==="
+if ! build_warm release 3 "$(dirname "$0")/.."; then
+    exit 1
+fi
+# 之後每輪的 package_app.sh 只複製，不建置。
+export MIRAGE_SKIP_BUILD=1
+
 echo ""
 echo "=== 啟動遊戲：$PACKAGE ==="
 "$ADB" -s "$SERIAL" shell monkey -p "$PACKAGE" -c android.intent.category.LAUNCHER 1 > /dev/null 2>&1

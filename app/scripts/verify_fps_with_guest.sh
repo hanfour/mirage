@@ -33,33 +33,20 @@ ts() { "$ADB" -s "$SERIAL" shell dumpsys SurfaceFlinger --timestats "$@" 2>/dev/
 # guest 表現」寫進結論。這正是 D50／D54 記的形狀：**窗口沒對齊，量到的是別的東西。**
 #
 # 修法：先把 release build 跑完（不計入窗口），再 enable，然後才跑 verify。
-# **一次 `swift build` 不足以保證下一次是 no-op**，這是 2026-08-06 實測到的：
-# 確認跑次的第 1 輪在窗口內重編了 65.83 秒（`Compiling SwiftProtobuf …`），儘管本步驟
-# 剛剛才回報「預先建置通過」。之後直接連跑兩次相同的 `swift build -c release` 重現了
-# 同一件事——**73.85s 然後 0.58s**，工作樹全程乾淨。原因未鎖定（`SwiftProtobufPlugin`
-# 每次都會重跑，疑似讓下游 target 偶發失效），但不必鎖定就能防：**建到真的 no-op 為止。**
 #
-# 判準要排除 `Compiling plugin …`——那兩行在 73.85s 與 0.58s 的輸出裡都會出現，
-# 拿它當訊號會永遠判定成「還沒暖」。真正的訊號是有沒有 target 原始檔被編譯。
+# **這裡曾經有一份 build_warm 的內聯副本，已抽進 verify_common.sh。** 抽的理由不是
+# 美觀：`verify_fps_fullscreen.sh` 修 D57 時需要同一段邏輯，而這段邏輯有一個很容易
+# 寫錯的地方（必須排除 `Compiling plugin …`，那兩行在真重編與 no-op 的輸出裡都會
+# 出現）。兩份副本＝兩次機會寫錯其中一份，正是 verify_common.sh 開頭記載的 D9。
+# 共用之後那個判斷有自我測試釘著（`verify_common_selftest.sh`，已做突變檢查）。
+#
+# ⚠️ 本腳本這次 build_warm 仍然必要，**不能因為被包裝的 verify_fps_fullscreen.sh
+# 自己也會 build_warm 就省掉**：`ts -enable` 在呼叫 verify 之前，被包裝腳本的建置
+# 會落在 guest 量測窗口內。第一版就是這樣讓窗口涵蓋 249 秒的 build。
 echo "=== 預先建置 release（建到 no-op 為止，不計入量測窗口）==="
-PREBUILD_MAX="${PREBUILD_MAX:-3}"
-prebuild_warm=0
-for attempt in $(seq 1 "$PREBUILD_MAX"); do
-    out=$( cd "$SCRIPT_DIR/.." && swift build -c release 2>&1 )
-    rc=$?
-    if [ "$rc" -ne 0 ]; then
-        echo "$out" | tail -20
-        assert_ok "release 預先建置" "$rc"
-    fi
-    if printf '%s\n' "$out" | grep -E '^\[[0-9]+/[0-9]+\] Compiling ' | grep -qv 'Compiling plugin'; then
-        echo "   第 ${attempt} 次仍有 target 被重編，再建一次"
-        continue
-    fi
-    prebuild_warm=1
-    echo "   第 ${attempt} 次已是 no-op，建置快取確定是暖的"
-    break
-done
-assert_equals "release 建置快取已暖（未達則量測窗口會被重編污染）" "$prebuild_warm" "1"
+if ! build_warm release "${PREBUILD_MAX:-3}" "$SCRIPT_DIR/.."; then
+    exit 1
+fi
 
 # 等負載從 build 的餘波回落。**門檻對齊 verify_fps_fullscreen.sh 自己的 LOAD_LIMIT
 # （預設 18），不要更嚴**——第一版寫死 8，比被包裝的腳本還嚴格，於是在這台機器的

@@ -685,3 +685,19 @@ App 啟動＋第 1 輪那 65.83s 的重編；Mirage 的數字是各輪 20 秒擷
 **這件事的影響範圍不只本腳本**：`verify_fps_fullscreen.sh` 是**每一輪內**呼叫
 `package_app.sh` 建置的，建置就落在該輪擷取窗口之前。凡是撞到冷快取的輪次都會
 被同樣污染。記為 D57。
+
+**✅ D57 已於同日修完（兩支腳本都修）**：判斷抽進 `verify_common.sh`
+（`build_output_recompiled`／`build_warm`，前者是純函式、有 5 條自我測試並做過
+突變檢查），`package_app.sh` 新增 `MIRAGE_SKIP_BUILD=1`，`verify_fps_fullscreen.sh`
+改成輪次前建置一次。**實跑驗證（`-r 1 -d 10`）當場又復現一次本現象**：
+
+```
+=== 預先建置 release（一次，在所有輪次之外）===
+   第 1 次仍有 target 被重編，再建一次
+   第 2 次已是 no-op，建置快取確定是暖的
+=== 第 1/1 輪 ===
+=== 跳過建置（MIRAGE_SKIP_BUILD=1；呼叫端已在量測窗口外建好）===
+```
+
+舊版的話，那次重編就會落在第 1 輪擷取窗口的正前方——也就是本節記載的 31 fps
+是怎麼來的。

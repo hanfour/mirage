@@ -33,10 +33,23 @@ APP="$OUT_DIR/Mirage.app"
 
 log() { echo "$@" >&2; }
 
-log "=== 建置（${CONFIG}）==="
-if ! swift build -c "$CONFIG" >&2; then
-    log "❌ 建置失敗，中止。"
-    exit 1
+# `MIRAGE_SKIP_BUILD=1` 讓呼叫端把建置移到量測窗口之外（D57）。
+#
+# **為什麼是選擇性關閉而不是直接拿掉**：本腳本是組 .app 的唯一入口（D25），三支
+# verify_* 與兩份 plan 文件都直接呼叫它，其中多數就是靠它順便建置的。預設行為必須
+# 一字不變。只有「要在量測窗口內反覆打包」的呼叫端才需要關掉它，而那些呼叫端有義務
+# 先自己 `build_warm`（verify_common.sh）。
+#
+# **跳過是安全的，因為下面兩條斷言擋著**：沒建過的話 `$EXECUTABLE` 與
+# `$RESOURCE_BUNDLE` 都不存在，會以具名訊息中止——不會靜默組出一個壞掉的 .app。
+if [ "${MIRAGE_SKIP_BUILD:-0}" = "1" ]; then
+    log "=== 跳過建置（MIRAGE_SKIP_BUILD=1；呼叫端已在量測窗口外建好）==="
+else
+    log "=== 建置（${CONFIG}）==="
+    if ! swift build -c "$CONFIG" >&2; then
+        log "❌ 建置失敗，中止。"
+        exit 1
+    fi
 fi
 
 BIN_PATH=$(swift build -c "$CONFIG" --show-bin-path)
