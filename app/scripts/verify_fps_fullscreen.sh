@@ -79,43 +79,46 @@ BASELINE="$(dirname "$0")/../../phase0/harness/fps_baseline.py"
 require_device "$SERIAL"
 require_grpc "$GRPC_PORT"
 
-# === 前置：畫面真的在變嗎（D59）===
+# === 前置：guest 真的在出幀嗎（D59）===
 #
 # **檔頭把「遊戲必須停在會持續變化的畫面」列為前置條件，但在此之前沒有任何斷言檢查它。**
-# `streamScreenshot` 是變化驅動的——畫面不動時 emulator 根本不出幀，量到的 fps 是
-# 「畫面多久變一次」，不是「傳輸能送多快」。兩者都會產出一個看起來很正常的數字。
+# `streamScreenshot` 是變化驅動的——guest 不出幀時 emulator 根本不送畫面，量到的 fps
+# 反映的是「畫面多久變一次」而非傳輸能力，而兩者都會產出一個看起來正常的數字。
 #
 # 2026-08-07 這條缺口造成了一次**寫進 repo 的錯誤結論**：在偏靜止的畫面上掃四個解析度，
-# 量到「像素愈多 fps 愈高」，據此判定「降解析度換 fps 走不通」並 commit。使用者把遊戲
-# 切到真正會動的畫面後重跑，結果完全反轉（910k px 30.9 fps vs 1792k 20.9 fps）。
+# 量到「像素愈多 fps 愈高」，據此判定「降解析度換 fps 走不通」並 commit。切到真正會動的
+# 畫面後重跑完全反轉（910k px 30.9 fps vs 1792k 20.9 fps）。
 #
-# 這是本專案第三次踩到同一個形狀——D44 的音訊供應率（A2b）、D56 的逐輪 guest fps，
-# 現在是畫面變化率。**前置條件寫在註解裡等於沒有寫。**
+# ⚠️ **第一版這道閘門用 `screencap` 雜湊，是錯的，已換掉。** 1 秒間隔取樣只能證明畫面
+# 「至少每秒變一次」，不能證明它以 20–60Hz 在變。實測反例：同一時刻 distinct 4/4 通過，
+# 而 SurfaceFlinger 裡根本找不到遊戲的 layer（guest 完全沒出幀），串流只有 0.24 fps。
+# 而且 `screencap` 每張要數秒，高頻取樣在結構上就辦不到。
 #
-# 判法：間隔取樣畫面雜湊，全部相同就是靜止。用 `exec-out screencap` 而非 `screenrecord`
-# ——後者本身會影響 guest 的合成負載，而我們正要量的就是那個。
-CHANGE_SAMPLES="${CHANGE_SAMPLES:-5}"
-CHANGE_MIN_DISTINCT="${CHANGE_MIN_DISTINCT:-4}"
+# 改用與逐輪閘門**同一個訊號**（`lib/guest_fps.sh`，有自我測試與突變檢查）：直接問
+# guest 出了幾幀。這比 screencap 強，也不重複發明——第一版等於做了一個比既有閘門更弱的
+# 複製品。這裡只是把同樣的判準提前，讓不合格的環境**快速失敗**，而不是跑完整輪才發現。
+PREFLIGHT_SECONDS="${PREFLIGHT_SECONDS:-8}"
+PREFLIGHT_GUEST_MIN="${PREFLIGHT_GUEST_MIN:-20}"
 echo ""
-echo "=== 前置：畫面變化率（取樣 ${CHANGE_SAMPLES} 張）==="
-_hashes=""
-for _ in $(seq 1 "$CHANGE_SAMPLES"); do
-    _h=$("$ADB" -s "$SERIAL" exec-out screencap -p 2>/dev/null | md5 -q)
-    _hashes="${_hashes}${_h}\n"
-    sleep 1
-done
-DISTINCT_FRAMES=$(printf "%b" "$_hashes" | grep -cv '^$' > /dev/null; printf "%b" "$_hashes" | grep -v '^$' | sort -u | wc -l | tr -d ' ')
-echo "   ${CHANGE_SAMPLES} 張取樣中有 ${DISTINCT_FRAMES} 張不同"
-if [ "$DISTINCT_FRAMES" -lt "$CHANGE_MIN_DISTINCT" ]; then
+echo "=== 前置：guest 出幀率（取樣 ${PREFLIGHT_SECONDS} 秒）==="
+guest_window_start "$SERIAL"
+sleep "$PREFLIGHT_SECONDS"
+PREFLIGHT_RAW=$(guest_window_end "$SERIAL" "$PACKAGE") || PREFLIGHT_RAW=""
+PREFLIGHT_FPS=$(printf '%s' "$PREFLIGHT_RAW" | cut -d' ' -f1)
+echo "   guest ${PREFLIGHT_FPS:-（找不到 layer）} fps"
+if [ -z "$PREFLIGHT_FPS" ] || ! awk -v g="$PREFLIGHT_FPS" -v t="$PREFLIGHT_GUEST_MIN" 'BEGIN { exit !(g >= t) }'; then
     echo "================================================================"
-    echo "❌ 前置未滿足：畫面幾乎沒有變化（${DISTINCT_FRAMES}/${CHANGE_SAMPLES} 張不同，門檻 ${CHANGE_MIN_DISTINCT}）。"
-    echo "   **這不是產品的紅燈，是環境的紅燈。** streamScreenshot 是變化驅動的，"
-    echo "   靜止畫面下量到的 fps 反映的是「畫面多久變一次」，不是傳輸能力。"
+    echo "❌ 前置未滿足：guest ${PREFLIGHT_FPS:-（找不到 layer）} fps，門檻 ${PREFLIGHT_GUEST_MIN}。"
+    echo "   **這不是產品的紅燈，是環境的紅燈。** guest 沒在出幀時，streamScreenshot"
+    echo "   不會送畫面，量到的 fps 反映的是畫面多久變一次，不是傳輸能力。"
+    echo "   找不到 layer 通常代表遊戲雖在前景但已停止算繪（Unity 閒置會暫停算繪）。"
     echo "   下一步：把遊戲切到會**持續變化**的畫面（遊玩中，不是選單／收集畫面）再跑。"
-    echo "   要在明知畫面靜止的情況下硬跑：CHANGE_MIN_DISTINCT=0 $0 $*"
+    echo "   門檻刻意低於逐輪的 GUEST_MIN=${GUEST_MIN:-55}——這裡只擋「根本沒在動」，"
+    echo "   「動得不夠快」交給逐輪閘門逐輪判定。"
+    echo "   要在明知 guest 沒出幀的情況下硬跑：PREFLIGHT_GUEST_MIN=0 $0 $*"
     echo "================================================================"
 fi
-assert_at_least "前置：畫面變化（distinct 畫格數）" "$DISTINCT_FRAMES" "$CHANGE_MIN_DISTINCT"
+assert_at_least "前置：guest 出幀率" "${PREFLIGHT_FPS%%.*}" "$PREFLIGHT_GUEST_MIN"
 
 # === 主機外來 CPU（D56 變異來源 (b)）===
 #
