@@ -79,6 +79,44 @@ BASELINE="$(dirname "$0")/../../phase0/harness/fps_baseline.py"
 require_device "$SERIAL"
 require_grpc "$GRPC_PORT"
 
+# === 前置：畫面真的在變嗎（D59）===
+#
+# **檔頭把「遊戲必須停在會持續變化的畫面」列為前置條件，但在此之前沒有任何斷言檢查它。**
+# `streamScreenshot` 是變化驅動的——畫面不動時 emulator 根本不出幀，量到的 fps 是
+# 「畫面多久變一次」，不是「傳輸能送多快」。兩者都會產出一個看起來很正常的數字。
+#
+# 2026-08-07 這條缺口造成了一次**寫進 repo 的錯誤結論**：在偏靜止的畫面上掃四個解析度，
+# 量到「像素愈多 fps 愈高」，據此判定「降解析度換 fps 走不通」並 commit。使用者把遊戲
+# 切到真正會動的畫面後重跑，結果完全反轉（910k px 30.9 fps vs 1792k 20.9 fps）。
+#
+# 這是本專案第三次踩到同一個形狀——D44 的音訊供應率（A2b）、D56 的逐輪 guest fps，
+# 現在是畫面變化率。**前置條件寫在註解裡等於沒有寫。**
+#
+# 判法：間隔取樣畫面雜湊，全部相同就是靜止。用 `exec-out screencap` 而非 `screenrecord`
+# ——後者本身會影響 guest 的合成負載，而我們正要量的就是那個。
+CHANGE_SAMPLES="${CHANGE_SAMPLES:-5}"
+CHANGE_MIN_DISTINCT="${CHANGE_MIN_DISTINCT:-4}"
+echo ""
+echo "=== 前置：畫面變化率（取樣 ${CHANGE_SAMPLES} 張）==="
+_hashes=""
+for _ in $(seq 1 "$CHANGE_SAMPLES"); do
+    _h=$("$ADB" -s "$SERIAL" exec-out screencap -p 2>/dev/null | md5 -q)
+    _hashes="${_hashes}${_h}\n"
+    sleep 1
+done
+DISTINCT_FRAMES=$(printf "%b" "$_hashes" | grep -cv '^$' > /dev/null; printf "%b" "$_hashes" | grep -v '^$' | sort -u | wc -l | tr -d ' ')
+echo "   ${CHANGE_SAMPLES} 張取樣中有 ${DISTINCT_FRAMES} 張不同"
+if [ "$DISTINCT_FRAMES" -lt "$CHANGE_MIN_DISTINCT" ]; then
+    echo "================================================================"
+    echo "❌ 前置未滿足：畫面幾乎沒有變化（${DISTINCT_FRAMES}/${CHANGE_SAMPLES} 張不同，門檻 ${CHANGE_MIN_DISTINCT}）。"
+    echo "   **這不是產品的紅燈，是環境的紅燈。** streamScreenshot 是變化驅動的，"
+    echo "   靜止畫面下量到的 fps 反映的是「畫面多久變一次」，不是傳輸能力。"
+    echo "   下一步：把遊戲切到會**持續變化**的畫面（遊玩中，不是選單／收集畫面）再跑。"
+    echo "   要在明知畫面靜止的情況下硬跑：CHANGE_MIN_DISTINCT=0 $0 $*"
+    echo "================================================================"
+fi
+assert_at_least "前置：畫面變化（distinct 畫格數）" "$DISTINCT_FRAMES" "$CHANGE_MIN_DISTINCT"
+
 # === 主機外來 CPU（D56 變異來源 (b)）===
 #
 # **只診斷、不擋。** 真正的防線是每輪的 guest 門檻——它擋的是「後果」（emulator 沒
