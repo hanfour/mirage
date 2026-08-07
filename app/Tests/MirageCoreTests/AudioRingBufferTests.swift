@@ -306,4 +306,35 @@ private func readStereoSamples(_ ring: AudioRingBuffer, frames: Int)
         #expect(worst.load(ordering: .acquiring) >= 0,
                 "depthSamples 為負代表 stats 的兩次 atomic load 順序錯了（須先 read 後 write）")
     }
+    /// D44：`writtenSamples` 數的是樣本，不是封包。
+    ///
+    /// **為什麼要一條測試釘住這個區別**：D44 記載的「供應約為需求 94%」是拿 `writes`
+    /// （封包數）乘上一個假設的包大小推出來的，而那個「每包 960 samples」只寫在
+    /// `init` 的一句註解裡，沒有任何東西強制它——封包大小是 emulator 決定的。形狀
+    /// （均勻不足、無缺口）不受影響，幅度則整個建立在那個假設上。
+    ///
+    /// 這條測試用**不等長**的封包，所以任何把 writtenSamples 實作成「封包數 × 常數」
+    /// 的版本都會紅。等長封包驗不出這件事——那正是原本的盲點。
+    @Test func writtenSamplesCountsSamplesNotPackets() {
+        let ring = AudioRingBuffer(capacitySamples: 4_096, primeThresholdSamples: 0)
+        ring.write([Float](repeating: 0.1, count: 100))
+        ring.write([Float](repeating: 0.2, count: 250))
+        ring.write([Float](repeating: 0.3, count: 7))
+
+        let stats = ring.stats
+        #expect(stats.writes == 3)
+        #expect(stats.writtenSamples == 357)
+    }
+
+    /// 被丟棄的封包不得計入供應量——否則溢位時供應率會虛報。
+    @Test func writtenSamplesExcludesDroppedPackets() {
+        let ring = AudioRingBuffer(capacitySamples: 128, primeThresholdSamples: 0)
+        ring.write([Float](repeating: 0.1, count: 100))
+        ring.write([Float](repeating: 0.2, count: 100))   // 放不下 → 整包丟棄
+
+        let stats = ring.stats
+        #expect(stats.overruns == 1)
+        #expect(stats.writtenSamples == 100)
+    }
+
 }

@@ -13,13 +13,32 @@ public struct AudioStats: Equatable, Sendable {
     /// 更健康」。`primes` 很大代表反覆蓄水；`primes` 很小而 underrun 增量仍高，
     /// 代表卡在低水位帶（見 `readStereo` 的已知限制段落）。
     public let primes: Int
+    /// 累計寫入的**樣本**數（單調遞增，不是封包數）。
+    ///
+    /// **`writes` 答不了「供應速率夠不夠」這個問題**，而那是 D44 唯一要回答的問題。
+    /// 它數的是封包，而封包大小由 emulator 決定、本專案沒有任何地方強制它——
+    /// 「每包 960 samples」只寫在 `init` 的一句註解裡，是觀察不是保證。
+    /// 拿 `writes` 換算供應率要先假設包大小，而 D44 記載的「供應約為需求 94%」正是
+    /// 這樣算出來的：那個數字的**形狀**（均勻不足、無缺口）可信，**幅度**不可信。
+    ///
+    /// 這個欄位讓速率可以直接算：`(writtenSamples 差) / 秒 / (48000 × 2)` 就是供應率，
+    /// 不經過任何關於封包大小的假設。
+    public let writtenSamples: Int
 
-    public init(underruns: Int, overruns: Int, depthSamples: Int, writes: Int, primes: Int) {
+    public init(
+        underruns: Int,
+        overruns: Int,
+        depthSamples: Int,
+        writes: Int,
+        primes: Int,
+        writtenSamples: Int = 0,
+    ) {
         self.underruns = underruns
         self.overruns = overruns
         self.depthSamples = depthSamples
         self.writes = writes
         self.primes = primes
+        self.writtenSamples = writtenSamples
     }
 }
 
@@ -80,7 +99,10 @@ public final class AudioRingBuffer: @unchecked Sendable {
                           overruns: overrunCount.load(ordering: .relaxed),
                           depthSamples: w - r,
                           writes: writeCount.load(ordering: .relaxed),
-                          primes: primeCount.load(ordering: .relaxed))
+                          primes: primeCount.load(ordering: .relaxed),
+                          // `w` 就是累計寫入樣本數：writeIndex 單調遞增、不對容量取模
+                          //（見 type 說明）。免費，不需要額外的計數器。
+                          writtenSamples: w)
     }
 
     /// 生產者執行緒（gRPC 消費 task）呼叫。空間不足 → **整包丟棄** + overruns += 1。

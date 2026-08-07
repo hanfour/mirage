@@ -34,13 +34,24 @@ extension AppModel {
         guard ProcessInfo.processInfo.environment["MIRAGE_AUDIO_LOG"] == "1" else { return }
         Task { [audioRing] in
             var lastWrites = 0
+            var lastSamples = 0
             while !Task.isCancelled {
                 try? await Task.sleep(for: .seconds(1))
                 let s = audioRing.stats
                 let depthMs = s.depthSamples * 1000 / (48_000 * 2)
-                print("[audio] pkt=\(s.writes - lastWrites) sr=48000 ch=2 " +
-                      "under=\(s.underruns) over=\(s.overruns) primes=\(s.primes) depth=\(depthMs)ms")
+                // `supply` 是這一秒實際供應量佔即時需求的百分比。
+                //
+                // **`pkt` 答不了這件事**：它數封包，而封包大小由 emulator 決定，本專案
+                // 沒有任何地方強制它。D44 記載的「供應約為需求 94%」是拿 pkt 乘上一個
+                // 假設的包大小推出來的——形狀（均勻不足、無缺口）可信，幅度不可信。
+                // 這一項直接由累計樣本數算出，不經過任何假設。
+                let supplied = s.writtenSamples - lastSamples
+                let supplyPct = supplied * 100 / (48_000 * 2)
+                print("[audio] pkt=\(s.writes - lastWrites) smp=\(supplied) supply=\(supplyPct)% " +
+                      "sr=48000 ch=2 under=\(s.underruns) over=\(s.overruns) " +
+                      "primes=\(s.primes) depth=\(depthMs)ms")
                 lastWrites = s.writes
+                lastSamples = s.writtenSamples
             }
         }
     }
