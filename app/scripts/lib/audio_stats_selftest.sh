@@ -145,6 +145,33 @@ check_case "案例 H：注入 2b 真實日誌（畫面靜音）——USUM=0 但 
     "$FIXTURES/audio_injection_2b_silent_screen.log" \
     AUDIO_LINES:63 SOUND_SECS:0 USUM:0 UMAX:0 UWINDOWS:0 MALFORMED:0 PRIMES:6093
 
+# D44：SUPPLY_MEAN。**這是 A2b 前置閘門唯一的輸入**，解錯就等於那道閘門不存在。
+WORK=$(mktemp -d -t audio_supply)
+trap 'rm -rf "$WORK"' EXIT
+
+# 稀疏音效的真實形狀：pkt 看起來很健康（每秒 90+），供應率只有 6%。
+# A2 對這種日誌是綠的——那正是 A2b 存在的理由。
+printf '[audio] pkt=92 smp=6322 supply=6%% sr=48000 ch=2 under=0 over=0 primes=0 depth=65ms\n%.0s' 1 2 3 > "$WORK/sparse.log"
+check_case "案例 I：稀疏音效——pkt 健康但 SUPPLY_MEAN=6" \
+    "$WORK/sparse.log" AUDIO_LINES:3 SOUND_SECS:3 MALFORMED:0 SUPPLY_MEAN:6
+
+# 連續發聲：實測正弦波是 100%。
+printf '[audio] pkt=84 smp=96000 supply=100%% sr=48000 ch=2 under=0 over=0 primes=1 depth=90ms\n%.0s' 1 2 > "$WORK/full.log"
+check_case "案例 J：連續發聲——SUPPLY_MEAN=100" \
+    "$WORK/full.log" AUDIO_LINES:2 SOUND_SECS:2 MALFORMED:0 SUPPLY_MEAN:100
+
+# 平均要跨行算，不是取最後一行——不然一段安靜後的一秒好資料就能把閘門騙過去。
+printf '[audio] pkt=92 smp=6322 supply=10%% sr=48000 ch=2 under=0 over=0 primes=0 depth=1ms\n' > "$WORK/mixed.log"
+printf '[audio] pkt=84 smp=96000 supply=90%% sr=48000 ch=2 under=0 over=0 primes=0 depth=90ms\n' >> "$WORK/mixed.log"
+check_case "案例 K：混合——取平均 50，不是取最後一行的 90" \
+    "$WORK/mixed.log" AUDIO_LINES:2 SOUND_SECS:2 MALFORMED:0 SUPPLY_MEAN:50
+
+# 2026-08-07 之前的日誌沒有 supply 欄位。缺它**不算畸形**（同 primes 的處理），
+# 但 SUPPLY_MEAN 會是 0——A2b 因此擋下舊格式日誌，那是正確的：無從判定供應率。
+printf '[audio] pkt=92 sr=48000 ch=2 under=3 over=0 primes=1 depth=46ms\n' > "$WORK/legacy.log"
+check_case "案例 L：舊格式（無 supply 欄位）——不算畸形，SUPPLY_MEAN=0" \
+    "$WORK/legacy.log" AUDIO_LINES:1 SOUND_SECS:1 MALFORMED:0 SUPPLY_MEAN:0
+
 echo ""
 if [ "$FAILURES" -eq 0 ]; then
     echo "全部通過"

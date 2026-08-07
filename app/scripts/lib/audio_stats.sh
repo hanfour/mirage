@@ -59,6 +59,15 @@ audio_stats() {
               # 沿用上一次看到的值（初始為 awk 未初始化變數的 0），讓舊格式日誌
               # 解析出 PRIMES=0 而不是被打成畸形行。
               if ($i ~ /^primes=/) { sub(/^primes=/, "", $i); primes = $i + 0 }
+              # supply：該秒實際供應量佔即時需求的百分比。與 primes 同樣不參與畸形
+              # 判定——它是 2026-08-07（D44）才加的欄位，舊日誌沒有，缺它不是格式錯誤。
+              # 尾端的 `%` 不需要另外剝掉：awk 的數值強制轉型對 "6%" 就是取出 6。
+              # 第一版有一行 sub(/%$/,...)，突變檢查證明它是死碼（改壞了測試不紅），
+              # 已移除——沒有效果的分支只會讓下一個人以為它在防什麼。
+              if ($i ~ /^supply=/) {
+                  sub(/^supply=/, "", $i)
+                  supply_sum += $i + 0; supply_n++
+              }
           }
           if (!pkt_found || !under_found) {
               malformed++
@@ -75,8 +84,12 @@ audio_stats() {
           prev_pkt = pkt; prev_under = under
       }
       END {
-          printf "AUDIO_LINES=%d\nSOUND_SECS=%d\nUSUM=%d\nUMAX=%d\nUWINDOWS=%d\nMALFORMED=%d\nPRIMES=%d\n",
-                 lines + 0, sound + 0, usum + 0, umax + 0, windows + 0, malformed + 0, primes + 0
+          # BSD awk 不吃 printf 參數位置的三元運算子（「illegal statement」），先算進變數。
+          supply_mean = 0
+          if (supply_n > 0) supply_mean = supply_sum / supply_n
+          printf "AUDIO_LINES=%d\nSOUND_SECS=%d\nUSUM=%d\nUMAX=%d\nUWINDOWS=%d\nMALFORMED=%d\nPRIMES=%d\nSUPPLY_MEAN=%d\n",
+                 lines + 0, sound + 0, usum + 0, umax + 0, windows + 0, malformed + 0, primes + 0,
+                 supply_mean
       }
     ' "$1"
 }

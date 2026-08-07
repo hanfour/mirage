@@ -44,8 +44,25 @@ public final class GrpcAudioTransport: AudioTransport, @unchecked Sendable {
         return AsyncThrowingStream { cont in
             let task = Task {
                 do {
+                    // **收到的格式從來沒有人檢查過。** `AudioPacket` 帶著 emulator 實際
+                    // 送出的 `format`，而這裡一路假設它等於上面請求的 48000/stereo/S16——
+                    // 那是「我們要求的」，不是「我們收到的」。兩者不同時，資料會被當成
+                    // 48kHz 立體聲餵進環形緩衝，結果同時是變調**和**看起來像供應不足，
+                    // 而供應不足正是 D44 追了很久的現象：guest 端實測以 93.6% 的即時速率
+                    // 輸出音訊，Mirage 這一側只收到約 6.9%。
+                    //
+                    // 只在第一包與格式改變時印，避免洗版。這是診斷，不改變行為——
+                    // 要不要據此重採樣是另一個決定，需要先知道實際格式是什麼。
+                    var lastLoggedFormat: Android_Emulation_Control_AudioFormat?
                     for try await packet in responses {
                         if Task.isCancelled { return }
+                        if packet.hasFormat, packet.format != lastLoggedFormat {
+                            let f = packet.format
+                            print("[audio] 收到的格式：sr=\(f.samplingRate) ch=\(f.channels) " +
+                                  "fmt=\(f.format)（請求的是 sr=\(format.samplingRate) " +
+                                  "ch=\(format.channels) fmt=audFmtS16）bytes=\(packet.audio.count)")
+                            lastLoggedFormat = packet.format
+                        }
                         cont.yield(AudioChunk.fromS16LE(packet.audio))
                     }
                     cont.finish()
