@@ -1,6 +1,8 @@
 import Foundation
 import MirageCore
 import MiragePull
+import NIOCore
+import NIOPosix
 import Testing
 
 private final class RecordingTransport: DisplayTransport, @unchecked Sendable {
@@ -52,6 +54,11 @@ private final class RecordingTransport: DisplayTransport, @unchecked Sendable {
         lock.unlock()
         continuation?.finish()
     }
+}
+
+private func closeListener(_ listener: Channel, group: EventLoopGroup) async {
+    try? await listener.close()
+    try? await group.shutdownGracefully()
 }
 
 @Suite(.timeLimit(.minutes(1))) struct MiragePullTests {
@@ -202,5 +209,55 @@ private final class RecordingTransport: DisplayTransport, @unchecked Sendable {
 
         #expect(result.textLine == "fps=58.50 frames=117 elapsed=2.00 size=900x2000 "
             + "status=measured transport=rgba distinct=2 client=grpc-swift")
+    }
+
+    @Test func refusedEndpointIsUnavailableError() async throws {
+        let endpoint = try PullEndpoint(host: "127.0.0.1", port: 1)
+
+        let result = await MiragePull.run(
+            endpoint: endpoint,
+            duration: .milliseconds(20),
+            width: 1,
+            height: 1
+        )
+
+        let error = try #require(result.error)
+        #expect(result.status == .error)
+        #expect(error.contains("UNAVAILABLE"))
+        #expect(result.exitCode == 1)
+        #expect(result.frames == 0)
+    }
+
+    @Test func probePassesForTcpListener() async throws {
+        let group = MultiThreadedEventLoopGroup(numberOfThreads: 1)
+        let listener: Channel
+        do {
+            listener = try await ServerBootstrap(group: group)
+                .serverChannelOption(.backlog, value: 1)
+                .childChannelInitializer { channel in
+                    channel.eventLoop.makeSucceededFuture(())
+                }
+                .bind(host: "127.0.0.1", port: 0)
+                .get()
+        } catch {
+            try? await group.shutdownGracefully()
+            throw error
+        }
+
+        guard let port = listener.localAddress?.port,
+              let endpoint = try? PullEndpoint(host: "127.0.0.1", port: port) else {
+            await closeListener(listener, group: group)
+            Issue.record("listener 沒有可用的 TCP port")
+            return
+        }
+
+        let probeError = await MiragePull.probe(
+            endpoint: endpoint,
+            group: group,
+            timeout: .seconds(5)
+        )
+        #expect(probeError == nil)
+
+        await closeListener(listener, group: group)
     }
 }

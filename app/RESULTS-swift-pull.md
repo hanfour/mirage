@@ -11,6 +11,13 @@
 - `verify_transport_compare.sh` 新增 `-s` 系列選擇，預設 `rgba,swift`，支援任意不重複的 `rgba`、`mmap`、`swift` 組合；輪次依系列數輪轉，統計每系列中位數、有效輪數與相對第一系列差值。
 - `verify_common.sh` 的 `build_warm` 新增可選 product 參數，保留既有三參數呼叫方式；Swift 系列會在量測前暖機 `mirage-pull` release 建置快取。
 
+## 第二輪修正
+
+- `MiragePull.run` 在建立 `GrpcChannelBox` 後、開始 `measure()` 前，使用同一個 `channel.group` 建立 NIO `ClientBootstrap`，以 5 秒 timeout 做 TCP 連線探測。
+- 探測成功後關閉臨時 channel；探測失敗回傳 `UNAVAILABLE: <原因>`、`error` 狀態與退出碼 1，並照常呼叫 `GrpcChannelBox.shutdown()`。
+- 新增拒絕連線與可接受 TCP 連線 listener 的 probe 測試，listener 與 event loop group 都在測試結束前以 async API 關閉。
+- 探測只能排除「沒有任何程式監聽該埠」。若有人監聽但不是 gRPC 服務，TCP 探測仍會通過，後續 gRPC 串流可能因等待連線就緒而呈現相同的假 `static`；這輪沒有改動 `MirageCore` 的 channel pool 行為。
+
 ## 可執行檢查
 
 - `bash -n app/scripts/verify_transport_compare.sh`：通過。

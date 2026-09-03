@@ -1,6 +1,8 @@
 import Foundation
 import GRPC
 import MirageCore
+import NIOCore
+import NIOPosix
 
 public enum PullStatus: String, Codable, Equatable, Sendable {
     case measured
@@ -175,6 +177,24 @@ public enum MiragePull {
         return hash
     }
 
+    /// 在送出 gRPC RPC 前確認端點有 TCP listener，並重用產品 channel 的 event loop。
+    public static func probe(
+        endpoint: PullEndpoint,
+        group: EventLoopGroup,
+        timeout: TimeAmount = .seconds(5)
+    ) async -> String? {
+        do {
+            let channel = try await ClientBootstrap(group: group)
+                .connectTimeout(timeout)
+                .connect(host: endpoint.host, port: endpoint.port)
+                .get()
+            try? await channel.close()
+            return nil
+        } catch {
+            return message(for: error)
+        }
+    }
+
     public static func measure(
         transport: any DisplayTransport,
         duration: Duration,
@@ -280,6 +300,16 @@ public enum MiragePull {
 
         do {
             let channel = try GrpcChannelBox(host: endpoint.host, port: endpoint.port)
+            if let probeError = await probe(endpoint: endpoint, group: channel.group) {
+                let result = invalidResult(
+                    message: withMessage("UNAVAILABLE", probeError),
+                    width: width,
+                    height: height
+                )
+                channel.shutdown()
+                try? await Task.sleep(for: .milliseconds(200))
+                return result
+            }
             let transport = GrpcStreamTransport(channel: channel)
             let result = await measure(
                 transport: transport,
