@@ -359,3 +359,35 @@ exit=0
 ## 禁區檢查
 
 未修改 `app/Sources/`、`app/Tests/`、`app/scripts/verify_fps_fullscreen.sh`、`app/scripts/verify_mmap.sh`，也未修改 `docs/specs/2026-07-29-project-review.md`。所有提交檔案均限於本規格列出的 harness、scripts、requirements、README、測試與本結果文件。
+
+## PM 把關與活體驗證（2026-09-03）
+
+### 把關
+
+- `bash app/scripts/ci.sh` 在 worktree 上跑兩次（第一輪交付後、第二輪修正後），九道閘門皆綠，退出碼 0。codex 沙箱裡跑不了 `swift build`（巢狀 `sandbox-exec`），所以閘門 1 由 PM 在沙箱外跑。
+- 獨立審查 agent 找到兩個第一輪沒抓到的缺陷（conftest 假模組永遠生效、mmap 建置失敗漏資源），連同 PM 的三點退回第二輪，修法見簡報第 7 節。
+- 第二輪後 PM 自己做突變檢查：指紋步長 64 改成 100000，只有 `test_dense_fingerprint_detects_a_midframe_change` 紅；把 `gen/` 藏起來，只有 `test_generated_proto_is_loaded_from_gen` 紅；還原後 33 條全綠。
+
+### 活體：三輪交錯對照（第一輪交付的工具）
+
+環境：`mirage-game`（`emulator -avd mirage-game -port 5556 -grpc 8556 -gpu host`），Pixel Flow 0.33.0 在前景自行動畫，900×2000，每輪 20 秒，`LOAD_LIMIT=12`。第一次嘗試在第 1 輪後負載從 6.06 升到 14.13（冷建置後的檔案系統索引風暴），腳本照設計中止；等負載降到 6.46 後重跑：
+
+| 輪 | 順序 | transport | fps | frames | distinct | 負載前 → 後 |
+|---|---|---|---|---|---|---|
+| 1 | rgba/mmap | rgba | 47.64 | 953 | 946 | 6.46 → 10.09 |
+| 1 | rgba/mmap | mmap | 45.87 | 918 | 914 | 6.46 → 10.09 |
+| 2 | mmap/rgba | mmap | 59.57 | 1192 | 1192 | 10.09 → 6.51 |
+| 2 | mmap/rgba | rgba | 59.39 | 1189 | 1189 | 10.09 → 6.51 |
+| 3 | rgba/mmap | rgba | 58.98 | 1181 | 1180 | 6.51 → 6.04 |
+| 3 | rgba/mmap | mmap | 59.99 | 1200 | 1200 | 6.51 → 6.04 |
+
+中位數 rgba 58.98、mmap 59.57，差值 0.59 fps，有效輪數各 3，退出碼 0。
+
+第二輪修正後再跑一輪 10 秒確認工具沒被改壞：rgba 59.79（599 幀、599 種）、mmap 59.94（600 幀、600 種），負載 4.38 → 4.63。取樣密度提高後 distinct 與 frames 相等；第一輪工具在同樣畫面下曾出現 953 對 946 這種差距，那是稀疏取樣漏抓，不是畫面重複。
+
+### 判定
+
+1. 在驗收環境（mirage-game、真實遊戲畫面、900×2000）下，Python client 走 raw RGBA 就到 vsync 天花板，MMAP 沒有可量到的增益。傳輸不是驗收線 7 的瓶頸。
+2. D39 的「raw RGBA 吞吐天花板 270 到 290 MiB/s、898×1996 上 raw 只有 40 fps」不成立：本次 raw 在 900×2000 上每秒送出約 405 MiB。D39 是在 `mirage-poc`（`hw.gpu.enabled=no`、2G RAM）用 `animate.py` 人造動畫量的，兩個條件都與驗收環境不同。
+3. 第 1 輪兩種 transport 同時掉到 46 到 48，同一輪負載從 6.46 升到 10.09，形狀與 D60（主機負載壓垮 guest 出幀）一致，與 transport 無關。
+4. 因此：D16 降回 P3，D48 的「MMAP 候選解方」移除。Python 直拉 59 而 Mirage 自己量到 43 到 54，剩下的損失在 Mirage 行程內部，下一步是「Swift 直拉對照組」把 grpc-swift 與渲染兩段切開。
