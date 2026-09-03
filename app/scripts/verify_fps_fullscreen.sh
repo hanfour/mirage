@@ -381,6 +381,9 @@ for round in $(seq 1 "$ROUNDS"); do
     guest_window_start "$SERIAL"
     sleep "$DURATION"
     GUEST_RAW=$(guest_window_end "$SERIAL" "$PACKAGE") || GUEST_RAW=""
+    # `mirage=M` 的取樣母體含全螢幕收斂期。既有 `fps_median` 沒有跳過參數，這是既有
+    # 行為，本任務不動判定；`arrived`、`dropped`、`presented` 只含量測窗口。
+    # 兩者不是同一個窗口，逐輪不能直接相減。
     M=$(fps_median "$LOG")
     A=$(frames_median "$LOG" arrived "$BEFORE")
     D=$(frames_median "$LOG" dropped "$BEFORE")

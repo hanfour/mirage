@@ -35,7 +35,13 @@ git grep -n 'stats()' main -- app/Sources app/Tests
 
 - `LatestFrameBoxTests`：有效 `put` 使 `arrived` 遞增、無效幀不增加 `arrived`、`takeLatest` 不影響 `arrived`，並保留 `dropped` 原有語意。
 - `FrameCounterWindowTests`：兩次快照的三個窗口差值，以及快照倒退和負 presented 計數的歸零行為。
-- `gui_session_selftest.sh`：四筆固定假 log 的三欄中位數、跳過前一筆、跳過全部樣本、零樣本回 0、`frames_samples`，以及混入 `[app] frames` 後 `fps_median` 仍正確。
+- `gui_session_selftest.sh`：四筆固定假 log 的三欄中位數、跳過前一筆、跳過全部樣本、零樣本回 0、`frames_samples`，以及混入 `[app] frames` 後 `fps_median` 仍正確，並確認 `fps_samples` 與 `frames_samples` 一對一。
+
+## 讀數的三個限制
+
+1. `presented` 是量測窗口內的原始計數；`fps=` 是它除以 elapsed 後四捨五入的整數。抵達不規律時，兩者可能差超過 1。
+2. 計數關係可寫成 `arrived - dropped >= presented`，但等號不保證成立。`takeLatest` 之後若 `draw` 提前返回，該幀不會進入任何計數。
+3. `M` 與新三欄的取樣母體不同。`M` 使用沒有跳過參數的既有 `fps_median`，包含全螢幕收斂期；`arrived`、`dropped`、`presented` 只取量測窗口，逐輪不能直接相減。
 
 ## 故障注入
 
@@ -83,9 +89,17 @@ fault-injection exit=1
 - `verify_fps_fullscreen.sh` 僅完成 `bash -n` 與靜態檢查；活體的 guest、Mirage、arrived、dropped、presented、baseline、ratio 數字由 PM 補寫。
 - `swiftc -parse` 只驗證語法，不能取代 package build 的型別、連結與平台 SDK 驗證。
 
+## 第二輪驗證
+
+- 7.1 的 `verify_fps_fullscreen.sh` 通過 `bash -n`；`git diff --check` 也通過。
+- 7.2 的 `gui_session_selftest.sh` 會額外確認同一份混合 log 的 `fps_samples` 等於 `frames_samples`；`Renderer.swift` 可用 `swiftc -parse` 驗證語法。
+- 7.1 與 7.2 都未執行 Swift package build、Swift 測試套件、emulator、adb、`package_app.sh` 或活體 fullscreen 量測，這些由 PM 負責。
+
 ## Commits
 
 - `0bf012e test: 補上幀計數與視窗增量測試`
 - `c71802f feat: 加入 App 幀計數與秒窗口診斷`
 - `b4f8fc4 test: 補上 GUI 幀計數解析自我測試`
 - `8079f1b feat: 加入幀計數 shell 解析與逐輪摘要`
+- `fix: 修正全螢幕啟動時序與重送`（第二輪 7.1）
+- `test: 補上幀計數輸出一致性防護與限制文件`（第二輪 7.2）

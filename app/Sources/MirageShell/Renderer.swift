@@ -111,6 +111,9 @@ final class Renderer: NSObject, MTKViewDelegate {
                 before: frameCounterWindowStart,
                 after: frameCounterWindowEnd,
                 presented: fpsCount)
+            // `[app] fps=` 與 `[app] frames` 必須在同一個分支背靠背印出，且一對一。
+            // `verify_fps_fullscreen.sh` 以 `fps_samples` 的數量作為 `frames_median`
+            // 的跳過數，兩者不能分開或改變輸出次數。
             print("[app] fps=\(Int((Double(fpsCount) / elapsed).rounded()))")
             print("[app] frames arrived=\(frameWindow.arrived) dropped=\(frameWindow.dropped) presented=\(frameWindow.presented)")
             fpsCount = 0

@@ -33,6 +33,8 @@ printf '%s\n' \
 echo "=== frames_median ==="
 check "frames_samples 計數" \
       "$(frames_samples "$WORK/mixed.log")" 4
+check "fps 與 frames 樣本一對一" \
+      "$(fps_samples "$WORK/mixed.log")" "$(frames_samples "$WORK/mixed.log")"
 check "arrived 中位數" \
       "$(frames_median "$WORK/mixed.log" arrived)" 14
 check "dropped 中位數" \
