@@ -107,6 +107,7 @@ def _temp_path() -> str:
     fd, path = tempfile.mkstemp(
         prefix="mirage_fps_", suffix=".bin", dir=tempfile.gettempdir())
     os.close(fd)
+    path = os.path.abspath(path)
     os.unlink(path)
     return path
 
@@ -134,7 +135,7 @@ def _require_grpc():
 def _require_proto():
     if pb is None or pbg is None:
         raise RuntimeError(
-            "找不到 phase0/harness/gen 的 protobuf 生成碼，請先依 phase0/README.md 產生 gen/"
+            "找不到 phase0/harness/gen 的 protobuf 生成碼，請先依 phase0/harness/README-venv.md 準備 gen/"
         ) from _PROTO_IMPORT_ERROR
     return pb, pbg
 
@@ -307,10 +308,10 @@ def main() -> int:
         print(json.dumps(r))
     else:
         line = (f"fps={r['fps']:.2f} frames={r['frames']} elapsed={r['elapsed']:.2f} "
-                f"size={r['width']}x{r['height']} status={r['status']} "
-                f"transport={r['transport']} distinct={r['distinct']}")
+                f"size={r['width']}x{r['height']} status={r['status']}")
         if r["error"]:
             line += f" error={r['error'].replace(' ', '_')}"
+        line += f" transport={r['transport']} distinct={r['distinct']}"
         print(line)
     return exit_code(r["status"])
 
