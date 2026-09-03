@@ -83,3 +83,28 @@
 - 註解與文件用繁體中文台灣用語，不用破折號接補充說明。
 - bash：`set -uo pipefail`，`${rc}，` 不是 `$rc，`。
 - 結束時把報告寫進 `app/RESULTS-frame-counters.md`，最後一則訊息列出改動檔案、每條驗收條件的證據、沒做到的事。
+
+## 7. 把關退回的修正清單（第二輪，2026-09-03）
+
+第一輪交付：PM 編譯一次過、327 條 Swift 測試綠、ci.sh 九道閘門綠（含新的第五支自我測試）、故障注入（欄位比對改壞、亂序輸入）都如預期。獨立審查對 diff 沒有擋合併的問題。但活體跑 `verify_fps_fullscreen.sh` 時三輪九次啟動全部停在 888×1972 沒進全螢幕，PM 追到原因，連同審查的四點文件補強一起退回。
+
+### 7.1 `verify_fps_fullscreen.sh` 的 `AXFullScreen` 送太早，且不重送
+
+實測（PM 手動重現）：`gui_session_start` 在 +7.3 秒回來，視窗在 AX 出現是 +7.8 秒，腳本卻在回來的瞬間就送 `set value of attribute "AXFullScreen"`，System Events 回 `無法取得「window 1 of process "MirageApp"」（-1719）`，被 `> /dev/null 2>&1` 吃掉；之後的 10 秒輪詢只看 `attachStream` 尺寸、不重送，於是每次都停在視窗模式的 888×1972。視窗出現後再送，1.5 秒內就收斂到 898。
+
+修法（第 297 行附近，每次啟動嘗試內）：
+- 先輪詢「`count of windows of process "MirageApp"` ≥ 1」，每 0.5 秒一次，最多 `FULLSCREEN_WINDOW_TIMEOUT`（預設 15）秒；等不到就把這次啟動判為失敗，走既有的關掉重開路徑，並印出「視窗 N 秒內未在 AX 出現」。
+- 視窗出現後送 `AXFullScreen`，**不要吃掉 stderr**：失敗訊息印到 stdout 加前綴，方便下次追。
+- 既有的 10 秒 `attachStream` 輪詢保留，但每 2 秒讀一次 `AXFullScreen` 的值，若不是 `true` 就重送一次（最多 3 次）。
+- 這些數字都用變數，放在既有的 `FULLSCREEN_POLL_TIMEOUT` 旁邊，註解說明 +7.3／+7.8／+9.3 這三個實測時間點。
+
+### 7.2 審查要求的四點文件與防護（不改行為）
+
+1. `Renderer.countPresentedFrame`：在兩個 `print` 上方加註解，明講 `[app] fps=` 與 `[app] frames` 必須在同一個分支背靠背印、一對一，因為 `verify_fps_fullscreen.sh` 拿 `fps_samples` 的數當 `frames_median` 的跳過數。
+2. `gui_session_selftest.sh`：加一條斷言，對同一份混合 log 檢查 `fps_samples` 等於 `frames_samples`，鎖住上面那個一對一假設。
+3. `verify_fps_fullscreen.sh` 在算 `A`／`D`／`P` 那幾行上方加註解：`mirage=M` 的取樣母體含全螢幕收斂期（`fps_median` 沒有跳過參數，這是既有行為，本任務不動判定），`arrived`／`dropped`／`presented` 只含量測窗口，兩者不是同一個窗口，逐輪不能直接相減。
+4. `app/RESULTS-frame-counters.md` 加一節「讀數的三個限制」：`presented` 是窗口原始計數、`fps=` 是除以 elapsed 後四捨五入，抵達不規律時可差超過 1；`arrived - dropped >= presented`，等號不保證成立，因為 `takeLatest` 之後 `draw` 早退遺失的幀不進任何計數；`M` 與新三欄母體不同（同第 3 點）。
+
+### 工作方式（第二輪）
+
+同一分支接著做，7.1 與 7.2 各一個 commit。你能自己驗的：`bash -n`、直接跑 `gui_session_selftest.sh`、`swiftc -parse`。不要跑 `swift build`／`swift test`／emulator。PM 的活體數字由 PM 補寫。
