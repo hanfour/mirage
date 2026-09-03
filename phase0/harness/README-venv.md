@@ -28,8 +28,22 @@ probe_mmap_explicit.py, probe_touch_coords.py, smoke_grpc.py, stream_bench.py
 cd phase0/harness
 python3 -m venv .venv-d45
 ./.venv-d45/bin/pip install --quiet --upgrade pip
-./.venv-d45/bin/pip install --quiet 'protobuf>=7.35,<8' grpcio numpy pytest
+./.venv-d45/bin/pip install --quiet -r requirements-d45.txt
 ```
+
+重新產生 protobuf 生成碼：
+
+```bash
+cd phase0/harness
+mkdir -p gen
+./.venv-d45/bin/python -m grpc_tools.protoc \
+  -I protos \
+  --python_out=gen \
+  --grpc_python_out=gen \
+  protos/emulator_controller.proto
+```
+
+`gen/` 是本機生成的忽略檔案。重新產生後再執行下面的 import 驗證。
 
 驗證 import 是否成功：
 
@@ -58,15 +72,11 @@ linked gencode version.
 `7.35.0`／`7.35.1` 兩個版本，所以改鎖 `protobuf>=7.35,<8`，改裝後 import 成功
 （實際裝到 `7.35.1`）。
 
-### 為什麼沒裝 `grpcio-tools`
+### 為什麼鎖 `grpcio-tools`
 
-一開始照做法安裝了 `grpcio-tools`，但它把 protobuf 硬性釘在 `<7.0.0`，
-跟前面鎖定的 `protobuf>=7.35,<8` 直接衝突（`pip check` 會報
-`grpcio-tools 1.81.1 has requirement protobuf<7.0.0,>=6.33.5, but you have
-protobuf 7.35.1`）。檢查過 `phase0/harness/` 底下所有原始碼，
-沒有任何檔案 `import grpc_tools`（它只在需要重新產生 `.proto` 的產生碼時才用得到，
-而本 task 不重新產生任何東西），所以直接不裝，避免一個用不到、又會製造假衝突的
-相依。
+`grpcio-tools==1.83.0` 提供上面的 `grpc_tools.protoc` 指令，並與目前生成碼標記的
+gRPC 版本對齊。它只在重新產生 `gen/` 時使用，平常執行 harness 不會 import
+`grpc_tools`；版本仍固定在 requirements，讓重新產生的結果可重現。
 
 ## `requirements-d45.txt` 鎖的版本
 
@@ -74,6 +84,7 @@ protobuf 7.35.1`）。檢查過 `phase0/harness/` 底下所有原始碼，
 
 ```
 grpcio==1.83.0
+grpcio-tools==1.83.0
 numpy==2.4.6
 protobuf==7.35.1
 pytest==9.1.1
@@ -85,7 +96,8 @@ pytest==9.1.1
 
 這個 venv **只保證 `fps_baseline.py` 這一條路徑能跑**：它只 import
 `grpc`、`emulator_controller_pb2`、`emulator_controller_pb2_grpc`，
-`requirements-d45.txt` 也列出 pytest，供 phase0/harness 的測試閘門使用。
+`requirements-d45.txt` 也列出 pytest 與 grpcio-tools，分別供 phase0/harness 的
+測試閘門與生成碼重建使用。
 
 `phase0/harness/` 其餘 11 個既有檔案（見上面清單，扣掉 `fps_baseline.py`
 本身）**仍然是死的**——就算用這個 venv 執行，有些檔案還會缺其他套件

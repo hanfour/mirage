@@ -3,14 +3,16 @@ from pathlib import Path
 
 
 HARNESS_DIR = str(Path(__file__).resolve().parents[1])
-if HARNESS_DIR not in sys.path:
-    sys.path.insert(0, HARNESS_DIR)
+GEN_DIR = str(Path(HARNESS_DIR) / "gen")
+for import_dir in (HARNESS_DIR, GEN_DIR):
+    if import_dir not in sys.path:
+        sys.path.insert(0, import_dir)
 
 
 try:
     import emulator_controller_pb2  # noqa: F401
     import emulator_controller_pb2_grpc  # noqa: F401
-except Exception:
+except ModuleNotFoundError:
     import types
 
     class ImageTransport:
