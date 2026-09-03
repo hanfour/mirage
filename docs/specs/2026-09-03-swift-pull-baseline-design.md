@@ -100,3 +100,25 @@ JSON 輸出欄位與 `fps_baseline.py` 完全相同（`status`、`error`、`fps`
 - 註解與文件用繁體中文台灣用語，不用破折號接補充說明。
 - bash：`set -uo pipefail`，裸變數後面不接全形標點（`${rc}，` 不是 `$rc，`）。
 - 結束前把報告寫進 `app/RESULTS-swift-pull.md`，最後一則訊息列出：改動的檔案、每條驗收條件的證據、沒做到的事。
+
+## 7. 把關退回的修正清單（第二輪，2026-09-03）
+
+第一輪交付：PM 在沙箱外編譯一次就過，`MiragePullTests` 12 條綠，ci.sh 其餘閘門綠，真實 emulator 上 `rgba,swift` 三輪對照跑通（數字由 PM 寫進結果文件）。獨立審查對 diff 本體沒有發現問題。只有一點要修：
+
+### 7.1 連不上的埠被判成 `static`，不是 `error`
+
+實測：`mirage-pull --endpoint localhost:45999 --seconds 2 --json` 回 `{"status":"static", ...}`、退出碼 2，耗時 2 秒。原因是 grpc-swift 的 `GRPCChannelPool` 預設等待連線就緒，`streamScreenshot` 一直等到被我們的計時器取消，於是看起來像「畫面靜止」。Python 的 grpcio 預設 fail-fast，同樣情況回 `UNAVAILABLE`。這會讓「模擬器沒開」與「畫面沒動」在數字上分不開，違反驗收條件 3。
+
+修法（不改 `MirageCore`）：
+- 在 `MiragePull.run` 建好 `GrpcChannelBox` 之後、呼叫 `measure()` 之前，用 NIO 的 `ClientBootstrap` 對 `host:port` 做一次 TCP 連線探測，`connectTimeout` 5 秒。**重用 `channel.group`**（`GrpcChannelBox.group` 是 public），不要另起一個 `EventLoopGroup`：這個 repo 在 NIO 拆除上死鎖過（D1），多一條獨立的拆除路徑就多一份同樣的風險。探測成功後把探測用的 channel 關掉。
+- 探測失敗：回 `error`，`error` 欄位寫 `UNAVAILABLE: <原因>`，退出碼 1，然後照常 `channel.shutdown()`。
+- 探測放在 `measure()` 之外，不能污染 `elapsed` 與 Python `t0` 的對齊。
+- 結果文件要寫明範圍：探測只能排除「沒人聽」，對「有人聽但不是 gRPC 服務」仍可能出現同樣的假 `static`。
+
+測試（`MiragePullTests`，不需要 emulator）：
+- 對 `127.0.0.1:1`（沒人聽，立刻 connection refused）呼叫 `MiragePull.run`，斷言 `status == .error`、`error` 含 `UNAVAILABLE`、`exitCode == 1`、`frames == 0`。這條測試改壞探測（例如永遠回成功）就會紅。
+- 用 NIO `ServerBootstrap` 在 port 0 開一個只接受連線的 listener，對它探測，斷言探測通過（把探測抽成可單獨呼叫的函式，例如 `MiragePull.probe(endpoint:group:timeout:) async -> String?`，回 nil 表示通過）。測試結束要把 listener 與它的 group 拆乾淨。
+
+### 工作方式（第二輪）
+
+同一分支接著做，一個 commit。你的沙箱一樣跑不了 `swift build`／`swift test`，寫完 commit，PM 編譯回饋。`app/RESULTS-swift-pull.md` 加一節「第二輪修正」寫修法與範圍限制；PM 的活體數字由 PM 補寫，你不要寫。
