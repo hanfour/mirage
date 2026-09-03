@@ -72,6 +72,50 @@ fps_median() {
         END { printf "%d\n", v[int((n + 1) / 2)] }'
 }
 
+# `[app] frames` 的中位數。只讀取幀計數行，不改動 fps 解析的既有語意。
+# 第三個參數是要略過的前置幀計數行數，讓量測窗口與 fps_samples 的 BEFORE 對齊。
+frames_samples() {
+    local log="$1"
+    [ -r "$log" ] || { echo 0; return 0; }
+    grep -c '^\[app\] frames ' "$log" 2>/dev/null || true
+}
+
+frames_median() {
+    local log="$1" field="$2" skip="${3:-0}"
+    case "$field" in
+        arrived|dropped|presented) ;;
+        *) echo 0; return 0 ;;
+    esac
+    [ -r "$log" ] || { echo 0; return 0; }
+    awk -v field="$field" -v skip="$skip" '
+        /^\[app\] frames([[:space:]]|$)/ {
+            if (seen < skip) { seen++; next }
+            found = 0
+            for (i = 3; i <= NF; i++) {
+                split($i, pair, "=")
+                if (pair[1] == field && pair[2] ~ /^[0-9]+$/) {
+                    values[++n] = pair[2]
+                    found = 1
+                    break
+                }
+            }
+            if (!found) next
+        }
+        END {
+            if (!n) { print 0; exit }
+            for (i = 1; i <= n; i++) {
+                for (j = i + 1; j <= n; j++) {
+                    if (values[j] < values[i]) {
+                        temp = values[i]
+                        values[i] = values[j]
+                        values[j] = temp
+                    }
+                }
+            }
+            printf "%d\n", values[int((n + 1) / 2)]
+        }' "$log" 2>/dev/null
+}
+
 # 人看的摘要。取樣為 0 時印診斷並回傳 1。
 fps_summary() {
     local log="$1" samples frames

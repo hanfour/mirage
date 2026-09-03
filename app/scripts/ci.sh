@@ -278,6 +278,15 @@ else
     ./scripts/lib/guest_fps_selftest.sh 2>&1 | grep "❌" | sed 's/^/   /'
 fi
 
+# gui_session_selftest.sh 是本任務新增的第五支自我測試，鎖住 `[app] frames` 的欄位
+# 解析、前置窗口排除與 fps 解析相容性。
+if ./scripts/lib/gui_session_selftest.sh > /dev/null 2>&1; then
+    ok "gui_session.sh 幀計數自我測試通過"
+else
+    fail "gui_session.sh 幀計數自我測試失敗（重跑 ./scripts/lib/gui_session_selftest.sh 看細節）："
+    ./scripts/lib/gui_session_selftest.sh 2>&1 | grep "❌" | sed 's/^/   /'
+fi
+
 echo ""
 echo "=== 閘門 8：phase0/harness Python 測試 ==="
 HARNESS_PY="../phase0/harness/.venv-d45/bin/python"
@@ -299,7 +308,7 @@ fi
 echo ""
 echo "======================================"
 if [ "$FAILURES" -eq 0 ]; then
-    echo "全部通過（$RUNS 次跑次、0 行 NIO ERROR、無假 skip、無全形標點陷阱、無永不紅的 #expect、provision 測試綠、四支共用函式庫自我測試（verify_common／audio_stats／load_sentinel／guest_fps）皆綠、phase0/harness pytest 綠）"
+    echo "全部通過（$RUNS 次跑次、0 行 NIO ERROR、無假 skip、無全形標點陷阱、無永不紅的 #expect、provision 測試綠、五支共用函式庫自我測試（verify_common／audio_stats／load_sentinel／guest_fps／gui_session）皆綠、phase0/harness pytest 綠）"
     exit 0
 fi
 echo "$FAILURES 項失敗"

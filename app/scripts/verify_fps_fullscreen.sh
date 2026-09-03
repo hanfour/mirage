@@ -204,6 +204,9 @@ ROUND_RETRY_MAX=3
 
 MIRAGE_VALS=""
 BASE_VALS=""
+ARRIVED_VALS=""
+DROPPED_VALS=""
+PRESENTED_VALS=""
 # **獨立於 `ROUNDS` 的訊號**：`ROUNDS` 數的是有幾輪產生了 `[round N]`（有效樣本數），
 # `SIZE_OK` 答的是不同的問題——這次執行有沒有踩到「解析度收斂失敗」這個故障模式本身。
 # 兩者不能合併：即使最後 `ROUNDS` 湊滿了，若中途有輪次耗盡 `ROUND_RETRY_MAX` 仍未收斂
@@ -328,7 +331,11 @@ for round in $(seq 1 "$ROUNDS"); do
     sleep "$DURATION"
     GUEST_RAW=$(guest_window_end "$SERIAL" "$PACKAGE") || GUEST_RAW=""
     M=$(fps_median "$LOG")
+    A=$(frames_median "$LOG" arrived "$BEFORE")
+    D=$(frames_median "$LOG" dropped "$BEFORE")
+    P=$(frames_median "$LOG" presented "$BEFORE")
     echo "   Mirage 側：中位數 ${M} fps（取樣 $(fps_samples "$LOG") 筆，量測前已有 ${BEFORE} 筆）"
+    echo "   幀計數窗口：arrived=${A} presented=${P} dropped=${D}（跳過量測前 ${BEFORE} 筆）"
 
     G=""
     if [ -z "$GUEST_RAW" ]; then
@@ -409,13 +416,16 @@ for round in $(seq 1 "$ROUNDS"); do
     # 脆弱，這不是假設性風險。
     if [ -n "$M" ]; then
         MIRAGE_VALS="${MIRAGE_VALS}${M}\n"
+        ARRIVED_VALS="${ARRIVED_VALS}${A}\n"
+        DROPPED_VALS="${DROPPED_VALS}${D}\n"
+        PRESENTED_VALS="${PRESENTED_VALS}${P}\n"
     fi
     if [ -n "$M" ] && [ -n "$B" ]; then
         R=$(awk -v m="$M" -v b="$B" 'BEGIN { printf "%d", (b > 0) ? m * 100 / b : 0 }')
-        echo "[round ${round}] mirage=${M} baseline=${B} ratio=${R}%"
+        echo "[round ${round}] guest=${G} arrived=${A} presented=${P} dropped=${D} mirage=${M} baseline=${B} ratio=${R}%"
         BASE_VALS="${BASE_VALS}${B}\n"
     elif [ -n "$M" ]; then
-        echo "[round ${round}] mirage=${M} baseline=（無資料，見上方對照組訊息）——本輪僅計入 Mirage 側，不計入 ratio"
+        echo "[round ${round}] guest=${G} arrived=${A} presented=${P} dropped=${D} mirage=${M} baseline=（無資料，見上方對照組訊息）——本輪僅計入 Mirage 側，不計入 ratio"
     fi
     rm -f "$LOG"
 done
@@ -434,6 +444,9 @@ echo ""
 echo "===== 解析結果 ====="
 MM=$(median_of "$MIRAGE_VALS")
 BM=$(median_of "$BASE_VALS")
+AM=$(median_of "$ARRIVED_VALS")
+DM=$(median_of "$DROPPED_VALS")
+PM=$(median_of "$PRESENTED_VALS")
 # === 離散度（D56）===
 #
 # **只印中位數會把判定的不確定性藏起來。** 2026-08-06 同一顆 build、同一天量到
@@ -446,6 +459,9 @@ fi
 echo "GUEST_VALUES=$(list_of "$GUEST_VALS")"
 echo "GUEST_REJECTED=${GUEST_REJECTED}（guest 未達 ${GUEST_MIN} 而判為無效的輪次數）"
 echo "MIRAGE_MEDIAN=${MM:-無資料}"
+echo "ARRIVED_MEDIAN=${AM}"
+echo "DROPPED_MEDIAN=${DM}"
+echo "PRESENTED_MEDIAN=${PM}"
 echo "BASELINE_MEDIAN=${BM:-無資料（對照組本輪全數失敗／被排除，見上方各輪訊息；不影響驗收線 7 的判定）}"
 if [ -n "$MM" ] && [ -n "$BM" ]; then
     echo "RATIO_PCT=$(awk -v m="$MM" -v b="$BM" 'BEGIN { printf "%d", (b > 0) ? m * 100 / b : 0 }')"
