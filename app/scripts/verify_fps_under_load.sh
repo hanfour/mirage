@@ -102,10 +102,12 @@ echo "數字只供診斷，不作驗收線 7 的判定。"
 echo "burner 數：${BURNERS}"
 echo "load_avg_1min（啟動前）：${LOAD_BEFORE}"
 
-for _ in $(seq 1 "$BURNERS"); do
-    yes > /dev/null &
-    BURNER_PIDS+=("$!")
-done
+if [ "$BURNERS" -gt 0 ]; then
+    for _ in $(seq 1 "$BURNERS"); do
+        yes > /dev/null &
+        BURNER_PIDS+=("$!")
+    done
+fi
 
 LOAD_AFTER=$(load_avg_1min)
 echo "load_avg_1min（啟動後）：${LOAD_AFTER}"
