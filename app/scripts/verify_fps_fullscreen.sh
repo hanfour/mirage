@@ -181,6 +181,14 @@ LOAD_RETRY_WAIT=5
 # 修正）——理由與實測見下方進全螢幕區塊的長註解。單次啟動內的收斂輪詢逾時：
 FULLSCREEN_POLL_TIMEOUT=10
 FULLSCREEN_POLL_INTERVAL=1
+# gui_session_start 實測在 +7.3 秒回來，視窗在 +7.8 秒才出現在 AX，成功設定後約
+# +9.3 秒收斂。因此先以 0.5 秒間隔等待視窗，再開始全螢幕設定與尺寸輪詢。
+FULLSCREEN_WINDOW_TIMEOUT="${FULLSCREEN_WINDOW_TIMEOUT:-15}"
+FULLSCREEN_WINDOW_POLL_INTERVAL="${FULLSCREEN_WINDOW_POLL_INTERVAL:-0.5}"
+FULLSCREEN_WINDOW_POLL_COUNT=$(awk -v timeout="$FULLSCREEN_WINDOW_TIMEOUT" \
+    -v interval="$FULLSCREEN_WINDOW_POLL_INTERVAL" 'BEGIN { printf "%d", timeout / interval }')
+FULLSCREEN_RESEND_INTERVAL="${FULLSCREEN_RESEND_INTERVAL:-2}"
+FULLSCREEN_RESEND_MAX="${FULLSCREEN_RESEND_MAX:-3}"
 
 # **這台機器這片螢幕的全螢幕天花板量到的是 898（見下方長註解），到不了字面上的 900。**
 # 896 卡在「視窗模式天花板 888」與「這片螢幕全螢幕天花板 898」之間：能分辨「有沒有真的
@@ -278,9 +286,9 @@ for round in $(seq 1 "$ROUNDS"); do
     # 「log 裡有沒有出現過」——啟動階段的 resize 序列本身就會短暫經過接近上限的尺寸再
     # 收斂到別的尺寸，只看「出現過」會把這個過渡瞬間誤判成真正收斂。
     #
-    # **一次啟動內只送一次 AXFullScreen、poll 一輪**；沒收斂就整個關掉重開（見
-    # `ROUND_RETRY_MAX`），不在同一個視窗物件上重送——診斷時懷疑沒收斂常是那次啟動的
-    # Space／視窗狀態本身卡住了，重送同一個屬性不會讓它變好，重開才會換到乾淨狀態。
+    # 每次啟動先等 AX 視窗出現再設定全螢幕。尺寸輪詢期間每隔一段時間讀取
+    # `AXFullScreen`，必要時在同一個視窗物件上重送，仍未收斂才走 `ROUND_RETRY_MAX` 的
+    # 關掉重開路徑。
     ROUND_CONVERGED=0
     LATEST_ATTACH=""
     for round_attempt in $(seq 1 "$ROUND_RETRY_MAX"); do
@@ -297,8 +305,35 @@ for round in $(seq 1 "$ROUNDS"); do
             gui_session_cleanup "$BUNDLE"; rm -f "$LOG"; exit 1
         fi
 
-        osascript -e 'tell application "System Events" to tell process "MirageApp" to set value of attribute "AXFullScreen" of window 1 to true' \
-            > /dev/null 2>&1
+        WINDOW_FOUND=0
+        WINDOW_COUNT=0
+        for _ in $(seq 1 "$FULLSCREEN_WINDOW_POLL_COUNT"); do
+            sleep "$FULLSCREEN_WINDOW_POLL_INTERVAL"
+            WINDOW_COUNT=$(osascript -e 'tell application "System Events" to count of windows of process "MirageApp"' \
+                2>/dev/null) || WINDOW_COUNT=0
+            case "$WINDOW_COUNT" in
+                ''|*[!0-9]*) WINDOW_COUNT=0 ;;
+            esac
+            if [ "$WINDOW_COUNT" -ge 1 ]; then
+                WINDOW_FOUND=1
+                break
+            fi
+        done
+        if [ "$WINDOW_FOUND" -eq 0 ]; then
+            echo "   視窗 ${FULLSCREEN_WINDOW_TIMEOUT} 秒內未在 AX 出現，這次啟動失敗，關掉重開"
+            gui_session_cleanup "$BUNDLE"
+            rm -f "$LOG"
+            continue
+        fi
+
+        FULLSCREEN_SET_OUTPUT=$(osascript -e 'tell application "System Events" to tell process "MirageApp" to set value of attribute "AXFullScreen" of window 1 to true' \
+            2>&1)
+        FULLSCREEN_SET_RC=$?
+        if [ "$FULLSCREEN_SET_RC" -ne 0 ]; then
+            echo "   ⚠️ AXFullScreen 設定失敗：${FULLSCREEN_SET_OUTPUT}"
+        fi
+        FULLSCREEN_RESEND_COUNT=0
+        FULLSCREEN_RESEND_ELAPSED=0
         for _ in $(seq 1 "$FULLSCREEN_POLL_TIMEOUT"); do
             sleep "$FULLSCREEN_POLL_INTERVAL"
             LATEST_ATTACH=$(grep 'attachStream' "$LOG" | tail -1)
@@ -306,6 +341,22 @@ for round in $(seq 1 "$ROUNDS"); do
             if [ -n "$LATEST_WIDTH" ] && [ "$LATEST_WIDTH" -ge "$FULLSCREEN_MIN_WIDTH" ]; then
                 ROUND_CONVERGED=1
                 break
+            fi
+
+            FULLSCREEN_RESEND_ELAPSED=$((FULLSCREEN_RESEND_ELAPSED + FULLSCREEN_POLL_INTERVAL))
+            if [ "$FULLSCREEN_RESEND_ELAPSED" -ge "$FULLSCREEN_RESEND_INTERVAL" ]; then
+                FULLSCREEN_RESEND_ELAPSED=0
+                AX_FULLSCREEN=$(osascript -e 'tell application "System Events" to tell process "MirageApp" to get value of attribute "AXFullScreen" of window 1' \
+                    2>/dev/null) || AX_FULLSCREEN=""
+                if [ "$AX_FULLSCREEN" != "true" ] && [ "$FULLSCREEN_RESEND_COUNT" -lt "$FULLSCREEN_RESEND_MAX" ]; then
+                    FULLSCREEN_SET_OUTPUT=$(osascript -e 'tell application "System Events" to tell process "MirageApp" to set value of attribute "AXFullScreen" of window 1 to true' \
+                        2>&1)
+                    FULLSCREEN_SET_RC=$?
+                    FULLSCREEN_RESEND_COUNT=$((FULLSCREEN_RESEND_COUNT + 1))
+                    if [ "$FULLSCREEN_SET_RC" -ne 0 ]; then
+                        echo "   ⚠️ AXFullScreen 第 ${FULLSCREEN_RESEND_COUNT} 次重送失敗：${FULLSCREEN_SET_OUTPUT}"
+                    fi
+                fi
             fi
         done
         [ "$ROUND_CONVERGED" -eq 1 ] && break
