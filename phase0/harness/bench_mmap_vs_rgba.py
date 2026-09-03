@@ -243,8 +243,10 @@ def main() -> int:
     anim = None
     if not args.no_animate:
         try:
+            animate_script = os.path.join(
+                os.path.dirname(os.path.abspath(__file__)), "animate.py")
             anim = subprocess.Popen(
-                [sys.executable, "animate.py",
+                [sys.executable, animate_script,
                  "--seconds", str(args.seconds * 2 + 20),
                  "--serial", args.serial,
                  "--port", str(animate_port)],
