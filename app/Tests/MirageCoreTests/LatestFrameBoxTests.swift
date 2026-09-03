@@ -13,6 +13,7 @@ import Testing
         box.put(frame(2))
         box.put(frame(3))
         #expect(box.takeLatest() == frame(3))
+        #expect(box.stats().arrived == 3)
         #expect(box.stats().dropped == 2)
     }
 
@@ -27,8 +28,23 @@ import Testing
         let box = LatestFrameBox()
         box.put(Frame(width: 2, height: 2, rgba: Data(count: 3)))
         #expect(box.takeLatest() == nil)
+        #expect(box.stats().arrived == 0)
         #expect(box.stats().rejected == 1)
         #expect(box.stats().dropped == 0)
+    }
+
+    @Test func testTakingLatestDoesNotChangeArrived() {
+        let box = LatestFrameBox()
+        box.put(frame(1))
+        box.put(frame(2))
+
+        let beforeTake = box.stats()
+        _ = box.takeLatest()
+        let afterTake = box.stats()
+
+        #expect(beforeTake.arrived == 2)
+        #expect(afterTake.arrived == 2)
+        #expect(afterTake.dropped == 1)
     }
 
     @Test func testConcurrentPutTakeDoesNotCrash() async {
