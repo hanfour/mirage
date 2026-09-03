@@ -55,28 +55,30 @@ cleanup_burners() {
     local pid attempt
     local failed=0
 
-    for pid in "${BURNER_PIDS[@]}"; do
-        kill "$pid" 2>/dev/null || true
-    done
-
-    for pid in "${BURNER_PIDS[@]}"; do
-        for attempt in $(seq 1 40); do
-            if ! kill -0 "$pid" 2>/dev/null; then
-                break
-            fi
-            sleep 0.05
+    if [ "${#BURNER_PIDS[@]}" -gt 0 ]; then
+        for pid in "${BURNER_PIDS[@]}"; do
+            kill "$pid" 2>/dev/null || true
         done
-        if kill -0 "$pid" 2>/dev/null; then
-            kill -KILL "$pid" 2>/dev/null || true
-        fi
-        wait "$pid" 2>/dev/null || true
-        if kill -0 "$pid" 2>/dev/null; then
-            echo "❌ burner pid=${pid} 清理失敗：kill -0 回檢仍存在。" >&2
-            failed=1
-        else
-            echo "✅ burner pid=${pid} 已清理：kill -0 回檢不存在。"
-        fi
-    done
+
+        for pid in "${BURNER_PIDS[@]}"; do
+            for attempt in $(seq 1 40); do
+                if ! kill -0 "$pid" 2>/dev/null; then
+                    break
+                fi
+                sleep 0.05
+            done
+            if kill -0 "$pid" 2>/dev/null; then
+                kill -KILL "$pid" 2>/dev/null || true
+            fi
+            wait "$pid" 2>/dev/null || true
+            if kill -0 "$pid" 2>/dev/null; then
+                echo "❌ burner pid=${pid} 清理失敗：kill -0 回檢仍存在。" >&2
+                failed=1
+            else
+                echo "✅ burner pid=${pid} 已清理：kill -0 回檢不存在。"
+            fi
+        done
+    fi
 
     return "$failed"
 }
@@ -113,10 +115,18 @@ LOAD_AFTER=$(load_avg_1min)
 echo "load_avg_1min（啟動後）：${LOAD_AFTER}"
 
 if [ "$BURNERS" -eq 0 ]; then
-    "${VERIFY}" "${VERIFY_ARGS[@]}"
+    if [ "${#VERIFY_ARGS[@]}" -gt 0 ]; then
+        "${VERIFY}" "${VERIFY_ARGS[@]}"
+    else
+        "${VERIFY}"
+    fi
     rc="$?"
 else
-    "${VERIFY}" -l 99 "${VERIFY_ARGS[@]}"
+    if [ "${#VERIFY_ARGS[@]}" -gt 0 ]; then
+        "${VERIFY}" -l 99 "${VERIFY_ARGS[@]}"
+    else
+        "${VERIFY}" -l 99
+    fi
     rc="$?"
 fi
 
