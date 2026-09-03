@@ -135,16 +135,24 @@ build_output_recompiled() {
 }
 
 # 反覆 `swift build` 直到某一次沒有 target 被重編，確保之後的量測窗口不含建置。
-# 用法：build_warm [release|debug] [最多幾次] [package 目錄]
+# 用法：build_warm [release|debug] [最多幾次] [package 目錄] [product]
 build_warm() {
-    local config="${1:-release}" max="${2:-3}" dir="${3:-$PWD}"
-    local attempt out rc
+    local config="${1:-release}" max="${2:-3}" dir="${3:-$PWD}" product="${4:-}"
+    local attempt out rc label
+    local -a build_args=(swift build -c "$config")
+    if [ -n "${product}" ]; then
+        build_args+=(--product "${product}")
+    fi
+    label="swift build -c ${config}"
+    if [ -n "${product}" ]; then
+        label="${label} --product ${product}"
+    fi
     for attempt in $(seq 1 "$max"); do
-        out=$( cd "$dir" && swift build -c "$config" 2>&1 )
+        out=$( cd "$dir" && "${build_args[@]}" 2>&1 )
         rc=$?
         if [ "$rc" -ne 0 ]; then
             printf '%s\n' "$out" | tail -20
-            echo "❌ swift build -c ${config} 失敗（退出碼 ${rc}）"
+            echo "❌ ${label} 失敗（退出碼 ${rc}）"
             return 1
         fi
         if build_output_recompiled "$out"; then

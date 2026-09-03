@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# D58：在同一個窗口交錯量測 raw RGBA 與 MMAP，輸出可信的中位數對照。
+# D58：在同一個窗口交錯量測多條 transport，輸出可信的中位數對照。
 #
-# 用法：verify_transport_compare.sh [-p 8556] [-r 3] [-d 20]
+# 用法：verify_transport_compare.sh [-p 8556] [-r 3] [-d 20] [-s rgba,swift]
 set -uo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -12,23 +12,27 @@ source "${COMMON_LIB}"
 source "${LOAD_LIB}"
 cd "${SCRIPT_DIR}/.." || exit 1
 
+PACKAGE_DIR="${SCRIPT_DIR}/.."
 PORT=8556
 ROUNDS=3
 DURATION=20
+SERIES_SPEC="rgba,swift"
 LOAD_LIMIT="${LOAD_LIMIT:-12}"
 MIN_VALID="${MIN_VALID:-2}"
 VENV="${TRANSPORT_COMPARE_VENV:-${SCRIPT_DIR}/../../phase0/harness/.venv-d45/bin/python}"
 BASELINE="${SCRIPT_DIR}/../../phase0/harness/fps_baseline.py"
+SWIFT_BINARY=""
 
 usage() {
-    sed -n '2,7p' "${SCRIPT_PATH}"
+    sed -n '2,5p' "${SCRIPT_PATH}"
 }
 
-while getopts "p:r:d:h" opt; do
+while getopts "p:r:d:s:h" opt; do
     case "${opt}" in
         p) PORT="${OPTARG}" ;;
         r) ROUNDS="${OPTARG}" ;;
         d) DURATION="${OPTARG}" ;;
+        s) SERIES_SPEC="${OPTARG}" ;;
         h) usage; exit 0 ;;
         *) usage >&2; exit 2 ;;
     esac
@@ -58,6 +62,30 @@ if [ "${PORT}" -gt 65535 ]; then
     exit 2
 fi
 
+IFS=',' read -r -a SERIES <<< "${SERIES_SPEC}"
+if [ "${#SERIES[@]}" -eq 0 ]; then
+    echo "❌ 至少要指定一個系列：${SERIES_SPEC}" >&2
+    exit 2
+fi
+for series_index_value in "${!SERIES[@]}"; do
+    series="${SERIES[${series_index_value}]}"
+    case "${series}" in
+        rgba|mmap|swift) ;;
+        *)
+            echo "❌ 不支援的系列：${series}（可用 rgba、mmap、swift）" >&2
+            exit 2
+            ;;
+    esac
+    if [ "${series_index_value}" -gt 0 ]; then
+        for previous_index in $(seq 0 $((series_index_value - 1))); do
+            if [ "${SERIES[${previous_index}]}" = "${series}" ]; then
+                echo "❌ 系列不可重複：${series}" >&2
+                exit 2
+            fi
+        done
+    fi
+done
+
 echo "=== 前置：gRPC ==="
 require_grpc "${PORT}"
 
@@ -76,6 +104,26 @@ if [ ! -f "${BASELINE}" ]; then
 fi
 echo "✅ venv python：${VENV}"
 
+for series in "${SERIES[@]}"; do
+    if [ "${series}" = "swift" ]; then
+        echo "=== 前置：mirage-pull release ==="
+        if ! build_warm release 3 "${PACKAGE_DIR}" "mirage-pull"; then
+            exit 1
+        fi
+        if ! SWIFT_BIN_PATH="$(cd "${PACKAGE_DIR}" && swift build -c release --show-bin-path)"; then
+            echo "❌ 無法取得 release 執行檔路徑" >&2
+            exit 1
+        fi
+        SWIFT_BINARY="${SWIFT_BIN_PATH}/mirage-pull"
+        if [ ! -x "${SWIFT_BINARY}" ]; then
+            echo "❌ 找不到 mirage-pull：${SWIFT_BINARY}" >&2
+            exit 1
+        fi
+        echo "✅ mirage-pull：${SWIFT_BINARY}"
+        break
+    fi
+done
+
 SAMPLE_VALID=0
 SAMPLE_STATUS="unknown"
 SAMPLE_FPS="NA"
@@ -83,17 +131,24 @@ SAMPLE_FRAMES="NA"
 SAMPLE_ELAPSED="NA"
 SAMPLE_DISTINCT="NA"
 SAMPLE_REASON="未解析"
+SAMPLE_CLIENT="unknown"
 SAMPLE_RC=1
 
 run_sample() {
     local transport="$1"
-    local json_file err_file parsed parse_rc
+    local json_file err_file parsed parse_rc command_error
     json_file="$(mktemp -t d58_transport_json)"
     err_file="$(mktemp -t d58_transport_err)"
 
-    "${VENV}" "${BASELINE}" --json --transport "${transport}" \
-        --endpoint "localhost:${PORT}" --seconds "${DURATION}" \
-        --width 900 --height 2000 > "${json_file}" 2> "${err_file}"
+    if [ "${transport}" = "swift" ]; then
+        "${SWIFT_BINARY}" --json \
+            --endpoint "localhost:${PORT}" --seconds "${DURATION}" \
+            --width 900 --height 2000 > "${json_file}" 2> "${err_file}"
+    else
+        "${VENV}" "${BASELINE}" --json --transport "${transport}" \
+            --endpoint "localhost:${PORT}" --seconds "${DURATION}" \
+            --width 900 --height 2000 > "${json_file}" 2> "${err_file}"
+    fi
     SAMPLE_RC=$?
 
     parsed="$("${VENV}" - "${json_file}" "${DURATION}" <<'PY'
@@ -113,7 +168,7 @@ try:
         result = json.load(stream)
 except Exception as exc:
     print("\t".join(("0", "json-error", "NA", "NA", "NA", "NA",
-                      clean(f"JSON 解析失敗：{exc}"))))
+                      clean(f"JSON 解析失敗：{exc}"), "unknown")))
     raise SystemExit(0)
 
 status = clean(result.get("status"), "unknown")
@@ -122,6 +177,7 @@ frames = result.get("frames")
 elapsed = result.get("elapsed")
 distinct = result.get("distinct")
 error = result.get("error")
+client = clean(result.get("client"), "python")
 
 try:
     elapsed_value = float(elapsed)
@@ -158,22 +214,23 @@ print("\t".join((
     elapsed_text,
     clean(distinct),
     clean(reason),
+    client,
 )))
 PY
     )"
     parse_rc=$?
     if [ "${parse_rc}" -ne 0 ]; then
-        parsed="0\tjson-error\tNA\tNA\tNA\tNA\tvenv Python 無法解析 JSON"
+        parsed=$'0\tjson-error\tNA\tNA\tNA\tNA\tvenv Python 無法解析 JSON\tunknown'
     fi
     if [ "${SAMPLE_RC}" -ne 0 ] && [ -s "${err_file}" ]; then
-        while IFS= read -r error_line; do
-            echo "     ${transport}：${error_line}"
+        while IFS= read -r command_error; do
+            echo "     ${transport}：${command_error}"
         done < "${err_file}"
     fi
     rm -f "${json_file}" "${err_file}"
 
     IFS=$'\t' read -r SAMPLE_VALID SAMPLE_STATUS SAMPLE_FPS SAMPLE_FRAMES \
-        SAMPLE_ELAPSED SAMPLE_DISTINCT SAMPLE_REASON <<< "${parsed}"
+        SAMPLE_ELAPSED SAMPLE_DISTINCT SAMPLE_REASON SAMPLE_CLIENT <<< "${parsed}"
     if [ "${SAMPLE_VALID}" -ne 1 ]; then
         echo "   ${transport} 無效：${SAMPLE_REASON}（退出碼 ${SAMPLE_RC}）"
     fi
@@ -198,16 +255,19 @@ print(f"{float(sys.argv[2]) - float(sys.argv[1]):.2f}")
 PY
 }
 
-printf "\n%-4s %-8s %-9s %8s %8s %9s %9s %-12s %-12s %-12s\n" \
-    "輪次" "順序" "transport" "fps" "frames" "elapsed" "distinct" \
+printf "\n%-4s %-18s %-12s %-9s %8s %8s %9s %9s %-12s %-12s %-12s\n" \
+    "輪次" "順序" "client" "transport" "fps" "frames" "elapsed" "distinct" \
     "status" "量測前負載" "量測後負載"
-printf '%s\n' "--------------------------------------------------------------------------------"
+printf '%s\n' "------------------------------------------------------------------------------------------------"
 
-RGBA_VALUES=""
-MMAP_VALUES=""
-RGBA_VALID=0
-MMAP_VALID=0
+SERIES_VALUES=()
+SERIES_VALID=()
+for series in "${SERIES[@]}"; do
+    SERIES_VALUES+=("")
+    SERIES_VALID+=(0)
+done
 
+SERIES_COUNT="${#SERIES[@]}"
 for round in $(seq 1 "${ROUNDS}"); do
     echo ""
     echo "=== 第 ${round}/${ROUNDS} 輪：負載門檻（上限 ${LOAD_LIMIT}）==="
@@ -218,87 +278,98 @@ for round in $(seq 1 "${ROUNDS}"); do
     fi
     echo "✅ 量測前負載 ${LOAD_BEFORE}（上限 ${LOAD_LIMIT}）"
 
-    if [ $((round % 2)) -eq 1 ]; then
-        FIRST_TRANSPORT="rgba"
-        SECOND_TRANSPORT="mmap"
-    else
-        FIRST_TRANSPORT="mmap"
-        SECOND_TRANSPORT="rgba"
-    fi
+    start_index=$(( (round - 1) % SERIES_COUNT ))
+    order=""
+    ROUND_SERIES=()
+    ROUND_CLIENT=()
+    ROUND_VALID=()
+    ROUND_STATUS=()
+    ROUND_FPS=()
+    ROUND_FRAMES=()
+    ROUND_ELAPSED=()
+    ROUND_DISTINCT=()
 
-    run_sample "${FIRST_TRANSPORT}"
-    FIRST_VALID="${SAMPLE_VALID}"
-    FIRST_STATUS="${SAMPLE_STATUS}"
-    FIRST_FPS="${SAMPLE_FPS}"
-    FIRST_FRAMES="${SAMPLE_FRAMES}"
-    FIRST_ELAPSED="${SAMPLE_ELAPSED}"
-    FIRST_DISTINCT="${SAMPLE_DISTINCT}"
+    for offset in $(seq 0 $((SERIES_COUNT - 1))); do
+        series_index_value=$(( (start_index + offset) % SERIES_COUNT ))
+        series="${SERIES[${series_index_value}]}"
+        if [ -n "${order}" ]; then
+            order="${order}/${series}"
+        else
+            order="${series}"
+        fi
 
-    run_sample "${SECOND_TRANSPORT}"
-    SECOND_VALID="${SAMPLE_VALID}"
-    SECOND_STATUS="${SAMPLE_STATUS}"
-    SECOND_FPS="${SAMPLE_FPS}"
-    SECOND_FRAMES="${SAMPLE_FRAMES}"
-    SECOND_ELAPSED="${SAMPLE_ELAPSED}"
-    SECOND_DISTINCT="${SAMPLE_DISTINCT}"
+        run_sample "${series}"
+        ROUND_SERIES+=("${series}")
+        ROUND_CLIENT+=("${SAMPLE_CLIENT}")
+        ROUND_VALID+=("${SAMPLE_VALID}")
+        ROUND_STATUS+=("${SAMPLE_STATUS}")
+        ROUND_FPS+=("${SAMPLE_FPS}")
+        ROUND_FRAMES+=("${SAMPLE_FRAMES}")
+        ROUND_ELAPSED+=("${SAMPLE_ELAPSED}")
+        ROUND_DISTINCT+=("${SAMPLE_DISTINCT}")
+    done
 
     load_gate "${LOAD_LIMIT}"
     AFTER_GATE_RC=$?
     LOAD_AFTER="$(load_avg_1min)"
     echo "   量測後負載 ${LOAD_AFTER}（本輪 ${LOAD_BEFORE} → ${LOAD_AFTER}）"
-    printf "%-4s %-8s %-9s %8s %8s %9s %9s %-12s %-12s %-12s\n" \
-        "${round}" "${FIRST_TRANSPORT}/${SECOND_TRANSPORT}" "${FIRST_TRANSPORT}" \
-        "${FIRST_FPS}" "${FIRST_FRAMES}" "${FIRST_ELAPSED}" "${FIRST_DISTINCT}" \
-        "${FIRST_STATUS}" "${LOAD_BEFORE}" "${LOAD_AFTER}"
-    printf "%-4s %-8s %-9s %8s %8s %9s %9s %-12s %-12s %-12s\n" \
-        "${round}" "${FIRST_TRANSPORT}/${SECOND_TRANSPORT}" "${SECOND_TRANSPORT}" \
-        "${SECOND_FPS}" "${SECOND_FRAMES}" "${SECOND_ELAPSED}" "${SECOND_DISTINCT}" \
-        "${SECOND_STATUS}" "${LOAD_BEFORE}" "${LOAD_AFTER}"
+    for sample_index in "${!ROUND_SERIES[@]}"; do
+        printf "%-4s %-18s %-12s %-9s %8s %8s %9s %9s %-12s %-12s %-12s\n" \
+            "${round}" "${order}" "${ROUND_CLIENT[${sample_index}]}" \
+            "${ROUND_SERIES[${sample_index}]}" "${ROUND_FPS[${sample_index}]}" \
+            "${ROUND_FRAMES[${sample_index}]}" "${ROUND_ELAPSED[${sample_index}]}" \
+            "${ROUND_DISTINCT[${sample_index}]}" "${ROUND_STATUS[${sample_index}]}" \
+            "${LOAD_BEFORE}" "${LOAD_AFTER}"
+    done
 
     if [ "${AFTER_GATE_RC}" -ne 0 ]; then
         echo "❌ 第 ${round} 輪量測後負載 ${LOAD_AFTER} 已超標，中止。"
         exit 1
     fi
 
-    if [ "${FIRST_VALID}" -eq 1 ]; then
-        if [ "${FIRST_TRANSPORT}" = "rgba" ]; then
-            RGBA_VALUES="${RGBA_VALUES} ${FIRST_FPS}"
-            RGBA_VALID=$((RGBA_VALID + 1))
-        else
-            MMAP_VALUES="${MMAP_VALUES} ${FIRST_FPS}"
-            MMAP_VALID=$((MMAP_VALID + 1))
+    for sample_index in "${!ROUND_SERIES[@]}"; do
+        if [ "${ROUND_VALID[${sample_index}]}" -eq 1 ]; then
+            for series_index_value in "${!SERIES[@]}"; do
+                if [ "${SERIES[${series_index_value}]}" = "${ROUND_SERIES[${sample_index}]}" ]; then
+                    SERIES_VALUES[${series_index_value}]="${SERIES_VALUES[${series_index_value}]} ${ROUND_FPS[${sample_index}]}"
+                    SERIES_VALID[${series_index_value}]=$((SERIES_VALID[${series_index_value}] + 1))
+                    break
+                fi
+            done
         fi
+    done
+done
+
+MEDIANS=()
+echo ""
+echo "===== 解析結果 ====="
+for series_index_value in "${!SERIES[@]}"; do
+    median="無資料"
+    if [ "${SERIES_VALID[${series_index_value}]}" -gt 0 ]; then
+        median="$(median_of "${SERIES_VALUES[${series_index_value}]}")"
     fi
-    if [ "${SECOND_VALID}" -eq 1 ]; then
-        if [ "${SECOND_TRANSPORT}" = "rgba" ]; then
-            RGBA_VALUES="${RGBA_VALUES} ${SECOND_FPS}"
-            RGBA_VALID=$((RGBA_VALID + 1))
+    MEDIANS+=("${median}")
+    echo "${SERIES[${series_index_value}]}：中位數 ${median} fps，有效輪數 ${SERIES_VALID[${series_index_value}]}"
+done
+
+BASE_SERIES="${SERIES[0]}"
+BASE_MEDIAN="${MEDIANS[0]}"
+for series_index_value in "${!SERIES[@]}"; do
+    series="${SERIES[${series_index_value}]}"
+    if [ "${SERIES_VALID[0]}" -gt 0 ] && [ "${SERIES_VALID[${series_index_value}]}" -gt 0 ]; then
+        if [ "${series_index_value}" -eq 0 ]; then
+            difference="0.00"
         else
-            MMAP_VALUES="${MMAP_VALUES} ${SECOND_FPS}"
-            MMAP_VALID=$((MMAP_VALID + 1))
+            difference="$(difference_of "${BASE_MEDIAN}" "${MEDIANS[${series_index_value}]}")"
         fi
+        echo "差值（${series} - ${BASE_SERIES}）：${difference} fps"
+    else
+        echo "差值（${series} - ${BASE_SERIES}）：無資料"
     fi
 done
 
-RGBA_MEDIAN="無資料"
-MMAP_MEDIAN="無資料"
-if [ "${RGBA_VALID}" -gt 0 ]; then
-    RGBA_MEDIAN="$(median_of "${RGBA_VALUES}")"
-fi
-if [ "${MMAP_VALID}" -gt 0 ]; then
-    MMAP_MEDIAN="$(median_of "${MMAP_VALUES}")"
-fi
-
-echo ""
-echo "===== 解析結果 ====="
-echo "rgba：中位數 ${RGBA_MEDIAN} fps，有效輪數 ${RGBA_VALID}"
-echo "mmap：中位數 ${MMAP_MEDIAN} fps，有效輪數 ${MMAP_VALID}"
-if [ "${RGBA_VALID}" -gt 0 ] && [ "${MMAP_VALID}" -gt 0 ]; then
-    echo "差值（mmap - rgba）：$(difference_of "${RGBA_MEDIAN}" "${MMAP_MEDIAN}") fps"
-else
-    echo "差值（mmap - rgba）：無資料"
-fi
-
-assert_at_least "rgba 有效輪數" "${RGBA_VALID}" "${MIN_VALID}"
-assert_at_least "mmap 有效輪數" "${MMAP_VALID}" "${MIN_VALID}"
-echo "✅ 兩種 transport 都達到至少 ${MIN_VALID} 個有效樣本；本腳本不判定誰比較快。"
+for series_index_value in "${!SERIES[@]}"; do
+    assert_at_least "${SERIES[${series_index_value}]} 有效輪數" \
+        "${SERIES_VALID[${series_index_value}]}" "${MIN_VALID}"
+done
+echo "✅ 所有系列都達到至少 ${MIN_VALID} 個有效樣本；本腳本不判定誰比較快。"
