@@ -208,52 +208,53 @@ def measure(
     frame_source_factory = frame_source_factory or frame_array_fn or frame_array
     temp_path_factory = temp_path_factory or _temp_path
 
-    channel = None
-    if stub is None:
-        grpc_module = _require_grpc()
-        channel_factory = channel_factory or grpc_module.insecure_channel
-        channel = channel_factory(endpoint, options=[
-            ("grpc.max_receive_message_length", 64 * 1024 * 1024),
-        ])
-        active_stub = _require_proto()[1].EmulatorControllerStub(channel)
-    else:
-        active_stub = stub
     mmap_path = None
     buffer = None
-    if transport == "mmap":
-        mmap_path = temp_path_factory()
-        buffer = buffer_factory(mmap_path, width, height)
-    req = _image_format(transport, width, height, mmap_path, pb_module=pb_module)
-
+    channel = None
     frames = 0
     fingerprints = set()
     error_message = None
-    t0 = time.perf_counter()
-    deadline = t0 + seconds
-    rpc_timeout = seconds + _TIMEOUT_MARGIN_SECONDS
     frame_source = None
     try:
-        for frame in active_stub.streamScreenshot(req, timeout=rpc_timeout):
-            frames += 1
-            if transport == "rgba":
-                frame_source = frame.image
-            else:
-                frame_source = frame_source_factory(buffer, width, height)
-            fingerprints.add(_frame_fingerprint(frame_source))
-            frame_source = None
-            if time.perf_counter() >= deadline:
-                break
-    except Exception as err:
-        is_rpc_error = grpc is not None and isinstance(err, grpc.RpcError)
-        if is_rpc_error and err.code() == grpc.StatusCode.DEADLINE_EXCEEDED:
-            # 預期路徑：畫面在量測窗口內沒有再變化，串流卡在等下一幀。
-            pass
-        elif is_rpc_error:
-            error_message = f"{err.code().name}: {err.details()}"
-            print(f"gRPC {error_message}", file=sys.stderr)
+        if stub is None:
+            grpc_module = _require_grpc()
+            channel_factory = channel_factory or grpc_module.insecure_channel
+            channel = channel_factory(endpoint, options=[
+                ("grpc.max_receive_message_length", 64 * 1024 * 1024),
+            ])
+            active_stub = _require_proto()[1].EmulatorControllerStub(channel)
         else:
-            error_message = f"{type(err).__name__}: {err}"
-            print(f"量測失敗：{error_message}", file=sys.stderr)
+            active_stub = stub
+        if transport == "mmap":
+            mmap_path = temp_path_factory()
+            buffer = buffer_factory(mmap_path, width, height)
+        req = _image_format(transport, width, height, mmap_path, pb_module=pb_module)
+
+        t0 = time.perf_counter()
+        deadline = t0 + seconds
+        rpc_timeout = seconds + _TIMEOUT_MARGIN_SECONDS
+        try:
+            for frame in active_stub.streamScreenshot(req, timeout=rpc_timeout):
+                frames += 1
+                if transport == "rgba":
+                    frame_source = frame.image
+                else:
+                    frame_source = frame_source_factory(buffer, width, height)
+                fingerprints.add(_frame_fingerprint(frame_source))
+                frame_source = None
+                if time.perf_counter() >= deadline:
+                    break
+        except Exception as err:
+            is_rpc_error = grpc is not None and isinstance(err, grpc.RpcError)
+            if is_rpc_error and err.code() == grpc.StatusCode.DEADLINE_EXCEEDED:
+                # 預期路徑：畫面在量測窗口內沒有再變化，串流卡在等下一幀。
+                pass
+            elif is_rpc_error:
+                error_message = f"{err.code().name}: {err.details()}"
+                print(f"gRPC {error_message}", file=sys.stderr)
+            else:
+                error_message = f"{type(err).__name__}: {err}"
+                print(f"量測失敗：{error_message}", file=sys.stderr)
     finally:
         frame_source = None
         if buffer is not None:

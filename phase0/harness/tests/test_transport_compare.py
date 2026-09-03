@@ -57,6 +57,14 @@ class FakeBuffer:
         self.closed = True
 
 
+class FakeChannel:
+    def __init__(self):
+        self.closed = False
+
+    def close(self):
+        self.closed = True
+
+
 def _payloads():
     first = bytearray(12000)
     second = bytearray(first)
@@ -147,6 +155,35 @@ def test_measure_supports_injected_stub_and_buffer_source(tmp_path, transport):
         assert buffer.closed
     else:
         assert stub.request.transport is None
+
+
+def test_mmap_setup_failure_cleans_buffer_path_and_channel(monkeypatch, tmp_path):
+    path = tmp_path / "partial-frame.bin"
+    channel = FakeChannel()
+    stub_factory = SimpleNamespace(
+        EmulatorControllerStub=lambda _channel: object())
+    monkeypatch.setattr(
+        baseline, "_require_proto", lambda: (FAKE_PB, stub_factory))
+
+    def failing_buffer_factory(buffer_path, _width, _height):
+        path.write_bytes(b"partial")
+        raise OSError("disk full")
+
+    with pytest.raises(OSError, match="disk full"):
+        baseline.measure(
+            "localhost:8556",
+            1,
+            900,
+            2000,
+            transport="mmap",
+            channel_factory=lambda _endpoint, **_kwargs: channel,
+            buffer_factory=failing_buffer_factory,
+            temp_path_factory=lambda: str(path),
+            pb_module=FAKE_PB,
+        )
+
+    assert not path.exists()
+    assert channel.closed
 
 
 def test_endpoint_port_derivation():
