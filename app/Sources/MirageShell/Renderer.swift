@@ -25,6 +25,7 @@ final class Renderer: NSObject, MTKViewDelegate {
     var onFrameSize: ((Int, Int) -> Void)?
     private var fpsCount = 0
     private var fpsWindowStart = CFAbsoluteTimeGetCurrent()
+    private var frameCounterWindowStart: FrameCounterSnapshot
     private let fpsLog = ProcessInfo.processInfo.environment["MIRAGE_FPS_LOG"] == "1"
     private let latencyLog = ProcessInfo.processInfo.environment["MIRAGE_LATENCY_LOG"] == "1"
     private var latency = LatencyWindow()
@@ -35,6 +36,7 @@ final class Renderer: NSObject, MTKViewDelegate {
         self.device = device
         self.blitter = blitter
         self.box = box
+        self.frameCounterWindowStart = box.stats()
         super.init()
     }
 
@@ -104,9 +106,16 @@ final class Renderer: NSObject, MTKViewDelegate {
         let now = CFAbsoluteTimeGetCurrent()
         let elapsed = now - fpsWindowStart
         if elapsed >= 1.0 {
+            let frameCounterWindowEnd = box.stats()
+            let frameWindow = FrameCounterWindow(
+                before: frameCounterWindowStart,
+                after: frameCounterWindowEnd,
+                presented: fpsCount)
             print("[app] fps=\(Int((Double(fpsCount) / elapsed).rounded()))")
+            print("[app] frames arrived=\(frameWindow.arrived) dropped=\(frameWindow.dropped) presented=\(frameWindow.presented)")
             fpsCount = 0
             fpsWindowStart = now
+            frameCounterWindowStart = frameCounterWindowEnd
         }
     }
 
