@@ -41,3 +41,35 @@
 - `7609244 fix: 補強直拉逾時與輸出測試`
 - `39b942a feat: 擴充 transport 交錯驗證系列`
 - `2259f17 docs: 完成 Swift 直拉結果報告`
+
+## PM 把關與活體驗證（2026-09-03）
+
+### 把關
+
+- codex 在沙箱裡編不了 Swift（見簡報第 6 節），第一輪盲寫的碼 PM 在沙箱外一次編過（36 秒），`MiragePullTests` 12 條綠；第二輪加探測後 14 條綠。
+- `bash app/scripts/ci.sh`：第一輪後八道閘門綠、閘門 8 因 worktree 沒有 venv 而紅（環境，非程式碼；把 main 的 venv 連結進來後 33 條 pytest 綠），第二輪後全部重跑，見下方。
+- 獨立審查對 diff 本體沒有發現問題，對探測的修法給了三個要點（重用 group、只排除「沒人聽」、放在 `measure()` 之外），第二輪照此實作。
+- 驗收條件 3 第一輪未過（45999 回 `static`、退出碼 2、耗時 2 秒），第二輪通過（`status: error`、`error: UNAVAILABLE: ... Connection refused`、退出碼 1、耗時 1 秒）。
+- 順帶：debug 二進位對真實 emulator 只有 4 fps（指紋迴圈與 grpc-swift 未最佳化），量測一律要用 release，`verify_transport_compare.sh` 已如此。
+
+### 活體：`verify_transport_compare.sh -s rgba,swift -p 8556 -r 3 -d 20`
+
+環境同 `app/RESULTS-d58.md`：`mirage-game`、Pixel Flow 0.33.0 在前景、900×2000、`LOAD_LIMIT=12`、release 建置事先暖好（`build_warm` 第 2 次 no-op）。5 秒探測：Swift 直拉 59.34 fps、298 幀 298 種。
+
+| 輪 | 順序 | client | fps | frames | distinct | 負載前 → 後 |
+|---|---|---|---|---|---|---|
+| 1 | rgba/swift | python | 59.32 | 1187 | 1186 | 6.35 → 8.72 |
+| 1 | rgba/swift | grpc-swift | 49.99 | 1000 | 995 | 6.35 → 8.72 |
+| 2 | swift/rgba | grpc-swift | 56.61 | 1133 | 1131 | 8.72 → 8.86 |
+| 2 | swift/rgba | python | 55.51 | 1111 | 1109 | 8.72 → 8.86 |
+| 3 | rgba/swift | python | 57.82 | 1157 | 1157 | 8.86 → 8.47 |
+| 3 | rgba/swift | grpc-swift | 56.99 | 1140 | 1138 | 8.86 → 8.47 |
+
+中位數 Python 57.82、grpc-swift 56.61，差 1.21 fps，有效輪數各 3，退出碼 0。第 1 輪 Swift 的 49.99 伴隨負載從 6.35 升到 8.72，第 2、3 輪兩者相當。
+
+### 判定
+
+1. grpc-swift 這條 client 路徑不是驗收線 7 的瓶頸：它單獨拉 raw RGBA 不渲染就過 55，與 Python 相當。連同 `RESULTS-d58.md` 的結論，傳輸與 client 兩段都排除。
+2. Mirage 實際量到 43 到 54（D48），損失只剩兩個候選：(a) `MirageShell` 的解碼、Metal 上傳、視窗合成或 `LatestFrameBox` 丟幀；(b) app 自己的 CPU／GPU 負載回頭壓 guest 出幀（D48 在真 GUI 下量到 guest 只有 49 到 57）。直拉工具不渲染，所以 (b) 在這裡不存在。
+3. 下一步：在 Mirage 行程內同一窗口計三個數（抵達、上傳、present），與 `verify_fps_fullscreen.sh` 已對齊的 guest fps 並列。抵達接近 guest 而 present 明顯低，損失在渲染；抵達本身就低，是 (b)。
+4. D16 記載的「grpc-swift 發請求時 MMAP 更新率遠低於 Python」這個現象與本次無矛盾：那是 MMAP 通知路徑的問題，raw RGBA 路徑上 grpc-swift 正常。
