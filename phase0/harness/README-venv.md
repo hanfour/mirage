@@ -28,7 +28,7 @@ probe_mmap_explicit.py, probe_touch_coords.py, smoke_grpc.py, stream_bench.py
 cd phase0/harness
 python3 -m venv .venv-d45
 ./.venv-d45/bin/pip install --quiet --upgrade pip
-./.venv-d45/bin/pip install --quiet 'protobuf>=7.35,<8' grpcio numpy
+./.venv-d45/bin/pip install --quiet 'protobuf>=7.35,<8' grpcio numpy pytest
 ```
 
 驗證 import 是否成功：
@@ -70,12 +70,13 @@ protobuf 7.35.1`）。檢查過 `phase0/harness/` 底下所有原始碼，
 
 ## `requirements-d45.txt` 鎖的版本
 
-用 `./.venv-d45/bin/pip freeze | grep -iE '^(protobuf|grpcio|numpy)'` 取得的實際版本：
+用 `./.venv-d45/bin/pip freeze | grep -iE '^(protobuf|grpcio|numpy|pytest)'` 取得的實際版本：
 
 ```
 grpcio==1.83.0
 numpy==2.4.6
 protobuf==7.35.1
+pytest==9.1.1
 ```
 
 `pip check` 在這個組合下回報 `No broken requirements found.`。
@@ -84,10 +85,10 @@ protobuf==7.35.1
 
 這個 venv **只保證 `fps_baseline.py` 這一條路徑能跑**：它只 import
 `grpc`、`emulator_controller_pb2`、`emulator_controller_pb2_grpc`，
-`requirements-d45.txt` 也只鎖了這幾個套件需要的版本。
+`requirements-d45.txt` 也列出 pytest，供 phase0/harness 的測試閘門使用。
 
 `phase0/harness/` 其餘 11 個既有檔案（見上面清單，扣掉 `fps_baseline.py`
 本身）**仍然是死的**——就算用這個 venv 執行，有些檔案還會缺其他套件
-（例如 `encoded_bench.py` 用到的 `av`、測試用的 `pytest`，這個 venv
-並未安裝），沒有一併驗證過。修好整個 `phase0/harness/` 不在 D45 範圍內，
+（例如 `encoded_bench.py` 用到的 `av`），沒有一併驗證過。pytest 測試由 CI 閘門 8
+執行。修好整個 `phase0/harness/` 不在 D45 範圍內，
 另記債務。

@@ -279,9 +279,27 @@ else
 fi
 
 echo ""
+echo "=== 閘門 8：phase0/harness Python 測試 ==="
+HARNESS_PY="../phase0/harness/.venv-d45/bin/python"
+if [ ! -x "${HARNESS_PY}" ]; then
+    fail "找不到 phase0/harness/.venv-d45/bin/python，不能 skip 閘門 8"
+    echo "   建立方式：cd phase0/harness && python3 -m venv .venv-d45" \
+         "&& ./.venv-d45/bin/pip install -r requirements-d45.txt"
+elif ! "${HARNESS_PY}" -c "import pytest" > /dev/null 2>&1; then
+    fail "venv 裡找不到 pytest，不能 skip 閘門 8"
+    echo "   安裝方式：cd phase0/harness && ./.venv-d45/bin/pip install -r requirements-d45.txt"
+else
+    if (cd .. && phase0/harness/.venv-d45/bin/python -m pytest -q phase0/harness/tests); then
+        ok "phase0/harness pytest 通過"
+    else
+        fail "phase0/harness pytest 失敗"
+    fi
+fi
+
+echo ""
 echo "======================================"
 if [ "$FAILURES" -eq 0 ]; then
-    echo "全部通過（$RUNS 次跑次、0 行 NIO ERROR、無假 skip、無全形標點陷阱、無永不紅的 #expect、provision 測試綠、四支共用函式庫自我測試（verify_common／audio_stats／load_sentinel／guest_fps）皆綠）"
+    echo "全部通過（$RUNS 次跑次、0 行 NIO ERROR、無假 skip、無全形標點陷阱、無永不紅的 #expect、provision 測試綠、四支共用函式庫自我測試（verify_common／audio_stats／load_sentinel／guest_fps）皆綠、phase0/harness pytest 綠）"
     exit 0
 fi
 echo "$FAILURES 項失敗"
