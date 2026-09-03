@@ -4,3 +4,6 @@
 
 # 隔離用的 Python venv（例如 D45 對照組工具的 .venv-d45/），不進版控
 .venv*/
+
+# 本機隔離工作區（superpowers using-git-worktrees）
+.worktrees/
