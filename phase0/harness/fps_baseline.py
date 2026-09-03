@@ -78,7 +78,6 @@ from lib.mmap_source import frame_array, make_handle, open_frame_buffer
 _TIMEOUT_MARGIN_SECONDS = 2.0
 
 _EXIT_BY_STATUS = {"measured": 0, "error": 1, "static": 2, "stale": 3}
-_FINGERPRINT_STRIDE = 4099
 
 
 def status_for(frames: int, distinct: int, error: str | None) -> str:
@@ -113,17 +112,14 @@ def _temp_path() -> str:
 
 
 def _frame_fingerprint(source) -> bytes:
-    """每隔固定位元組取樣，避免為了 distinct 複製整張畫面。"""
+    """每隔 64 位元組取樣，避免為了 distinct 複製整張畫面。"""
     view = memoryview(source)
     if view.ndim != 1 or view.format != "B":
         view = view.cast("B")
     if not view.c_contiguous:
         raise ValueError("畫面內容必須是連續的位元組緩衝區")
 
-    sampled = bytearray()
-    for offset in range(0, len(view), _FINGERPRINT_STRIDE):
-        sampled.append(view[offset])
-    return hashlib.blake2b(sampled, digest_size=8).digest()
+    return hashlib.blake2b(bytes(view[::64]), digest_size=8).digest()
 
 
 def _require_grpc():

@@ -65,10 +65,15 @@ class FakeChannel:
         self.closed = True
 
 
-def _payloads():
-    first = bytearray(12000)
+def _payloads(change):
+    first = bytearray(7200)
     second = bytearray(first)
-    second[4099] = 1
+    if change == "row":
+        second[:3600] = b"\x01" * 3600
+    elif change == "first_byte":
+        second[0] = 1
+    elif change != "same":
+        raise ValueError(f"unknown payload change: {change}")
     return [bytes(first), bytes(second)]
 
 
@@ -101,19 +106,28 @@ def test_status_and_exit_code_mapping(frames, distinct, error, status, exit_code
     assert baseline._EXIT_BY_STATUS[status] == exit_code
 
 
-def test_sampled_distinct_is_consistent_for_rgba_and_mmap_sources():
-    payloads = _payloads()
+@pytest.mark.parametrize("change, expected", [("row", 2), ("first_byte", 2), ("same", 1)])
+def test_sampled_distinct_detects_expected_content_changes(change, expected):
+    payloads = _payloads(change)
     rgba_distinct = baseline.count_distinct(payloads)
     mmap_distinct = baseline.count_distinct(
-        [np.frombuffer(payload, dtype=np.uint8).reshape(1, 3000, 4)
+        [np.frombuffer(payload, dtype=np.uint8).reshape(2, 900, 4)
          for payload in payloads]
     )
-    assert rgba_distinct == mmap_distinct == 2
+    assert rgba_distinct == mmap_distinct == expected
+
+
+def test_dense_fingerprint_detects_a_midframe_change():
+    first = bytearray(8192)
+    second = bytearray(first)
+    second[4096] = 1
+
+    assert baseline.count_distinct([bytes(first), bytes(second)]) == 2
 
 
 @pytest.mark.parametrize("transport", ["rgba", "mmap"])
 def test_measure_supports_injected_stub_and_buffer_source(tmp_path, transport):
-    payloads = _payloads()
+    payloads = _payloads("row")
     stub = FakeStub(
         [FakeFrame(payload) if transport == "rgba" else FakeFrame()
          for payload in payloads]
