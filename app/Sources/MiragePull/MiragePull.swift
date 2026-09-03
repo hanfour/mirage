@@ -347,24 +347,24 @@ public enum MiragePull {
     }
 
     private static func grpcCodeName(_ code: GRPCStatus.Code) -> String {
-        switch code {
-        case .ok: return "OK"
-        case .cancelled: return "CANCELLED"
-        case .unknown: return "UNKNOWN"
-        case .invalidArgument: return "INVALID_ARGUMENT"
-        case .deadlineExceeded: return "DEADLINE_EXCEEDED"
-        case .notFound: return "NOT_FOUND"
-        case .alreadyExists: return "ALREADY_EXISTS"
-        case .permissionDenied: return "PERMISSION_DENIED"
-        case .resourceExhausted: return "RESOURCE_EXHAUSTED"
-        case .failedPrecondition: return "FAILED_PRECONDITION"
-        case .aborted: return "ABORTED"
-        case .outOfRange: return "OUT_OF_RANGE"
-        case .unimplemented: return "UNIMPLEMENTED"
-        case .internalError: return "INTERNAL"
-        case .unavailable: return "UNAVAILABLE"
-        case .dataLoss: return "DATA_LOSS"
-        case .unauthenticated: return "UNAUTHENTICATED"
+        switch code.rawValue {
+        case 0: return "OK"
+        case 1: return "CANCELLED"
+        case 2: return "UNKNOWN"
+        case 3: return "INVALID_ARGUMENT"
+        case 4: return "DEADLINE_EXCEEDED"
+        case 5: return "NOT_FOUND"
+        case 6: return "ALREADY_EXISTS"
+        case 7: return "PERMISSION_DENIED"
+        case 8: return "RESOURCE_EXHAUSTED"
+        case 9: return "FAILED_PRECONDITION"
+        case 10: return "ABORTED"
+        case 11: return "OUT_OF_RANGE"
+        case 12: return "UNIMPLEMENTED"
+        case 13: return "INTERNAL"
+        case 14: return "UNAVAILABLE"
+        case 15: return "DATA_LOSS"
+        case 16: return "UNAUTHENTICATED"
         default: return "UNKNOWN"
         }
     }
