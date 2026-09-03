@@ -9,7 +9,7 @@
 2. `phase0/harness/bench_mmap_vs_rgba.py` 新增 `--endpoint`、`--serial`、`--no-animate`。量測前以 `channel_ready_future(channel).result(timeout=5)` 探測連線，animate 啟動 3 秒內結束會報錯並以 1 結束。既有 CPU 與 gRPC 位元組量測保留。
 3. 新增 `app/scripts/verify_transport_compare.sh`。每輪先過共用 `load_gate`，奇數輪先 rgba、偶數輪先 mmap，量測後再檢查負載。以 venv Python 解析 JSON，只把 `status == measured` 且 `elapsed <= D * 1.1` 的樣本納入中位數，並斷言兩種 transport 各至少 `MIN_VALID` 筆。
 4. `app/scripts/ci.sh` 新增不可 skip 的閘門 8，執行規格指定的 phase0 pytest。`phase0/harness/requirements-d45.txt` 加入 pytest，`README-venv.md` 同步更新。
-5. `phase0/harness/tests/` 新增 transport、狀態、指紋、endpoint、錯誤路徑測試。既有三個測試檔未修改，新增 `conftest.py` 讓 repo root 執行 pytest 時能找到 `lib/`，並在沒有忽略的 protobuf 生成碼時提供測試用 fake module。
+5. `phase0/harness/tests/` 新增 transport、狀態、指紋、endpoint、錯誤路徑與生成碼測試。第二輪保留以 `pb_module` 注入的 `test_transport_compare.py`，移除兩份重複測試，並讓 `conftest.py` 在生成碼存在時載入真實 module。
 
 ## 工作流程
 
@@ -226,6 +226,127 @@ exit=1
 ```
 
 連線探測在表格與判讀之前執行，輸出沒有任何 fps 數字。
+
+## 第二輪修正
+
+以下是 2026-09-03 第二輪的本機測試證據。紅燈輸出是修正前加入或收緊測試後的結果，綠燈輸出是完成該點後的結果。沒有 emulator 的活體結果由 PM 補寫，本節不代寫。
+
+### 7.1 真實 protobuf 生成碼
+
+修法：`conftest.py` 把 `phase0/harness/gen` 放進 import path，只有生成碼不存在時才提供 fake module；新增 `test_generated_proto.py` 驗證 `__file__`、`ImageFormat`、`ImageTransport` 與 `EmulatorControllerStub`。README 補上 `grpc_tools.protoc` 重建指令，requirements 鎖定 `grpcio-tools==1.83.0`。
+
+紅燈：
+
+```text
+$ phase0/harness/.venv-d45/bin/python -m pytest -q phase0/harness/tests/test_generated_proto.py
+F                                                                        [100%]
+E       assert module_file is not None
+1 failed in 0.01s
+```
+
+綠燈：
+
+```text
+$ phase0/harness/.venv-d45/bin/python -m pytest -q phase0/harness/tests/test_generated_proto.py
+.                                                                        [100%]
+1 passed in 0.01s
+
+$ phase0/harness/.venv-d45/bin/python -m pytest -q phase0/harness/tests
+........................................                                 [100%]
+40 passed in 0.16s
+```
+
+### 7.2 mmap 建置失敗清理
+
+修法：channel、MMAP 暫存路徑/緩衝區與 request 建置移入外層 `try/finally`，對已建立的 buffer、暫存檔與 channel 逐一清理；串流 RPC 的錯誤處理仍維持原本的狀態轉換。
+
+紅燈：
+
+```text
+$ phase0/harness/.venv-d45/bin/python -m pytest -q phase0/harness/tests/test_transport_compare.py::test_mmap_setup_failure_cleans_buffer_path_and_channel
+F                                                                        [100%]
+E       AssertionError: assert not True
+E        +  where True = exists()
+1 failed in 0.09s
+```
+
+綠燈：
+
+```text
+$ phase0/harness/.venv-d45/bin/python -m pytest -q phase0/harness/tests/test_transport_compare.py::test_mmap_setup_failure_cleans_buffer_path_and_channel
+.                                                                        [100%]
+1 passed in 0.09s
+
+$ phase0/harness/.venv-d45/bin/python -m pytest -q phase0/harness/tests
+.........................................                                [100%]
+41 passed in 0.14s
+```
+
+### 7.3 密集畫面指紋
+
+修法：移除 4099 位元組步長，改用 `hashlib.blake2b(bytes(view[::64]), digest_size=8)`。測試覆蓋兩幀只差 3600 位元組整列、只差第一個位元組、完全相同，以及舊稀疏取樣會漏掉的中段變更；所有案例同時比較 raw RGBA 與 MMAP 來源。
+
+紅燈：
+
+```text
+$ phase0/harness/.venv-d45/bin/python -m pytest -q phase0/harness/tests/test_transport_compare.py::test_dense_fingerprint_detects_a_midframe_change
+F                                                                        [100%]
+E       AssertionError: assert 1 == 2
+1 failed in 0.14s
+```
+
+綠燈：
+
+```text
+$ phase0/harness/.venv-d45/bin/python -m pytest -q phase0/harness/tests/test_transport_compare.py::test_sampled_distinct_detects_expected_content_changes phase0/harness/tests/test_transport_compare.py::test_dense_fingerprint_detects_a_midframe_change
+....                                                                     [100%]
+4 passed in 0.11s
+
+$ phase0/harness/.venv-d45/bin/python -m pytest -q phase0/harness/tests
+............................................                             [100%]
+44 passed in 0.16s
+```
+
+### 7.4 測試去重與 alias 清理
+
+修法：保留 `test_transport_compare.py` 的 `pb_module` 注入寫法，刪除 `test_fps_baseline.py` 與 `test_bench_mmap_vs_rgba.py` 的重複案例；`bench_mmap_vs_rgba.py` 移除只為舊測試存在的 `endpoint_to_port` alias，測試直接呼叫 `port_from_endpoint`。
+
+紅燈：
+
+```text
+$ phase0/harness/.venv-d45/bin/python -m pytest -q phase0/harness/tests/test_transport_compare.py::test_endpoint_port_derivation
+F                                                                        [100%]
+E       AssertionError: assert not True
+E        +  where True = hasattr(bench, 'endpoint_to_port')
+1 failed in 0.14s
+```
+
+綠燈：
+
+```text
+$ phase0/harness/.venv-d45/bin/python -m pytest -q phase0/harness/tests/test_transport_compare.py::test_endpoint_port_derivation phase0/harness/tests/test_transport_compare.py::test_bench_connection_failure_exits_before_fps_output
+..                                                                       [100%]
+2 passed in 0.11s
+
+$ phase0/harness/.venv-d45/bin/python -m pytest -q phase0/harness/tests
+.................................                                        [100%]
+33 passed in 0.15s
+```
+
+### 7.5 結果文件
+
+修法：本節逐點記錄第二輪的修法與紅綠測試證據，保留 PM 後續填寫活體結果的位置。
+
+文件檢查：
+
+```text
+$ test "$(rg -c '^### 7\.[1-5] ' app/RESULTS-d58.md)" -eq 5
+$ echo "second_round_sections=5"
+second_round_sections=5
+
+$ git diff --check
+exit=0
+```
 
 ## 未驗證
 
