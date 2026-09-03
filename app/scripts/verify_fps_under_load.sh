@@ -97,11 +97,20 @@ on_int() {
 trap on_exit EXIT
 trap on_int INT
 
+if [ "$BURNERS" -gt 0 ]; then
+    # 人為負載會拖慢 GUI 啟動；對照組維持 verify_fps_fullscreen.sh 的預設逾時。
+    FULLSCREEN_WINDOW_TIMEOUT="${FULLSCREEN_WINDOW_TIMEOUT:-60}"
+    export FULLSCREEN_WINDOW_TIMEOUT
+fi
+
 LOAD_BEFORE=$(load_avg_1min)
 echo "============================================================"
 echo "D64 診斷實驗：人為 CPU 負載下的 draw 時序量測"
 echo "數字只供診斷，不作驗收線 7 的判定。"
 echo "burner 數：${BURNERS}"
+if [ "$BURNERS" -gt 0 ]; then
+    echo "負載模式：FULLSCREEN_WINDOW_TIMEOUT=${FULLSCREEN_WINDOW_TIMEOUT} 秒、ROUND_RETRY_MAX=${ROUND_RETRY_MAX:-3}"
+fi
 echo "load_avg_1min（啟動前）：${LOAD_BEFORE}"
 
 if [ "$BURNERS" -gt 0 ]; then

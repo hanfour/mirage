@@ -208,7 +208,8 @@ FULLSCREEN_MIN_WIDTH=896
 # Space 切換動畫互相卡到有關，機制未查清）。**擋下不等於放棄**——跟 load_gate 同一個
 # 哲學：一次啟動沒收斂就砍掉重開（新視窗、新程序，不是在舊狀態上重試鍵），比在髒樣本上
 # 硬量更誠實。3 次關掉重開仍不收斂才真正放棄本輪。
-ROUND_RETRY_MAX=3
+# 允許負載包裝腳本依環境調高重試次數；直接執行時維持原本的 3 次。
+ROUND_RETRY_MAX="${ROUND_RETRY_MAX:-3}"
 
 MIRAGE_VALS=""
 BASE_VALS=""
