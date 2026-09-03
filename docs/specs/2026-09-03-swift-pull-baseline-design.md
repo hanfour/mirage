@@ -93,8 +93,9 @@ JSON 輸出欄位與 `fps_baseline.py` 完全相同（`status`、`error`、`fps`
 
 ## 6. 工作方式
 
-- 你的沙箱裡 SwiftPM 自己的 sandbox-exec 會被擋（巢狀）。建置與測試一律加 `--disable-sandbox --cache-path .build/cache`，例如 `swift build --disable-sandbox --cache-path .build/cache -c release --product mirage-pull`、`swift test --disable-sandbox --cache-path .build/cache --filter MiragePullTests`。第一次建置要三到四分鐘，等它。
-- 測試先寫（紅），再實作（綠）。
+- 你的沙箱裡 `swift build` 與 `swift test` 跑不起來（已實測三種繞法都失敗：標準庫模組在沙箱內建不起來）。**不要嘗試建置或跑 Swift 測試**，那只會浪費時間。改成這樣分工：你把 Swift 碼與測試寫完、commit；PM 在沙箱外編譯與跑測試，把編譯錯誤或紅燈原文回饋給你，你再修。所以第一版就要寫得能編：型別標清楚、`Sendable` 與 strict concurrency 的要求照 `MirageCore` 既有寫法（例如 `GrpcStreamTransport` 用 `@unchecked Sendable` 加鎖的模式）、swift-testing 的用法照 `app/Tests/MirageCoreTests/` 既有檔案。
+- 你能自己驗的：bash 用 `bash -n`；JSON 解析那段 Python 用 venv 跑；Swift 至少用 `swiftc -parse` 檢查語法（這個不需要 SDK 模組，可以跑）。
+- 測試先寫（紅），再實作（綠）。紅燈由 PM 跑給你看。
 - 每完成一個部分就 commit，訊息格式 `<type>: <描述>`，描述用繁體中文。
 - 註解與文件用繁體中文台灣用語，不用破折號接補充說明。
 - bash：`set -uo pipefail`，裸變數後面不接全形標點（`${rc}，` 不是 `$rc，`）。
