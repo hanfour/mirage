@@ -24,14 +24,98 @@ import sys
 import tempfile
 import time
 
-sys.path.insert(0, "gen")
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "gen"))
 
-import grpc
-import emulator_controller_pb2 as ec
-import emulator_controller_pb2_grpc as ecg
+try:
+    import grpc
+except ImportError as err:
+    grpc = None
+    _GRPC_IMPORT_ERROR = err
+else:
+    _GRPC_IMPORT_ERROR = None
+
+try:
+    import emulator_controller_pb2 as ec
+    import emulator_controller_pb2_grpc as ecg
+except Exception as err:
+    ec = None
+    ecg = None
+    _PROTO_IMPORT_ERROR = err
+else:
+    _PROTO_IMPORT_ERROR = None
 from lib.mmap_source import frame_array, make_handle, open_frame_buffer
 
 TARGET = "localhost:8554"
+
+
+def port_from_endpoint(endpoint: str) -> int:
+    """從 gRPC endpoint 取出埠號，支援一般與 dns:/// 形式。"""
+    target = endpoint.rsplit("/", 1)[-1]
+    if target.startswith("["):
+        end = target.rfind("]:")
+        port_text = target[end + 2:] if end >= 0 else ""
+    else:
+        _, separator, port_text = target.rpartition(":")
+        if not separator:
+            port_text = ""
+    if not port_text.isdigit():
+        raise ValueError(f"endpoint 缺少有效埠號：{endpoint}")
+    port = int(port_text)
+    if not 1 <= port <= 65535:
+        raise ValueError(f"endpoint 埠號超出範圍：{endpoint}")
+    return port
+
+
+endpoint_to_port = port_from_endpoint
+
+
+def probe_endpoint(endpoint: str) -> tuple[bool, str]:
+    """探測 gRPC endpoint，回傳是否就緒與失敗原因。"""
+    if grpc is None:
+        return False, f"找不到 grpc：{_GRPC_IMPORT_ERROR}"
+    channel = None
+    try:
+        channel = grpc.insecure_channel(
+            endpoint, options=[("grpc.max_receive_message_length", -1)])
+        grpc.channel_ready_future(channel).result(timeout=5)
+        return True, ""
+    except grpc.FutureTimeoutError:
+        return False, "5 秒內沒有就緒"
+    except grpc.RpcError as err:
+        return False, err.code().name
+    except Exception as err:
+        return False, f"{type(err).__name__}: {err}"
+    finally:
+        if channel is not None:
+            channel.close()
+
+
+def check_connection(endpoint: str) -> bool:
+    """在輸出量測表格前確認 endpoint 可連線。"""
+    ready, reason = probe_endpoint(endpoint)
+    if not ready:
+        print(f"❌ gRPC {endpoint} 連線失敗：{reason}。", file=sys.stderr)
+    return ready
+
+
+def _require_proto():
+    if ec is None or ecg is None:
+        raise RuntimeError(
+            "找不到 phase0/harness/gen 的 protobuf 生成碼，請先依 README-venv.md 準備 gen/"
+        ) from _PROTO_IMPORT_ERROR
+    return ec, ecg
+
+
+def stop_animation(anim) -> None:
+    """結束動畫子程序，避免量測結束留下背景程序。"""
+    if anim is None or anim.poll() is not None:
+        return
+    anim.terminate()
+    try:
+        anim.wait(timeout=2)
+    except subprocess.TimeoutExpired:
+        anim.kill()
+        anim.wait()
 
 
 def qemu_cpu_seconds() -> float:
@@ -58,7 +142,8 @@ def self_cpu_seconds() -> float:
     return r.ru_utime + r.ru_stime
 
 
-def bench(mode: str, seconds: int, width: int, height: int) -> dict:
+def bench(mode: str, seconds: int, width: int, height: int,
+          endpoint: str = TARGET) -> dict:
     """mode: 'rgba' | 'mmap-copy' | 'mmap-touch'。回傳量測結果 dict。
 
     **公平性**：三組都必須對「每一幀」做等量的資料消費工作，否則 MMAP 會因為
@@ -71,17 +156,18 @@ def bench(mode: str, seconds: int, width: int, height: int) -> dict:
     """
     path = None
     buf = None
-    kwargs = {"format": ec.ImageFormat.RGBA8888, "width": width, "height": height}
+    proto, _ = _require_proto()
+    kwargs = {"format": proto.ImageFormat.RGBA8888, "width": width, "height": height}
     if mode.startswith("mmap"):
         path = tempfile.mktemp(prefix="mirage_bench_", suffix=".bin")
         buf = open_frame_buffer(path, width, height)
-        kwargs["transport"] = ec.ImageTransport(
-            channel=ec.ImageTransport.MMAP, handle=make_handle(path))
+        kwargs["transport"] = proto.ImageTransport(
+            channel=proto.ImageTransport.MMAP, handle=make_handle(path))
 
     channel = grpc.insecure_channel(
-        TARGET, options=[("grpc.max_receive_message_length", -1)])
-    stub = ecg.EmulatorControllerStub(channel)
-    fmt = ec.ImageFormat(**kwargs)
+        endpoint, options=[("grpc.max_receive_message_length", -1)])
+    stub = _require_proto()[1].EmulatorControllerStub(channel)
+    fmt = _require_proto()[0].ImageFormat(**kwargs)
 
     frames = 0
     grpc_bytes = 0
@@ -135,22 +221,52 @@ def bench(mode: str, seconds: int, width: int, height: int) -> dict:
 
 def main() -> int:
     ap = argparse.ArgumentParser()
+    ap.add_argument("--endpoint", default=TARGET)
+    ap.add_argument("--serial", default="emulator-5554")
+    ap.add_argument("--no-animate", action="store_true")
     ap.add_argument("--seconds", type=int, default=10)
     ap.add_argument("--width", type=int, default=900)
     ap.add_argument("--height", type=int, default=2000)
     args = ap.parse_args()
 
-    anim = subprocess.Popen(
-        [sys.executable, "animate.py", "--seconds", str(args.seconds * 2 + 20)],
-        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    time.sleep(3)
+    try:
+        animate_port = port_from_endpoint(args.endpoint)
+    except ValueError as err:
+        print(f"❌ {err}", file=sys.stderr)
+        return 2
+
+    ready, reason = probe_endpoint(args.endpoint)
+    if not ready:
+        print(f"❌ gRPC {args.endpoint} 連線失敗：{reason}。", file=sys.stderr)
+        return 1
+
+    anim = None
+    if not args.no_animate:
+        try:
+            anim = subprocess.Popen(
+                [sys.executable, "animate.py",
+                 "--seconds", str(args.seconds * 2 + 20),
+                 "--serial", args.serial,
+                 "--port", str(animate_port)],
+                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        except OSError as err:
+            print(f"❌ animate.py 啟動失敗：{err}", file=sys.stderr)
+            return 1
+        time.sleep(3)
+        if anim.poll() is not None:
+            print("❌ animate.py 啟動後 3 秒內結束，請確認 serial 與 emulator。",
+                  file=sys.stderr)
+            return 1
     try:
         print(f"解析度 {args.width}x{args.height}，各跑 {args.seconds} 秒\n")
-        results = [bench("rgba", args.seconds, args.width, args.height),
-                   bench("mmap-copy", args.seconds, args.width, args.height),
-                   bench("mmap-touch", args.seconds, args.width, args.height)]
+        results = [bench("rgba", args.seconds, args.width, args.height,
+                         endpoint=args.endpoint),
+                   bench("mmap-copy", args.seconds, args.width, args.height,
+                         endpoint=args.endpoint),
+                   bench("mmap-touch", args.seconds, args.width, args.height,
+                         endpoint=args.endpoint)]
     finally:
-        anim.terminate()
+        stop_animation(anim)
 
     hdr = f"{'模式':<12}{'fps':>8}{'gRPC MiB/s':>13}{'client CPU s':>14}{'qemu CPU s':>12}"
     print(hdr)
