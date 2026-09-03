@@ -215,6 +215,10 @@ BASE_VALS=""
 ARRIVED_VALS=""
 DROPPED_VALS=""
 PRESENTED_VALS=""
+GAP20_VALS=""
+MAXGAP_VALS=""
+IN_P95_VALS=""
+NODRAWABLE_VALS=""
 # **獨立於 `ROUNDS` 的訊號**：`ROUNDS` 數的是有幾輪產生了 `[round N]`（有效樣本數），
 # `SIZE_OK` 答的是不同的問題——這次執行有沒有踩到「解析度收斂失敗」這個故障模式本身。
 # 兩者不能合併：即使最後 `ROUNDS` 湊滿了，若中途有輪次耗盡 `ROUND_RETRY_MAX` 仍未收斂
@@ -388,8 +392,14 @@ for round in $(seq 1 "$ROUNDS"); do
     A=$(frames_median "$LOG" arrived "$BEFORE")
     D=$(frames_median "$LOG" dropped "$BEFORE")
     P=$(frames_median "$LOG" presented "$BEFORE")
+    GAP20=$(tagged_median "$LOG" draw gap20 "$BEFORE")
+    MAXGAP=$(tagged_median "$LOG" draw maxgap "$BEFORE")
+    IN_P95=$(tagged_median "$LOG" draw in_p95 "$BEFORE")
+    NODRAWABLE=$(tagged_median "$LOG" draw nodrawable "$BEFORE")
+    NOFRAME=$(tagged_median "$LOG" draw noframe "$BEFORE")
     echo "   Mirage 側：中位數 ${M} fps（取樣 $(fps_samples "$LOG") 筆，量測前已有 ${BEFORE} 筆）"
     echo "   幀計數窗口：arrived=${A} presented=${P} dropped=${D}（跳過量測前 ${BEFORE} 筆）"
+    echo "   draw 時序：gap20=${GAP20} maxgap=${MAXGAP}ms in_p95=${IN_P95}ms nodrawable=${NODRAWABLE} noframe=${NOFRAME}"
 
     G=""
     if [ -z "$GUEST_RAW" ]; then
@@ -473,6 +483,10 @@ for round in $(seq 1 "$ROUNDS"); do
         ARRIVED_VALS="${ARRIVED_VALS}${A}\n"
         DROPPED_VALS="${DROPPED_VALS}${D}\n"
         PRESENTED_VALS="${PRESENTED_VALS}${P}\n"
+        GAP20_VALS="${GAP20_VALS}${GAP20}\n"
+        MAXGAP_VALS="${MAXGAP_VALS}${MAXGAP}\n"
+        IN_P95_VALS="${IN_P95_VALS}${IN_P95}\n"
+        NODRAWABLE_VALS="${NODRAWABLE_VALS}${NODRAWABLE}\n"
     fi
     if [ -n "$M" ] && [ -n "$B" ]; then
         R=$(awk -v m="$M" -v b="$B" 'BEGIN { printf "%d", (b > 0) ? m * 100 / b : 0 }')
@@ -481,6 +495,9 @@ for round in $(seq 1 "$ROUNDS"); do
     elif [ -n "$M" ]; then
         echo "[round ${round}] guest=${G} arrived=${A} presented=${P} dropped=${D} mirage=${M} baseline=（無資料，見上方對照組訊息）——本輪僅計入 Mirage 側，不計入 ratio"
     fi
+    if [ -n "$M" ]; then
+        echo "[round ${round} draw] gap20=${GAP20} maxgap=${MAXGAP}ms in_p95=${IN_P95}ms nodrawable=${NODRAWABLE} noframe=${NOFRAME}"
+    fi
     rm -f "$LOG"
 done
 
@@ -488,6 +505,8 @@ done
 # 沒有資料」是兩件不同的事，混在一起印會讓人誤讀成真的量到 0。呼叫端需要數字語意時
 # 自行用 ${VAR:-0}（例如最終驗收斷言刻意要空字串等同 0，因為那代表完全沒有有效輪次）。
 median_of() { printf "%b" "$1" | grep -v '^$' | sort -n | awk '{ v[NR]=$1 } END { if (NR) printf "%d\n", v[int((NR+1)/2)] }'; }
+
+median_one_decimal_of() { printf "%b" "$1" | grep -v '^$' | sort -n | awk '{ v[NR]=$1 } END { if (NR) printf "%.1f\n", v[int((NR+1)/2)] }'; }
 
 list_of()   { printf "%b" "$1" | grep -v '^$' | sort -n | tr '\n' ' ' | sed 's/ $//'; }
 count_of()  { printf "%b" "$1" | grep -cv '^$'; }
@@ -501,6 +520,10 @@ BM=$(median_of "$BASE_VALS")
 AM=$(median_of "$ARRIVED_VALS")
 DM=$(median_of "$DROPPED_VALS")
 PM=$(median_of "$PRESENTED_VALS")
+GAP20M=$(median_of "$GAP20_VALS")
+MAXGAPM=$(median_of "$MAXGAP_VALS")
+IN_P95M=$(median_one_decimal_of "$IN_P95_VALS")
+NODRAWABLEM=$(median_of "$NODRAWABLE_VALS")
 # === 離散度（D56）===
 #
 # **只印中位數會把判定的不確定性藏起來。** 2026-08-06 同一顆 build、同一天量到
@@ -516,6 +539,10 @@ echo "MIRAGE_MEDIAN=${MM:-無資料}"
 echo "ARRIVED_MEDIAN=${AM}"
 echo "DROPPED_MEDIAN=${DM}"
 echo "PRESENTED_MEDIAN=${PM}"
+echo "GAP20_MEDIAN=${GAP20M}"
+echo "MAXGAP_MEDIAN=${MAXGAPM}"
+echo "IN_P95_MEDIAN=${IN_P95M}"
+echo "NODRAWABLE_MEDIAN=${NODRAWABLEM}"
 echo "BASELINE_MEDIAN=${BM:-無資料（對照組本輪全數失敗／被排除，見上方各輪訊息；不影響驗收線 7 的判定）}"
 if [ -n "$MM" ] && [ -n "$BM" ]; then
     echo "RATIO_PCT=$(awk -v m="$MM" -v b="$BM" 'BEGIN { printf "%d", (b > 0) ? m * 100 / b : 0 }')"

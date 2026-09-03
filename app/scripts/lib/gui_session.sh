@@ -72,29 +72,31 @@ fps_median() {
         END { printf "%d\n", v[int((n + 1) / 2)] }'
 }
 
-# `[app] frames` 的中位數。只讀取幀計數行，不改動 fps 解析的既有語意。
-# 第三個參數是要略過的前置幀計數行數，讓量測窗口與 fps_samples 的 BEFORE 對齊。
-frames_samples() {
-    local log="$1"
-    [ -r "$log" ] || { echo 0; return 0; }
-    grep -c '^\[app\] frames ' "$log" 2>/dev/null || true
-}
-
-frames_median() {
-    local log="$1" field="$2" skip="${3:-0}"
-    case "$field" in
-        arrived|dropped|presented) ;;
+# `[app] <tag>` 欄位的中位數。tag 只接受既有的 frames 與新的 draw，第三個
+# 參數是欄位，第四個參數是要略過的前置同 tag 行數，讓量測窗口與 fps_samples
+# 的 BEFORE 對齊。欄位值可帶小數與 `ms` 後綴。
+tagged_median() {
+    local log="$1" tag="$2" field="$3" skip="${4:-0}"
+    case "$tag:$field" in
+        frames:arrived|frames:dropped|frames:presented \
+        |draw:calls|draw:gap20|draw:maxgap|draw:in_p95|draw:nodrawable|draw:noframe) ;;
         *) echo 0; return 0 ;;
     esac
     [ -r "$log" ] || { echo 0; return 0; }
-    awk -v field="$field" -v skip="$skip" '
-        /^\[app\] frames([[:space:]]|$)/ {
+    awk -v tag="$tag" -v field="$field" -v skip="$skip" '
+        function number(raw) {
+            sub(/ms$/, "", raw)
+            if (raw !~ /^[0-9]+([.][0-9]+)?$/) { return -1 }
+            return raw + 0
+        }
+        $0 ~ ("^\\[app\\] " tag "([[:space:]]|$)") {
             if (seen < skip) { seen++; next }
             found = 0
             for (i = 3; i <= NF; i++) {
                 split($i, pair, "=")
-                if (pair[1] == field && pair[2] ~ /^[0-9]+$/) {
-                    values[++n] = pair[2]
+                value = number(pair[2])
+                if (pair[1] == field && value >= 0) {
+                    values[++n] = value
                     found = 1
                     break
                 }
@@ -112,8 +114,24 @@ frames_median() {
                     }
                 }
             }
-            printf "%d\n", values[int((n + 1) / 2)]
+            median = values[int((n + 1) / 2)]
+            if (median == int(median)) {
+                printf "%d\n", median
+            } else {
+                printf "%.1f\n", median
+            }
         }' "$log" 2>/dev/null
+}
+
+# `[app] frames` 的中位數。維持既有呼叫端與輸出語意。
+frames_samples() {
+    local log="$1"
+    [ -r "$log" ] || { echo 0; return 0; }
+    grep -c '^\[app\] frames ' "$log" 2>/dev/null || true
+}
+
+frames_median() {
+    tagged_median "$1" frames "$2" "${3:-0}"
 }
 
 # 人看的摘要。取樣為 0 時印診斷並回傳 1。

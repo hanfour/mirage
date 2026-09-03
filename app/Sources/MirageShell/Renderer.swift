@@ -27,6 +27,8 @@ final class Renderer: NSObject, MTKViewDelegate {
     private var fpsWindowStart = CFAbsoluteTimeGetCurrent()
     private var frameCounterWindowStart: FrameCounterSnapshot
     private let fpsLog = ProcessInfo.processInfo.environment["MIRAGE_FPS_LOG"] == "1"
+    private var drawTiming = DrawTimingWindow()
+    private var lastDrawStart: CFAbsoluteTime?
     private let latencyLog = ProcessInfo.processInfo.environment["MIRAGE_LATENCY_LOG"] == "1"
     private var latency = LatencyWindow()
     private var latencyWindowStart = CFAbsoluteTimeGetCurrent()
@@ -52,21 +54,62 @@ final class Renderer: NSObject, MTKViewDelegate {
     }
 
     func draw(in view: MTKView) {
+        var drawStartedAt: CFAbsoluteTime?
+        var drawIntervalMs: Double?
+        if fpsLog {
+            let now = CFAbsoluteTimeGetCurrent()
+            drawStartedAt = now
+            if let lastDrawStart {
+                drawIntervalMs = (now - lastDrawStart) * 1000.0
+            }
+            lastDrawStart = now
+        }
+
         let arrived = box.takeLatest()
         if let arrived { upload(arrived) }
         // 注意這裡**沒有**尺寸相符的檢查。取樣繪製對來源與目的尺寸沒有任何要求——
         // 那正是重點：emulator 回什麼尺寸不受我們控制（proto 縮放合約 can-be-less，
         // 實測請求 562 會回 561），把它放進不變式就是把顯示的正確性交給運氣。
+        // 保留原本的合併 guard；texture 尚未建立是首幀狀態，不算 drawable 取得失敗。
+        let textureAvailable = texture != nil
         guard let texture, let drawable = view.currentDrawable,
-              let buffer = blitter.makeCommandBuffer() else { return }
+              let buffer = blitter.makeCommandBuffer() else {
+            recordDrawTiming(intervalMs: drawIntervalMs,
+                             durationMs: nil,
+                             outcome: timingOutcome(hasFrame: arrived != nil,
+                                                    noDrawable: textureAvailable))
+            return
+        }
         blitter.encode(texture, into: drawable.texture, on: buffer)
         buffer.present(drawable)
         buffer.commit()
+        let durationMs = drawStartedAt.map {
+            (CFAbsoluteTimeGetCurrent() - $0) * 1000.0
+        }
+        recordDrawTiming(intervalMs: drawIntervalMs,
+                         durationMs: durationMs,
+                         outcome: timingOutcome(hasFrame: arrived != nil,
+                                                noDrawable: false))
         // 只有走到這裡才算一幀：新幀確實被送上螢幕。
         if let arrived {
             countPresentedFrame()
             recordLatency(since: arrived.receivedAt)
         }
+    }
+
+    private func timingOutcome(hasFrame: Bool,
+                               noDrawable: Bool) -> DrawTimingWindow.Outcome {
+        var outcome: DrawTimingWindow.Outcome = []
+        if !hasFrame { outcome.insert(.noFrame) }
+        if noDrawable { outcome.insert(.noDrawable) }
+        return outcome
+    }
+
+    private func recordDrawTiming(intervalMs: Double?,
+                                  durationMs: Double?,
+                                  outcome: DrawTimingWindow.Outcome) {
+        guard fpsLog else { return }
+        drawTiming.record(interval: intervalMs, duration: durationMs, outcome: outcome)
     }
 
     /// `MIRAGE_LATENCY_LOG=1`：每秒印一行「幀抵達 Mirage → present」的 p50/p95。
@@ -111,11 +154,22 @@ final class Renderer: NSObject, MTKViewDelegate {
                 before: frameCounterWindowStart,
                 after: frameCounterWindowEnd,
                 presented: fpsCount)
+            let drawWindow = drawTiming
             // `[app] fps=` 與 `[app] frames` 必須在同一個分支背靠背印出，且一對一。
             // `verify_fps_fullscreen.sh` 以 `fps_samples` 的數量作為 `frames_median`
-            // 的跳過數，兩者不能分開或改變輸出次數。
+            // 的跳過數，兩者不能分開或改變輸出次數。draw 統計也在這個同一秒窗口
+            // 輸出，但累加是在每次 draw，故包含沒有新幀的 vsync；窗口邊界仍只在
+            // present 時檢查，維持既有 fps／frames 的行為。
             print("[app] fps=\(Int((Double(fpsCount) / elapsed).rounded()))")
             print("[app] frames arrived=\(frameWindow.arrived) dropped=\(frameWindow.dropped) presented=\(frameWindow.presented)")
+            print(String(format: "[app] draw calls=%d gap20=%d maxgap=%dms in_p95=%.1fms nodrawable=%d noframe=%d",
+                         drawWindow.calls,
+                         drawWindow.gapOver20ms,
+                         drawWindow.maxGapMs,
+                         drawWindow.inP95Ms,
+                         drawWindow.noDrawable,
+                         drawWindow.noFrame))
+            drawTiming.reset()
             fpsCount = 0
             fpsWindowStart = now
             frameCounterWindowStart = frameCounterWindowEnd
