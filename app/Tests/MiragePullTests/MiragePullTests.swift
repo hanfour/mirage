@@ -84,7 +84,11 @@ private final class RecordingTransport: DisplayTransport, @unchecked Sendable {
         var second = first
         second.replaceSubrange(64..<128, with: repeatElement(UInt8(1), count: 64))
 
-        #expect(MiragePull.fingerprint(of: first) != MiragePull.fingerprint(of: second))
+        let fingerprints = [
+            MiragePull.fingerprint(of: first),
+            MiragePull.fingerprint(of: second),
+        ]
+        #expect(Set(fingerprints).count == 2)
     }
 
     @Test func fingerprintDetectsAChangedFirstByte() {
@@ -92,13 +96,20 @@ private final class RecordingTransport: DisplayTransport, @unchecked Sendable {
         var second = first
         second[0] = 1
 
-        #expect(MiragePull.fingerprint(of: first) != MiragePull.fingerprint(of: second))
+        let fingerprints = [
+            MiragePull.fingerprint(of: first),
+            MiragePull.fingerprint(of: second),
+        ]
+        #expect(Set(fingerprints).count == 2)
     }
 
     @Test func fingerprintMatchesForIdenticalFrames() {
         let frame = Data(repeating: 7, count: 128)
 
-        #expect(MiragePull.fingerprint(of: frame) == MiragePull.fingerprint(of: frame))
+        #expect(Set([
+            MiragePull.fingerprint(of: frame),
+            MiragePull.fingerprint(of: frame),
+        ]).count == 1)
     }
 
     @Test func hangingTransportIsCancelledAfterDeadlineAndMeasured() async {
@@ -173,5 +184,23 @@ private final class RecordingTransport: DisplayTransport, @unchecked Sendable {
             "transport", "distinct", "client",
         ]))
         #expect(object["client"] as? String == "grpc-swift")
+    }
+
+    @Test func textMatchesBaselineAndAddsClientSuffix() {
+        let result = PullResult(
+            status: .measured,
+            error: nil,
+            fps: 58.5,
+            frames: 117,
+            elapsed: 2,
+            width: 900,
+            height: 2000,
+            transport: "rgba",
+            distinct: 2,
+            client: "grpc-swift"
+        )
+
+        #expect(result.textLine == "fps=58.50 frames=117 elapsed=2.00 size=900x2000 "
+            + "status=measured transport=rgba distinct=2 client=grpc-swift")
     }
 }

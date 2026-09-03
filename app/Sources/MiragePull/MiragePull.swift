@@ -230,6 +230,9 @@ public enum MiragePull {
 
         timeoutTask.cancel()
         await timeoutTask.value
+        if cancellation.didTimeout {
+            failureMessage = nil
+        }
         cancellation.cancelForCleanup(transport)
 
         let elapsed = seconds(from: started.duration(to: clock.now))
