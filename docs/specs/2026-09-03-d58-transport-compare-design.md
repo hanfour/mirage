@@ -99,3 +99,42 @@ D39 用 `phase0/harness/bench_mmap_vs_rgba.py` 量到 898×1996 上 raw 40.0 fps
 - 註解與文件用繁體中文台灣用語。不用破折號接補充說明，用冒號、括號或分句。
 - bash 腳本用 `set -uo pipefail`。裸變數後面不能直接接全形標點（閘門 4 會擋），例如 `$rc，` 要寫成 `${rc}，`。
 - 結束前把最終報告寫進 `app/RESULTS-d58.md`，並在最後一則訊息裡列出：改動的檔案、每條驗收條件的證據、沒做到的事。
+
+## 7. 把關退回的修正清單（第二輪，2026-09-03）
+
+第一輪交付的東西 ci.sh 九道閘門全綠、39 條 pytest 綠，PM 在真實 emulator 上跑過三輪對照也正常。以下五點是 PM 與獨立審查找到的缺陷，修完才合併。每一點都要有測試證明它修好了（改壞實作會紅）。
+
+### 7.1 `conftest.py` 的假模組永遠生效，`gen/` 從沒被測過
+
+`conftest.py` 只把 `phase0/harness` 加進 `sys.path`，沒加 `phase0/harness/gen`，所以 `try: import emulator_controller_pb2` 在任何環境都失敗、`except` 必中，假模組永遠塞進 `sys.modules`。閘門 8 因此看不到 D49 那種「生成碼與 runtime 版本不合」的失敗。
+
+修法：
+- conftest 在 try 之前把 `HARNESS_DIR/gen` 也加進 `sys.path`，讓真的生成碼存在時就用真的。
+- 新增 `tests/test_generated_proto.py`：斷言 `emulator_controller_pb2.__file__` 位於 `phase0/harness/gen/` 底下，且 `ImageFormat`、`ImageTransport`、`EmulatorControllerStub` 都存在。`gen/` 不存在時這條測試要紅，不能 skip。這是刻意的：fresh clone 沒生成碼就是不能量，閘門要說出來。
+- `README-venv.md` 補上重新產生 `gen/` 的指令（你第一輪用的 grpcio-tools 那套），`requirements-d45.txt` 加 `grpcio-tools==1.83.0`。
+
+### 7.2 mmap 建置失敗會漏 channel 與暫存檔
+
+`measure()` 裡建 channel、建緩衝區、建請求都在 `try` 之前。`buffer_factory` 在建檔後失敗（磁碟滿、權限），例外直接往外拋，已開的 channel 不關、暫存檔留在磁碟。
+
+修法：把這三步搬進 `try`，`finally` 對「已建立的東西」逐一清理。加一條測試：注入會拋例外的 `buffer_factory`，斷言暫存檔不存在、假 channel 的 `close()` 被呼叫過。
+
+### 7.3 指紋取樣太稀，而且測試是對著取樣點寫的
+
+每 4099 位元組取一個，7.2 MB 的畫面只看 1756 個位元組（約 0.024%），畫面只有小區域變化時整輪會被誤判成 `stale`。而 `test_transport_compare.py` 的 `_payloads()` 是 `second[4099] = 1`，剛好改在取樣點上，這種測試只證明實作跟測試互相同意。
+
+修法：指紋改成 `hashlib.blake2b(bytes(view[::64]), digest_size=8)`，步長 64、C 速度、每幀約 112 KB。測試改成「兩幀只差一整列（3600 位元組）」與「兩幀只差第 1 個位元組」，兩者都要 distinct=2；再加一條「兩幀完全相同」distinct=1。不要在測試裡引用步長常數。
+
+### 7.4 測試重複與只為測試存在的別名
+
+`test_fps_baseline.py`、`test_bench_mmap_vs_rgba.py` 與 `test_transport_compare.py` 覆蓋高度重疊（狀態對映、ImageFormat、連線失敗、JSON 欄位各寫了兩次）。留一份：以 `pb_module` 注入那種寫法為準，刪掉重複的測試；`load_baseline`／`load_bench` 裡的 `sys.path.insert(0, "phase0/harness")` 是相對路徑，刪掉（conftest 已處理）。`bench_mmap_vs_rgba.py` 的 `endpoint_to_port = port_from_endpoint` 別名只為測試存在，刪掉，測試直接用 `port_from_endpoint`。
+
+### 7.5 結果文件
+
+`app/RESULTS-d58.md` 加一節「第二輪修正」，列每一點的修法與證明它會紅的測試（貼指令與輸出）。PM 在真實 emulator 上的活體結果由 PM 自己補寫，你不要寫。
+
+### 工作方式（第二輪）
+
+- 同一分支 `d58-transport-compare` 接著做，每一點一個 commit。
+- 你的沙箱跑不了 `swift build`（巢狀 sandbox-exec），所以不要跑 `ci.sh`。你要跑的是：`phase0/harness/.venv-d45/bin/python -m pytest -q phase0/harness/tests`、`bash -n` 檢查改過的腳本、以及 `grep -nE '\$[A-Za-z_][A-Za-z0-9_]*[，。：；、）]' app/scripts/*.sh` 確認沒有裸變數接全形標點。ci.sh 由 PM 跑。
+- 禁區不變（第 4 節）。
