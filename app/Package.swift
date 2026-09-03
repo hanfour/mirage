@@ -42,6 +42,16 @@ let package = Package(
             dependencies: ["MirageShell"],
             swiftSettings: strict
         ),
+        .target(
+            name: "MiragePull",
+            dependencies: ["MirageCore"],
+            swiftSettings: strict
+        ),
+        .executableTarget(
+            name: "mirage-pull",
+            dependencies: ["MiragePull"],
+            swiftSettings: strict
+        ),
         .testTarget(
             name: "MirageCoreTests",
             dependencies: [
@@ -55,6 +65,14 @@ let package = Package(
             dependencies: [
                 "MirageShell",
                 "MirageCore",   // 測試會直接用 ViewportFit / AudioRingBuffer 等公開型別
+                .product(name: "Testing", package: "swift-testing"),
+            ],
+            swiftSettings: strict
+        ),
+        .testTarget(
+            name: "MiragePullTests",
+            dependencies: [
+                "MiragePull",
                 .product(name: "Testing", package: "swift-testing"),
             ],
             swiftSettings: strict
