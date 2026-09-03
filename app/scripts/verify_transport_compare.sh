@@ -8,9 +8,9 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 SCRIPT_PATH="${SCRIPT_DIR}/$(basename "$0")"
 COMMON_LIB="${SCRIPT_DIR}/lib/verify_common.sh"
 LOAD_LIB="${SCRIPT_DIR}/lib/load_sentinel.sh"
-cd "${SCRIPT_DIR}/.." || exit 1
 source "${COMMON_LIB}"
 source "${LOAD_LIB}"
+cd "${SCRIPT_DIR}/.." || exit 1
 
 PORT=8556
 ROUNDS=3
@@ -242,6 +242,8 @@ for round in $(seq 1 "${ROUNDS}"); do
     SECOND_ELAPSED="${SAMPLE_ELAPSED}"
     SECOND_DISTINCT="${SAMPLE_DISTINCT}"
 
+    load_gate "${LOAD_LIMIT}"
+    AFTER_GATE_RC=$?
     LOAD_AFTER="$(load_avg_1min)"
     echo "   量測後負載 ${LOAD_AFTER}（本輪 ${LOAD_BEFORE} → ${LOAD_AFTER}）"
     printf "%-4s %-8s %-9s %8s %8s %9s %9s %-12s %-12s %-12s\n" \
@@ -252,6 +254,11 @@ for round in $(seq 1 "${ROUNDS}"); do
         "${round}" "${FIRST_TRANSPORT}/${SECOND_TRANSPORT}" "${SECOND_TRANSPORT}" \
         "${SECOND_FPS}" "${SECOND_FRAMES}" "${SECOND_ELAPSED}" "${SECOND_DISTINCT}" \
         "${SECOND_STATUS}" "${LOAD_BEFORE}" "${LOAD_AFTER}"
+
+    if [ "${AFTER_GATE_RC}" -ne 0 ]; then
+        echo "❌ 第 ${round} 輪量測後負載 ${LOAD_AFTER} 已超標，中止。"
+        exit 1
+    fi
 
     if [ "${FIRST_VALID}" -eq 1 ]; then
         if [ "${FIRST_TRANSPORT}" = "rgba" ]; then
