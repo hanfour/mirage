@@ -33,3 +33,4 @@
 - `c53ad02 feat: 新增 Swift 直拉量測工具`
 - `7609244 fix: 補強直拉逾時與輸出測試`
 - `39b942a feat: 擴充 transport 交錯驗證系列`
+- `2259f17 docs: 完成 Swift 直拉結果報告`
