@@ -96,3 +96,27 @@
 - 註解與文件用繁體中文台灣用語，不用破折號接補充說明。
 - bash：`set -uo pipefail`，`${rc}，` 不是 `$rc，`。
 - 結束時把報告寫進 `app/RESULTS-d64.md`，最後一則訊息列出改動檔案、每條驗收條件的證據、沒做到的事。
+
+## 7. 把關退回的修正清單（第二輪，2026-09-04）
+
+第一輪交付：編譯一次過、332 條 Swift 測試綠、ci.sh 九道閘門綠、自我測試對 tag 改壞紅 8 條、burner 清理零殘留。獨立審查抓到一個 bash 3.2 的問題，PM 的活體三組（`-n 0`／`-n 4`／`-n 8`）全部零輪，追出另外兩個。三點都在 `verify_fps_under_load.sh` 與它呼叫的前置，Swift 端不用動。
+
+### 7.1 `seq 1 0` 在 macOS 會印出 `1 0`，所以 `-n 0` 啟動了兩個 burner
+
+BSD `seq` 對「起點大於終點」會倒數，`seq 1 0` 印 `1` 與 `0`，迴圈跑兩次。實測對照組的前置量到外來 CPU 241%，其中兩個 `yes` 各 100%，然後被預設負載門檻 18 連擋六次。改成 `[ "$BURNERS" -gt 0 ] && for _ in $(seq 1 "$BURNERS")`，或用 `i=0; while [ "$i" -lt "$BURNERS" ]`。自我測試要有一條：`-n 0 -p 45999` 之後 `pgrep -x yes` 為 0（跑之前也要先確認為 0，否則斷言沒鑑別力）。
+
+### 7.2 bash 3.2 對空陣列 `"${ARR[@]}"` 在 `set -u` 下會炸 unbound variable
+
+macOS 內建 `/bin/bash` 是 3.2.57，`"${BURNER_PIDS[@]}"`（第 58、62 行）與 `"${VERIFY_ARGS[@]}"`（第 114、117 行）在陣列為空時直接中止，而 `-n 0` 與「不帶額外參數」正是空陣列。PM 的 shell 是 Homebrew bash 5.3 所以沒炸，但 `ci.sh` 與其他人不一定。修法：展開前先判 `${#ARR[@]}`，`verify_transport_compare.sh` 第 66 行有現成寫法；或用 `"${ARR[@]:-}"`。修完用 `/bin/bash app/scripts/verify_fps_under_load.sh -n 0 -p 45999` 實跑證明（明確用 `/bin/bash`，不是 `bash`）。
+
+### 7.3 負載下 app 視窗 15 秒內沒在 AX 出現，實驗在前置就被擋掉
+
+`-n 4` 與 `-n 8` 的九次啟動全部「視窗 15 秒內未在 AX 出現」。這是預期會發生的：實驗的目的就是加負載，而負載會拖慢 app 啟動。所以 `verify_fps_under_load.sh` 在 burner 數大於 0 時要把 `FULLSCREEN_WINDOW_TIMEOUT` 抬高（例如 60），並把 `verify_fps_fullscreen.sh` 的 `ROUND_RETRY_MAX` 也可由環境變數覆寫（現在寫死 3）。只加環境變數的覆寫入口，預設值不變。包裝腳本開頭把抬高的值印出來。
+
+### 7.4 結果文件
+
+`app/RESULTS-d64.md` 加「第二輪修正」，貼 `seq 1 0` 的輸出、`/bin/bash` 實跑 `-n 0` 的輸出、`pgrep` 前後的數字。
+
+### 工作方式（第二輪）
+
+同一分支，三點各一個 commit。你能自己驗的：`bash -n`、`/bin/bash app/scripts/verify_fps_under_load.sh -n 0 -p 45999`、`pgrep -x yes`。不跑 Swift、不跑 emulator。
