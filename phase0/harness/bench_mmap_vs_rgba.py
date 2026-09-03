@@ -66,9 +66,6 @@ def port_from_endpoint(endpoint: str) -> int:
     return port
 
 
-endpoint_to_port = port_from_endpoint
-
-
 def probe_endpoint(endpoint: str) -> tuple[bool, str]:
     """探測 gRPC endpoint，回傳是否就緒與失敗原因。"""
     if grpc is None:

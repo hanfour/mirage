@@ -201,6 +201,7 @@ def test_mmap_setup_failure_cleans_buffer_path_and_channel(monkeypatch, tmp_path
 
 
 def test_endpoint_port_derivation():
+    assert not hasattr(bench, "endpoint_to_port")
     assert bench.port_from_endpoint("localhost:8556") == 8556
     assert bench.port_from_endpoint("127.0.0.1:45999") == 45999
     assert bench.port_from_endpoint("[::1]:8554") == 8554
