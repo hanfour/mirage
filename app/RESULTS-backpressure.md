@@ -139,3 +139,29 @@ EXIT=1
 1. **emulator 端編碼與送出對 guest 零回壓。** 有 client 拉 898×1996 raw RGBA 時 qemu 的 CPU 從約 132% 升到約 239%（多了約 107 個百分點做編碼與 gRPC 送出），guest 出幀率完全不動（59.9 對 59.9）。qemu 有足夠的核心，編碼工作沒有搶到 guest 的 vCPU。
 2. `pull` 條件 `mirage-pull` 自己約 36 到 45% CPU（解碼 7.2 MB 幀約 60 次每秒）。
 3. **`app` 條件（Mirage 全螢幕渲染對 guest 的回壓）尚未量到**，D65 擋掉了。由 `DELTA_PULL_APP` 補。
+
+### 活體 run3：`app` 條件三輪全部有效（解鎖後補跑 `-c none,app`）
+
+| 輪 | 條件 | guest | frames | host_cpu_qemu | host_cpu_client | host_cpu_foreign | mirage_fps | 判定 |
+|---|---|---|---|---|---|---|---|---|
+| 1 | none | 59.74 | 1205 | 168.7 | 0 | 84.8 | | 無效（foreign > 60） |
+| 1 | app | 59.73 | 1209 | 224.5 | 43.6 | 0.0 | 47 | 有效 |
+| 2 | app | 59.89 | 1214 | 238.0 | 41.6 | 13.1 | 48 | 有效 |
+| 2 | none | 58.81 | 1190 | 187.0 | 0 | 112.0 | | 無效 |
+| 3 | none | 59.22 | 1196 | 184.2 | 0 | 105.3 | | 無效 |
+| 3 | app | 59.81 | 1211 | 205.6 | 44.2 | 34.0 | 50 | 有效 |
+
+`app` 中位數 guest 59.8（qemu 224.5%、MirageApp 41.6 到 44.2%）。`none` 三輪都被 foreign 判無效（使用者剛解鎖在操作機器），但 run2 已有三輪乾淨的 `none` 59.9，用它比。
+
+### 判定（完整）
+
+| 差值 | 值 | 意義 |
+|---|---|---|
+| `none − pull` | 0.0 | emulator 端編碼與送出對 guest 零回壓 |
+| `pull − app` | 約 0.1 | Mirage 渲染（Metal 上傳、視窗合成）對 guest 零回壓 |
+| `none − app` | 約 0.1 | 總回壓為零 |
+
+1. **Mirage 對 guest 的回壓為零。** 三種條件下 guest 都是 59.8 到 59.9。有 client 時 qemu 多花約 100 個百分點做編碼，MirageApp 自己約 42 到 44%，這些 CPU 都沒有搶到 guest 的 vCPU。「Mirage 少吃 CPU 以減少對 guest 回壓」這條路關掉，沒有東西可省。
+2. **驗收線 7 在使用者同時用機器時的殘餘，完全在 emulator 側**（D60：guest 對外來 CPU 的敏感度，29% 時 59、90% 時 50、480% 時 34）。Mirage 能做的只有偵測並告知使用者，不能改變它。這變成產品決策。
+3. **順帶第三次抓到 D64 的現場**：`app` 三輪 guest 59.7 到 59.9 但 `mirage_fps` 只有 47／48／50，foreign 0 到 34%。guest 沒掉、Mirage 掉了，與 `RESULTS-frame-counters.md` 跑次 2 第 5 輪、`RESULTS-backpressure.md` 抽函式對照第 2 輪同形。三次都是使用者在操作機器時，純 CPU burner 重現不了。回壓腳本沒印三計數與 draw 時序行（設計如此），下次要抓現場用 `verify_fps_fullscreen.sh`。
+4. `none` 條件的 `host_cpu_foreign` 比 `app` 條件高（85 到 112 對 0 到 34），是因為 `none` 排在使用者剛回到機器的時段，不是條件本身的差異。
