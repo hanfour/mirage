@@ -78,3 +78,29 @@ Mirage 自己在全螢幕 60fps 下約吃 50% 到 60% CPU。這些 CPU 有多少
 - 測試先寫，再實作。每個部分一個 commit，訊息 `<type>: <描述>`，繁體中文。
 - 註解與文件用繁體中文台灣用語，不用破折號接補充說明。
 - 結束時把報告寫進 `app/RESULTS-backpressure.md`，最後一則訊息列出改動檔案、每條驗收條件的證據、沒做到的事。
+
+## 8. 把關退回的修正清單（第二輪，2026-09-07）
+
+第一輪交付：ci.sh 十六個 ✅ 全綠、`/bin/bash` 3.2 下自我測試綠、`verify_fps_fullscreen.sh` 抽函式後在 emulator 上跑兩輪逐輪輸出格式與抽前相同。活體第一次跑在第 1 輪 `app` 條件中止，兩點要修，都是簡報沒寫清楚。
+
+### 8.1 `app` 條件收斂失敗要關掉重開，不是整個跑次作廢
+
+第 1 輪 `app`：「視窗 15 秒內未在 AX 出現」一次就 `exit 1`，前面 `none`／`pull` 的樣本全部丟掉。驗收腳本對同一情況有 `ROUND_RETRY_MAX`（預設 3）次關掉重開，回壓腳本要一樣：`run_condition` 的 `app` 分支包一層重試，每次失敗 `cleanup_active` 後重來，印「本輪第 N/M 次啟動未收斂，關掉重開」；三次都失敗才把**這一個樣本**判無效（印理由、不計入），不中止跑次。`ROUND_RETRY_MAX` 用 `${ROUND_RETRY_MAX:-3}` 讀。
+
+### 8.2 第一個條件撞到前置的餘熱
+
+第 1 輪 `none` 量到 guest 50.85，同一台 emulator 在沒有任何 client 時 PM 手動量兩次是 59.68／59.61。`none` 是第一個條件，前面剛跑完兩次 `build_warm`，主機還沒安靜下來。修法：所有前置做完後、第 1 輪開始前，加 `COOLDOWN_SECONDS`（預設 20）的冷卻，並在冷卻後再過一次 `load_gate`；每個條件之間也留 `CONDITION_GAP`（預設 5）秒讓上一個 client 的拆除完成。兩個數字都用 `${VAR:-預設}`。
+
+### 8.3 順帶：`app` 條件的 `mirage_fps` 要進逐輪那一行
+
+規格第 4 節 A 要求印出，第一輪的 `[round N cond=app]` 行有欄位但 PM 沒看到值（跑次在該條件中止了）。修完 8.1 後確認那一行真的有 `mirage_fps=<N>`。
+
+### 8.4 `pull` 條件的 client 靠 `--seconds` 自己下車，可能在 `SNAP_B` 之前結束（獨立審查抓到）
+
+`client_seconds=$((DURATION + 3))` 假設「3 秒就緒等待 + DURATION」剛好，但 `mirage-pull` 的計時在 gRPC 探測與連線完成後才起算，而腳本在 `sleep 3` 之後、`SNAP_A` 之前還有第二次 `guest_window_start`（兩趟 adb 往返，emulator 忙時上百毫秒）。這段沒算進緩衝，client 可能在 `SNAP_B` 之前退出；`cpu_delta_report` 只用快照 B 建表，行程消失就整段歸零，`host_cpu_client` 安靜地印 `0.0`。第一輪量到 40.0 是運氣。
+
+修法：`pull` 的 `--seconds` 改成 `$((DURATION + 30))`（足夠長，反正會被殺），`SNAP_B` 取完後才 `kill`；並在 `SNAP_B` 之後立刻 `kill -0 "${ACTIVE_CLIENT_PID}"`，不存活就把這個樣本判無效並印「pull client 在量測窗口內提前結束」，不要印 0.0。`app` 條件同樣在 `SNAP_B` 之後確認 `MirageApp` 行程還在。
+
+### 工作方式（第二輪）
+
+同一分支，8.1、8.2、8.4 各一個 commit（8.3 併入 8.1）。你能自己驗的：`bash -n`、`/bin/bash` 3.2 跑自我測試、`-p 45999` 退出碼 1。不跑 emulator。
