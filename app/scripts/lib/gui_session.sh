@@ -41,6 +41,87 @@ gui_session_cleanup() {
     return 0
 }
 
+# 等待 Mirage 視窗出現在 Accessibility API，設定全螢幕並等待串流尺寸收斂。
+# 呼叫端負責決定失敗後是否重開；本函式只回傳 0（收斂）或 1（未收斂）。
+gui_session_fullscreen() {
+    local log="$1" bundle="$2" min_width="$3"
+    local window_timeout="${FULLSCREEN_WINDOW_TIMEOUT:-15}"
+    local window_poll_interval="${FULLSCREEN_WINDOW_POLL_INTERVAL:-0.5}"
+    local window_poll_count
+    local poll_timeout="${FULLSCREEN_POLL_TIMEOUT:-10}"
+    local poll_interval="${FULLSCREEN_POLL_INTERVAL:-1}"
+    local resend_interval="${FULLSCREEN_RESEND_INTERVAL:-2}"
+    local resend_max="${FULLSCREEN_RESEND_MAX:-3}"
+    local latest_width ax_fullscreen
+    local fullscreen_set_output fullscreen_set_rc resend_count resend_elapsed
+    local poll
+
+    window_poll_count=$(awk -v timeout="${window_timeout}" \
+        -v interval="${window_poll_interval}" 'BEGIN { printf "%d", timeout / interval }')
+
+    WINDOW_FOUND=0
+    WINDOW_COUNT=0
+    poll=1
+    while [ "${poll}" -le "${window_poll_count}" ]; do
+        sleep "${window_poll_interval}"
+        WINDOW_COUNT=$(osascript -e 'tell application "System Events" to count of windows of process "MirageApp"' \
+            2>/dev/null) || WINDOW_COUNT=0
+        case "${WINDOW_COUNT}" in
+            ''|*[!0-9]*) WINDOW_COUNT=0 ;;
+        esac
+        if [ "${WINDOW_COUNT}" -ge 1 ]; then
+            WINDOW_FOUND=1
+            break
+        fi
+        poll=$((poll + 1))
+    done
+    if [ "${WINDOW_FOUND}" -eq 0 ]; then
+        echo "   視窗 ${window_timeout} 秒內未在 AX 出現，這次啟動失敗，關掉重開"
+        gui_session_cleanup "${bundle}"
+        rm -f "${log}"
+        return 1
+    fi
+
+    fullscreen_set_output=$(osascript -e 'tell application "System Events" to tell process "MirageApp" to set value of attribute "AXFullScreen" of window 1 to true' \
+        2>&1)
+    fullscreen_set_rc=$?
+    if [ "${fullscreen_set_rc}" -ne 0 ]; then
+        echo "   ⚠️ AXFullScreen 設定失敗：${fullscreen_set_output}"
+    fi
+    resend_count=0
+    resend_elapsed=0
+    poll=1
+    while [ "${poll}" -le "${poll_timeout}" ]; do
+        sleep "${poll_interval}"
+        LATEST_ATTACH=$(grep 'attachStream' "${log}" | tail -1)
+        latest_width=$(printf '%s' "${LATEST_ATTACH}" | sed -n 's/.*請求 \([0-9]*\)x.*/\1/p')
+        if [ -n "${latest_width}" ] && [ "${latest_width}" -ge "${min_width}" ]; then
+            return 0
+        fi
+
+        resend_elapsed=$((resend_elapsed + poll_interval))
+        if [ "${resend_elapsed}" -ge "${resend_interval}" ]; then
+            resend_elapsed=0
+            ax_fullscreen=$(osascript -e 'tell application "System Events" to tell process "MirageApp" to get value of attribute "AXFullScreen" of window 1' \
+                2>/dev/null) || ax_fullscreen=""
+            if [ "${ax_fullscreen}" != "true" ] && [ "${resend_count}" -lt "${resend_max}" ]; then
+                fullscreen_set_output=$(osascript -e 'tell application "System Events" to tell process "MirageApp" to set value of attribute "AXFullScreen" of window 1 to true' \
+                    2>&1)
+                fullscreen_set_rc=$?
+                resend_count=$((resend_count + 1))
+                if [ "${fullscreen_set_rc}" -ne 0 ]; then
+                    echo "   ⚠️ AXFullScreen 第 ${resend_count} 次重送失敗：${fullscreen_set_output}"
+                fi
+            fi
+        fi
+        poll=$((poll + 1))
+    done
+
+    gui_session_cleanup "${bundle}"
+    rm -f "${log}"
+    return 1
+}
+
 # 取樣筆數。**`grep -c` 沒命中時已經會印 0 並回傳 1**，寫成 `|| echo 0` 會再補一個 0，
 # 讓結果變成兩行、後面的 `-eq` 直接爆掉——而那正是沒量到幀時必然走到的路徑。
 fps_samples() {

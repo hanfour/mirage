@@ -178,17 +178,11 @@ LOAD_RETRY_MAX=6
 LOAD_RETRY_WAIT=5
 
 # 進全螢幕改用 Accessibility API 直接寫 `AXFullScreen` 屬性，取代送 ⌃⌘F 鍵（Task 3
-# 修正）——理由與實測見下方進全螢幕區塊的長註解。單次啟動內的收斂輪詢逾時：
-FULLSCREEN_POLL_TIMEOUT=10
-FULLSCREEN_POLL_INTERVAL=1
+# 修正）——理由與實測見下方進全螢幕區塊的長註解。單次啟動內的收斂輪詢參數由
+# `gui_session_fullscreen` 讀取；預設值維持原本的 10 秒／1 秒。
 # gui_session_start 實測在 +7.3 秒回來，視窗在 +7.8 秒才出現在 AX，成功設定後約
 # +9.3 秒收斂。因此先以 0.5 秒間隔等待視窗，再開始全螢幕設定與尺寸輪詢。
-FULLSCREEN_WINDOW_TIMEOUT="${FULLSCREEN_WINDOW_TIMEOUT:-15}"
-FULLSCREEN_WINDOW_POLL_INTERVAL="${FULLSCREEN_WINDOW_POLL_INTERVAL:-0.5}"
-FULLSCREEN_WINDOW_POLL_COUNT=$(awk -v timeout="$FULLSCREEN_WINDOW_TIMEOUT" \
-    -v interval="$FULLSCREEN_WINDOW_POLL_INTERVAL" 'BEGIN { printf "%d", timeout / interval }')
-FULLSCREEN_RESEND_INTERVAL="${FULLSCREEN_RESEND_INTERVAL:-2}"
-FULLSCREEN_RESEND_MAX="${FULLSCREEN_RESEND_MAX:-3}"
+# 這些參數同樣在共用函式內以 `${VAR:-預設}` 讀取，讓兩支腳本共用同一組預設。
 
 # **這台機器這片螢幕的全螢幕天花板量到的是 898（見下方長註解），到不了字面上的 900。**
 # 896 卡在「視窗模式天花板 888」與「這片螢幕全螢幕天花板 898」之間：能分辨「有沒有真的
@@ -202,7 +196,7 @@ FULLSCREEN_RESEND_MAX="${FULLSCREEN_RESEND_MAX:-3}"
 # 會把「根本沒進全螢幕、只是視窗剛好夠寬」誤判成「已收斂」——方向與本機發現的「全螢幕
 # 到不了 900」相反，是這個數值門檻本身可能失準的情境，換機器跑之前應該重新用本檔前置
 # 說明那段 osascript 量一次邏輯解析度、核對視窗模式天花板與這個門檻的間距是否還夠。
-FULLSCREEN_MIN_WIDTH=896
+# 門檻以第三參數傳給 `gui_session_fullscreen`；呼叫端用 `${FULLSCREEN_MIN_WIDTH:-896}`。
 
 # AXFullScreen 比鍵送可靠得多，但實測仍偶爾整次啟動都沒吃到（懷疑跟這台共用機器上其他
 # Space 切換動畫互相卡到有關，機制未查清）。**擋下不等於放棄**——跟 load_gate 同一個
@@ -310,66 +304,15 @@ for round in $(seq 1 "$ROUNDS"); do
             gui_session_cleanup "$BUNDLE"; rm -f "$LOG"; exit 1
         fi
 
-        WINDOW_FOUND=0
-        WINDOW_COUNT=0
-        for _ in $(seq 1 "$FULLSCREEN_WINDOW_POLL_COUNT"); do
-            sleep "$FULLSCREEN_WINDOW_POLL_INTERVAL"
-            WINDOW_COUNT=$(osascript -e 'tell application "System Events" to count of windows of process "MirageApp"' \
-                2>/dev/null) || WINDOW_COUNT=0
-            case "$WINDOW_COUNT" in
-                ''|*[!0-9]*) WINDOW_COUNT=0 ;;
-            esac
-            if [ "$WINDOW_COUNT" -ge 1 ]; then
-                WINDOW_FOUND=1
-                break
-            fi
-        done
-        if [ "$WINDOW_FOUND" -eq 0 ]; then
-            echo "   視窗 ${FULLSCREEN_WINDOW_TIMEOUT} 秒內未在 AX 出現，這次啟動失敗，關掉重開"
-            gui_session_cleanup "$BUNDLE"
-            rm -f "$LOG"
-            continue
+        if gui_session_fullscreen "$LOG" "$BUNDLE" "${FULLSCREEN_MIN_WIDTH:-896}"; then
+            ROUND_CONVERGED=1
+            break
         fi
 
-        FULLSCREEN_SET_OUTPUT=$(osascript -e 'tell application "System Events" to tell process "MirageApp" to set value of attribute "AXFullScreen" of window 1 to true' \
-            2>&1)
-        FULLSCREEN_SET_RC=$?
-        if [ "$FULLSCREEN_SET_RC" -ne 0 ]; then
-            echo "   ⚠️ AXFullScreen 設定失敗：${FULLSCREEN_SET_OUTPUT}"
+        if [ "$WINDOW_FOUND" -eq 1 ]; then
+            echo "   本輪第 ${round_attempt}/${ROUND_RETRY_MAX} 次啟動未收斂到解析度上限" \
+                 "（最後一次請求 $(printf '%s' "$LATEST_ATTACH" | sed 's/.*請求 //')），關掉重開"
         fi
-        FULLSCREEN_RESEND_COUNT=0
-        FULLSCREEN_RESEND_ELAPSED=0
-        for _ in $(seq 1 "$FULLSCREEN_POLL_TIMEOUT"); do
-            sleep "$FULLSCREEN_POLL_INTERVAL"
-            LATEST_ATTACH=$(grep 'attachStream' "$LOG" | tail -1)
-            LATEST_WIDTH=$(printf '%s' "$LATEST_ATTACH" | sed -n 's/.*請求 \([0-9]*\)x.*/\1/p')
-            if [ -n "$LATEST_WIDTH" ] && [ "$LATEST_WIDTH" -ge "$FULLSCREEN_MIN_WIDTH" ]; then
-                ROUND_CONVERGED=1
-                break
-            fi
-
-            FULLSCREEN_RESEND_ELAPSED=$((FULLSCREEN_RESEND_ELAPSED + FULLSCREEN_POLL_INTERVAL))
-            if [ "$FULLSCREEN_RESEND_ELAPSED" -ge "$FULLSCREEN_RESEND_INTERVAL" ]; then
-                FULLSCREEN_RESEND_ELAPSED=0
-                AX_FULLSCREEN=$(osascript -e 'tell application "System Events" to tell process "MirageApp" to get value of attribute "AXFullScreen" of window 1' \
-                    2>/dev/null) || AX_FULLSCREEN=""
-                if [ "$AX_FULLSCREEN" != "true" ] && [ "$FULLSCREEN_RESEND_COUNT" -lt "$FULLSCREEN_RESEND_MAX" ]; then
-                    FULLSCREEN_SET_OUTPUT=$(osascript -e 'tell application "System Events" to tell process "MirageApp" to set value of attribute "AXFullScreen" of window 1 to true' \
-                        2>&1)
-                    FULLSCREEN_SET_RC=$?
-                    FULLSCREEN_RESEND_COUNT=$((FULLSCREEN_RESEND_COUNT + 1))
-                    if [ "$FULLSCREEN_SET_RC" -ne 0 ]; then
-                        echo "   ⚠️ AXFullScreen 第 ${FULLSCREEN_RESEND_COUNT} 次重送失敗：${FULLSCREEN_SET_OUTPUT}"
-                    fi
-                fi
-            fi
-        done
-        [ "$ROUND_CONVERGED" -eq 1 ] && break
-
-        echo "   本輪第 ${round_attempt}/${ROUND_RETRY_MAX} 次啟動未收斂到解析度上限" \
-             "（最後一次請求 $(printf '%s' "$LATEST_ATTACH" | sed 's/.*請求 //')），關掉重開"
-        gui_session_cleanup "$BUNDLE"
-        rm -f "$LOG"
     done
 
     if [ "$ROUND_CONVERGED" -eq 0 ]; then
@@ -377,7 +320,7 @@ for round in $(seq 1 "$ROUNDS"); do
         SIZE_OK=0
         continue
     fi
-    echo "✅ 串流尺寸已收斂到解析度上限附近（$(printf '%s' "$LATEST_ATTACH" | sed 's/.*請求 //')，寬度 ≥ ${FULLSCREEN_MIN_WIDTH}）"
+    echo "✅ 串流尺寸已收斂到解析度上限附近（$(printf '%s' "$LATEST_ATTACH" | sed 's/.*請求 //')，寬度 ≥ ${FULLSCREEN_MIN_WIDTH:-896}）"
 
     # **guest 的量測窗口必須與這裡的擷取窗口是同一段**（D56／D48 限制）。前一版把
     # timestats 開在整個跑次外層，量到的 241 秒窗口涵蓋三輪＋輪次間隔＋App 啟動＋
