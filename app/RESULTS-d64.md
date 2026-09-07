@@ -121,3 +121,35 @@ pgrep -x yes（執行後）：退出碼 3，Cannot get process list
 本輪沒有另行執行 Swift 測試、啟動 emulator 或 `ci.sh`。在驗證空
 `VERIFY_ARGS` 的探索命令 `-n 0` 中，由於本機 8556 端口已有服務，曾進入 wrapper
 既有的 `build_warm`；SwiftPM manifest 階段被沙箱拒絕，退出碼 1。這段不作本輪通過證據。
+
+## PM 把關與活體驗證（2026-09-04 到 09-07）
+
+### 把關
+
+- codex 盲寫的 Swift 一次編過，332 條測試綠；ci.sh 九道閘門兩輪都綠。
+- 獨立審查抓到 `verify_fps_under_load.sh` 在 bash 3.2 對空陣列 `"${ARR[@]}"` 會炸；PM 活體追出另外兩個：macOS 的 `seq 1 0` 印 `1 0` 讓 `-n 0` 啟動兩個 burner、負載下 app 視窗 15 秒內不在 AX 出現。第二輪三點都修，PM 用 `/bin/bash` 3.2 實跑 `-n 0 -p 45999` 與 `-n 2`（不帶參數）兩條空陣列路徑，都不再炸、burner 零殘留。
+- 9 月 4 日深夜的活體三組全部零輪，追到根因是螢幕鎖定（`CGSSessionScreenIsLocked=True`）：app 照收幀但 SwiftUI 不建視窗、`Renderer.draw` 一次沒跑。與分支無關（8 月 7 日 main 的舊二進位 A/B 一樣失敗）。解鎖後 9 月 7 日重跑。
+
+### 活體：三組各五輪（`verify_fps_under_load.sh -n 0／4／8`）
+
+環境同前：`mirage-game`、Pixel Flow 在前景、全螢幕 898×1996、每輪 20 秒。負載模式抬高 `LOAD_LIMIT` 到 99、`FULLSCREEN_WINDOW_TIMEOUT` 到 60。
+
+| burner | 外來 CPU | guest（五輪） | arrived→presented（五輪） | dropped | gap20 | maxgap | in_p95 | nodrawable | noframe |
+|---|---|---|---|---|---|---|---|---|---|
+| 0 | 90% | 50.88／48.56／51.64／50.89／51.88 | 50→50／45→46／49→49／48→48／49→49 | 0 | 0 | 18ms | 9.3／9.3／9.3／2.3／9.3 | 0 | 11 到 15 |
+| 4 | 481% | 32.72／33.59／34.76／36.99／33.66 | 34→33／35→35／36→36／37→37／34→34 | 0 | 0 | 18ms | 9.3／2.3／9.3／2.2／1.9 | 0 | 24 到 28 |
+| 8 | 521% | 34.41／27.36／33.05／36.01／34.90 | 35→35／31→31／35→35／37→36／36→35 | 0 | 0 | 18ms | 1.8／1.7／9.2／9.2／9.2 | 0 | 24 到 30 |
+
+十五輪全部因 guest 未達 55 判為無效（這是預期，實驗的目的是加負載），draw 時序行每輪都有。
+
+### 判定
+
+1. **純 CPU 負載下渲染端零損失。** 十五輪 `dropped=0`、`nodrawable=0`、`gap20=0`、`maxgap` 恆 18ms（display link 從沒被延後超過一個 vsync 加 1ms）、`in_p95` 最高 9.3ms（遠低於 16.7ms 的 vsync 週期）。guest 出多少幀 Mirage 就 present 多少，誤差 1。D64 假設的三種形狀（回呼延後、上傳變慢、拿不到 drawable）在純 CPU 負載下全部不成立。
+2. **掉的全是 guest，而且與 CPU 負載單調相關**：0 burner 約 50、4 burner 約 34、8 burner 約 33（8 與 4 差不多，代表 4 個 burner 已經把 qemu 能拿到的 CPU 壓到底）。這是 D60 的形狀。
+3. **`RESULTS-frame-counters.md` 跑次 2 第 5 輪（guest 58.89、arrived 60、presented 50、dropped 8）用純 CPU burner 重現不了。** 那次是使用者在操作機器（外來 CPU 183%），負載形態不同，嫌疑轉向 GPU 或視窗合成競爭（例如另一個全螢幕 Metal／瀏覽器視窗、Space 切換），不是 CPU 排程。D64 的描述要改：不是「主機負載下錯過 vsync」，是「特定但尚未辨識的負載形態下錯過 vsync，純 CPU 不會」。
+4. `in_p95` 在 2 與 9ms 之間跳，與負載無關（對照組也跳）。9ms 那些窗口可能撞到 7.2 MB `texture.replace` 的頁面錯誤或 Metal 的 command buffer 排隊，但它沒有造成掉幀，記錄即可。
+5. 對照組的 guest 只有 50，不是 59：這次外來 CPU 90%（不是 9 月 3 日的 29%），機器上有別的東西在跑。與 9 月 3 日「安靜時 guest 59、Mirage 59」合起來看，guest 對外來 CPU 的敏感度大約是：90% 掉 15%、480% 掉 43%。
+
+### 對驗收線 7 的意義
+
+Mirage 這一側在 CPU 負載下沒有東西可修。「使用者同時用機器也 ≥ 55」這個目標，剩下的變數是 guest 本身對主機 CPU 的敏感度（D60），而那在 emulator 行程內，Mirage 能做的只有降低自己的 CPU 用量（目前 MirageApp 在 60fps 全螢幕下約 50% 到 60% CPU，見 9 月 4 日 `ps` 的 58.7%）。這是下一個要量的數字：Mirage 自己佔的 CPU 有多少會回頭壓到 guest。
