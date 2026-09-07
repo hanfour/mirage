@@ -228,6 +228,46 @@ tagged_median() {
         }' "$log" 2>/dev/null
 }
 
+# `[app] lat` 欄位的中位數。欄位值預期帶 `ms` 後綴，回傳保留一位小數。
+latency_median() {
+    local log="$1" field="$2" skip="${3:-0}"
+    case "$field" in
+        p50|p95) ;;
+        *) echo 0; return 0 ;;
+    esac
+    [ -r "$log" ] || { echo 0; return 0; }
+    awk -v field="$field" -v skip="$skip" '
+        function number(raw) {
+            sub(/ms$/, "", raw)
+            if (raw !~ /^[0-9]+([.][0-9]+)?$/) { return -1 }
+            return raw + 0
+        }
+        $0 ~ /^\[app\] lat([[:space:]]|$)/ {
+            if (seen < skip) { seen++; next }
+            for (i = 3; i <= NF; i++) {
+                split($i, pair, "=")
+                value = number(pair[2])
+                if (pair[1] == field && value >= 0) {
+                    values[++n] = value
+                    break
+                }
+            }
+        }
+        END {
+            if (!n) { print 0; exit }
+            for (i = 1; i <= n; i++) {
+                for (j = i + 1; j <= n; j++) {
+                    if (values[j] < values[i]) {
+                        temp = values[i]
+                        values[i] = values[j]
+                        values[j] = temp
+                    }
+                }
+            }
+            printf "%.1f\n", values[int((n + 1) / 2)]
+        }' "$log" 2>/dev/null
+}
+
 # `[app] frames` 的中位數。維持既有呼叫端與輸出語意。
 frames_samples() {
     local log="$1"

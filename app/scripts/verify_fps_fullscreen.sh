@@ -20,6 +20,8 @@
 # 用法：
 #   ./scripts/verify_fps_fullscreen.sh                       # 預設 5556/8556/Pixel Flow，3 輪各 20 秒
 #   ./scripts/verify_fps_fullscreen.sh -r 5 -d 30
+#   ./scripts/verify_fps_fullscreen.sh -q 2                  # 啟用深度 2 幀佇列
+#   ./scripts/verify_fps_fullscreen.sh -A                   # latest 與 queue2 交錯量測
 #
 # 前置：
 #   - 模擬器不可帶 -no-window（要真 GUI 合成）
@@ -53,7 +55,10 @@ DURATION=20
 # 仍擋住真正會讓 `.task` 失效的 20+ 區間。
 LOAD_LIMIT=18
 
-while getopts "s:p:g:r:d:l:h" opt; do
+QUEUE_DEPTH=""
+AB_MODE=0
+
+while getopts "s:p:g:r:d:l:hq:A" opt; do
   case "$opt" in
     s) SERIAL="$OPTARG" ;;
     p) GRPC_PORT="$OPTARG" ;;
@@ -61,8 +66,10 @@ while getopts "s:p:g:r:d:l:h" opt; do
     r) ROUNDS="$OPTARG" ;;
     d) DURATION="$OPTARG" ;;
     l) LOAD_LIMIT="$OPTARG" ;;
+    q) QUEUE_DEPTH="$OPTARG" ;;
+    A) AB_MODE=1 ;;
     h) sed -n '2,25p' "$0"; exit 0 ;;
-    *) echo "用法：$0 [-s serial] [-p port] [-g package] [-r rounds] [-d seconds] [-l load上限]" >&2; exit 2 ;;
+    *) echo "用法：$0 [-s serial] [-p port] [-g package] [-r rounds] [-d seconds] [-l load上限] [-q depth] [-A]" >&2; exit 2 ;;
   esac
 done
 
@@ -71,6 +78,17 @@ for v in ROUNDS DURATION; do
   case "$val" in ''|*[!0-9]*) echo "❌ -${v} 只接受正整數：實測 '${val}'。" >&2; exit 2 ;; esac
 done
 [ "$DURATION" -lt 10 ] && { echo "❌ -d 不得低於 10 秒：太短的取樣窗拿不到穩定的中位數。" >&2; exit 2; }
+
+if [ -n "$QUEUE_DEPTH" ]; then
+  case "$QUEUE_DEPTH" in
+    ''|*[!0-9]*) echo "❌ -q 只接受整數深度：實測 '${QUEUE_DEPTH}'。" >&2; exit 2 ;;
+  esac
+  [ "$QUEUE_DEPTH" -ge 2 ] || { echo "❌ -q 深度不得低於 2：1 應維持 latest-wins。" >&2; exit 2; }
+fi
+[ "$AB_MODE" -eq 0 ] || [ -z "$QUEUE_DEPTH" ] || {
+  echo "❌ -A 已固定比較 latest 與 queue2，不可同時指定 -q。" >&2
+  exit 2
+}
 
 VENV="$(dirname "$0")/../../phase0/harness/.venv-d45/bin/python"
 BASELINE="$(dirname "$0")/../../phase0/harness/fps_baseline.py"
@@ -240,6 +258,276 @@ GUEST_MIN="${GUEST_MIN:-55}"
 GUEST_VALS=""
 GUEST_REJECTED=0
 
+ab_median_of() {
+    printf "%b" "$1" | grep -v '^$' | sort -n \
+        | awk '{ v[NR]=$1 } END { if (NR) printf "%d\n", v[int((NR+1)/2)] }'
+}
+
+ab_median_one_decimal_of() {
+    printf "%b" "$1" | grep -v '^$' | sort -n \
+        | awk '{ v[NR]=$1 } END { if (NR) printf "%.1f\n", v[int((NR+1)/2)] }'
+}
+
+ab_count_of() {
+    printf "%b" "$1" | grep -cv '^$'
+}
+
+AB_LATEST_VALS=""
+AB_QUEUE_VALS=""
+AB_LATEST_DROPPED=""
+AB_QUEUE_DROPPED=""
+AB_LATEST_LAT_P95=""
+AB_QUEUE_LAT_P95=""
+AB_GUEST_VALS=""
+AB_GUEST_REJECTED=0
+
+ab_print_result() {
+    local round="$1" sink="$2"
+    if [ -n "$AB_M" ] && [ -n "$AB_B" ]; then
+        echo "[round ${round} sink=${sink}] guest=${AB_G} arrived=${AB_A} presented=${AB_P} dropped=${AB_D} mirage=${AB_M} baseline=${AB_B} ratio=${AB_R}% lat_p50=${AB_LAT_P50} lat_p95=${AB_LAT_P95}"
+    elif [ -n "$AB_M" ]; then
+        echo "[round ${round} sink=${sink}] guest=${AB_G} arrived=${AB_A} presented=${AB_P} dropped=${AB_D} mirage=${AB_M} baseline=（無資料，見上方對照組訊息），本輪僅計入 Mirage 側，不計入 ratio lat_p50=${AB_LAT_P50} lat_p95=${AB_LAT_P95}"
+    else
+        echo "[round ${round} sink=${sink}] guest=${AB_G:-（未量到）} arrived=${AB_A:-（無資料）} presented=${AB_P:-（無資料）} dropped=${AB_D:-（無資料）} mirage=（無資料） baseline=（無資料） ratio=（無資料） lat_p50=${AB_LAT_P50:-（無資料）} lat_p95=${AB_LAT_P95:-（無資料）}"
+    fi
+    if [ -n "$AB_M" ]; then
+        echo "[round ${round} sink=${sink} draw] gap20=${AB_GAP20} maxgap=${AB_MAXGAP}ms in_p95=${AB_IN_P95}ms nodrawable=${AB_NODRAWABLE} noframe=${AB_NOFRAME}"
+    fi
+}
+
+run_ab_sink() {
+    local round="$1" sink="$2"
+    local log="" bundle="" round_converged=0 latest_attach=""
+    local round_attempt sink_line before lat_before
+    local m a d p gap20 maxgap in_p95 nodrawable noframe
+    local g="" gf gd gw b="" be="" base_out base_rc r
+
+    AB_VALID=0
+    AB_G=""
+    AB_M=""
+    AB_A=""
+    AB_D=""
+    AB_P=""
+    AB_GAP20=""
+    AB_MAXGAP=""
+    AB_IN_P95=""
+    AB_NODRAWABLE=""
+    AB_NOFRAME=""
+    AB_B=""
+    AB_R=""
+    AB_LAT_P50=""
+    AB_LAT_P95=""
+
+    for round_attempt in $(seq 1 "$ROUND_RETRY_MAX"); do
+        defaults delete com.mirage.app "NSWindow Frame mirage-mirror" > /dev/null 2>&1 || true
+
+        log=$(mktemp -t d64_mirage)
+        bundle=$(mktemp -d -t d64_bundle)
+        if [ "$sink" = "queue2" ]; then
+            if ! gui_session_start "$log" "$bundle" "" \
+                    "MIRAGE_PORT=$GRPC_PORT" "MIRAGE_FPS_LOG=1" "MIRAGE_CONN_LOG=1" \
+                    "MIRAGE_FRAME_QUEUE=2" "MIRAGE_LATENCY_LOG=1"; then
+                gui_session_cleanup "$bundle"; rm -f "$log"; exit 1
+            fi
+        else
+            if ! gui_session_start "$log" "$bundle" "" \
+                    "MIRAGE_PORT=$GRPC_PORT" "MIRAGE_FPS_LOG=1" "MIRAGE_CONN_LOG=1" \
+                    "MIRAGE_LATENCY_LOG=1"; then
+                gui_session_cleanup "$bundle"; rm -f "$log"; exit 1
+            fi
+        fi
+
+        if gui_session_fullscreen "$log" "$bundle" "${FULLSCREEN_MIN_WIDTH:-896}"; then
+            round_converged=1
+            break
+        fi
+
+        if [ "$WINDOW_FOUND" -eq 1 ]; then
+            echo "   [sink=${sink}] 第 ${round_attempt}/${ROUND_RETRY_MAX} 次啟動未收斂到解析度上限" \
+                 "（最後一次請求 $(printf '%s' "$LATEST_ATTACH" | sed 's/.*請求 //')），關掉重開"
+        fi
+    done
+
+    if [ "$round_converged" -eq 0 ]; then
+        echo "   [sink=${sink}] 重試 ${ROUND_RETRY_MAX} 次仍未收斂到解析度上限，放棄本次量測"
+        ab_print_result "$round" "$sink"
+        return 0
+    fi
+    echo "✅ [sink=${sink}] 串流尺寸已收斂到解析度上限附近（$(printf '%s' "$LATEST_ATTACH" | sed 's/.*請求 //')，寬度 ≥ ${FULLSCREEN_MIN_WIDTH:-896}）"
+
+    sink_line=$(grep '^\[app\] frame sink=' "$log" | tail -1)
+    if [ -n "$sink_line" ]; then
+        echo "   $sink_line"
+    else
+        echo "   ⚠️ [sink=${sink}] log 找不到 [app] frame sink= 行"
+    fi
+
+    before=$(fps_samples "$log")
+    lat_before=$(grep -c '^\[app\] lat ' "$log" 2>/dev/null || true)
+    guest_window_start "$SERIAL"
+    sleep "$DURATION"
+    g_raw=$(guest_window_end "$SERIAL" "$PACKAGE") || g_raw=""
+    m=$(fps_median "$log")
+    a=$(frames_median "$log" arrived "$before")
+    d=$(frames_median "$log" dropped "$before")
+    p=$(frames_median "$log" presented "$before")
+    gap20=$(tagged_median "$log" draw gap20 "$before")
+    maxgap=$(tagged_median "$log" draw maxgap "$before")
+    in_p95=$(tagged_median "$log" draw in_p95 "$before")
+    nodrawable=$(tagged_median "$log" draw nodrawable "$before")
+    noframe=$(tagged_median "$log" draw noframe "$before")
+    AB_LAT_P50=$(latency_median "$log" p50 "$lat_before")
+    AB_LAT_P95=$(latency_median "$log" p95 "$lat_before")
+
+    if [ -n "$g_raw" ]; then
+        g=$(printf '%s' "$g_raw" | cut -d' ' -f1)
+        gf=$(printf '%s' "$g_raw" | cut -d' ' -f2)
+        gd=$(printf '%s' "$g_raw" | cut -d' ' -f3)
+        gw=$(printf '%s' "$g_raw" | cut -d' ' -f4)
+        echo "   [sink=${sink}] guest 側：${g} fps（${gf} 幀 ÷ $(awk -v w="$gw" 'BEGIN { printf "%.2f", w / 1000 }')s，droppedFrames=${gd}）"
+    else
+        echo "   [sink=${sink}] guest 側：量不到"
+    fi
+
+    AB_G="$g"
+    AB_M="$m"
+    AB_A="$a"
+    AB_D="$d"
+    AB_P="$p"
+    AB_GAP20="$gap20"
+    AB_MAXGAP="$maxgap"
+    AB_IN_P95="$in_p95"
+    AB_NODRAWABLE="$nodrawable"
+    AB_NOFRAME="$noframe"
+
+    gui_session_cleanup "$bundle"
+    sleep 3
+
+    if [ -z "$g" ] || ! awk -v g="$g" -v t="$GUEST_MIN" 'BEGIN { exit !(g >= t) }'; then
+        AB_GUEST_REJECTED=$((AB_GUEST_REJECTED + 1))
+        [ -n "$g" ] && AB_GUEST_VALS="${AB_GUEST_VALS}${g}\n"
+        rm -f "$log"
+        ab_print_result "$round" "$sink"
+        return 0
+    fi
+    AB_GUEST_VALS="${AB_GUEST_VALS}${g}\n"
+
+    base_out=$("$VENV" "$BASELINE" --endpoint "localhost:${GRPC_PORT}" \
+        --seconds "$DURATION" --width 900 --height 2000 2>/tmp/d64-baseline-err.log)
+    base_rc=$?
+    case "$base_rc" in
+        0) b=$(printf '%s' "$base_out" | sed 's/.*fps=\([0-9.]*\).*/\1/')
+           be=$(printf '%s' "$base_out" | sed 's/.*elapsed=\([0-9.]*\).*/\1/')
+           if awk -v e="$be" -v d="$DURATION" 'BEGIN { exit !(e > d * 1.1) }'; then
+               echo "   [sink=${sink}] 對照組 elapsed=${be}s 明顯超過 ${DURATION}s，本輪不計入 ratio"
+               b=""
+           else
+               echo "   [sink=${sink}] 對照組：${b} fps（elapsed=${be}s）"
+           fi ;;
+        2) b=""
+           echo "   [sink=${sink}] 對照組：畫面靜止、整個窗口沒有出幀" ;;
+        *) b=""
+           echo "   [sink=${sink}] 對照組：失敗（退出碼 ${base_rc}）"
+           sed 's/^/     /' /tmp/d64-baseline-err.log ;;
+    esac
+
+    AB_VALID=1
+    AB_B="$b"
+    if [ -n "$m" ] && [ -n "$b" ]; then
+        r=$(awk -v m="$m" -v b="$b" 'BEGIN { printf "%d", (b > 0) ? m * 100 / b : 0 }')
+        AB_R="$r"
+    fi
+
+    if [ -n "$m" ]; then
+        if [ "$sink" = "queue2" ]; then
+            AB_QUEUE_VALS="${AB_QUEUE_VALS}${m}\n"
+            AB_QUEUE_DROPPED="${AB_QUEUE_DROPPED}${d}\n"
+            AB_QUEUE_LAT_P95="${AB_QUEUE_LAT_P95}${AB_LAT_P95}\n"
+        else
+            AB_LATEST_VALS="${AB_LATEST_VALS}${m}\n"
+            AB_LATEST_DROPPED="${AB_LATEST_DROPPED}${d}\n"
+            AB_LATEST_LAT_P95="${AB_LATEST_LAT_P95}${AB_LAT_P95}\n"
+        fi
+    fi
+
+    rm -f "$log"
+    ab_print_result "$round" "$sink"
+}
+
+run_ab_mode() {
+    local round first_sink second_sink
+    local latest_median queue_median latest_dropped queue_dropped
+    local latest_lat_p95 queue_lat_p95 queue_rounds
+
+    for round in $(seq 1 "$ROUNDS"); do
+        echo ""
+        echo "=== 第 ${round}/${ROUNDS} 輪 A/B ==="
+
+        LOAD_CLEAR=0
+        for load_attempt in $(seq 1 "$LOAD_RETRY_MAX"); do
+            if load_gate "$LOAD_LIMIT"; then
+                LOAD_CLEAR=1
+                break
+            fi
+            echo "   load_gate 攔下（第 ${load_attempt}/${LOAD_RETRY_MAX} 次），等 ${LOAD_RETRY_WAIT} 秒後重試本輪"
+            sleep "$LOAD_RETRY_WAIT"
+        done
+        if [ "$LOAD_CLEAR" -eq 0 ]; then
+            echo "   重試 ${LOAD_RETRY_MAX} 次仍被 load_gate 擋下，放棄本輪（如實記錄，不湊數）"
+            continue
+        fi
+
+        if [ $((round % 2)) -eq 1 ]; then
+            first_sink="latest"
+            second_sink="queue2"
+        else
+            first_sink="queue2"
+            second_sink="latest"
+        fi
+        run_ab_sink "$round" "$first_sink"
+        run_ab_sink "$round" "$second_sink"
+    done
+
+    latest_median=$(ab_median_of "$AB_LATEST_VALS")
+    queue_median=$(ab_median_of "$AB_QUEUE_VALS")
+    latest_dropped=$(ab_median_of "$AB_LATEST_DROPPED")
+    queue_dropped=$(ab_median_of "$AB_QUEUE_DROPPED")
+    latest_lat_p95=$(ab_median_one_decimal_of "$AB_LATEST_LAT_P95")
+    queue_lat_p95=$(ab_median_one_decimal_of "$AB_QUEUE_LAT_P95")
+    queue_rounds=$(ab_count_of "$AB_QUEUE_VALS")
+
+    echo ""
+    echo "===== A/B 解析結果 ====="
+    echo "SINK_LATEST_VALUES=$(printf '%b' "$AB_LATEST_VALS" | grep -v '^$' | sort -n | tr '\n' ' ' | sed 's/ $//')"
+    echo "SINK_QUEUE_VALUES=$(printf '%b' "$AB_QUEUE_VALS" | grep -v '^$' | sort -n | tr '\n' ' ' | sed 's/ $//')"
+    echo "SINK_LATEST_MEDIAN=${latest_median:-無資料}"
+    echo "SINK_QUEUE_MEDIAN=${queue_median:-無資料}"
+    echo "DROPPED_LATEST=${latest_dropped:-無資料}"
+    echo "DROPPED_QUEUE=${queue_dropped:-無資料}"
+    echo "LAT_P95_LATEST=${latest_lat_p95:-無資料}"
+    echo "LAT_P95_QUEUE=${queue_lat_p95:-無資料}"
+    echo "GUEST_VALUES=$(printf '%b' "$AB_GUEST_VALS" | grep -v '^$' | sort -n | tr '\n' ' ' | sed 's/ $//')"
+    echo "GUEST_REJECTED=${AB_GUEST_REJECTED}"
+    echo "SIZE_OK=${SIZE_OK}"
+
+    echo ""
+    echo "===== A/B 判定 ====="
+    assert_equals "前置：串流尺寸收斂到上限" "$SIZE_OK" 1
+    assert_at_least "前置：queue2 有效輪數" "$queue_rounds" 2
+
+    if [ -n "$queue_median" ] \
+            && [ "$(printf '%b' "$AB_QUEUE_VALS" | grep -v '^$' | sort -n | head -1)" -lt 55 ] \
+            && [ "$(printf '%b' "$AB_QUEUE_VALS" | grep -v '^$' | sort -n | tail -1)" -ge 55 ]; then
+        echo "⚠️ queue2 量測值域跨越門檻 55：這次量測判定不穩定。"
+    fi
+    assert_at_least "驗收線 7：sink=queue2 的 MIRAGE_FPS_LOG 中位數 ≥ 55" "${queue_median:-0}" 55
+}
+
+if [ "$AB_MODE" -eq 1 ]; then
+    run_ab_mode
+    exit 0
+fi
+
 for round in $(seq 1 "$ROUNDS"); do
     echo ""
     echo "=== 第 ${round}/${ROUNDS} 輪 ==="
@@ -299,9 +587,17 @@ for round in $(seq 1 "$ROUNDS"); do
 
         LOG=$(mktemp -t d45_mirage)
         BUNDLE=$(mktemp -d -t d45_bundle)
-        if ! gui_session_start "$LOG" "$BUNDLE" "" \
-                "MIRAGE_PORT=$GRPC_PORT" "MIRAGE_FPS_LOG=1" "MIRAGE_CONN_LOG=1"; then
-            gui_session_cleanup "$BUNDLE"; rm -f "$LOG"; exit 1
+        if [ -n "$QUEUE_DEPTH" ]; then
+            if ! gui_session_start "$LOG" "$BUNDLE" "" \
+                    "MIRAGE_PORT=$GRPC_PORT" "MIRAGE_FPS_LOG=1" "MIRAGE_CONN_LOG=1" \
+                    "MIRAGE_FRAME_QUEUE=$QUEUE_DEPTH" "MIRAGE_LATENCY_LOG=1"; then
+                gui_session_cleanup "$BUNDLE"; rm -f "$LOG"; exit 1
+            fi
+        else
+            if ! gui_session_start "$LOG" "$BUNDLE" "" \
+                    "MIRAGE_PORT=$GRPC_PORT" "MIRAGE_FPS_LOG=1" "MIRAGE_CONN_LOG=1"; then
+                gui_session_cleanup "$BUNDLE"; rm -f "$LOG"; exit 1
+            fi
         fi
 
         if gui_session_fullscreen "$LOG" "$BUNDLE" "${FULLSCREEN_MIN_WIDTH:-896}"; then
@@ -321,6 +617,14 @@ for round in $(seq 1 "$ROUNDS"); do
         continue
     fi
     echo "✅ 串流尺寸已收斂到解析度上限附近（$(printf '%s' "$LATEST_ATTACH" | sed 's/.*請求 //')，寬度 ≥ ${FULLSCREEN_MIN_WIDTH:-896}）"
+    if [ -n "$QUEUE_DEPTH" ]; then
+        SINK_LINE=$(grep '^\[app\] frame sink=' "$LOG" | tail -1)
+        if [ -n "$SINK_LINE" ]; then
+            echo "   $SINK_LINE"
+        else
+            echo "   ⚠️ log 找不到 [app] frame sink= 行"
+        fi
+    fi
 
     # **guest 的量測窗口必須與這裡的擷取窗口是同一段**（D56／D48 限制）。前一版把
     # timestats 開在整個跑次外層，量到的 241 秒窗口涵蓋三輪＋輪次間隔＋App 啟動＋
