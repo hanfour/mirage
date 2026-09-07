@@ -111,3 +111,31 @@ EXIT=1
 沒有啟動 emulator、沒有執行 adb、沒有執行 `swift build`／`swift test`，所以尚無 `none`／`pull`／`app` 的 guest fps、主機 CPU、中位數與 `DELTA_NONE_PULL`／`DELTA_PULL_APP`／`DELTA_NONE_APP`。PM 需補上活體數字，以及抽函式前後一次完整 `verify_fps_fullscreen.sh` 的逐輪輸出。
 
 本輪三個修正均已建立獨立 Git commit；工作樹中原有的 `phase0/harness/.venv-d45` 未追蹤目錄未被納入。
+
+## PM 把關與活體驗證（2026-09-07）
+
+### 把關
+
+- ci.sh 兩輪都十六個 ✅（六支自我測試），`/bin/bash` 3.2 下 `bash -n`、`backpressure_selftest.sh`、`gui_session_selftest.sh`、`-p 45999` 退出碼 1 全部通過。
+- `verify_fps_fullscreen.sh` 抽出 `gui_session_fullscreen` 後在 emulator 上跑兩輪，`✅ 串流尺寸已收斂…`、`[round N]`、`[round N draw]` 三種行與抽前一字不差。
+- 第一輪活體在 `app` 條件一次失敗就整個跑次作廢，加上第一個條件撞到 `build_warm` 的餘熱（`none` 量到 50.85，同機手動量兩次 59.68／59.61），退回三點：`app` 條件關掉重開最多 3 次、前置後冷卻 20 秒再過一次 `load_gate`、條件間留 5 秒。獨立審查另外抓到 `pull` 的 client 靠 `--seconds` 自己下車可能在 `SNAP_B` 前結束讓 `host_cpu_client` 安靜印 0.0，改成 `SNAP_B` 後才 kill 並用 `kill -0` 驗存活。
+- 第二次活體 `app` 條件九次啟動全部「視窗 15 秒內未在 AX 出現」，根因是螢幕在跑次中途自動鎖定（D65 第二次）。PM 補了 `gui_session_start` 的前置檢查：鎖定就紅並明講，附純函式 `gui_screen_lock_state` 與四條自我測試。
+
+### 活體 run2：`none` 與 `pull` 三輪全部有效（負載 5.88，冷卻後 load_gate 通過）
+
+| 輪 | 條件 | guest | frames | host_cpu_qemu | host_cpu_client | host_cpu_foreign |
+|---|---|---|---|---|---|---|
+| 1 | none | 59.90 | 1206 | 126.0 | 0 | 44.3 |
+| 1 | pull | 59.92 | 1208 | 186.7 | 36.2 | 15.4 |
+| 2 | pull | 59.96 | 1210 | 239.1 | 40.5 | 20.3 |
+| 2 | none | 59.78 | 1208 | 147.2 | 0 | 46.6 |
+| 3 | none | 59.92 | 1206 | 131.8 | 0 | 13.0 |
+| 3 | pull | 59.87 | 1212 | 263.7 | 45.0 | 13.3 |
+
+中位數：`none` 59.9（qemu 131.8%）、`pull` 59.9（qemu 239.1%）。`DELTA_NONE_PULL=0.0`。
+
+### 判定（部分）
+
+1. **emulator 端編碼與送出對 guest 零回壓。** 有 client 拉 898×1996 raw RGBA 時 qemu 的 CPU 從約 132% 升到約 239%（多了約 107 個百分點做編碼與 gRPC 送出），guest 出幀率完全不動（59.9 對 59.9）。qemu 有足夠的核心，編碼工作沒有搶到 guest 的 vCPU。
+2. `pull` 條件 `mirage-pull` 自己約 36 到 45% CPU（解碼 7.2 MB 幀約 60 次每秒）。
+3. **`app` 條件（Mirage 全螢幕渲染對 guest 的回壓）尚未量到**，D65 擋掉了。由 `DELTA_PULL_APP` 補。
