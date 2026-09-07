@@ -267,7 +267,7 @@ run_condition() {
     local guest_raw="" guest_fps="" frames="" guest_label="NA" frames_label="NA"
     local cpu_report foreign_report qemu_cpu client_cpu foreign_cpu
     local client_pattern measured_processes invalid_reason mirage_fps=""
-    local client_seconds app_converged app_attempt
+    local client_seconds app_converged app_attempt client_alive=1
 
     cleanup_active
     guest_window_start "${SERIAL}"
@@ -281,7 +281,7 @@ run_condition() {
         pull)
             measured_processes="qemu-system|mirage-pull|WindowServer"
             client_pattern="mirage-pull"
-            client_seconds=$((DURATION + 3))
+            client_seconds=$((DURATION + 30))
             ACTIVE_CLIENT_LOG="$(mktemp -t backpressure_pull)"
             "${SWIFT_BINARY}" --endpoint "localhost:${GRPC_PORT}" \
                 --seconds "${client_seconds}" --width 898 --height 1996 \
@@ -329,12 +329,28 @@ run_condition() {
     SNAP_A=$(cpu_snapshot)
     sleep "${DURATION}"
     SNAP_B=$(cpu_snapshot)
+    case "${condition}" in
+        pull)
+            if ! kill -0 "${ACTIVE_CLIENT_PID}" 2>/dev/null; then
+                client_alive=0
+            fi
+            ;;
+        app)
+            if ! pgrep -x "MirageApp" > /dev/null 2>&1; then
+                client_alive=0
+            fi
+            ;;
+    esac
     guest_raw=$(guest_window_end "${SERIAL}" "${PACKAGE}") || guest_raw=""
 
     cpu_report=$(cpu_delta_report "${SNAP_A}" "${SNAP_B}" "${DURATION}" "")
     qemu_cpu=$(backpressure_cpu_total "${cpu_report}" 'qemu-system')
     if [ "${condition}" != "none" ]; then
-        client_cpu=$(backpressure_cpu_total "${cpu_report}" "${client_pattern}")
+        if [ "${client_alive}" -eq 1 ]; then
+            client_cpu=$(backpressure_cpu_total "${cpu_report}" "${client_pattern}")
+        else
+            client_cpu="NA"
+        fi
     fi
     foreign_report=$(cpu_delta_report "${SNAP_A}" "${SNAP_B}" "${DURATION}" \
         "${measured_processes}")
@@ -351,8 +367,12 @@ run_condition() {
     fi
     cleanup_active
 
-    invalid_reason=$(backpressure_invalid_reason "${guest_fps}" "${foreign_cpu}" \
-        "${FOREIGN_MAX}")
+    if [ "${client_alive}" -eq 0 ]; then
+        invalid_reason="client"
+    else
+        invalid_reason=$(backpressure_invalid_reason "${guest_fps}" "${foreign_cpu}" \
+            "${FOREIGN_MAX}")
+    fi
     if [ "${condition}" = "app" ]; then
         echo "[round ${round} cond=${condition}] guest=${guest_label} frames=${frames_label} host_cpu_qemu=${qemu_cpu} host_cpu_client=${client_cpu} host_cpu_foreign=${foreign_cpu} mirage_fps=${mirage_fps}"
     else
@@ -365,6 +385,13 @@ run_condition() {
             ;;
         foreign)
             echo "   ❌ 樣本無效：foreign=${foreign_cpu}% 超過 FOREIGN_MAX=${FOREIGN_MAX}%，不計入中位數。"
+            ;;
+        client)
+            if [ "${condition}" = "pull" ]; then
+                echo "   ❌ 樣本無效：pull client 在量測窗口內提前結束，不計入中位數。"
+            else
+                echo "   ❌ 樣本無效：MirageApp 在量測窗口內提前結束，不計入中位數。"
+            fi
             ;;
         *)
             append_condition_sample "${condition}" "${guest_fps}" "${qemu_cpu}" \

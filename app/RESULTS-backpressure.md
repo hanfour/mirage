@@ -2,7 +2,7 @@
 
 - 日期：2026-09-07
 - 規格：`docs/specs/2026-09-07-mirage-cpu-backpressure-design.md`
-- 狀態：shell 實作完成，活體數字由 PM 補寫
+- 狀態：第二輪 shell 修正完成，活體數字由 PM 補寫
 
 ## 改動
 
@@ -12,15 +12,20 @@
 - `gui_session.sh` 新增 `gui_session_fullscreen <log> <bundle> <min_width>`。
 - `verify_fps_fullscreen.sh` 改呼叫共用函式，保留原本的重試控制與判定。
 - `ci.sh` 閘門 7 新增 `backpressure_selftest.sh`。
+- 8.1：`app` 啟動與全螢幕收斂失敗時，依 `ROUND_RETRY_MAX`（預設 3）關掉重開；三次都失敗只淘汰當下樣本，不中止跑次。無效逐輪行仍印出 `mirage_fps=0`。
+- 8.2：前置完成後加入 `COOLDOWN_SECONDS`（預設 20）冷卻，再過一次 `load_gate`；條件之間加入 `CONDITION_GAP`（預設 5），包含輪次邊界。
+- 8.4：`pull` 的 `--seconds` 改為 `DURATION+30`。`SNAP_B` 後立即檢查 `mirage-pull`／`MirageApp` 是否仍存活；提前結束的樣本印明確理由、`host_cpu_client=NA`，不計入中位數。
 
-`pull` 固定請求 898x1996；`app` 使用同一個 AXFullScreen 與 `attachStream` 寬度收斂流程。有效性只把 guest 找不到 layer 或 `foreign > FOREIGN_MAX` 的樣本排除；`app` 行另印 `mirage_fps` 中位數。
+`pull` 固定請求 898x1996；`app` 使用同一個 AXFullScreen 與 `attachStream` 寬度收斂流程。有效性會排除 guest 找不到 layer、`foreign > FOREIGN_MAX` 或 client 提前結束的樣本；正常 `app` 逐輪行另印 `mirage_fps` 中位數。
+
+本輪依工作方式將 8.1、8.2、8.4 分成三個獨立提交，結果文件隨 8.4 提交一併更新。
 
 ## 全螢幕抽取證明
 
 抽取前後以兩種靜態檢查對照：
 
 ```text
-$ git diff --unified=0 HEAD -- app/scripts/verify_fps_fullscreen.sh \
+$ git diff --unified=0 6bf17f7^..HEAD -- app/scripts/verify_fps_fullscreen.sh \
     | rg '\[round [^]]+\]|\[round [^]]+ draw\]' \
     || echo 'no [round N] or [round N draw] lines changed'
 no [round N] or [round N draw] lines changed
@@ -75,14 +80,12 @@ no [round N] or [round N draw] lines changed
 故障注入把 `rotate_conditions` 的模數從條件數改成 2，self-test 紅燈：
 
 ```text
-❌ 三條件第 1 輪：得到 none,pull,none，期待 none,pull,app
-❌ 三條件第 2 輪：得到 pull,none,pull，期待 pull,app,none
-❌ 三條件第 3 輪：得到 none,pull,none，期待 app,none,pull
-3 項失敗
+❌ 三條件第 3 輪：得到 none,pull,app，期待 app,none,pull
+1 項失敗
 FAULT_INJECTION_EXIT=1
 ```
 
-既有的 `gui_session`、`load_sentinel`、`guest_fps`、`verify_common`、`audio_stats` 五支 self-test 也以 `/bin/bash` 全部通過。依規格，`gui_session_fullscreen` 本身需要 GUI，沒有被 `gui_session_selftest.sh` 覆蓋。
+`gui_session`、`load_sentinel`、`guest_fps`、`verify_common`、`audio_stats` 與 `backpressure` 六支 self-test 這次均以 `/bin/bash` 通過並輸出 `全部通過`。依規格，`gui_session_fullscreen` 本身需要 GUI，沒有被 `gui_session_selftest.sh` 覆蓋。
 
 ## Dead-port 驗證
 
@@ -90,7 +93,7 @@ FAULT_INJECTION_EXIT=1
 $ app/scripts/verify_guest_backpressure.sh -p 45999
 EXIT=1
 === 前置：gRPC ===
-❌ gRPC 45999 無回應——模擬器未啟動。
+❌ gRPC 45999 無回應，模擬器未啟動。
 ```
 
 此結果證明腳本在 `require_grpc` 就停止，未進入 `require_device`、Swift 建置或量測流程。
@@ -107,4 +110,4 @@ EXIT=1
 
 沒有啟動 emulator、沒有執行 adb、沒有執行 `swift build`／`swift test`，所以尚無 `none`／`pull`／`app` 的 guest fps、主機 CPU、中位數與 `DELTA_NONE_PULL`／`DELTA_PULL_APP`／`DELTA_NONE_APP`。PM 需補上活體數字，以及抽函式前後一次完整 `verify_fps_fullscreen.sh` 的逐輪輸出。
 
-本環境也無法建立規格要求的分段 Git commit：嘗試提交時上層 worktree Git index 拒絕建立 `index.lock`（`Operation not permitted`）。
+本輪三個修正均已建立獨立 Git commit；工作樹中原有的 `phase0/harness/.venv-d45` 未追蹤目錄未被納入。
