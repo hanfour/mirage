@@ -24,6 +24,7 @@ PACKAGE="${MIRAGE_GAME_PACKAGE:-com.loomgames.pixelflow}"
 LOAD_LIMIT="${LOAD_LIMIT:-18}"
 MIN_VALID="${MIN_VALID:-2}"
 FOREIGN_MAX="${FOREIGN_MAX:-60}"
+ROUND_RETRY_MAX="${ROUND_RETRY_MAX:-3}"
 PREFLIGHT_SECONDS="${PREFLIGHT_SECONDS:-8}"
 PREFLIGHT_GUEST_MIN="${PREFLIGHT_GUEST_MIN:-20}"
 
@@ -72,6 +73,7 @@ validate_positive_int "port" "${GRPC_PORT}" || exit 2
 validate_positive_int "rounds" "${ROUNDS}" || exit 2
 validate_positive_int "seconds" "${DURATION}" || exit 2
 validate_positive_int "MIN_VALID" "${MIN_VALID}" || exit 2
+validate_positive_int "ROUND_RETRY_MAX" "${ROUND_RETRY_MAX}" || exit 2
 validate_number "LOAD_LIMIT" "${LOAD_LIMIT}" || exit 2
 validate_number "FOREIGN_MAX" "${FOREIGN_MAX}" || exit 2
 if [ "${GRPC_PORT}" -gt 65535 ]; then
@@ -240,7 +242,7 @@ run_condition() {
     local guest_raw="" guest_fps="" frames="" guest_label="NA" frames_label="NA"
     local cpu_report foreign_report qemu_cpu client_cpu foreign_cpu
     local client_pattern measured_processes invalid_reason mirage_fps=""
-    local client_seconds
+    local client_seconds app_converged app_attempt
 
     cleanup_active
     guest_window_start "${SERIAL}"
@@ -271,19 +273,28 @@ run_condition() {
         app)
             measured_processes="qemu-system|MirageApp|WindowServer"
             client_pattern="MirageApp"
-            ACTIVE_LOG="$(mktemp -t backpressure_mirage)"
-            ACTIVE_BUNDLE="$(mktemp -d -t backpressure_bundle)"
-            if ! gui_session_start "${ACTIVE_LOG}" "${ACTIVE_BUNDLE}" "" \
-                    "MIRAGE_PORT=${GRPC_PORT}" "MIRAGE_FPS_LOG=1" "MIRAGE_CONN_LOG=1"; then
-                echo "❌ MirageApp 啟動失敗。"
+            app_converged=0
+            for ((app_attempt = 1; app_attempt <= ROUND_RETRY_MAX; app_attempt++)); do
+                ACTIVE_LOG="$(mktemp -t backpressure_mirage)"
+                ACTIVE_BUNDLE="$(mktemp -d -t backpressure_bundle)"
+                if ! gui_session_start "${ACTIVE_LOG}" "${ACTIVE_BUNDLE}" "" \
+                        "MIRAGE_PORT=${GRPC_PORT}" "MIRAGE_FPS_LOG=1" "MIRAGE_CONN_LOG=1"; then
+                    echo "   本輪第 ${app_attempt}/${ROUND_RETRY_MAX} 次啟動未收斂，關掉重開"
+                    cleanup_active
+                    continue
+                fi
+                if gui_session_fullscreen "${ACTIVE_LOG}" "${ACTIVE_BUNDLE}" \
+                        "${FULLSCREEN_MIN_WIDTH:-896}"; then
+                    app_converged=1
+                    break
+                fi
+                echo "   本輪第 ${app_attempt}/${ROUND_RETRY_MAX} 次啟動未收斂，關掉重開"
                 cleanup_active
-                return 1
-            fi
-            if ! gui_session_fullscreen "${ACTIVE_LOG}" "${ACTIVE_BUNDLE}" \
-                    "${FULLSCREEN_MIN_WIDTH:-896}"; then
-                echo "❌ MirageApp 全螢幕串流尺寸未收斂。"
-                cleanup_active
-                return 1
+            done
+            if [ "${app_converged}" -eq 0 ]; then
+                echo "[round ${round} cond=${condition}] guest=NA frames=NA host_cpu_qemu=NA host_cpu_client=NA host_cpu_foreign=NA mirage_fps=0"
+                echo "   ❌ 樣本無效：app 重試 ${ROUND_RETRY_MAX} 次仍未收斂，不計入中位數。"
+                return 0
             fi
             ;;
     esac
