@@ -25,6 +25,8 @@ LOAD_LIMIT="${LOAD_LIMIT:-18}"
 MIN_VALID="${MIN_VALID:-2}"
 FOREIGN_MAX="${FOREIGN_MAX:-60}"
 ROUND_RETRY_MAX="${ROUND_RETRY_MAX:-3}"
+COOLDOWN_SECONDS="${COOLDOWN_SECONDS:-20}"
+CONDITION_GAP="${CONDITION_GAP:-5}"
 PREFLIGHT_SECONDS="${PREFLIGHT_SECONDS:-8}"
 PREFLIGHT_GUEST_MIN="${PREFLIGHT_GUEST_MIN:-20}"
 
@@ -59,6 +61,17 @@ validate_positive_int() {
     return 0
 }
 
+validate_nonnegative_int() {
+    local label="$1" value="$2"
+    case "${value}" in
+        ''|*[!0-9]*)
+            echo "❌ ${label} 必須是非負整數：${value}" >&2
+            return 1
+            ;;
+    esac
+    return 0
+}
+
 validate_number() {
     local label="$1" value="$2"
     if ! awk -v value="${value}" \
@@ -74,6 +87,8 @@ validate_positive_int "rounds" "${ROUNDS}" || exit 2
 validate_positive_int "seconds" "${DURATION}" || exit 2
 validate_positive_int "MIN_VALID" "${MIN_VALID}" || exit 2
 validate_positive_int "ROUND_RETRY_MAX" "${ROUND_RETRY_MAX}" || exit 2
+validate_nonnegative_int "COOLDOWN_SECONDS" "${COOLDOWN_SECONDS}" || exit 2
+validate_nonnegative_int "CONDITION_GAP" "${CONDITION_GAP}" || exit 2
 validate_number "LOAD_LIMIT" "${LOAD_LIMIT}" || exit 2
 validate_number "FOREIGN_MAX" "${FOREIGN_MAX}" || exit 2
 if [ "${GRPC_PORT}" -gt 65535 ]; then
@@ -153,6 +168,16 @@ if [ ! -x "${SWIFT_BINARY}" ]; then
     exit 1
 fi
 export MIRAGE_SKIP_BUILD=1
+
+# 前置工作完成後先讓建置餘熱退掉，再確認主機負載已回到量測門檻內。
+echo ""
+echo "=== 前置：冷卻（${COOLDOWN_SECONDS} 秒）==="
+sleep "${COOLDOWN_SECONDS}"
+if ! load_gate "${LOAD_LIMIT}"; then
+    echo "❌ 冷卻後 load_gate 未通過，中止量測。"
+    exit 1
+fi
+echo "✅ 冷卻後 load_gate 通過"
 
 NONE_GUEST_VALS=""
 NONE_QEMU_VALS=""
@@ -362,6 +387,11 @@ for ((round = 1; round <= ROUNDS; round++)); do
     if [ "${ROUND_COUNT}" -gt 0 ]; then
         for ((condition_index = 0; condition_index < ROUND_COUNT; condition_index++)); do
             run_condition "${round}" "${ROUND_CONDITIONS[condition_index]}" || exit 1
+            if [ "${condition_index}" -lt "$((ROUND_COUNT - 1))" ] || \
+                    [ "${round}" -lt "${ROUNDS}" ]; then
+                echo "   條件間隔 ${CONDITION_GAP} 秒，等待上一個 client 拆除完成"
+                sleep "${CONDITION_GAP}"
+            fi
         done
     fi
 done
