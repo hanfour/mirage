@@ -349,6 +349,8 @@ run_ab_sink() {
     done
 
     if [ "$round_converged" -eq 0 ]; then
+        # 與非 A/B 迴圈一致：踩到收斂失敗就讓前置斷言紅，不能因為其他輪次湊到樣本而被吃掉。
+        SIZE_OK=0
         echo "   [sink=${sink}] 重試 ${ROUND_RETRY_MAX} 次仍未收斂到解析度上限，放棄本次量測"
         ab_print_result "$round" "$sink"
         return 0
