@@ -81,7 +81,7 @@ final class MirrorMTKView: MTKView {
 
 struct MirrorView: NSViewRepresentable {
     let client: EmulatorClient
-    let box: LatestFrameBox
+    let box: any FrameSink
     // P1-c：nil＝無 profile（P1-a 直接 tap 行為，見 Coordinator.sendMouse）。由 AppModel
     // 非同步載入後才會有值，透過 updateNSView 逐次同步進 Coordinator（makeNSView 只跑一次）。
     var controller: KeymapController?

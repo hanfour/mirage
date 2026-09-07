@@ -17,7 +17,7 @@ import MirageCore
 final class Renderer: NSObject, MTKViewDelegate {
     private let device: MTLDevice
     private let blitter: MirrorBlitter
-    private let box: LatestFrameBox
+    private let box: any FrameSink
     private var texture: MTLTexture?
     // AUTHORIZED FIX（Task 6 review CRITICAL：滑鼠映射採實際幀尺寸——proto 縮放合約 can-be-less）
     private(set) var lastFrameSize: (w: Int, h: Int)?
@@ -33,7 +33,7 @@ final class Renderer: NSObject, MTKViewDelegate {
     private var latency = LatencyWindow()
     private var latencyWindowStart = CFAbsoluteTimeGetCurrent()
 
-    init?(device: MTLDevice, box: LatestFrameBox) {
+    init?(device: MTLDevice, box: any FrameSink) {
         guard let blitter = MirrorBlitter(device: device) else { return nil }
         self.device = device
         self.blitter = blitter
@@ -42,7 +42,7 @@ final class Renderer: NSObject, MTKViewDelegate {
         super.init()
     }
 
-    convenience init?(view: MTKView, box: LatestFrameBox) {
+    convenience init?(view: MTKView, box: any FrameSink) {
         guard let device = MTLCreateSystemDefaultDevice() else { return nil }
         self.init(device: device, box: box)
         view.device = device

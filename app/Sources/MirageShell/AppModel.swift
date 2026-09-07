@@ -11,7 +11,8 @@ final class AppModel {
     /// 解析一次、`EmulatorClient()` 的預設值卻寫死 `localhost:8554`，於是**只有 App 走這條路，
     /// 所有測試都繞過它**。兩份各自解析的複本遲早會漂移，現在只有一份。
     let client = EmulatorClient()
-    let box = LatestFrameBox()
+    let box: any FrameSink = FrameSinkFactory.make(
+        from: ProcessInfo.processInfo.environment)
     var connState: ConnState = .disconnected
 
     /// 所有輸入事件的唯一序列化出口（D6）。
@@ -31,6 +32,9 @@ final class AppModel {
         self.store = store
         self.starterBindings = starterBindings
         inputQueue = InputQueue(injector: client)
+        if ProcessInfo.processInfo.environment["MIRAGE_CONN_LOG"] == "1" {
+            print("[app] frame sink=\(FrameSinkFactory.label(for: box))")
+        }
     }
 
     // Task 6: 選單列、剪貼簿橋接、視窗關閉/喚醒生命週期。
