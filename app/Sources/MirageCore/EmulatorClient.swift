@@ -39,7 +39,7 @@ public actor EmulatorClient {
     private var audioTask: Task<Void, Never>?
     private var audioRing: AudioRingBuffer?
     private let pump = FramePump()
-    private var box: LatestFrameBox?
+    private var box: (any FrameSink)?
     private var streamSize = (w: 540, h: 1200)
     private var running = false
     private var loopTask: Task<Void, Never>?
@@ -124,7 +124,7 @@ public actor EmulatorClient {
     /// **印出來是刻意的**：視窗那一側改用單一實例的 `Window` 之後這個狀態應該不可能
     /// 發生，而一旦發生就代表有人重新引入了多重啟動——靜默忽略會讓那件事再一次
     /// 沒有訊號，而「沒有訊號」正是 D30 能藏這麼久的原因。
-    public func start(box: LatestFrameBox, width: Int, height: Int) async {
+    public func start(box: any FrameSink, width: Int, height: Int) async {
         guard !running else {
             print("[conn] start() 重複呼叫，已忽略（已有連線迴圈在跑）——上游不該走到這裡，見 D30")
             return

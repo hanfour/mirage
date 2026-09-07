@@ -7,7 +7,7 @@ public actor FramePump {
     public init() {}
 
     public func attach(_ stream: AsyncThrowingStream<Frame, Error>,
-                       into box: LatestFrameBox,
+                       into box: any FrameSink,
                        onEnd: @escaping @Sendable (Error?) -> Void) {
         task?.cancel()
         task = Task {
