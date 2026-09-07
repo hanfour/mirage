@@ -89,6 +89,16 @@ check "混入 frames 行不污染 fps_median" \
       "$(fps_median "$WORK/mixed.log")" 57
 
 echo ""
+echo "=== gui_screen_lock_state（D65；假資料照 ioreg 的一 key 一行格式）==="
+LOCKED_PLIST=$(printf '%s\n' '<dict>' '<key>IOConsoleUsers</key>' '<array>' '<dict>' '<key>kCGSSessionUserNameKey</key>' '<string>u</string>' '<key>CGSSessionScreenIsLocked</key>' '<true/>' '</dict>' '</array>' '</dict>')
+UNLOCKED_PLIST=$(printf '%s\n' '<dict>' '<key>CGSSessionScreenIsLocked</key>' '<false/>' '</dict>')
+NOKEY_PLIST=$(printf '%s\n' '<dict>' '<key>kCGSSessionOnConsoleKey</key>' '<true/>' '</dict>')
+check "鎖定的 plist 判 locked" "$(gui_screen_lock_state "$LOCKED_PLIST")" locked
+check "未鎖定的 plist 判 unlocked" "$(gui_screen_lock_state "$UNLOCKED_PLIST")" unlocked
+check "沒有該 key 判 unknown（不誤擋）" "$(gui_screen_lock_state "$NOKEY_PLIST")" unknown
+check "空字串判 unknown" "$(gui_screen_lock_state "")" unknown
+
+echo ""
 if [ "$FAILURES" -eq 0 ]; then
     echo "全部通過"
     exit 0

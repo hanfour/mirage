@@ -16,8 +16,32 @@
 # 不發生——而幀其實都正常進來了。2026-07-28 實測這是**不穩定**的（同樣的指令有時量
 # 得到有時完全量不到），所以不是「偏低」而是「不可信」。包成 bundle 之後 activation
 # policy 才是 .regular。
+# 從 `ioreg -n Root -d1 -a` 的 plist 文字判斷 console 使用者的螢幕是否鎖定。
+# 純函式：吃字串、印 locked／unlocked／unknown，讓自我測試釘得住解析。
+# ioreg 的 plist 是一 key 一行、值在下一行，所以用「看到 key 就記住、下一行看值」的狀態機。
+#
+# 為什麼需要它（D65）：螢幕鎖定時 `open -a` 照樣成功、app 照樣連線收幀、`fps=` 照樣印，
+# 只有 SwiftUI 的視窗不會放上畫面，於是 AX 列不出視窗、全螢幕永遠進不去。症狀與 D63
+# 的「視窗 N 秒內未在 AX 出現」一字不差，2026-09-04 與 09-07 各害一次活體整跑次作廢。
+gui_screen_lock_state() {
+    printf '%s' "$1" | awk '
+        /<key>CGSSessionScreenIsLocked<\/key>/ { want = 1; next }
+        want && /<true\/>/  { print "locked";   found = 1; exit }
+        want && /<false\/>/ { print "unlocked"; found = 1; exit }
+        want { want = 0 }
+        END { if (!found) print "unknown" }'
+}
+
 gui_session_start() {
     local log="$1" bundle="$2" app_override="$3"; shift 3
+    # D65：鎖定就直接紅，訊息要說「螢幕鎖定」而不是留給下游印「視窗未出現」。
+    local lock_state
+    lock_state=$(gui_screen_lock_state "$(ioreg -n Root -d1 -a 2>/dev/null)")
+    if [ "$lock_state" = "locked" ]; then
+        echo "❌ 螢幕已鎖定（CGSSessionScreenIsLocked）：鎖定時 app 會啟動並收幀，但視窗不會放上畫面，" >&2
+        echo "   AX 列不出視窗、全螢幕進不去。解鎖後再跑。" >&2
+        return 1
+    fi
     if ! "$(dirname "${BASH_SOURCE[0]}")/../package_app.sh" \
             "$bundle" release "$app_override" > /dev/null; then
         echo "❌ 打包 .app 失敗（見上方訊息）" >&2
