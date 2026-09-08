@@ -1,109 +1,200 @@
-"""端到端 input-to-photon 量測（不含 Mac 上屏，判讀時另加 8–17ms）。
+"""Emulator 端診斷，對偵測門檻敏感，不作為驗收線 2 的結果。
 
-前置：emulator 執行中，且已執行
-  adb shell settings put system show_touches 1
+需要可見的觸控回饋。操作後須關閉 show_touches 或 pointer_location，
+本程式不修改 guest 設定。觸控座標採 guest 像素，偵測區域採實際串流尺寸。
 """
+import argparse
 import collections
+from dataclasses import dataclass
+from pathlib import Path
 import sys
 import threading
 import time
 
-sys.path.insert(0, "gen")
+import numpy as np
 
-import grpc
-import emulator_controller_pb2 as ec
-import emulator_controller_pb2_grpc as ecg
-from lib.detector import changed, region_mean
+sys.path.insert(0, str(Path(__file__).resolve().parent / "gen"))
 from lib.stats import percentile
 
-TARGET = "localhost:8554"
-N_SAMPLES = 50
-TAP_X, TAP_Y = 540, 1200
-RADIUS = 60          # show_touches 圓點半徑內
-THRESHOLD = 8.0      # 亮度偏離基線的判定門檻
-STIR_X, STIR_Y = 150, 300  # 遠離偵測區的攪動點，喚醒 change-driven 串流
-Sample = collections.namedtuple("Sample", ["t", "mean"])
+
+@dataclass
+class Sample:
+    seq: int
+    arrived: float
+    generated: float
+    region: np.ndarray
 
 
-def send_tap(stub, x: int, y: int, down: bool) -> None:
-    touch = ec.Touch(x=x, y=y, identifier=0, pressure=1024 if down else 0)
-    stub.sendTouch(ec.TouchEvent(touches=[touch]), timeout=2)
+def region(image, width, height, x, y, radius):
+    """RGBA 實際由上往下排列，與 proto 註解不同。"""
+    pixels = np.frombuffer(image, dtype=np.uint8).reshape(height, width, 4)
+    x0, x1 = max(0, x-radius), min(width, x+radius)
+    y0, y1 = max(0, y-radius), min(height, y+radius)
+    if x0 >= x1 or y0 >= y1:
+        raise ValueError("detection region outside frame")
+    return pixels[y0:y1, x0:x1, :3].astype(np.int16)
 
 
-def stream_worker(stub, samples: collections.deque, stop: threading.Event) -> None:
-    req = ec.ImageFormat(format=ec.ImageFormat.RGBA8888)
-    for frame in stub.streamScreenshot(req):
-        if stop.is_set():
-            return
-        mean = region_mean(bytes(frame.image),
-                           frame.format.width, frame.format.height,
-                           TAP_X, TAP_Y, RADIUS)
-        samples.append(Sample(time.monotonic(), mean))
+def difference_pixels(current, baseline):
+    return int(np.count_nonzero(np.any(np.abs(current-baseline) > 30, axis=2)))
 
 
-def wait_first_change(samples, t0: float, baseline: float, timeout_s: float = 2.0):
-    deadline = time.monotonic() + timeout_s
-    seen = 0
-    while time.monotonic() < deadline:
-        snapshot = list(samples)
-        for s in snapshot[seen:]:
-            if s.t > t0 and changed(s.mean, baseline, THRESHOLD):
-                return s.t
-        seen = len(snapshot)
-        time.sleep(0.001)
-    return None
+def scan(snapshot, cursor, baseline, ack, thresholds, hits):
+    """即使有容量上限的 deque 已滿，序號游標仍持續前進。"""
+    for sample in snapshot:
+        if sample.seq <= cursor:
+            continue
+        cursor = sample.seq
+        if sample.generated < ack:
+            continue
+        changed = difference_pixels(sample.region, baseline)
+        for threshold in thresholds:
+            if threshold not in hits and changed >= threshold:
+                hits[threshold] = sample
+    return cursor
 
 
-def main() -> int:
-    # 原生解析度的 RGBA8888 單幀 > 10MiB，超過 grpc-python 預設 4MiB
-    # 接收上限（RESOURCE_EXHAUSTED）。Task 4 已確認此為必要調整，非欄位錯誤。
-    channel = grpc.insecure_channel(
-        TARGET, options=[("grpc.max_receive_message_length", -1)]
-    )
-    stub = ecg.EmulatorControllerStub(channel)
-    samples: collections.deque = collections.deque(maxlen=600)
-    stop = threading.Event()
-    threading.Thread(target=stream_worker, args=(stub, samples, stop),
-                     daemon=True).start()
-
-    # streamScreenshot 是 change-driven：靜止畫面下 2 秒內只會收到「連線當下」
-    # 那 1 幀（實測 3 次皆為 1），< 10 的原始門檻永遠不可能達成。輕輕攪動偵測區
-    # 外的畫面（3 次快速點擊 STIR_X/STIR_Y，遠離 TAP_X/TAP_Y 的偵測半徑，不污染
-    # 基線）喚醒串流；實測攪動後 2 秒內可收到 38 幀，遠超原門檻，因此門檻本身
-    # 不必調整。
-    for _ in range(3):
-        send_tap(stub, STIR_X, STIR_Y, down=True)
-        time.sleep(0.05)
-        send_tap(stub, STIR_X, STIR_Y, down=False)
-        time.sleep(0.15)
-    time.sleep(1.4)  # 加上攪動耗時，湊足約 2 秒基線蒐集窗口
-    if len(samples) < 10:
-        print("FAIL: 串流無幀，確認 emulator 與動畫來源", file=sys.stderr)
-        return 1
-
-    latencies_ms: list[float] = []
-    misses = 0
-    for _ in range(N_SAMPLES):
-        baseline = percentile([s.mean for s in list(samples)[-30:]], 50)
-        t0 = time.monotonic()
-        send_tap(stub, TAP_X, TAP_Y, down=True)
-        t1 = wait_first_change(samples, t0, baseline)
-        send_tap(stub, TAP_X, TAP_Y, down=False)
-        if t1 is None:
-            misses += 1
+def summarize(label, rows, total):
+    print(f"{label} n={len(rows)} misses={total-len(rows)}; statistics exclude misses")
+    for index, segment in enumerate(("send_to_ack", "ack_to_generated", "transit", "total")):
+        values = [row[index] for row in rows]
+        if values:
+            print(f"  {segment} p50={percentile(values, 50):.1f}ms "
+                  f"p95={percentile(values, 95):.1f}ms")
         else:
-            latencies_ms.append((t1 - t0) * 1000)
-        time.sleep(0.5)  # 等圓點淡出、畫面回穩
+            print(f"  {segment} p50=NA p95=NA")
 
-    stop.set()
-    if not latencies_ms:
-        print("FAIL: 全部樣本未偵測到變化——確認 show_touches 已開", file=sys.stderr)
-        return 1
-    print(f"n={len(latencies_ms)} misses={misses} "
-          f"p50={percentile(latencies_ms, 50):.1f}ms "
-          f"p95={percentile(latencies_ms, 95):.1f}ms")
-    print("註：此值不含 Mac 上屏與螢幕反應，對照 80ms 上限時請加 8–17ms。")
-    return 0
+
+def sensitivity(low, high):
+    if not low or not high:
+        return "這個數字由門檻決定，不可引用（缺少可比較樣本）"
+    a, b = percentile(low, 50), percentile(high, 50)
+    if abs(b-a) > abs(a)*0.20:
+        return "這個數字由門檻決定，不可引用"
+    return "threshold p50 difference <=20%; diagnostic only"
+
+
+def latency_row(sent, ack, hit):
+    """負值整筆排除，由呼叫端計數，避免污染任一段統計。"""
+    row = ((ack-sent)*1000, (hit.generated-ack)*1000,
+           (hit.arrived-hit.generated)*1000, (hit.arrived-sent)*1000)
+    return None if any(value < 0 for value in row) else row
+
+
+def matched_sensitivity(results, thresholds):
+    """只比較三門檻皆命中的同一批觸控。"""
+    common = set.intersection(*(set(results[t]) for t in thresholds))
+    print(f"三門檻皆命中的樣本數={len(common)}")
+    return sensitivity([results[thresholds[0]][i][3] for i in common],
+                       [results[thresholds[2]][i][3] for i in common])
+
+
+def arguments(argv=None):
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--target", default="localhost:8556")
+    for name, default in (("width", 540), ("height", 1200), ("guest-width", 1080),
+                          ("guest-height", 2400), ("x", 540), ("y", 480),
+                          ("samples", 40), ("radius", 30)):
+        parser.add_argument("--"+name, type=int, default=default)
+    parser.add_argument("--threshold", type=float, default=200)
+    parser.add_argument("--timeout", type=float, default=2)
+    args = parser.parse_args(argv)
+    for key in ("width", "height", "guest_width", "guest_height", "samples", "threshold", "radius", "timeout"):
+        if not np.isfinite(getattr(args, key)) or getattr(args, key) <= 0:
+            parser.error(f"{key} must be positive and finite")
+    if not (0 <= args.x < args.guest_width and 0 <= args.y < args.guest_height):
+        parser.error("touch coordinates outside guest")
+    return args
+
+
+def main(argv=None):
+    args = arguments(argv)
+    import grpc
+    import emulator_controller_pb2 as ec
+    import emulator_controller_pb2_grpc as ecg
+
+    samples = collections.deque(maxlen=600)
+    lock = threading.Lock()
+    errors = []
+    stop = threading.Event()
+    thresholds = (args.threshold*0.25, args.threshold, args.threshold*4)
+    results = {threshold: {} for threshold in thresholds}
+    negative = {threshold: 0 for threshold in thresholds}
+    channel = grpc.insecure_channel(args.target, options=[("grpc.max_receive_message_length", -1)])
+    stub = ecg.EmulatorControllerStub(channel)
+    call = stub.streamScreenshot(ec.ImageFormat(format=ec.ImageFormat.RGBA8888,
+                                                width=args.width, height=args.height))
+
+    def worker():
+        try:
+            previous = None
+            for frame in call:
+                arrived = time.time()
+                if stop.is_set():
+                    break
+                if previous is not None and frame.seq <= previous:
+                    raise ValueError("stream sequence is not increasing")
+                previous = frame.seq
+                w, h = frame.format.width, frame.format.height
+                crop = region(frame.image, w, h, args.x*w//args.guest_width,
+                              args.y*h//args.guest_height, args.radius)
+                with lock:
+                    samples.append(Sample(frame.seq, arrived, frame.timestampUs/1e6, crop))
+        except Exception as error:
+            if not stop.is_set():
+                errors.append(str(error))
+
+    def tap(down):
+        stub.sendTouch(ec.TouchEvent(touches=[ec.Touch(x=args.x, y=args.y,
+                       identifier=0, pressure=1024 if down else 0)]), timeout=2)
+
+    thread = threading.Thread(target=worker, daemon=True)
+    thread.start()
+    try:
+        deadline = time.monotonic()+5
+        while not samples and not errors and time.monotonic() < deadline:
+            time.sleep(0.01)
+        if not samples:
+            raise RuntimeError(f"no stream frames: {errors}")
+        for touch in range(args.samples):
+            if errors:
+                raise RuntimeError(errors[0])
+            with lock:
+                baseline = samples[-1]
+            cursor = baseline.seq
+            hits = {}
+            sent = time.time()
+            try:
+                tap(True)
+                ack = time.time()
+                deadline = time.monotonic()+args.timeout
+                while time.monotonic() < deadline and len(hits) < len(thresholds):
+                    if errors:
+                        raise RuntimeError(errors[0])
+                    with lock:
+                        snapshot = list(samples)
+                    cursor = scan(snapshot, cursor, baseline.region, ack, thresholds, hits)
+                    time.sleep(0.001)
+            finally:
+                tap(False)
+            for threshold, hit in hits.items():
+                row = latency_row(sent, ack, hit)
+                if row is None:
+                    negative[threshold] += 1
+                else:
+                    results[threshold][touch] = row
+            time.sleep(0.5)
+    finally:
+        stop.set()
+        call.cancel()
+        channel.close()
+        thread.join(timeout=3)
+    for threshold in thresholds:
+        print(f"threshold={threshold:g} negative={negative[threshold]}")
+        summarize(f"threshold={threshold:g}", list(results[threshold].values()), args.samples)
+    print(matched_sensitivity(results, thresholds))
+    print("Guest reaction and detection animation included; not acceptance 2.")
+    return 0 if results[args.threshold] else 1
 
 
 if __name__ == "__main__":
