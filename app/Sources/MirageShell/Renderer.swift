@@ -31,6 +31,7 @@ final class Renderer: NSObject, MTKViewDelegate {
     private var lastDrawStart: CFAbsoluteTime?
     private let latencyLog = ProcessInfo.processInfo.environment["MIRAGE_LATENCY_LOG"] == "1"
     private var latency = LatencyWindow()
+    private var transit = TransitWindow()
     private var latencyWindowStart = CFAbsoluteTimeGetCurrent()
 
     init?(device: MTLDevice, box: any FrameSink) {
@@ -93,7 +94,7 @@ final class Renderer: NSObject, MTKViewDelegate {
         // 只有走到這裡才算一幀：新幀確實被送上螢幕。
         if let arrived {
             countPresentedFrame()
-            recordLatency(since: arrived.receivedAt)
+            recordLatency(since: arrived.receivedAt, transitMs: arrived.transitMs)
         }
     }
 
@@ -114,22 +115,29 @@ final class Renderer: NSObject, MTKViewDelegate {
 
     /// `MIRAGE_LATENCY_LOG=1`：每秒印一行「幀抵達 Mirage → present」的 p50/p95。
     ///
-    /// **這段不是完整的 input-to-photon**，只是它的最後一段。完整鏈路是
-    /// 送出觸控 → guest 反應 → 幀產生與傳輸 → **這裡** → Mac 上屏。前三段用
-    /// `phase0/harness/e2e_latency.py` 量（2026-07-29 實測 p50 78.1ms），
-    /// 上屏另計 8–17ms。三者相加才是驗收線 2 要比的數字。
-    ///
-    /// 分開量是刻意的：不知道哪一段佔多少，就不知道該動傳輸還是動渲染——
-    /// 那正是 §12 記下的、目前擋著優化決策的缺口。
-    private func recordLatency(since arrival: ContinuousClock.Instant) {
+    /// 這不是完整的 input-to-photon。完整鏈路包含輸入注入、guest 反應、
+    /// 幀產生與傳輸、抵達到 present，以及 Mac 上屏。
+    /// 驗收線 2 只加總輸入注入、傳輸與抵達到 present；guest 反應與上屏未量。
+    /// 舊 Python 偵測器量出的 78.1ms 已作廢，不能拿來補上前段。
+    /// 三段刻意分開量，才能知道各段佔多少，判斷該優化輸入、傳輸還是渲染，
+    /// 補上 §12 所記錄、阻礙優化決策的資訊缺口。
+    private func recordLatency(since arrival: ContinuousClock.Instant, transitMs: Double?) {
         guard latencyLog else { return }
         latency.record(ContinuousClock.now - arrival)
+        transit.record(transitMs)
         let now = CFAbsoluteTimeGetCurrent()
         guard now - latencyWindowStart >= 1.0 else { return }
         if let s = latency.summary() {
             print(String(format: "[app] lat p50=%.1fms p95=%.1fms n=%d",
                          s.p50, s.p95, s.count))
         }
+        if let s = transit.latency.summary() {
+            print(String(format: "[app] transit p50=%.1fms p95=%.1fms n=%d invalid=%d unavailable=%d",
+                         s.p50, s.p95, s.count, transit.invalid, transit.unavailable))
+        } else {
+            print("[app] transit p50=NA p95=NA n=0 invalid=\(transit.invalid) unavailable=\(transit.unavailable)")
+        }
+        transit.reset()
         latency.reset()
         latencyWindowStart = now
     }

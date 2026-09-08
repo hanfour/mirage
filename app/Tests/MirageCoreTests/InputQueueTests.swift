@@ -72,6 +72,18 @@ private final class ProbeInjector: InputInjecting, @unchecked Sendable {
 }
 
 @Suite struct InputQueueTests {
+    @Test(.timeLimit(.minutes(1)))
+    func measurementPreservesOrder() async {
+        let probe = ProbeInjector { $0.hasPrefix("tap") ? .milliseconds(60) : .milliseconds(10) }
+        let queue = InputQueue(injector: probe, latencyEnabled: true)
+        queue.tap(nx: 0.5, ny: 0.5, down: true)
+        queue.key(.key("j"), down: true)
+        queue.touches([TouchSpec(identifier: 3, point: NormPoint(x: 0.1, y: 0.1), down: true)])
+        await probe.waitForArrivals(3)
+        #expect(probe.arrivals == ["tap 0.5,0.5 down", #"key key("j") down"#, "touches [3]"])
+        #expect(probe.maxInFlight == 1)
+    }
+
     /// 注入器永遠不會被並行呼叫。
     ///
     /// 這是「順序保證」的結構性前提：同一時刻只有一個呼叫在飛，就沒有任何東西可以

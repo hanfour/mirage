@@ -97,6 +97,8 @@ public final class GrpcStreamTransport: DisplayTransport, @unchecked Sendable {
 
     public init(channel: GrpcChannelBox) { self.channel = channel }
 
+    /// timestampUs 為 0 表示未提供產生時間，傳輸延遲須為 nil，
+    /// 避免把 Unix 紀元至今的巨大正值當成有效樣本。
     public func frames(width: Int, height: Int) -> AsyncThrowingStream<Frame, Error> {
         var format = Android_Emulation_Control_ImageFormat()
         format.format = .rgba8888
@@ -137,7 +139,9 @@ public final class GrpcStreamTransport: DisplayTransport, @unchecked Sendable {
                         continuation.yield(Frame(
                             width: Int(img.format.width),
                             height: Int(img.format.height),
-                            rgba: img.image))
+                            rgba: img.image,
+                            transitMs: img.timestampUs == 0 ? nil
+                                : Date().timeIntervalSince1970 * 1000 - Double(img.timestampUs) / 1000))
                     }
                     if log { print("[conn] 串流自然結束，共 \(n) 幀") }
                     continuation.finish()

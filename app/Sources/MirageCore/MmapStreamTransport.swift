@@ -116,7 +116,7 @@ public struct MmapStreamTransport: DisplayTransport {
                         "前 \(blankProbeFrames) 幀映射區皆全零"))
                     return
                 case .deliver:
-                    continuation.yield(Frame(width: width, height: height, rgba: data))
+                    continuation.yield(Frame(width: width, height: height, rgba: data, transitMs: nil))
                 }
             }
             if probe.endedWithoutContent() {

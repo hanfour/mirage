@@ -1,5 +1,29 @@
 import Foundation
 
+/// 消費者同步記錄完成時間，只有選用的日誌計時器獨立執行。
+/// 鎖只保護統計窗口，不包住注入器呼叫或 await。
+private final class InputLatencyRecorder: @unchecked Sendable {
+    private let lock = NSLock()
+    private var window = LatencyWindow()
+
+    func record(_ duration: Duration) {
+        lock.lock()
+        window.record(duration)
+        lock.unlock()
+    }
+
+    func flush() {
+        lock.lock()
+        let summary = window.summary()
+        window.reset()
+        lock.unlock()
+        if let s = summary {
+            print(String(format: "[app] inject p50=%.1fms p95=%.1fms n=%d",
+                         s.p50, s.p95, s.count))
+        }
+    }
+}
+
 /// 輸入事件送往 `InputInjecting` 的唯一入口，**保證送出順序即到達順序**（債務 D6）。
 ///
 /// **為什麼是這個形狀**：原本每個輸入事件各開一個 unstructured Task，於是「有幾個
@@ -15,25 +39,57 @@ import Foundation
 ///   是「遊戲沒反應」——又一個看起來像遊戲問題的靜默錯誤。
 public final class InputQueue: Sendable {
     private enum Command: Sendable {
-        case key(KeyCode, down: Bool)
-        case touches([TouchSpec])
-        case tap(nx: Double, ny: Double, down: Bool)
+        case key(KeyCode, down: Bool, queuedAt: ContinuousClock.Instant?)
+        case touches([TouchSpec], queuedAt: ContinuousClock.Instant?)
+        case tap(nx: Double, ny: Double, down: Bool, queuedAt: ContinuousClock.Instant?)
     }
 
     private let cont: AsyncStream<Command>.Continuation
+    private let latencyEnabled: Bool
 
-    public init(injector: any InputInjecting) {
+    public convenience init(injector: any InputInjecting) {
+        self.init(injector: injector,
+                  latencyEnabled: ProcessInfo.processInfo.environment["MIRAGE_INPUT_LATENCY"] == "1")
+    }
+
+    /// 量測入列到 RPC 完成，包含佇列與 actor 等待。
+    /// 不包含 MirrorView 在入列前處理 AppKit 事件的時間。
+    init(injector: any InputInjecting, latencyEnabled: Bool) {
+        self.latencyEnabled = latencyEnabled
         let (stream, cont) = AsyncStream.makeStream(of: Command.self)
         self.cont = cont
         // `Task.detached` 而非 `Task`：後者會繼承呼叫端的 actor（實際呼叫端
         // `AppModel` 是 @MainActor），讓這條幫浦白白掛在 MainActor 上，每個事件多一次
         // 來回跳躍。幫浦本身不碰任何 UI 狀態，沒有理由綁在任何 actor 上。
         Task.detached {
+            let recorder = latencyEnabled ? InputLatencyRecorder() : nil
+            let timer: Task<Void, Never>? = recorder.map { recorder in
+                Task {
+                    while !Task.isCancelled {
+                        do { try await Task.sleep(for: .seconds(1)) }
+                        catch { return }
+                        // Renderer 在 MainActor 成對輸出，這裡也在同一 actor
+                        // 印出日誌，避免 inject 插入配對行之間。
+                        await MainActor.run { recorder.flush() }
+                    }
+                }
+            }
+            defer { timer?.cancel() }
             for await command in stream {
+                let queuedAt: ContinuousClock.Instant?
                 switch command {
-                case .key(let code, let down): await injector.sendKey(code, down: down)
-                case .touches(let specs):      await injector.sendTouches(specs)
-                case .tap(let nx, let ny, let down): await injector.sendTap(nx: nx, ny: ny, down: down)
+                case .key(let code, let down, let time):
+                    queuedAt = time
+                    await injector.sendKey(code, down: down)
+                case .touches(let specs, let time):
+                    queuedAt = time
+                    await injector.sendTouches(specs)
+                case .tap(let nx, let ny, let down, let time):
+                    queuedAt = time
+                    await injector.sendTap(nx: nx, ny: ny, down: down)
+                }
+                if let queuedAt {
+                    recorder?.record(ContinuousClock.now - queuedAt)
                 }
             }
         }
@@ -46,14 +102,14 @@ public final class InputQueue: Sendable {
     /// 送出不阻塞、不等待——`yield` 只是把命令排進串流。呼叫端（MainActor 上的輸入
     /// 事件處理）維持原本的「射後不理」語意，改變的只有到達順序的保證。
     public func key(_ code: KeyCode, down: Bool) {
-        cont.yield(.key(code, down: down))
+        cont.yield(.key(code, down: down, queuedAt: latencyEnabled ? .now : nil))
     }
 
     public func touches(_ specs: [TouchSpec]) {
-        cont.yield(.touches(specs))
+        cont.yield(.touches(specs, queuedAt: latencyEnabled ? .now : nil))
     }
 
     public func tap(nx: Double, ny: Double, down: Bool) {
-        cont.yield(.tap(nx: nx, ny: ny, down: down))
+        cont.yield(.tap(nx: nx, ny: ny, down: down, queuedAt: latencyEnabled ? .now : nil))
     }
 }
