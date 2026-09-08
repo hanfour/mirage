@@ -177,13 +177,14 @@ fps_median() {
         END { printf "%d\n", v[int((n + 1) / 2)] }'
 }
 
-# `[app] <tag>` 欄位的中位數。tag 只接受既有的 frames 與新的 draw，第三個
+# `[app] <tag>` 欄位的中位數。接受 frames、draw、transit、inject，第三個
 # 參數是欄位，第四個參數是要略過的前置同 tag 行數，讓量測窗口與 fps_samples
 # 的 BEFORE 對齊。欄位值可帶小數與 `ms` 後綴。
 tagged_median() {
     local log="$1" tag="$2" field="$3" skip="${4:-0}"
     case "$tag:$field" in
         frames:arrived|frames:dropped|frames:presented \
+        |transit:p50|transit:p95|inject:p50|inject:p95 \
         |draw:calls|draw:gap20|draw:maxgap|draw:in_p95|draw:nodrawable|draw:noframe) ;;
         *) echo 0; return 0 ;;
     esac

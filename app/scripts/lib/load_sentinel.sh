@@ -47,11 +47,12 @@ cpu_snapshot() { ps -Ao pid=,cputime=,comm=; }
 
 # 從兩次快照算出各行程的瞬時 CPU%，印成「<pct> <comm>」由高到低。
 # 用法：cpu_delta_report "<快照A>" "<快照B>" <間隔秒> <要排除的行程 regex>
+# 第五參數是單一行程的最低百分比，預設 10；傳 0 可加總所有正值。
 #
 # **純函式（吃字串、不碰系統），所以自我測試釘得住 cputime 的格式解析**——那是這段
 # 唯一會錯的地方：macOS 的 cputime 可能是 `MM:SS.ss`、`HH:MM:SS` 或 `DD-HH:MM:SS`。
 cpu_delta_report() {
-    awk -v gap="$3" -v skip="$4" '
+    awk -v gap="$3" -v skip="$4" -v floor="${5:-10}" '
         function secs(t,   n, p, d, k) {
             d = 0
             k = index(t, "-")
@@ -65,7 +66,7 @@ cpu_delta_report() {
         {
             if (!($1 in prev)) { next }
             pct = (secs($2) - prev[$1]) / gap * 100
-            if (pct <= 10) { next }
+            if (pct <= floor) { next }
             cmd = ""
             for (i = 3; i <= NF; i++) { cmd = cmd (i > 3 ? " " : "") $i }
             if (skip != "" && cmd ~ skip) { next }
