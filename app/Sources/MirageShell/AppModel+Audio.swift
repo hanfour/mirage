@@ -2,14 +2,14 @@ import Foundation
 import MirageCore
 
 /// P1-e 音訊：建立 CoreAudio 出口（AudioPlayer）、掛上環形緩衝當 EmulatorClient 的 sink、
-/// 綁選單列靜音，並在要求時啟動 MIRAGE_AUDIO_LOG 觀測。
+/// 綁選單列靜音，持續偵測音訊供應並依 MIRAGE_AUDIO_LOG 決定是否印出統計。
 ///
 /// 獨立成 extension 檔（比照 AppModel+FullScreen.swift 的 Task 3 前例）：AppModel.swift
 /// 本體已滿 400 行，儲存屬性（audioRing/audioPlayer）留在本體，行為搬來這裡。
 ///
-/// `startAudio()` 不能標 `private`——SE-0169 讓 `private` 只在同一個檔案內的 extension 之間
-/// 互通，跨檔案（這裡 vs. AppModel.swift 的 startLifecycle()）仍會被擋。`startAudioLogIfRequested()`
-/// 只在本檔內被呼叫，維持 brief 原本的 `private`。
+/// `startAudio()` 不能標 `private`，因為 SE-0169 讓 `private` 只在同一個檔案內的 extension 之間
+/// 互通，跨檔案（這裡 vs. AppModel.swift 的 startLifecycle()）仍會被擋。`startAudioMonitoring()`
+/// 只在本檔內被呼叫，因此維持 `private`。
 extension AppModel {
     /// 建立播放器 → 掛上 sink → 綁選單列。啟動失敗只降級為無音訊，不影響畫面與輸入。
     func startAudio() {
@@ -19,7 +19,7 @@ extension AppModel {
         menuBar?.onToggleMute = { [weak self] in self?.toggleMute() }
         menuBar?.updateMute(player.isMuted)
         Task { [client, audioRing] in await client.setAudioSink(audioRing) }
-        startAudioLogIfRequested()
+        startAudioMonitoring()
     }
 
     func toggleMute() {
@@ -28,15 +28,17 @@ extension AppModel {
         menuBar?.updateMute(audioPlayer.isMuted)
     }
 
-    /// MIRAGE_AUDIO_LOG=1：每秒一行健康摘要。這是**唯一能無頭驗證音訊的訊號**，
-    /// verify_audio.sh 的斷言建立在它之上。格式沿用 MIRAGE_FPS_LOG 的單行可 grep 風格。
-    private func startAudioLogIfRequested() {
-        guard ProcessInfo.processInfo.environment["MIRAGE_AUDIO_LOG"] == "1" else { return }
-        Task { [audioRing] in
+    /// 偵測與觀測共用每秒統計，避免未開啟日誌時漏掉 emulator 異常。
+    /// MIRAGE_AUDIO_LOG 只控制健康摘要，既有驗證腳本依賴其欄位格式。
+    private func startAudioMonitoring() {
+        let logRequested = ProcessInfo.processInfo.environment["MIRAGE_AUDIO_LOG"] == "1"
+        Task { [weak self, audioRing] in
+            var monitor = AudioSupplyMonitor()
             var lastWrites = 0
             var lastSamples = 0
             while !Task.isCancelled {
-                try? await Task.sleep(for: .seconds(1))
+                do { try await Task.sleep(for: .seconds(1)) } catch { return }
+                guard let self else { return }
                 let s = audioRing.stats
                 let depthMs = s.depthSamples * 1000 / (48_000 * 2)
                 // `supply` 是這一秒實際供應量佔即時需求的百分比。
@@ -45,11 +47,32 @@ extension AppModel {
                 // 沒有任何地方強制它。D44 記載的「供應約為需求 94%」是拿 pkt 乘上一個
                 // 假設的包大小推出來的——形狀（均勻不足、無缺口）可信，幅度不可信。
                 // 這一項直接由累計樣本數算出，不經過任何假設。
+                //
+                // `pkt` 仍然要留著，但用途不同：它是「guest 有沒有在放音訊」的判準。
+                // guest 停止輸出時 emulator 會關閉主機輸出裝置、送零個封包，而不是送
+                // 靜音樣本；崩潰時則是封包照樣約 88 個而供應率剩 6.5%。兩者只有 pkt
+                // 分得開，見 `AudioSupplyMonitor`。
                 let supplied = s.writtenSamples - lastSamples
                 let supplyPct = supplied * 100 / (48_000 * 2)
-                print("[audio] pkt=\(s.writes - lastWrites) smp=\(supplied) supply=\(supplyPct)% " +
-                      "sr=48000 ch=2 under=\(s.underruns) over=\(s.overruns) " +
-                      "primes=\(s.primes) depth=\(depthMs)ms")
+                let packets = s.writes - lastWrites
+                let previousState = monitor.state
+                monitor = monitor.observing(packets: packets, supplyPercent: supplyPct)
+                switch AudioSupplyMonitor.notice(from: previousState, to: monitor.state) {
+                case .degraded:
+                    print("[audio] degraded reason=emulator-output-stalled pkt=\(packets) supply=\(supplyPct)%")
+                case .recovered:
+                    print("[audio] recovered pkt=\(packets) supply=\(supplyPct)%")
+                case .cleared:
+                    print("[audio] degraded-cleared reason=guest-audio-stopped pkt=\(packets) supply=\(supplyPct)%")
+                case .none:
+                    break
+                }
+                if monitor.state != previousState { self.menuBar?.updateAudioHealth(monitor.state) }
+                if logRequested {
+                    print("[audio] pkt=\(s.writes - lastWrites) smp=\(supplied) supply=\(supplyPct)% " +
+                          "sr=48000 ch=2 under=\(s.underruns) over=\(s.overruns) " +
+                          "primes=\(s.primes) depth=\(depthMs)ms")
+                }
                 lastWrites = s.writes
                 lastSamples = s.writtenSamples
             }
