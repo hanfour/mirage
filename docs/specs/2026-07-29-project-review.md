@@ -162,6 +162,8 @@
 | **D64** | **渲染端在主機負載下錯過 vsync**：guest 沒掉（58.89）、幀有抵達（60），但 `Renderer.draw` 只 present 了 50、`LatestFrameBox` 覆蓋掉 8（`app/RESULTS-frame-counters.md` 跑次 2 第 5 輪，外來 CPU 183%）。安靜窗口下同一條路徑是 arrived 60／presented 60／dropped 0，所以不是結構性瓶頸，是 `@MainActor` 的 display-link 回呼被搶 | 驗收線 7 在使用者同時用機器時會掉到 49，而這一段是 Mirage 自己能控制的（D60 的 guest 那段不是） | 候選：把 upload＋blit 移出主執行緒（`CVDisplayLink` 或 `MTKView` 的 `isPaused` 加自管執行緒）、或降低 app 主執行緒的其他工作。**先量再動**：用 `MIRAGE_LATENCY_LOG` 與新的三計數在人為負載下（例如 `yes > /dev/null` ×4）重現，確認掉幀發生在 draw 回呼被延後而不是 Metal 本身。**⚠️ 2026-09-07 量了，三個假設在純 CPU 負載下全部不成立**（`app/RESULTS-d64.md`）：0／4／8 個 burner 各五輪，`gap20=0`、`maxgap` 恆 18ms、`in_p95` ≤ 9.3ms、`nodrawable=0`、`dropped=0`，guest 出多少 Mirage 就 present 多少；掉的全是 guest（50 → 34 → 33）。9 月 3 日那一輪 presented 50／dropped 8 用純 CPU 重現不了，當時是使用者在操作機器，嫌疑轉向 GPU 或視窗合成競爭。**本列重新定義：「特定但尚未辨識的負載形態下渲染端錯過 vsync，純 CPU 負載不會」**，優先序降到 P3，等下次自然出現時用已固化的三計數＋draw 時序行抓現場。渲染端在 CPU 負載下沒有東西可修，Mirage 對驗收線 7 剩下的槓桿只有「自己少吃 CPU 以減少對 guest 的回壓」（D60 那段，MirageApp 全螢幕 60fps 約 50% 到 60% CPU，尚未量它對 guest 的影響）。**⚠️ 2026-09-07 同日又抓到兩次現場，三次都是使用者在操作機器時**：(a) `verify_fps_fullscreen.sh` 第 2 輪 guest 59.51、arrived 60、presented 53、dropped 6，同輪 `gap20=0`、`in_p95=9.2ms`、`nodrawable=0`、`noframe=6`，也就是 display link 準時、上傳快、drawable 有，但 60 幀抵達的**節奏不均勻**（有的 vsync 收兩幀覆蓋一幀、有的收零幀），這是抵達抖動不是渲染慢；(b) 回壓量測 `app` 三輪 guest 59.7 到 59.9 但 `mirage_fps` 47／48／50。**候選解法：`LatestFrameBox` 改深度 2 的小佇列**，抵達抖動時 vsync 仍有上一幀可畫，代價最多 16.7ms 延遲。回壓量測（`app/RESULTS-backpressure.md`）證明「少吃 CPU」那條路沒東西可省，所以 D64 的這個形狀現在是 Mirage 側對驗收線 7 唯一還能動的東西。**✅ 解法已實作（2026-09-07，`app/RESULTS-d64-queue.md`）但提案未驗證**：`FrameSink` 協定＋`FrameQueue`（深度 N 的 FIFO）＋`MIRAGE_FRAME_QUEUE=2` 開關，預設關閉零行為變化；`verify_fps_fullscreen.sh -A` 同顆 build 交錯 latest／queue2，含 `lat_p50`／`lat_p95`。A/B 機制全部驗證通過，但活體那次是螢幕分享（外來 CPU 244%）把 guest 壓到 14 到 21，六輪全判無效、兩個 sink 都 `dropped=0`，抖動根本沒出現。**D64 的觸發條件比「使用者在用機器」更窄**：三次現場外來 CPU 分別 183%／91%／0 到 34%，guest 都在 59 以上；純 CPU burner 重現不了、螢幕分享太重。**缺可靠的重現手段**。下次既有模式量到 guest ≥ 55 但 `dropped` ≥ 5 的輪次，立刻同條件跑 `-A`。 | ~~P2~~ → ~~P3~~ → **P2**（解法已實作，待重現條件驗證） |
 | ~~**D65**~~ | **螢幕鎖定時 GUI 活體會無聲失敗，訊息與 D63 一模一樣**（「視窗 N 秒內未在 AX 出現」、`fps=` 行數 0）。app 照收幀（`[conn] 幀 #360`），但 SwiftUI 不建視窗、`Renderer.draw` 一次沒跑。2026-09-04 深夜三組實驗全部零輪，追了四層（activate、清 defaults、A/B 舊二進位、CG 視窗層）才發現是 `CGSSessionScreenIsLocked=True` | 與 D63 同一個症狀、不同根因，而現有前置沒有任何一條會說「螢幕鎖定」。深夜或遠端跑活體必踩 | `gui_session_start` 前置加一行 `ioreg -n Root -d1 -a` 讀 `IOConsoleUsers[].CGSSessionScreenIsLocked`，鎖定就紅並明講。**成本**：30 分鐘。**✅ 已修（2026-09-07，D65 同日第二次咬人後）**：純函式 `gui_screen_lock_state` 吃 plist 文字印 locked／unlocked／unknown（沒有該 key 判 unknown 不誤擋，解鎖後 macOS 會把 key 整個拿掉），四條自我測試、故障注入會紅，`gui_session_start` 鎖定時直接回 1 並印「螢幕已鎖定」 | — |
 | ~~**D66**~~ | **macOS 的 BSD `seq 1 0` 印 `1 0`**（起點大於終點會倒數），`for _ in $(seq 1 "$N")` 在 `N=0` 時跑兩次。`verify_fps_under_load.sh -n 0` 對照組因此啟動了兩個 burner，前置量到外來 CPU 241% 然後被門檻連擋六次 | 與 D55 同型：對照組「看起來有跑」，實際跑的是別的條件。同一輪還抓到 bash 3.2 對空陣列 `"${ARR[@]}"` 在 `set -u` 下炸（4.4 才修，macOS 內建就是 3.2），PM 的 Homebrew bash 5.3 撞不到、審查 agent 才抓到 | **✅ 已修（2026-09-04）**：`[ "$N" -gt 0 ] && for`；空陣列展開前判 `${#ARR[@]}`；用 `/bin/bash` 實跑兩條空陣列路徑驗過。**紀律**：把關 bash 腳本一律用 `/bin/bash` 跑一次 | — |
+| **D67** | **「非工作負載 CPU 總和 <50%」從來不是自動閘門，而且那把尺會漏報**。`verify_fps_fullscreen.sh` 第 156 行算出 `FOREIGN_TOTAL` 之後只在 157 與 831 行印出，從沒進過任何比較，所以 50% 一直是人工判讀紀律。同時 `cpu_delta_report` 的預設 floor 是 10，低於 10% 的行程整個不計；2026-09-08 實測同一時刻 floor 10 是 322 到 351%、floor 0 是 366 到 385%，差距 28 到 58 個百分點來自 50 個小行程，另一次量到差 100 個百分點 | 兩件事都會讓「這個窗口夠安靜」的判斷偏樂觀：沒有閘門就不會擋，而 floor 10 會把「六個各 9% 的行程」報成 0%。驗收線 7 的所有 fps 數字都是在這個尺度下判讀的 | `verify_input_latency.sh` 已經同時印 floor 10 與 floor 0、並以 floor 10 硬閘門（`input_latency_cpu_window`），可作為形狀參考。要決定的是驗收線 7 要不要跟進：跟進的話兩條線的數字才可並排，但門檻 50 是在 floor 10 下校準的，換 floor 0 需要重新校準（安靜窗口的 floor 10 是 29%，floor 0 推估 57 到 87%）。**成本**：1 小時 | P2 |
+| **D68** | **`emulator_controller.proto` 的 `Image` 註解說像素是 "from left to right and bottom up"，實際是由上而下**。照註解做上下翻轉會取樣到鏡射位置 | 2026-09-08 寫延遲偵測時照著翻，30 次觸控全部偵測不到，花了一輪才找到。這是上游 proto 的註解，repo 內任何依它決定影像方向的地方都要用實測確認 | `phase0/harness/e2e_latency.py` 的 `region()` 已加註「RGBA is top down, regardless of the proto comment」。其餘讀 `Image.image` 的地方（`MirrorBlitter` 的著色器、`bench_mmap_vs_rgba.py`）要各自確認方向是對的。**成本**：30 分鐘 | P3 |
 
 > **關於 `P0`**：這一級是 2026-07-29 為 D6 新增的。原本最高只有 P1，而 D6 在 D2 上線後
 > 多了一種「不會自癒」的失效模式（永久卡鍵），與其他 P1 不同級。優先序欄位仍然是建議。
@@ -263,10 +265,26 @@ recon 文件那句講的是 `poc`。量 fps 用的 `game` 機已是最佳設定�
 |---|---|---|---|
 | 1 款指標遊戲開箱即玩 | ⚠️ **✅（有前提）** | **前提：新機器先跑 `tools/provision/provision.py`（無旗標即可），再人工登入 Play Store 或 sideload APK** | — |
 | 60fps 穩定 | ⚠️ **✅（有條件，2026-09-03）**：主機安靜時（外來 CPU 29%）三有效輪 59／59／60，退出碼 0，首次通過；主機忙時（外來 CPU 183%）49／59／60 跨越門檻、判定不了。舊記載：❌ **31–58fps（2026-08-06 重量，取代原記載的 29–44）**；驗收線 7 的門檻是 55，未通過 | **三段都有損失，不是單一瓶頸**——同一個 20 秒窗口逐輪對齊量到：guest **56.73** → 直拉對照組 **53.86**（−5.1%）→ Mirage **50**（再 −7.2%）。⚠️ 原記載「guest 出幀」與「仍是推論」兩句都要更正，見下方註記。**2026-09-03（D58 工具）：傳輸段排除**：同一台 game AVD、真實畫面、900×2000 上 Python raw 58.98／MMAP 59.57，兩者都到 vsync 天花板；Mirage 的損失在自己行程內（grpc-swift 或渲染），下一步「Swift 直拉對照組」切開這兩段。**同日第二段也切開了**：grpc-swift 直拉不渲染 56.61（`app/RESULTS-swift-pull.md`），client 路徑排除；剩渲染段與「app 負載回壓 guest」兩個候選。**2026-09-03 三段全部切開**：安靜窗口 Mirage 行程內零損失（arrived 60／presented 60／dropped 0）；負載下 guest 先掉（D60）或渲染端掉（D64）。**2026-09-07 回壓量測後定案**：Mirage 對 guest 零回壓（三條件 59.8 到 59.9），使用者同時用機器時的殘餘全在 emulator 側（D60），Mirage 側唯一還能動的是 D64 的抵達抖動（深度 2 佇列） | **不是「無額外損失」**：乾淨輪次裡 Mirage 自己那段掉 7.2%。但它也不是主因——第 3 輪曾量到 Mirage(54) > 同輪對照組(49.94) |
-| 輸入延遲 < 80ms | ❌ ~110ms | 傳輸佔 ~2/3 | 20–28ms |
+| 輸入延遲 < 80ms | ✅ **通過（2026-09-08，判到 present 為止）**：Mirage 可控三段合計，三次跑次共 9 輪、8 輪有效，SUM_MEDIAN 25.1／30.5／38.7，逐輪 24.9 到 41.8，門檻 80（`app/RESULTS-input-latency.md`）。舊記載 ❌ ~110ms、傳輸佔 ~2/3 兩項皆作廢，見下方註記 | **渲染段最大（10.9 到 26.7ms），傳輸段 10.1 到 11.0ms 非常穩定，注入段 0.6 到 4.1ms**。渲染段的跨度來自主機負載，同一顆 build 在外來 CPU 12% 的輪次是 10.9，44% 的輪次是 25.1 | 三段全部是 Mirage 的；guest 反應段歸 emulator 側不列入判定，present 到上屏未量 |
 | 冷啟動 < 30 秒 | ❌ ~37s | emulator 開機佔 89% | 4.2s |
 | 快照喚醒 < 5 秒 | ❌ ~8.9s | 同上 | 4.2s |
 | 記憶體閒置 < 4GB | ✅ **通過（2026-08-07 首次量到，兩輪 1.55 GB／1.96 GB，門檻 4 GB）** | 量法是「有無 Mirage 的系統記憶體差值」（`active + wired + compressed`），不依賴任何單一行程指標。⚠️ **會這樣量是因為行程指標給不出單一答案**：RSS 合計 1.13 GB、footprint 的 dirty 5,313 MB、`phys_footprint` 9.3 GB，差 9 倍；而 9.3 GB 與系統整體矛盾（整台機器 `active+wired+compressed` 才 6.70 GB），它把整塊 guest RAM 映射算進去而那些頁面多半沒常駐。系統差值與 RSS 法同量級，兩個獨立方法互相印證 | ~~現行 suspend 不停 qemu，此線在現架構下必然不達標~~ → **實測推翻**。那句是推論，而 AVD 設定 4GB guest RAM 不等於主機付出 4GB——頁面是惰性配置的 |
+
+**「輸入延遲 < 80ms」那一列的三個更正（2026-09-08）**：
+
+1. **判定範圍改了，這是產品決策。** 驗收線 2 現在只判 Mirage 可控的三段（輸入注入、傳輸、
+   幀抵達到 present），guest 反應段歸 emulator 側，與 D60 同一個處理方式（Mirage 只偵測告知）。
+   `present` 到 Mac 上屏那 8 到 17ms 不再計入合計，另記為已知未量項（實測需要高速攝影機）。
+
+2. **舊的 110ms 與「傳輸佔 ~2/3」都作廢，因為那個 78.1ms 是壞掉的偵測器量出來的。**
+   `e2e_latency.py` 舊版用 60×60 區域的平均亮度、門檻 8.0，而 `show_touches` 圓點在這台機器上
+   只讓區域平均動 2 到 7.6、噪音底 0.56，等於在噪音附近判定；同時 `misses=9/50`（18%）被排除在
+   統計外，逾時樣本的真實延遲只會更長。修好判準（差異像素數）後同一段量到 16 到 20ms。
+   **repo 內任何引用「傳輸佔三分之二」的推論都要重查。**
+
+3. **量測門檻的敏感度要往兩側試。** 第一次修好偵測器時只試了高門檻（要求 22% 到 43% 的像素改變），
+   量到 104 到 206ms，據此判定「這一段沒有可信的尺可量」。那個判定當天稍晚被推翻：
+   把門檻放到 0.6% 到 11% 之間，20 倍範圍內數字穩定在 16 到 20ms。只試失效區那一側會得到錯誤結論。
 
 **「60fps 穩定」那一列的三個更正（2026-08-04 起陸續量到，2026-08-06 定案）**：
 
