@@ -271,3 +271,52 @@ AX 層 `frontmost=true`、選單列數 2；唯一異常是 `windowCount` 從 2 �
 第五輪非 GUI 驗證：11 項 Python 自我測試通過，涵蓋派送成本排除、舊 log 排除、
 轉移前幀排除、同次輪詢與缺少轉移；既有故障注入、鎖定狀態及 CPU 邊界皆通過。
 沒有執行 GUI、Swift 建置或完整 CI，沒有 commit。
+
+## D69 結案：⌘Q 沒有壞，壞的是量測方式（2026-09-08 深夜）
+
+先前記載「休眠再喚醒後 ⌘Q 失效、選單退出正常」，並據此把驗收線 4 的退出路徑改用
+狀態列選單，腳本自己註明「通過不代表 ⌘Q 已修復」。**那個判定是量測假象。**
+
+失效的是 System Events 的 `keystroke`，不是 ⌘Q。同一個 app 實例、同一個失效狀態下：
+
+| 送鍵方式 | 結果 |
+| --- | --- |
+| System Events `keystroke "q" using command down` | 行程存活（兩輪皆然） |
+| CGEvent（`lib/cgkey.js`，keyCode 12 + command） | 一秒內退出（兩輪皆然） |
+
+另有一輪只送 CGEvent、沒有先送 System Events，一樣有效，排除「前一次按鍵先喚醒了什麼」。
+
+### 定位過程的三個分辨點
+
+1. **同一狀態下用滑鼠點「Quit Mirage」1 秒內退出**，`applicationWillTerminate` 有跑。
+   選單動作與整條 teardown 都是好的。
+2. **⌘H 同樣失效**，所以不是 Quit 專屬。
+3. **⌘W 仍然有效**（`event=windowShouldClose` 次數增加），所以按鍵進得到 app、
+   主選單也收得到鍵等價，只有應用選單（Mirage 選單）那幾項不作用。
+
+三個點合起來把範圍縮到「送鍵方式」，而不是產品的任何一層。
+
+先前的五組對照全部用 System Events 送鍵，因此每一組都落在同一個假象裡。
+這與 `cgclick.js` 的存在理由同型（System Events 的 `click at` 在某些視窗狀態下完全無效），
+只是先前沒有人把那條教訓套到按鍵上。
+
+### 順帶排除的兩個假設
+
+- **`AppModel.wake()` 取 `NSApp.windows.first` 可能不是鏡像視窗**：實測喚醒後
+  `windows.first` 仍是鏡像視窗（`mirror=true lifecycle=true`），
+  `makeKeyAndOrderFront` 之後 `key=true visible=true`。
+- **`windowCount` 從 2 變成 3 是異常**：那是狀態列選單開啟時的暫時視窗，
+  下一次 `windowShouldClose` 已回到 2，良性。
+
+### 改動
+
+`lib/cgkey.js` 與 `lib/cgkey_selftest.js`（全程 mock、不送真實事件，兩項突變檢查證明會紅），
+由 `wake_selftest.sh` 在 ci.sh 閘門 7 執行。`wake_probe.py` 的退出路徑改回 ⌘Q，
+**驗收線 4 因此才真正驗到使用者會走的那條路**；選單路徑保留給 finally 的清理。
+
+實跑證據：兩次獨立的 VALID 輪次皆 `quit=clean`，wake_s 0.023 與 0.024。
+
+⚠️ **沒有取得 3/3 全綠的跑次**。guest 要有變化畫面才會出幀（D59），而唯一的動態內容是
+Unity 遊戲，它讓 emulator 吃掉約 110% CPU，`foreign CPU < 50%` 這道閘門把 emulator
+算成外來負載，六輪只有一輪過閘門。這是環境限制不是產品紅燈，
+但也代表這條驗收線在 guest 跑遊戲時很難取得有效輪次，與 D67 同一個形狀。

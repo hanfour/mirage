@@ -101,15 +101,39 @@ def script(body):
             'tell process "MirageApp"\n' + body + '\nend tell\nend tell']
 
 
+# 送任何按鍵之前都要先確定 MirageApp 在前景。CGEvent 送到的是系統焦點、不像
+# System Events 能指名行程，所以這個前置對 ⌘Q 那條路徑是必要而非保險。
+FOCUS_BODY = ('set frontmost to true\n'
+              'if frontmost is not true then error "MirageApp 未在前景"')
+
+
+def command_focus():
+    return script(FOCUS_BODY)
+
+
 def command_key(key):
-    return script('set frontmost to true\n'
-                  'if frontmost is not true then error "MirageApp 未在前景"\n'
-                  f'keystroke "{key}" using command down')
+    return script(FOCUS_BODY + f'\nkeystroke "{key}" using command down')
+
+
+QUIT_VIRTUAL_KEY = 12          # Carbon 虛擬鍵碼的 Q
+COMMAND_FLAG = 1 << 20         # kCGEventFlagMaskCommand
+
+
+def quit_command_q():
+    """使用者實際會走的退出路徑：⌘Q。
+
+    D69 更正（2026-09-08）：先前這裡走狀態列選單，理由記載為「休眠再喚醒後只有 ⌘Q
+    失效」。那是量測假象不是產品缺陷——失效的是 System Events 的 `keystroke`，
+    在視窗被 `orderOut` 後又顯示回來的狀態下送不到應用選單的鍵等價（⌘Q 與 ⌘H 皆然，
+    而同一時刻 ⌘W 正常、滑鼠點「Quit Mirage」也正常）。改用 CGEvent 之後 ⌘Q 一秒內退出。
+    因此驗收改回量真正的使用者路徑，選單只留給 finally 的清理。
+    """
+    return ["osascript", "-l", "JavaScript", str(Path(__file__).with_name("cgkey.js")),
+            str(QUIT_VIRTUAL_KEY), str(COMMAND_FLAG)]
 
 
 def quit_menu():
-    # PM 五組對照確認休眠再喚醒後只有 ⌘Q 失效，選單退出仍有完整清理。
-    # 驗收與 finally 共用選單路徑；通過不代表產品的 ⌘Q 缺陷已修復。
+    # 只在 finally 的清理路徑用：⌘Q 送不出去或沒生效時還能把行程收乾淨。
     return script('click menu bar item 1 of menu bar 2\n'
                   'click menu item "退出 Mirage" of menu 1 of menu bar item 1 of menu bar 2')
 
@@ -170,10 +194,11 @@ def run_round(bundle, log_path, port):
         baseline = first_frames(before_wake)
         wake, wake_applescript, wake_same_poll = timed_action(script('click menu bar item 1 of menu bar 2\n'
                             'click menu item "顯示視窗" of menu 1 of menu bar item 1 of menu bar 2'), baseline, len(before_wake))
-        subprocess.run(quit_menu(), check=True, timeout=10, stdout=sys.stderr)
-        wait_for(read, lambda s: not alive(), 10, "選單退出 Mirage 後行程未退出")
+        subprocess.run(command_focus(), check=True, timeout=10, stdout=sys.stderr)
+        subprocess.run(quit_command_q(), check=True, timeout=10, stdout=sys.stderr)
+        wait_for(read, lambda s: not alive(), 10, "⌘Q 後行程未退出")
         if "event=applicationWillTerminate " not in read() or "stopRequested" not in read():
-            raise InvalidRound("選單退出 Mirage 缺少退出清理紀錄")
+            raise InvalidRound("⌘Q 缺少退出清理紀錄")
         return {"startup": startup, "wake": wake, "wake_applescript": wake_applescript,
                 "wake_same_poll": wake_same_poll, "pid": pid, "quit": "clean"}
     finally:
