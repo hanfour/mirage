@@ -220,6 +220,7 @@ public actor EmulatorClient {
     }
 
     private func setPower(_ p: PowerState) {
+        if connLog { print("[conn] power \(power)-->\(p)") }
         power = p
         powerCont.yield(p)
     }

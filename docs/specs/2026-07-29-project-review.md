@@ -164,6 +164,7 @@
 | ~~**D66**~~ | **macOS 的 BSD `seq 1 0` 印 `1 0`**（起點大於終點會倒數），`for _ in $(seq 1 "$N")` 在 `N=0` 時跑兩次。`verify_fps_under_load.sh -n 0` 對照組因此啟動了兩個 burner，前置量到外來 CPU 241% 然後被門檻連擋六次 | 與 D55 同型：對照組「看起來有跑」，實際跑的是別的條件。同一輪還抓到 bash 3.2 對空陣列 `"${ARR[@]}"` 在 `set -u` 下炸（4.4 才修，macOS 內建就是 3.2），PM 的 Homebrew bash 5.3 撞不到、審查 agent 才抓到 | **✅ 已修（2026-09-04）**：`[ "$N" -gt 0 ] && for`；空陣列展開前判 `${#ARR[@]}`；用 `/bin/bash` 實跑兩條空陣列路徑驗過。**紀律**：把關 bash 腳本一律用 `/bin/bash` 跑一次 | — |
 | **D67** | **「非工作負載 CPU 總和 <50%」從來不是自動閘門，而且那把尺會漏報**。`verify_fps_fullscreen.sh` 第 156 行算出 `FOREIGN_TOTAL` 之後只在 157 與 831 行印出，從沒進過任何比較，所以 50% 一直是人工判讀紀律。同時 `cpu_delta_report` 的預設 floor 是 10，低於 10% 的行程整個不計；2026-09-08 實測同一時刻 floor 10 是 322 到 351%、floor 0 是 366 到 385%，差距 28 到 58 個百分點來自 50 個小行程，另一次量到差 100 個百分點 | 兩件事都會讓「這個窗口夠安靜」的判斷偏樂觀：沒有閘門就不會擋，而 floor 10 會把「六個各 9% 的行程」報成 0%。驗收線 7 的所有 fps 數字都是在這個尺度下判讀的 | `verify_input_latency.sh` 已經同時印 floor 10 與 floor 0、並以 floor 10 硬閘門（`input_latency_cpu_window`），可作為形狀參考。要決定的是驗收線 7 要不要跟進：跟進的話兩條線的數字才可並排，但門檻 50 是在 floor 10 下校準的，換 floor 0 需要重新校準（安靜窗口的 floor 10 是 29%，floor 0 推估 57 到 87%）。**成本**：1 小時 | P2 |
 | **D68** | **`emulator_controller.proto` 的 `Image` 註解說像素是 "from left to right and bottom up"，實際是由上而下**。照註解做上下翻轉會取樣到鏡射位置 | 2026-09-08 寫延遲偵測時照著翻，30 次觸控全部偵測不到，花了一輪才找到。這是上游 proto 的註解，repo 內任何依它決定影像方向的地方都要用實測確認 | `phase0/harness/e2e_latency.py` 的 `region()` 已加註「RGBA is top down, regardless of the proto comment」。其餘讀 `Image.image` 的地方（`MirrorBlitter` 的著色器、`bench_mmap_vs_rgba.py`）要各自確認方向是對的。**成本**：30 分鐘 | P3 |
+| D69 | 休眠再喚醒後 ⌘Q 按鍵路徑失效，選單退出正常（2026-09-08，L／P） | PM 五組實跑對照：① 沒休眠只按 ⌘Q：已退出，willTerminate=1、stopRequested=1；② ⌘W 休眠 → 選單「顯示視窗」喚醒 → ⌘Q：仍存活，willTerminate=0；③ 同上先按 Esc 再 ⌘Q：仍存活；④ 同上等 8 秒再 ⌘Q：仍存活；⑤ 同上改用選單列「退出 Mirage」：已退出，willTerminate=1。同次 suspended 與 wake 各一筆，喚醒後視窗數 1，送鍵前 frontmost 驗證成功。不能歸因為最後視窗政策或選單卡住 | PM 已確認 `NSApp.activate(ignoringOtherApps: true)` 無效。喚醒後 `isActive=true`、`mainMenuNil=false`、`mainMenuItems=5`、`activationPolicy=0`；AX `frontmost=true`、選單列數 2。唯一異常是 app 的 `windowCount` 從 2 變成 3，與前述可見視窗數分開記錄，尚未證實因果。選單列「退出 Mirage」正常且三輪 `quit=clean`，不代表 ⌘Q 已修復。維持未結案，本輪不再追查。五組對照與量測條件見 [RESULTS-wake](../../app/RESULTS-wake.md#第五輪-nop) | P1（High，未結案，activate 嘗試無效） |
 
 > **關於 `P0`**：這一級是 2026-07-29 為 D6 新增的。原本最高只有 P1，而 D6 在 D2 上線後
 > 多了一種「不會自癒」的失效模式（永久卡鍵），與其他 P1 不同級。優先序欄位仍然是建議。
@@ -266,8 +267,8 @@ recon 文件那句講的是 `poc`。量 fps 用的 `game` 機已是最佳設定�
 | 1 款指標遊戲開箱即玩 | ⚠️ **✅（有前提）** | **前提：新機器先跑 `tools/provision/provision.py`（無旗標即可），再人工登入 Play Store 或 sideload APK** | — |
 | 60fps 穩定 | ⚠️ **✅（有條件，2026-09-03）**：主機安靜時（外來 CPU 29%）三有效輪 59／59／60，退出碼 0，首次通過；主機忙時（外來 CPU 183%）49／59／60 跨越門檻、判定不了。舊記載：❌ **31–58fps（2026-08-06 重量，取代原記載的 29–44）**；驗收線 7 的門檻是 55，未通過 | **三段都有損失，不是單一瓶頸**——同一個 20 秒窗口逐輪對齊量到：guest **56.73** → 直拉對照組 **53.86**（−5.1%）→ Mirage **50**（再 −7.2%）。⚠️ 原記載「guest 出幀」與「仍是推論」兩句都要更正，見下方註記。**2026-09-03（D58 工具）：傳輸段排除**：同一台 game AVD、真實畫面、900×2000 上 Python raw 58.98／MMAP 59.57，兩者都到 vsync 天花板；Mirage 的損失在自己行程內（grpc-swift 或渲染），下一步「Swift 直拉對照組」切開這兩段。**同日第二段也切開了**：grpc-swift 直拉不渲染 56.61（`app/RESULTS-swift-pull.md`），client 路徑排除；剩渲染段與「app 負載回壓 guest」兩個候選。**2026-09-03 三段全部切開**：安靜窗口 Mirage 行程內零損失（arrived 60／presented 60／dropped 0）；負載下 guest 先掉（D60）或渲染端掉（D64）。**2026-09-07 回壓量測後定案**：Mirage 對 guest 零回壓（三條件 59.8 到 59.9），使用者同時用機器時的殘餘全在 emulator 側（D60），Mirage 側唯一還能動的是 D64 的抵達抖動（深度 2 佇列） | **不是「無額外損失」**：乾淨輪次裡 Mirage 自己那段掉 7.2%。但它也不是主因——第 3 輪曾量到 Mirage(54) > 同輪對照組(49.94) |
 | 輸入延遲 < 80ms | ✅ **通過（2026-09-08，判到 present 為止）**：Mirage 可控三段合計，三次跑次共 9 輪、8 輪有效，SUM_MEDIAN 25.1／30.5／38.7，逐輪 24.9 到 41.8，門檻 80（`app/RESULTS-input-latency.md`）。舊記載 ❌ ~110ms、傳輸佔 ~2/3 兩項皆作廢，見下方註記 | **渲染段最大（10.9 到 26.7ms），傳輸段 10.1 到 11.0ms 非常穩定，注入段 0.6 到 4.1ms**。渲染段的跨度來自主機負載，同一顆 build 在外來 CPU 12% 的輪次是 10.9，44% 的輪次是 25.1 | 三段全部是 Mirage 的；guest 反應段歸 emulator 側不列入判定，present 到上屏未量 |
-| 冷啟動 < 30 秒 | ❌ ~37s | emulator 開機佔 89% | 4.2s |
-| 快照喚醒 < 5 秒 | ❌ ~8.9s | 同上 | 4.2s |
+| 冷啟動（驗收線 3） | 首次安裝的一次性成本，不列入日常驗收；2026-09-08 產品決策允許背景常駐 emulator | 任務簡報記載冷啟動 32.8s，非本輪重測 | 未重測 |
+| 選單列喚醒 < 5 秒（驗收線 4） | ✅ **通過（2026-09-08）**：兩次跑次各三輪全有效，產品喚醒（`[conn] power suspended-->waking` 至其後第一幀）六輪 0.023 到 0.047 秒，門檻 5 秒 | **關視窗會退出 app 這個缺陷已修復並有活體證據**：`windowShouldClose return=false action=suspend` 之後接 `power active-->suspending`、`power suspending-->suspended`，行程存活、無 `stopRequested`。根因是最後視窗退出政策（SwiftUI 的 `NSApplicationDelegateAdaptor` 在中間包一層，所以修之前該 selector 已有人回應並回傳 true），不是 delegate 指派失敗 | 量到的 2.27 秒舊定義有 92% 是 AppleScript 選單互動的固定開銷（單獨量到 2.07 到 2.15 秒），已改量 log 裡的 power 轉移。詳見 `app/RESULTS-wake.md` |
 | 記憶體閒置 < 4GB | ✅ **通過（2026-08-07 首次量到，兩輪 1.55 GB／1.96 GB，門檻 4 GB）** | 量法是「有無 Mirage 的系統記憶體差值」（`active + wired + compressed`），不依賴任何單一行程指標。⚠️ **會這樣量是因為行程指標給不出單一答案**：RSS 合計 1.13 GB、footprint 的 dirty 5,313 MB、`phys_footprint` 9.3 GB，差 9 倍；而 9.3 GB 與系統整體矛盾（整台機器 `active+wired+compressed` 才 6.70 GB），它把整塊 guest RAM 映射算進去而那些頁面多半沒常駐。系統差值與 RSS 法同量級，兩個獨立方法互相印證 | ~~現行 suspend 不停 qemu，此線在現架構下必然不達標~~ → **實測推翻**。那句是推論，而 AVD 設定 4GB guest RAM 不等於主機付出 4GB——頁面是惰性配置的 |
 
 **「輸入延遲 < 80ms」那一列的三個更正（2026-09-08）**：
@@ -319,6 +320,19 @@ Mirage ≥55 在算術上就不可能，該輪對這條線沒有鑑別力。
 **另有一段是腳本永遠補不上的**：`mirage-game` 用的是 playstore image，要在上面裝遊戲需要登入 Google 帳號——那一步不可自動化。所以「開箱即玩」可自動化的邊界最多到「**兩台一致的 AVD 可被重建**」，遊戲本身得靠 sideload APK（`verify_apk_install.sh` 已涵蓋）或人工登入。這條邊界必須寫在這裡，否則寫了 provisioning 腳本之後這個 ✅ 仍然是半裸的。
 
 ---
+
+### 驗收線 4 的修法已由活體驗證（2026-09-08）
+
+關視窗會退出 app。任務簡報記錄 PM 對 PID 44514 送出 ⌘W 後行程消失，
+最後印出 `stopRequested` 與 `CancellationError()`。這是既有活體證據，
+不是本次修正版的結果。第二次 PM 活體 PID 95445 確認 number=12838 的鏡像視窗
+delegate 指派成功，關窗時仍為 AppLifecycle，且 windowShouldClose 回傳 false、
+視窗隱藏後 app 仍退出，因此此次重現排除 delegate 指派失敗，支持退出政策方向。
+第二輪明確實作最後視窗退出政策為 false，PM 於 2026-09-08 活體確認修復（見上方那一列）。
+保留回呼接收者、實際 app delegate
+與第二個視窗類別等診斷；舊政策回傳值與第二視窗身分尚未量到。
+已交付量測腳本、五條故障注入及 CI 閘門 7 接線，修後 GUI 及完整 CI 仍待 PM，
+債務不結案。追蹤文件：`app/RESULTS-wake.md`。
 
 ## 7. D10 CI：閘門 + pre-push hook（2026-07-29，已完成）
 

@@ -45,7 +45,24 @@ import AppKit
 final class AppDelegate: NSObject, NSApplicationDelegate {
     var model: AppModel?
 
+    func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
+        MainActor.assumeIsolated {
+            AppLifecycle.diagnose("lastWindowPolicy", window: nil,
+                                  receiver: NSStringFromClass(type(of: self)),
+                                  result: String(LifecyclePolicy.terminateAfterLastWindowClosed))
+        }
+        return LifecyclePolicy.terminateAfterLastWindowClosed
+    }
+
     func applicationWillTerminate(_ notification: Notification) {
+        MainActor.assumeIsolated {
+            if ProcessInfo.processInfo.environment["MIRAGE_CONN_LOG"] == "1" {
+                AppLifecycle.diagnose("applicationWillTerminate", window: nil)
+                for window in (NSApp as NSApplication?)?.windows ?? [] {
+                    AppLifecycle.diagnose("terminate-window", window: window)
+                }
+            }
+        }
         guard let model else { return }
         // 終審 Minor 5（AudioPlayer.stop() 死碼）：呼叫點刻意放在這裡、同步呼叫，
         // 不是塞進 `AppModel.swift` 的 `model.shutdown()`（`nonisolated`，刻意設計成能在 MainActor 之外

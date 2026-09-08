@@ -462,7 +462,13 @@ final class AppModel {
             await MainActor.run {
                 // `NSApp` 是 IUO，headless 測試行程裡是 nil——硬解包會帶著整個 test run
                 // 一起死，而錯誤訊息不指向這裡。理由同 `shouldCapture`（見該處註解）。
-                (NSApp as NSApplication?)?.windows.first?.delegate = self?.lifecycle
+                let windows = (NSApp as NSApplication?)?.windows ?? []
+                AppLifecycle.diagnose("assign-selected-before", window: windows.first)
+                for window in windows {
+                    AppLifecycle.diagnose("assign-candidate", window: window)
+                }
+                windows.first?.delegate = self?.lifecycle
+                AppLifecycle.diagnose("assign-selected-after", window: windows.first)
             }
         }
     }

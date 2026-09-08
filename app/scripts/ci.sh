@@ -236,6 +236,11 @@ fi
 
 echo ""
 echo "=== 閘門 7：共用函式庫的自我測試 ==="
+if /bin/bash ./scripts/lib/wake_selftest.sh; then
+    ok "wake 輪詢與五條故障注入通過"
+else
+    fail "wake 自我測試失敗"
+fi
 if /bin/bash ./scripts/lib/input_latency_selftest.sh; then
     ok "input_latency.sh 解析與六條故障注入通過"
 else
@@ -322,7 +327,7 @@ fi
 echo ""
 echo "======================================"
 if [ "$FAILURES" -eq 0 ]; then
-    echo "全部通過（$RUNS 次跑次、0 行 NIO ERROR、無假 skip、無全形標點陷阱、無永不紅的 #expect、provision 測試綠、七支共用函式庫自我測試（verify_common／audio_stats／load_sentinel／guest_fps／gui_session／backpressure／input_latency）皆綠、phase0/harness pytest 綠）"
+    echo "全部通過（$RUNS 次跑次、0 行 NIO ERROR、無假 skip、無全形標點陷阱、無永不紅的 #expect、provision 測試綠、八支共用函式庫自我測試（verify_common／audio_stats／load_sentinel／guest_fps／gui_session／backpressure／input_latency／wake）皆綠、phase0/harness pytest 綠）"
     exit 0
 fi
 echo "$FAILURES 項失敗"

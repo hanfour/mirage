@@ -24,6 +24,7 @@ final class MirrorMTKView: MTKView {
     /// 需要 letterbox 容器統一負責；順帶移除原本硬編碼的 9:20）。此處只保留輸入前置條件。
     override func viewDidMoveToWindow() {
         super.viewDidMoveToWindow()
+        AppLifecycle.diagnose("mirror-viewDidMoveToWindow", window: window)
         guard let window else { return }
         // P1-c：keyDown/keyUp 需要 first responder；mouseMoved（look）需要視窗開啟
         // acceptsMouseMovedEvents——AppKit 預設不投遞 mouseMoved，兩者缺一都會讓
