@@ -39,4 +39,42 @@ import Testing
         #expect(KeyTranslate.w3c(virtualKey: 999, characters: nil, hasCommand: false) == nil)
         #expect(KeyTranslate.w3c(virtualKey: 999, characters: "", hasCommand: false) == nil)
     }
+
+    /// D19：功能鍵的 `charactersIgnoringModifiers` 是私用區字元，既不是 nil 也不是空字串。
+    /// 這些值取自 AppKit 的 `NSF1FunctionKey` 等常數，是實測列印確認過的。
+    /// 舊版會把它們原樣送給 guest，而 emulator 必不認得，靜默無作用。
+    @Test func privateUseAreaCharactersAreDropped() {
+        let functionKeys: [(String, Unicode.Scalar)] = [
+            ("F1", "\u{F704}"), ("ForwardDelete", "\u{F728}"), ("Home", "\u{F729}"),
+            ("End", "\u{F72B}"), ("PageUp", "\u{F72C}"), ("PageDown", "\u{F72D}"),
+        ]
+        for (name, scalar) in functionKeys {
+            let result = KeyTranslate.w3c(virtualKey: 999,
+                                          characters: String(Character(scalar)),
+                                          hasCommand: false)
+            #expect(result == nil, "\(name) 的私用區字元不該被送出")
+        }
+    }
+
+    /// 私用區的另外兩段（第 15、16 平面）也要擋。macOS 目前不用它們，
+    /// 但判準寫成「私用區」就該完整，少列會變成另一個「只涵蓋想得到的那些」的清單。
+    @Test func supplementaryPrivateUsePlanesAreDropped() {
+        #expect(KeyTranslate.w3c(virtualKey: 999, characters: "\u{F0000}", hasCommand: false) == nil)
+        #expect(KeyTranslate.w3c(virtualKey: 999, characters: "\u{100000}", hasCommand: false) == nil)
+    }
+
+    /// 控制字元同理：有字元但不可列印。
+    @Test func controlCharactersAreDropped() {
+        #expect(KeyTranslate.w3c(virtualKey: 999, characters: "\u{01}", hasCommand: false) == nil)
+        #expect(KeyTranslate.w3c(virtualKey: 999, characters: "\u{7F}", hasCommand: false) == nil)
+    }
+
+    /// **判準刻意只擋控制字元與私用區**，一般字元照舊送出，包含非 ASCII。
+    /// 2026-07-29 的實測推翻了 proto「只保證可列印 ASCII」的說法，
+    /// 把非 ASCII 一併擋掉會是超出 D19 範圍的行為變更。
+    @Test func ordinaryCharactersStillPassThrough() {
+        #expect(KeyTranslate.w3c(virtualKey: 0, characters: "a", hasCommand: false) == .key("a"))
+        #expect(KeyTranslate.w3c(virtualKey: 49, characters: " ", hasCommand: false) == .key(" "))
+        #expect(KeyTranslate.w3c(virtualKey: 999, characters: "é", hasCommand: false) == .key("é"))
+    }
 }

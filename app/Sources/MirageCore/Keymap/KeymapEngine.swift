@@ -29,7 +29,6 @@ public final class KeymapEngine {
     private var pressed: Set<KeyCode> = []
     private var lookPoint = NormPoint(x: 0.5, y: 0.5)
     private var lookDown = false
-    public private(set) var unmappedCount = 0
 
     public init(profile: KeymapProfile) {
         var next = 1
@@ -52,7 +51,12 @@ public final class KeymapEngine {
     public func apply(_ event: InputEvent) -> TouchFrame {
         switch event {
         case .keyDown(let k):
-            if handles(k) { pressed.insert(k) } else { unmappedCount += 1 }
+            // 沒綁到的鍵在這裡什麼都不做：呼叫端（KeymapController.route）負責把它
+            // 直通給 guest 鍵盤（D2）。這裡原本有一個 `unmappedCount` 計數器，
+            // 但全庫沒有任何生產碼讀它，而且它的增量由修飾鍵主導——profile 通常不綁
+            // Shift／Control／Alt／Meta，而 handleFlagsChanged 每按一次就餵進來一次，
+            // 所以它數的其實是「按了幾次修飾鍵」。沒有消費端又沒有意義，已於 D20 移除。
+            if handles(k) { pressed.insert(k) }
         case .keyUp(let k):
             pressed.remove(k)
             releaseLookIfGateClosed(for: k)

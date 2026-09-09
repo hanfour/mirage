@@ -68,10 +68,20 @@ import Testing
         #expect(look!.point.x != 0.5 || look!.point.y != 0.5)  // 自中心位移
     }
 
-    @Test func unmappedKeyIgnoredAndCounted() {
+    /// D20：原本這條驗的是 `unmappedCount` 有沒有加一，而那個計數沒有任何消費端。
+    /// 改成驗真正的產品行為：沒綁到的鍵不可以產生任何觸控，否則會在 guest 上多戳一下。
+    @Test func unmappedKeyLeavesTouchStateUntouched() throws {
         let e = engine()
-        _ = e.apply(.keyDown(.key("z")))              // 未映射
-        #expect(e.unmappedCount == 1)
+        let before = e.apply(.keyDown(.key("w")))     // 有綁：joystick 推到上緣
+        let beforeStick = try #require(before.touches.first { $0.identifier == 1 })
+        let frame = e.apply(.keyDown(.key("z")))      // 沒綁
+        let afterStick = try #require(frame.touches.first { $0.identifier == 1 })
+        // **比位置不是比數量**：搖桿無論如何都會出一個觸控，所以「數量不變」沒有鑑別力
+        // ——實測突變（未綁鍵清掉 pressed）在只比數量時抓不到。
+        #expect(afterStick.point.x == beforeStick.point.x)
+        #expect(afterStick.point.y == beforeStick.point.y)
+        #expect(afterStick.down == beforeStick.down)
+        #expect(frame.touches.count == before.touches.count)
     }
 
     @Test func gatedLookLiftsTouchWhenActivationKeyReleased() throws {
