@@ -34,6 +34,7 @@ source "$(dirname "$0")/lib/load_sentinel.sh"
 source "$(dirname "$0")/lib/verify_common.sh"
 source "$(dirname "$0")/lib/gui_session.sh"
 source "$(dirname "$0")/lib/audio_stats.sh"
+source "$(dirname "$0")/lib/guest_fps.sh"
 
 SERIAL="emulator-5556"
 GRPC_PORT="8556"
@@ -89,8 +90,8 @@ fi
 # D60(a)：參數解析與驗證完成後，量測前才檢查主機磁碟。
 disk_preflight "$(dirname "$0")" || exit 1
 
-# `audio_stats` 解析 MIRAGE_AUDIO_LOG 的每秒一行，算出六個可 eval 的 KEY=VAL
-# （含 MALFORMED——缺 pkt=/under= 欄位的畸形行計數）。完整設計說明（判準邏輯、
+# `audio_stats` 分類音訊日誌，算出可 eval 的 KEY=VAL
+# （含 MALFORMED 畸形計數與 EVENTS 已知事件計數）。完整設計說明（判準邏輯、
 # 畸形行處理、AUDIO_LINES 語意）見 `lib/audio_stats.sh` 的檔頭註解；本檔只 source 它，
 # 不重複定義，理由與 `lib/gui_session.sh` 同一條：只有一份要驗。
 
@@ -122,7 +123,7 @@ for _ in $(seq 1 15); do "$ADB" -s "$SERIAL" shell input keyevent 24 > /dev/null
 
 LOG=$(mktemp -t mirage_audio_gui)
 BUNDLE=$(mktemp -d -t mirage_audio_bundle)
-trap 'gui_session_cleanup "${BUNDLE:-}"' EXIT INT TERM
+trap 'gui_session_cleanup "${BUNDLE:-}"; rm -f "${FPS_LOG:-}" "${MALFORMED_LOG:-}"' EXIT INT TERM
 
 echo ""
 echo "=== 啟動 Mirage（.app bundle）→ localhost:${GRPC_PORT}，量測 ${DURATION}s ==="
@@ -132,7 +133,16 @@ if ! gui_session_start "$LOG" "$BUNDLE" "" \
         "MIRAGE_PORT=$GRPC_PORT" "MIRAGE_AUDIO_LOG=1" "MIRAGE_FPS_LOG=1" "MIRAGE_CONN_LOG=1"; then
     exit 1
 fi
+# D47／D56／D48：guest 與 fps 只量同一段窗口，不含啟動與建置。
+# 用行號截取快照，後續印表與斷言不再讀仍持續增加的 fps 日誌。
+FPS_LOG=$(mktemp -t mirage_audio_fps)
+BEFORE=$(wc -l < "$LOG")
+guest_window_start "$SERIAL"
 sleep "$DURATION"
+AFTER=$(wc -l < "$LOG")
+GUEST_RAW=$(guest_window_end "$SERIAL" "$PACKAGE") || GUEST_RAW=""
+GUEST_FPS=$(printf '%s' "$GUEST_RAW" | cut -d' ' -f1)
+sed -n "$((BEFORE + 1)),${AFTER}p" "$LOG" > "$FPS_LOG"
 
 echo ""
 echo "===== 音訊每秒日誌（全部）====="
@@ -140,19 +150,20 @@ grep '\[audio\]' "$LOG"
 
 echo ""
 echo "===== 畫面 ====="
-fps_summary "$LOG"
+fps_summary "$FPS_LOG"
 
 echo ""
 echo "===== 解析結果 ====="
 audio_stats "$LOG"
-echo "FPS_SAMPLES=$(fps_samples "$LOG")"
-echo "FPS_AVG=$(fps_average "$LOG")"
+echo "FPS_SAMPLES=$(fps_samples "$FPS_LOG")"
+echo "FPS_AVG=$(fps_average "$FPS_LOG")"
 
 echo ""
 echo "===== 判定 ====="
-eval "$(audio_stats "$LOG")"
-FPS_N=$(fps_samples "$LOG")
-FPS_A=$(fps_average "$LOG")
+MALFORMED_LOG=$(mktemp -t mirage_audio_malformed)
+eval "$(audio_stats "$LOG" "$MALFORMED_LOG")"
+FPS_N=$(fps_samples "$FPS_LOG")
+FPS_A=$(fps_average "$FPS_LOG")
 
 # 跟時長成正比的門檻一律用 $DURATION 現場算，不寫死絕對值。腳本檔頭把 `-d 90` 列為
 # 合法用法，`DURATION` 預設只是 60——寫死用 60 秒推出來的絕對值，換一個時長跑就會
@@ -177,42 +188,21 @@ assert_at_least "A1 音訊日誌行數（App 存活）" "$AUDIO_LINES" $((DURATI
 # 同一個比例成立。
 assert_at_least "A2 有封包的秒數" "$SOUND_SECS" $((DURATION * 8 / 10))
 
-# A2b（D44，2026-08-07）：**前置——這一次的環境到底有沒有連續的聲音可量。**
-#
-# 檔頭把「遊戲必須停在會連續發聲的畫面」列為前置條件，但在此之前**沒有任何斷言檢查
-# 它**。A2 只問「有封包的秒數」，而稀疏音效每秒照樣有 92 個封包——`pkt=92` 看起來
-# 完全健康，實際供應量只有即時需求的 6.5%。那個前置條件因此從來沒有被驗證過，每一次
-# 驗收線 6 的量測都可能是在不符合前提的畫面上做的。
-#
-# **實測的兩個點**（`phase0/harness/audio_client_parity.py`，同一台 emulator）：
-#
-#   Pixel Flow 當時的畫面   supply = 6.5%   （每包 136.7 bytes）
-#   連續滿幅度 440Hz 正弦波  supply = 100.0% （每包 2289.4 bytes）
-#
-# 差 15 倍，門檻好定。90 貼近連續、遠離稀疏。
-#
-# **這條擋下來不代表產品有問題，代表這次量測沒有鑑別力**：供應只有 6.5% 時緩衝必然
-# 週期性排乾，A3 量到的 underrun 反映的是「內容本來就不連續」，不是 Mirage 的緩衝
-# 健康度。讓它產出一個看起來很篤定的「驗收線 6 未通過」，比紅在這裡更糟。
-#
-# ⚠️ 失效方向是紅燈：供應不足就中止，結構上不可能製造假綠燈。與 D56 為 fps 加的
-# 逐輪 guest 門檻同一個形狀——上游有一個量決定「這一輪算不算數」，而沒有人在看它。
-#
-# ⚠️ 舊日誌沒有 `supply=` 欄位（2026-08-07 前），`SUPPLY_MEAN` 會是 0 而被這條擋下。
-# 那是正確的：拿舊格式的日誌重跑本斷言，本來就無法判定供應率。
+# A2b：供應不足時，後續緩衝量測不能當成 Mirage 側健康度的判定。
+# D44 已推翻「內容稀疏」歸因：6.5% 是主機輸出後端停止排空時的後備速率。
+# 完整證據與產品決策見 app/RESULTS-audio-collapse.md §1、§8。
 SUPPLY_MIN="${SUPPLY_MIN:-90}"
 if [ "${SUPPLY_MEAN:-0}" -lt "$SUPPLY_MIN" ]; then
     echo ""
     echo "================================================================"
     echo "❌ A2b 前置未滿足：音訊供應率只有 ${SUPPLY_MEAN:-0}%（門檻 ${SUPPLY_MIN}%）。"
-    echo "   **這不是產品的紅燈，是環境的紅燈。** guest 這一刻沒有連續的聲音可量，"
-    echo "   後面 A3 量到的 underrun 反映的是「內容本來就不連續」，不是緩衝健康度。"
-    echo "   實測參考：Pixel Flow 的收集／選單畫面 6.5%；連續正弦波 100%。"
-    echo "   下一步：把遊戲切到會**持續**發聲的畫面（不是只有點擊才出聲的畫面）再跑。"
+    echo "   emulator 的主機音訊輸出後端會閂鎖崩潰，沒有正常主機接收端時交付率為 6.5%。"
+    echo "   驗收線 6 判不通過、歸 emulator 側，Mirage 只做偵測與告知，不做繞法。"
+    echo "   完整證據：app/RESULTS-audio-collapse.md §1、§8。"
     echo "   要在明知供應不足的情況下硬跑：SUPPLY_MIN=0 $0 $*"
     echo "================================================================"
 fi
-assert_at_least "A2b 前置：音訊供應率（有連續的聲音可量）" "${SUPPLY_MEAN:-0}" "$SUPPLY_MIN"
+assert_at_least "A2b 前置：音訊供應率" "${SUPPLY_MEAN:-0}" "$SUPPLY_MIN"
 
 # A3：核心判準。只統計連續有聲期間的 underrun 增量（見 audio_stats 註解）。
 # **必須排在 A2 之後**：assert_at_most 對空值/0 是通過的，A2 先確認「有東西可量」，
@@ -223,12 +213,28 @@ assert_at_least "A2b 前置：音訊供應率（有連續的聲音可量）" "${
 # 比例縮放的話，時長變長時就形同沒有這條斷言。
 assert_at_most "A3 連續有聲期間的 underrun 增量總和" "$USUM" $((DURATION * 350 / 60))
 
-# A4：畫面沒被拖垮。同一個行程、同一份 log——音訊真的拖垮鏡像時，這條與 A1 會一起紅。
-# fps 是速率（每秒張數），不隨量測時長變化，門檻**不**跟著 DURATION 縮放。
-# 門檻 1 是刻意保守，不是量出來的：streamScreenshot 是變化驅動，`fps=` 只在有幀真的
-# 被 present 時才印，畫面靜止的秒本來就不出幀。這條目前抓得到的只有「從頭到尾一幀
-# 都沒 present」（例如 MainActor 被打死）——「畫面跑到一半凍住」抓不到，見 D47。
-assert_at_least "A4 fps 取樣筆數" "$FPS_N" 1
+# A4：guest 在同一窗口持續出幀，fps 行數才可用來判斷 Mirage 中途凍住。
+# 預設 27 與下方平均 fps 要求一致；0 表示明知前置不成立仍硬跑。
+A4_GUEST_MIN="${A4_GUEST_MIN:-27}"
+if [ "$A4_GUEST_MIN" != 0 ]; then
+    if [ -z "$GUEST_FPS" ] || ! awk -v g="$GUEST_FPS" -v t="$A4_GUEST_MIN" 'BEGIN { exit !(g >= t) }'; then
+        echo "================================================================"
+        echo "❌ 前置未滿足：guest ${GUEST_FPS:-（找不到 layer）} fps，門檻 ${A4_GUEST_MIN}。"
+        echo "   **這不是產品的紅燈，是環境的紅燈。** guest 沒在出幀時，streamScreenshot"
+        echo "   不會送畫面，量到的 fps 反映的是畫面多久變一次，不是傳輸能力。"
+        echo "   找不到 layer 通常代表遊戲雖在前景但已停止算繪（Unity 閒置會暫停算繪）。"
+        echo "   下一步：把遊戲切到會**持續變化**的畫面（遊玩中，不是選單／收集畫面）再跑。"
+        echo "   要在明知 guest 沒出幀的情況下硬跑：A4_GUEST_MIN=0 $0 $*"
+        echo "================================================================"
+        exit 1
+    fi
+else
+    echo "⚠️ A4 guest 前置已覆寫，fps 紅燈不能直接歸因於 Mirage。"
+fi
+echo "GUEST_FPS=${GUEST_FPS:-無資料}"
+# 派工者兩次 -d 60 實測皆為 64 筆，門檻 48 保留 25% 裕度。
+# 此比例只有在 guest 前置成立時才有意義；平均 fps 維持絕對值 27。
+assert_at_least "A4 fps 取樣筆數" "$FPS_N" $((DURATION * 8 / 10))
 assert_at_least "A4 平均 fps" "$FPS_A" 27
 
 # A5：重新蓄水次數。**沒有這條，A3 可以靠反覆蓄水作弊**——蓄水期 under 不增加、
@@ -241,6 +247,11 @@ assert_at_most "A5 重新蓄水次數" "$PRIMES" $((DURATION * 72 / 60))
 # A6：畸形日誌行。這不是品質門檻是**解析可信度**門檻——有畸形行代表這次量測的
 # 數字本身不可信（缺欄位會讓 delta 跨越遺失的取樣點），該紅。跟時長無關，永遠是 0，
 # **不**跟著 DURATION 縮放。
+if [ "$MALFORMED" -gt 0 ]; then
+    echo "A6 畸形日誌原文（最多 5 行）："
+    cat "$MALFORMED_LOG"
+fi
+rm -f "$MALFORMED_LOG" "$FPS_LOG"
 assert_at_most "A6 畸形日誌行" "$MALFORMED" 0
 
 echo ""
@@ -248,14 +259,11 @@ echo "================================================================"
 echo "⚠️  以上六條是**回歸偵測**，不是驗收線 6 的通過判準。"
 echo "    全綠只代表「沒有比 2026-08-03 的基準更糟」。"
 echo ""
-echo "    驗收線 6（spec §8-6）目前判定為 **未通過（已大幅改善）**："
-echo "    pre-roll（AudioRingBuffer.primeThresholdSamples）讓 underrun 總量降約 97%"
-echo "    （USUM 5481 → ~150），但本次 PRIMES=${PRIMES} —— 每次重新蓄水都賠約 100ms"
-echo "    靜音，實測平均每 1.7 秒排乾一次、全程約 5.8% 在靜音。"
-echo ""
-echo "    根因：生產端供應量長期約為消費需求的 94%，兩個獨立時鐘之間沒有任何"
-echo "    rate adaptation。這不在 D32 範圍內，已記為獨立債務。"
-echo "    完整推導見 docs/specs/2026-08-03-d32-acceptance-6-automation-design.md"
-echo "    與 app/RESULTS-d32.md。"
+echo "    驗收線 6 判不通過、歸 emulator 側，Mirage 只做偵測與告知，不做繞法。"
+echo "    emulator 的主機音訊輸出後端會閂鎖崩潰，三個版本都會，換版本不是解法。"
+echo "    streamAudio 的交付速率等於主機接收端排空 emulator 混音緩衝的速率。"
+echo "    有正常運作的 CoreAudio 輸出裝置在拉資料時是 100%；沒有時是 6.5%。"
+echo "    繞法需要停掉 guest 全部音訊才能重設輸出裝置，做不到無縫，玩家會聽到斷音。"
+echo "    完整證據與產品決策見 app/RESULTS-audio-collapse.md §1、§8。"
 echo "================================================================"
 echo "log：$LOG"

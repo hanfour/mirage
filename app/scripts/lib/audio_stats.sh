@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# 解析 MIRAGE_AUDIO_LOG 的每秒一行，算出音訊健康量測用的七個 KEY=VAL。
+# 解析 MIRAGE_AUDIO_LOG 的每秒一行，算出音訊健康量測用的 KEY=VAL。
+# 第二個參數可指定畸形原文輸出檔，最多寫入五行；呼叫端應提供空檔。
 # 用法：source "$(dirname "$0")/lib/audio_stats.sh"
 #
 # **存在的理由與 verify_common.sh／gui_session.sh 同一條**：這段 awk 是 D32 判準的
@@ -47,14 +48,39 @@
 # 有沒有活到最後（這行的迴圈跑在 MainActor 上，MainActor 被打死就是 0 行），跟
 # 「這一行的欄位是否完整」是兩件事，後者由 MALFORMED 單獨呈現，不混進同一個數字。
 audio_stats() {
-    awk '
+    awk -v malformed_log="${2:-}" '
       /\[audio\]/ {
           lines++
+          original = $0
+          message = $0
+          sub(/^.*\[audio\] */, "", message)
+          # 已知事件採完整形狀白名單，新增詞彙必須同步更新解析器。
+          # 事件只增加總行數與 EVENTS，不進取樣、窗口或累積計數。
+          if (message ~ /^degraded reason=emulator-output-stalled pkt=[0-9]+ supply=[0-9]+%$/ ||
+              message ~ /^recovered pkt=[0-9]+ supply=[0-9]+%$/ ||
+              message ~ /^degraded-cleared reason=guest-audio-stopped pkt=[0-9]+ supply=[0-9]+%$/ ||
+              # 收到端的 ch／fmt 是 proto enum 的描述字串不是數字（實測 `ch=stereo`），
+              # 請求端的 ch 才是 Int。列舉值取自 emulator_controller.pb.swift 的
+              # Channels 與 SampleFormat，含 UNRECOGNIZED——用列舉而不是 `.+`，
+              # 是為了讓 proto 換版新增列舉值時 A6 照樣紅。
+              message ~ /^收到的格式：sr=[0-9]+ ch=(mono|stereo|UNRECOGNIZED\([0-9]+\)) fmt=(audFmtU8|audFmtS16|UNRECOGNIZED\([0-9]+\))（請求的是 sr=[0-9]+ ch=[0-9]+ fmt=audFmtS16）bytes=[0-9]+$/ ||
+              message ~ /^stream ended: .+$/ ||
+              message == "無法建立 48k/stereo/Float32 格式，降級為無音訊" ||
+              message ~ /^engine 啟動失敗，降級為無音訊：.+$/) {
+              events++
+              next
+          }
+          # 其餘形狀必須是 pkt 開頭且同時有兩個必要欄位的每秒取樣。
+          if (message !~ /^pkt=/ || message !~ /(^|[[:space:]])pkt=/ ||
+              message !~ /(^|[[:space:]])under=/) {
+              malformed++
+              if (malformed_log != "" && malformed <= 5) print original > malformed_log
+              next
+          }
           pkt = 0; under = 0
-          pkt_found = 0; under_found = 0
           for (i = 1; i <= NF; i++) {
-              if ($i ~ /^pkt=/)    { sub(/^pkt=/, "", $i);    pkt = $i + 0;    pkt_found = 1 }
-              if ($i ~ /^under=/)  { sub(/^under=/, "", $i);  under = $i + 0;  under_found = 1 }
+              if ($i ~ /^pkt=/)    { sub(/^pkt=/, "", $i);    pkt = $i + 0 }
+              if ($i ~ /^under=/)  { sub(/^under=/, "", $i);  under = $i + 0 }
               # primes 刻意不參與畸形判定、也不每行重設——它是累積計數，缺欄位時
               # 沿用上一次看到的值（初始為 awk 未初始化變數的 0），讓舊格式日誌
               # 解析出 PRIMES=0 而不是被打成畸形行。
@@ -68,10 +94,6 @@ audio_stats() {
                   sub(/^supply=/, "", $i)
                   supply_sum += $i + 0; supply_n++
               }
-          }
-          if (!pkt_found || !under_found) {
-              malformed++
-              next    # 整行跳過：不進 sound/window，也不更新 prev_pkt/prev_under
           }
           if (pkt > 0) sound++
           if (pkt > 0 && prev_pkt > 0) {
@@ -87,9 +109,9 @@ audio_stats() {
           # BSD awk 不吃 printf 參數位置的三元運算子（「illegal statement」），先算進變數。
           supply_mean = 0
           if (supply_n > 0) supply_mean = supply_sum / supply_n
-          printf "AUDIO_LINES=%d\nSOUND_SECS=%d\nUSUM=%d\nUMAX=%d\nUWINDOWS=%d\nMALFORMED=%d\nPRIMES=%d\nSUPPLY_MEAN=%d\n",
+          printf "AUDIO_LINES=%d\nSOUND_SECS=%d\nUSUM=%d\nUMAX=%d\nUWINDOWS=%d\nMALFORMED=%d\nPRIMES=%d\nSUPPLY_MEAN=%d\nEVENTS=%d\n",
                  lines + 0, sound + 0, usum + 0, umax + 0, windows + 0, malformed + 0, primes + 0,
-                 supply_mean
+                 supply_mean, events + 0
       }
     ' "$1"
 }

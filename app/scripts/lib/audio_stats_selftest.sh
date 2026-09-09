@@ -172,6 +172,58 @@ printf '[audio] pkt=92 sr=48000 ch=2 under=3 over=0 primes=1 depth=46ms\n' > "$W
 check_case "案例 L：舊格式（無 supply 欄位）——不算畸形，SUPPLY_MEAN=0" \
     "$WORK/legacy.log" AUDIO_LINES:1 SOUND_SECS:1 MALFORMED:0 SUPPLY_MEAN:0
 
+# 已知事件逐條驗證，兩種 AudioPlayer 失敗訊息都納入。
+cat > "$WORK/events.log" <<'EOF'
+[audio] degraded reason=emulator-output-stalled pkt=6 supply=6%
+[audio] recovered pkt=80 supply=100%
+[audio] degraded-cleared reason=guest-audio-stopped pkt=0 supply=0%
+[audio] 收到的格式：sr=48000 ch=stereo fmt=audFmtS16（請求的是 sr=48000 ch=2 fmt=audFmtS16）bytes=132
+[audio] stream ended: unavailable
+[audio] 無法建立 48k/stereo/Float32 格式，降級為無音訊
+[audio] engine 啟動失敗，降級為無音訊：test error
+EOF
+n=0
+while IFS= read -r event; do
+    n=$((n + 1))
+    printf '%s\n' "$event" > "$WORK/event.log"
+    check_case "事件 $n" "$WORK/event.log" MALFORMED:0 EVENTS:1 SOUND_SECS:0 USUM:0 PRIMES:0
+ done < "$WORK/events.log"
+check_case "全部事件" "$WORK/events.log" AUDIO_LINES:7 MALFORMED:0 EVENTS:7 UWINDOWS:0 SUPPLY_MEAN:0
+# 收到端的 ch／fmt 是 proto enum 的描述字串。上面那條事件用的是真日誌實際出現的
+# `ch=stereo`：**原本這裡寫的是 `ch=2`，一個現實中不存在的形狀**，所以自我測試綠
+# 而真跑紅（2026-09-09 實測）。下面兩條釘住列舉的另一組合法值與一個不在列舉裡的值。
+printf '[audio] 收到的格式：sr=48000 ch=mono fmt=audFmtU8（請求的是 sr=48000 ch=2 fmt=audFmtS16）bytes=64\n' > "$WORK/fmt_mono.log"
+check_case "格式行：另一組合法列舉值" "$WORK/fmt_mono.log" MALFORMED:0 EVENTS:1
+printf '[audio] 收到的格式：sr=48000 ch=quadraphonic fmt=audFmtS16（請求的是 sr=48000 ch=2 fmt=audFmtS16）bytes=64\n' > "$WORK/fmt_bogus.log"
+check_case "格式行：不在列舉裡的 ch 仍算畸形" "$WORK/fmt_bogus.log" MALFORMED:1 EVENTS:0
+printf '[audio] new-event reason=unknown\n' > "$WORK/unknown.log"
+check_case "未知形狀" "$WORK/unknown.log" MALFORMED:1 EVENTS:0
+printf '[audio] pkt=6 smp=10 supply=6%% primes=99\n' > "$WORK/missing_under.log"
+check_case "取樣缺 under" "$WORK/missing_under.log" MALFORMED:1 SOUND_SECS:0 PRIMES:0
+cat > "$WORK/normal.log" <<'EOF'
+[audio] pkt=50 under=10 primes=1 supply=90%
+[audio] pkt=50 under=12 primes=2 supply=100%
+EOF
+{
+    head -1 "$WORK/normal.log"
+    cat "$WORK/events.log"
+    tail -1 "$WORK/normal.log"
+} > "$WORK/with_events.log"
+check_case "正常序列" "$WORK/normal.log" SOUND_SECS:2 USUM:2 PRIMES:2 UWINDOWS:1 SUPPLY_MEAN:95
+check_case "混入事件" "$WORK/with_events.log" SOUND_SECS:2 USUM:2 PRIMES:2 UWINDOWS:1 SUPPLY_MEAN:95 EVENTS:7 MALFORMED:0
+# 診斷檔須保留原文且最多五行，不把任意日誌塞進可 eval 的輸出。
+for n in 1 2 3 4 5 6; do
+    printf '[audio] unknown-%s pkt=3\n' "$n"
+done > "$WORK/diagnostic.log"
+audio_stats "$WORK/diagnostic.log" "$WORK/bad.log" > /dev/null
+head -5 "$WORK/diagnostic.log" > "$WORK/expected.log"
+if cmp -s "$WORK/bad.log" "$WORK/expected.log"; then
+    echo "✅ 畸形診斷保留原文且最多 5 行"
+else
+    echo "❌ 畸形診斷原文或行數錯誤"
+    FAILURES=$((FAILURES + 1))
+fi
+
 echo ""
 if [ "$FAILURES" -eq 0 ]; then
     echo "全部通過"
