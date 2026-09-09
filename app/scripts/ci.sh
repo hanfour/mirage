@@ -304,7 +304,7 @@ else
 fi
 
 echo ""
-echo "=== 閘門 7：共用函式庫的自我測試 ==="
+echo "=== 閘門 7：九支共用函式庫的自我測試 ==="
 if /bin/bash ./scripts/lib/wake_selftest.sh; then
     ok "wake 輪詢與五條故障注入通過"
 else
@@ -376,6 +376,14 @@ else
 fi
 
 echo ""
+# 第九支自我測試：getevent 的 slot 狀態與轉移解析，不需要模擬器。
+if /bin/bash ./scripts/lib/getevent_touch_selftest.sh; then
+    ok "getevent_touch.sh 純函式自我測試通過"
+else
+    fail "getevent_touch.sh 純函式自我測試失敗"
+fi
+
+echo ""
 echo "=== 閘門 8：Python 測試（phase0/harness 與 tools/probe）==="
 HARNESS_PY="../phase0/harness/.venv-d45/bin/python"
 if [ ! -x "${HARNESS_PY}" ]; then
@@ -408,7 +416,7 @@ fi
 echo ""
 echo "======================================"
 if [ "$FAILURES" -eq 0 ]; then
-    echo "全部通過（$RUNS 次跑次、0 行 NIO ERROR、無假 skip、無全形標點陷阱、無永不紅的 #expect、provision 測試綠、八支共用函式庫自我測試（verify_common／audio_stats／load_sentinel／guest_fps／gui_session／backpressure／input_latency／wake）皆綠、phase0/harness 與 tools/probe pytest 綠）"
+    echo "全部通過（$RUNS 次跑次、0 行 NIO ERROR、無假 skip、無全形標點陷阱、無永不紅的 #expect、provision 測試綠、九支共用函式庫自我測試（verify_common／audio_stats／load_sentinel／guest_fps／gui_session／backpressure／input_latency／wake／getevent_touch）皆綠、phase0/harness 與 tools/probe pytest 綠）"
     exit 0
 fi
 echo "$FAILURES 項失敗"
