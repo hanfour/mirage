@@ -70,6 +70,15 @@ public final class KeymapEngine {
         return snapshot()
     }
 
+    /// 清空所有按鍵狀態，回傳對應的「全放開」快照。
+    /// lookPoint 是視角的當前位置，不是按鍵狀態，因此刻意保留，避免重新取得焦點
+    /// 或切換 profile 的釋放過程讓視角瞬間跳回畫面正中。
+    public func releaseAll() -> TouchFrame {
+        pressed.removeAll()
+        lookDown = false
+        return snapshot()
+    }
+
     // MARK: - 公開述詞
 
     /// 這顆鍵有沒有被 profile 綁住。

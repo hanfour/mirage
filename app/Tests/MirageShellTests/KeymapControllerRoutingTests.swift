@@ -189,6 +189,85 @@ private func profileWithWAndJ() -> KeymapProfile {
         #expect(spy.keyCalls.map(\.1) == [true, false])
     }
 
+    /// D23：移除 profile 之前必須送出舊搖桿的 up。
+    @Test func removingProfileReleasesHeldJoystick() async throws {
+        let spy = SpyInjector()
+        let c = KeymapController(queue: InputQueue(injector: spy), profile: profileWithWAndJ())
+        c.handleKeyDown(.key("w"))
+        c.reload(nil)
+        c.handleKeyDown(.key("z")) // 單一消費者的柵欄：更早的觸點已全部抵達。
+        await spy.keyGate.wait(for: 1)
+        #expect(spy.touchCalls == 2)
+        let pressed = try #require(spy.touchFrames.first?.first { $0.identifier == 1 })
+        let released = try #require(spy.touchFrames.last?.first { $0.identifier == 1 })
+        #expect(pressed.down)
+        #expect(!released.down)
+        #expect(!c.hasProfile)
+    }
+
+    /// D23：先釋放舊 profile，再從乾淨狀態開始使用新 profile。
+    @Test func replacingProfileReleasesHeldJoystickAndStartsClean() async throws {
+        let spy = SpyInjector()
+        let c = KeymapController(queue: InputQueue(injector: spy), profile: profileWithWAndJ())
+        let replacement = KeymapProfile(gameId: "other", version: 1, bindings: [
+            .tap(key: .key("j"), at: NormPoint(x: 0.6, y: 0.4)),
+            .joystick(up: .key("w"), down: .key("s"), left: .key("a"), right: .key("d"),
+                      center: NormPoint(x: 0.3, y: 0.7), radius: 0.1),
+        ])
+        c.handleKeyDown(.key("w"))
+        c.reload(replacement)
+        c.handleKeyDown(.key("j"))
+        c.handleKeyDown(.key("z"))
+        await spy.keyGate.wait(for: 1)
+        let frames = spy.touchFrames
+        #expect(frames.count == 3)
+        let releasedFrame = try #require(frames.dropFirst().first)
+        let released = try #require(releasedFrame.first { $0.identifier == 1 })
+        #expect(!released.down)
+        let stick = try #require(frames.last?.first { $0.identifier == 2 })
+        let tap = try #require(frames.last?.first { $0.identifier == 1 })
+        #expect(!stick.down)
+        #expect(stick.point == NormPoint(x: 0.3, y: 0.7))
+        #expect(tap.down)
+        #expect(tap.point == NormPoint(x: 0.6, y: 0.4))
+    }
+
+    /// D11：沒有後續 keyUp，失焦也必須同時放開綁定觸點與直通鍵。
+    @Test func losingFocusReleasesTouchesAndPassthroughKeys() async throws {
+        let spy = SpyInjector()
+        let queue = InputQueue(injector: spy)
+        let c = KeymapController(queue: queue, profile: profileWithWAndJ())
+        c.handleKeyDown(.key("w"))
+        c.handleKeyDown(.key("j"))
+        c.handleKeyDown(.key("k"))
+        c.loseFocus()
+        // 兩個固定柵欄，缺少 k up 時也能前進到斷言，不等待不存在的釋放事件。
+        queue.key(.key("z"), down: true)
+        queue.key(.key("z"), down: false)
+        await spy.keyGate.wait(for: 3)
+        #expect(spy.touchCalls == 3)
+        let released = try #require(spy.touchFrames.last)
+        #expect(released.map(\.identifier) == [1, 2])
+        #expect(released.allSatisfy { !$0.down })
+        let kCalls = spy.keyCalls.filter { $0.0 == .key("k") }
+        #expect(kCalls.count == 2)
+        #expect(try #require(kCalls.first).1)
+        #expect(try !#require(kCalls.last).1)
+    }
+
+    /// 編輯器拖動造成 reload 時，不得多送釋放快照到 guest。
+    @Test func editingReloadDoesNotSendTouchFrames() async {
+        let spy = SpyInjector()
+        let queue = InputQueue(injector: spy)
+        let c = KeymapController(queue: queue, profile: profileWithWAndJ())
+        c.setEditing(true)
+        let before = spy.touchCalls
+        c.reload(profileWithWAndJ())
+        queue.key(.key("z"), down: true) // 排在 reload 後的柵欄，不必離開編輯模式。
+        await spy.keyGate.wait(for: 1)
+        #expect(spy.touchCalls == before)
+    }
+
     /// 編輯模式期間，引擎的 `pressed` 仍必須追得上實體鍵狀態。
     ///
     /// 擋點只能是 `emit`（不送出去），不能是 `route` 提早 return（引擎看不到事件）。

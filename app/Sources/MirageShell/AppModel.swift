@@ -206,8 +206,10 @@ final class AppModel {
                             //   會重複呼叫一次。兩者雖然冪等，但重複呼叫代表
                             //   「誰負責這件事」沒有單一答案，下一個人會改錯地方。
         case .enter(let p):
-            // 即時套用：overlay 與引擎都看得到這份 profile。`emit` 在編輯模式下本來就被擋，
-            // 所以套用不會有任何東西送到 guest。
+            // 即時套用：overlay 與引擎都看得到這份 profile。
+            // 無條件 reload 是安全的：controller 此時尚未進入編輯模式，reload 會先
+            // 釋放舊引擎的觸點與直通鍵再換引擎（D23，同時解決 D34(b)）。
+            // 隨後 setEditing 會擋住編輯期間的 emit。
             profile = p
             keymap?.reload(p)
             editing = true
