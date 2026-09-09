@@ -58,6 +58,26 @@ LOAD_LIMIT=18
 FOREIGN_LIMIT=50
 FOREIGN_RETRY_MAX=3
 
+# 擷取窗口內的 load 峰值上限（D50）。預設沿用 `LOAD_LIMIT`，所以產品行為零改變。
+#
+# **為什麼要能單獨覆寫**：兩道閘門原本共用 `LOAD_LIMIT`，而輪次開始前的 `load_gate`
+# 排在前面，所以把上限調低想驗窗口內那道時，一定是前面那道先擋，走不到窗口。
+# 結果是窗口內這道從加進來就只有純函式自我測試，接線（計數器、輪次判無效、摘要輸出）
+# 在真模擬器上一次都沒有被走過。2026-09-09 實跑要驗它時才發現這件事。
+WINDOW_LOAD_LIMIT="${WINDOW_LOAD_LIMIT:-$LOAD_LIMIT}"
+
+# load_gate 該輪重試次數與間隔。**擋下不等於放棄**——D45 Task 3 修正前的版本把
+# `continue` 當「跳過」用，結果 `-r 3` 只吃得到 1 輪（round 預算被攔下的輪次白白吃掉）。
+# 6 次、每次間隔 5 秒＝最多多等 30 秒／輪，換取真的把 ROUNDS 用滿；負載尖峰通常是
+# 幾秒到十幾秒的瞬間（見前一輪報告：8–18 之間劇烈波動），5 秒間隔足以跨過大部分尖峰。
+LOAD_RETRY_MAX=6
+LOAD_RETRY_WAIT=5
+# ⚠️ 這兩個常數原本定義在下方約第 223 行，而 D67 的外來 CPU 閘門（上方）也用
+# `LOAD_RETRY_WAIT`，用在定義之前。`set -u` 下重取樣那條路徑一走到就炸成「未綁定的
+# 變數」，所以「連續 3 次不過才中止」從寫下那天起從來沒有發生過：第一次重取樣就死。
+# 2026-09-09 在真模擬器上實跑才發現：`foreign_cpu_gate` 的純函式自我測試驗的是函式
+# 本身，驗不到腳本裡的重試迴圈。搬到設定區讓兩個區塊共用同一份定義。
+
 QUEUE_DEPTH=""
 AB_MODE=0
 
@@ -214,13 +234,6 @@ case "$FG" in
   *"$PACKAGE"*) echo "✅ $PACKAGE 在前景" ;;
   *) echo "❌ $PACKAGE 不在前景——沒有畫面來源，量測沒有意義。"; exit 1 ;;
 esac
-
-# load_gate 該輪重試次數與間隔。**擋下不等於放棄**——D45 Task 3 修正前的版本把
-# `continue` 當「跳過」用，結果 `-r 3` 只吃得到 1 輪（round 預算被攔下的輪次白白吃掉）。
-# 6 次、每次間隔 5 秒＝最多多等 30 秒／輪，換取真的把 ROUNDS 用滿；負載尖峰通常是
-# 幾秒到十幾秒的瞬間（見前一輪報告：8–18 之間劇烈波動），5 秒間隔足以跨過大部分尖峰。
-LOAD_RETRY_MAX=6
-LOAD_RETRY_WAIT=5
 
 # 進全螢幕改用 Accessibility API 直接寫 `AXFullScreen` 屬性，取代送 ⌃⌘F 鍵（Task 3
 # 修正）——理由與實測見下方進全螢幕區塊的長註解。單次啟動內的收斂輪詢參數由
@@ -438,7 +451,7 @@ run_ab_sink() {
 
     # D50：先判窗口負載。負載污染會同時壓低 guest 與 Mirage 兩側，
     # 先判 guest 會把成因記成「guest 未達門檻」，掩蓋掉真正的原因。
-    if ! load_peak_gate "$window_peak" "$LOAD_LIMIT"; then
+    if ! load_peak_gate "$window_peak" "$WINDOW_LOAD_LIMIT"; then
         AB_WINDOW_LOAD_REJECTED=$((AB_WINDOW_LOAD_REJECTED + 1))
         echo "   ❌ [sink=${sink}] 本輪判為無效：擷取窗口內 load average 峰值 ${window_peak} 超過 ${LOAD_LIMIT}"
         # 收尾照既有的 guest 拒絕路徑：呼叫端不看回傳值，所以要自己清 log 並印出結果，
@@ -725,9 +738,9 @@ for round in $(seq 1 "$ROUNDS"); do
     #
     # 刻意放在 guest 判定之前：負載污染會同時壓低 guest 與 Mirage 兩側，
     # 先判 guest 會把成因記成「guest 未達門檻」，掩蓋掉真正的原因。
-    if ! load_peak_gate "$WINDOW_PEAK" "$LOAD_LIMIT"; then
+    if ! load_peak_gate "$WINDOW_PEAK" "$WINDOW_LOAD_LIMIT"; then
         WINDOW_LOAD_REJECTED=$((WINDOW_LOAD_REJECTED + 1))
-        echo "   ❌ 本輪判為無效：擷取窗口內 load average 峰值 ${WINDOW_PEAK} 超過 ${LOAD_LIMIT}——"
+        echo "   ❌ 本輪判為無效：擷取窗口內 load average 峰值 ${WINDOW_PEAK} 超過 ${WINDOW_LOAD_LIMIT}——"
         echo "      起跑時的 load_gate 過了，負載是在窗口中間才上來的。這一輪量到的是"
         echo "      主機的數字不是產品的數字，不計入中位數（如實記錄，不湊數）。"
         rm -f "$LOG"
@@ -846,7 +859,7 @@ if [ -n "$MM" ]; then
 fi
 echo "GUEST_VALUES=$(list_of "$GUEST_VALS")"
 echo "GUEST_REJECTED=${GUEST_REJECTED}（guest 未達 ${GUEST_MIN} 而判為無效的輪次數）"
-echo "WINDOW_LOAD_REJECTED=${WINDOW_LOAD_REJECTED}（擷取窗口內 load 峰值超過 ${LOAD_LIMIT} 而判為無效的輪次數）"
+echo "WINDOW_LOAD_REJECTED=${WINDOW_LOAD_REJECTED}（擷取窗口內 load 峰值超過 ${WINDOW_LOAD_LIMIT} 而判為無效的輪次數）"
 echo "MIRAGE_MEDIAN=${MM:-無資料}"
 echo "ARRIVED_MEDIAN=${AM}"
 echo "DROPPED_MEDIAN=${DM}"
