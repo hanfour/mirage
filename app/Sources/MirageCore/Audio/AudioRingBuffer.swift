@@ -13,6 +13,8 @@ public struct AudioStats: Equatable, Sendable {
     /// 更健康」。`primes` 很大代表反覆蓄水；`primes` 很小而 underrun 增量仍高，
     /// 代表卡在低水位帶（見 `readStereo` 的已知限制段落）。
     public let primes: Int
+    /// 蓄水未達門檻，因累計請求量逾時而強制開播的次數。
+    public let primeTimeouts: Int
     /// 累計寫入的**樣本**數（單調遞增，不是封包數）。
     ///
     /// **`writes` 答不了「供應速率夠不夠」這個問題**，而那是 D44 唯一要回答的問題。
@@ -32,11 +34,13 @@ public struct AudioStats: Equatable, Sendable {
         writes: Int,
         primes: Int,
         writtenSamples: Int = 0,
+        primeTimeouts: Int = 0,
     ) {
         self.underruns = underruns
         self.overruns = overruns
         self.depthSamples = depthSamples
         self.writes = writes
+        self.primeTimeouts = primeTimeouts
         self.primes = primes
         self.writtenSamples = writtenSamples
     }
@@ -61,6 +65,9 @@ public final class AudioRingBuffer: @unchecked Sendable {
     private let overrunCount = ManagedAtomic<Int>(0)
     private let writeCount = ManagedAtomic<Int>(0)
     private let primeThreshold: Int
+    private let primeTimeoutSamples: Int
+    private let unprimedRequested = ManagedAtomic<Int>(0)
+    private let primeTimeoutCount = ManagedAtomic<Int>(0)
     /// 是否已蓄滿水並開始供應。生產者不碰它，只有消費者（即時執行緒）讀寫，
     /// 所以 relaxed 就夠——它不用來同步任何資料，只是消費端自己的狀態。
     private let primed = ManagedAtomic<Bool>(false)
@@ -74,13 +81,19 @@ public final class AudioRingBuffer: @unchecked Sendable {
     /// 供應。**沒有它，穩態深度會是 0**——生產與消費速率相等時，每次 render callback
     /// 都拿到不足的資料然後補靜音，2026-08-03 實測 60 秒 under 每秒增加約 90、
     /// depth 全程 0ms（見 app/RESULTS-d32-probe.md）。傳 0 表示不蓄水（測試用）。
-    public init(capacitySamples: Int = 19_200, primeThresholdSamples: Int = 9_600) {
+    /// `primeTimeoutSamples` 預設 19200 = 48kHz × 2ch × 200ms，未經校準，不是量出的值。
+    /// 這是明顯長於 100ms 蓄水門檻、又希望短到點擊音效不會被聽成延遲的取捨，
+    /// 並非已驗證的聽感保證。開放注入供測試與日後校準使用。
+    /// 逾時以有資料等待期間的累計請求樣本數計算，不讀時鐘。
+    public init(capacitySamples: Int = 19_200, primeThresholdSamples: Int = 9_600,
+                primeTimeoutSamples: Int = 19_200) {
         capacity = max(capacitySamples, 1)
         // 門檻不得超過容量的一半：超過的話蓄水期會先撞到 overrun，永遠 prime 不起來
         //（前提：封包大小均勻；`write` 是整包丟棄語意——若封包大小不均勻，例如先來一包
         // 小的把水位卡在剛好低於門檻、之後每包都比剩餘空間大，仍可能永遠丟棄、永遠
         // prime 不起來。實務上封包等長（960 samples／包），這個前提成立）。
         primeThreshold = max(0, min(primeThresholdSamples, capacity / 2))
+        self.primeTimeoutSamples = primeTimeoutSamples
         storage = UnsafeMutableBufferPointer<Float>.allocate(capacity: capacity)
         storage.initialize(repeating: 0)
     }
@@ -102,7 +115,8 @@ public final class AudioRingBuffer: @unchecked Sendable {
                           primes: primeCount.load(ordering: .relaxed),
                           // `w` 就是累計寫入樣本數：writeIndex 單調遞增、不對容量取模
                           //（見 type 說明）。免費，不需要額外的計數器。
-                          writtenSamples: w)
+                          writtenSamples: w,
+                          primeTimeouts: primeTimeoutCount.load(ordering: .relaxed))
     }
 
     /// 生產者執行緒（gRPC 消費 task）呼叫。空間不足 → **整包丟棄** + overruns += 1。
@@ -137,28 +151,41 @@ public final class AudioRingBuffer: @unchecked Sendable {
     /// **只讀完整 frame**：緩衝裡剩單數個樣本時把落單的那個留著不動。少讀半個 frame
     /// 只是晚一個 render 週期補上，錯開一個樣本卻會讓其後每一個 frame 的左右聲道永久反相。
     ///
-    /// **蓄水期**：建構後（或被排乾後）累積深度未達 `primeThresholdSamples` 前一律回 0
-    /// 且**不計 underrun**——那不是欠位，是還沒開始播。
+    /// **蓄水期**：達到深度門檻或有資料等待的累計請求量達到逾時值才開播。
+    /// 等待時回 0 且不計 underrun；空緩衝不累計逾時。
     public func readStereo(left: UnsafeMutablePointer<Float>,
                            right: UnsafeMutablePointer<Float>,
                            frames: Int) -> Int {
         guard frames > 0 else { return 0 }
         let r = readIndex.load(ordering: .relaxed)
         let w = writeIndex.load(ordering: .acquiring)
-        // 蓄水期：還沒積到門檻就整塊不出貨（呼叫端補靜音），**且不計 underrun**——
-        // 那不是欠位，是還沒開始播。把兩者混在一起，驗收指標就會把正常的啟動期
-        // 算成缺陷。
+        // 蓄水等待以交錯樣本計數，與深度門檻使用相同單位。
         if !primed.load(ordering: .relaxed) {
-            guard (w - r) >= primeThreshold else { return 0 }
+            let depth = w - r
+            if depth < primeThreshold {
+                // 空緩衝沒有資料被扣住，不催開播，也不製造 underrun。
+                if depth <= 0 { return 0 }
+                let waited = unprimedRequested.wrappingIncrementThenLoad(by: frames * 2, ordering: .relaxed)
+                if waited < primeTimeoutSamples { return 0 }
+                primeTimeoutCount.wrappingIncrement(ordering: .relaxed)
+            }
             primed.store(true, ordering: .relaxed)
-            // 只在「由未蓄滿轉為蓄滿」的這一刻加一，不是每次成功 read 都加——
-            // 見 AudioStats.primes 的說明：它數的是重新蓄水的次數。
+            // 正常蓄滿與逾時放行都算一次開播。
             primeCount.wrappingIncrement(ordering: .relaxed)
+            unprimedRequested.store(0, ordering: .relaxed)
         }
         let n = min(frames, (w - r) / 2)
         guard n > 0 else {
             // 被排乾了：回到蓄水狀態。不重置的話，斷流之後就退回沒有 pre-roll 的行為。
             primed.store(false, ordering: .relaxed)
+            // ⚠️ 這一行在目前的不變式下是冗餘的，實測沒有任何測試能分辨它在不在
+            // （2026-09-09 故障注入：拿掉它 27 條全綠）。理由是
+            // `unprimedRequested` 只在未蓄滿時累加，而蓄滿那一刻（上面的 prime 分支）
+            // 一定會把它歸零，所以走到這裡時它必然已經是 0。
+            // 保留是防禦性的，與本 repo 對 `NSApp` 保護的處理一致（債務表 D34(c)）：
+            // 保護留著，但不假裝有測試在守它。日後若新增「已蓄滿仍會累加」的路徑，
+            // 這行才會開始有作用。
+            unprimedRequested.store(0, ordering: .relaxed)
             underrunCount.wrappingIncrement(ordering: .relaxed)
             return 0
         }

@@ -9,7 +9,7 @@
 # sed 範圍就可能挖錯或挖到半截）。
 #
 # 輸入格式（MIRAGE_AUDIO_LOG=1，AppModel+Audio.swift）：
-#   [audio] pkt=42 sr=48000 ch=2 under=0 over=0 primes=1 depth=96ms
+#   [audio] pkt=42 smp=96000 supply=100% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=96ms
 #
 # **PRIMES 是什麼、為什麼要單獨列一欄**：`AudioRingBuffer` 加了 pre-roll 之後，
 # 重新蓄水期間 under 不增加、depth 看起來像正常爬升——對 USUM/UMAX/UWINDOWS 這三個
@@ -85,6 +85,9 @@ audio_stats() {
               # 沿用上一次看到的值（初始為 awk 未初始化變數的 0），讓舊格式日誌
               # 解析出 PRIMES=0 而不是被打成畸形行。
               if ($i ~ /^primes=/) { sub(/^primes=/, "", $i); primes = $i + 0 }
+              # ptimeouts 同 primes 是累積計數，只取最後看到的值。舊日誌沒有此欄位，
+              # 缺欄位不算畸形，也不每行重設；從未出現時輸出 PTIMEOUTS=0。
+              if ($i ~ /^ptimeouts=/) { sub(/^ptimeouts=/, "", $i); ptimeouts = $i + 0 }
               # supply：該秒實際供應量佔即時需求的百分比。與 primes 同樣不參與畸形
               # 判定——它是 2026-08-07（D44）才加的欄位，舊日誌沒有，缺它不是格式錯誤。
               # 尾端的 `%` 不需要另外剝掉：awk 的數值強制轉型對 "6%" 就是取出 6。
@@ -109,8 +112,8 @@ audio_stats() {
           # BSD awk 不吃 printf 參數位置的三元運算子（「illegal statement」），先算進變數。
           supply_mean = 0
           if (supply_n > 0) supply_mean = supply_sum / supply_n
-          printf "AUDIO_LINES=%d\nSOUND_SECS=%d\nUSUM=%d\nUMAX=%d\nUWINDOWS=%d\nMALFORMED=%d\nPRIMES=%d\nSUPPLY_MEAN=%d\nEVENTS=%d\n",
-                 lines + 0, sound + 0, usum + 0, umax + 0, windows + 0, malformed + 0, primes + 0,
+          printf "AUDIO_LINES=%d\nSOUND_SECS=%d\nUSUM=%d\nUMAX=%d\nUWINDOWS=%d\nMALFORMED=%d\nPRIMES=%d\nPTIMEOUTS=%d\nSUPPLY_MEAN=%d\nEVENTS=%d\n",
+                 lines + 0, sound + 0, usum + 0, umax + 0, windows + 0, malformed + 0, primes + 0, ptimeouts + 0,
                  supply_mean, events + 0
       }
     ' "$1"

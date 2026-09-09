@@ -71,7 +71,7 @@ extension AppModel {
                 if logRequested {
                     print("[audio] pkt=\(s.writes - lastWrites) smp=\(supplied) supply=\(supplyPct)% " +
                           "sr=48000 ch=2 under=\(s.underruns) over=\(s.overruns) " +
-                          "primes=\(s.primes) depth=\(depthMs)ms")
+                          "primes=\(s.primes) ptimeouts=\(s.primeTimeouts) depth=\(depthMs)ms")
                 }
                 lastWrites = s.writes
                 lastSamples = s.writtenSamples

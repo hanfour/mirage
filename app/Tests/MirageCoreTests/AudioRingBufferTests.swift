@@ -262,6 +262,87 @@ private func readStereoSamples(_ ring: AudioRingBuffer, frames: Int)
         #expect(ring.stats.primes == 2)
     }
 
+    /// 生產預設逾時：短音效必須完整保留左右聲道內容。
+    @Test func shortSoundPlaysAtDefaultPrimeTimeout() {
+        let ring = AudioRingBuffer()
+        let samples = (0..<2_000).map { Float($0) / 2_000 }
+        ring.write(samples)
+        for _ in 0..<8 {
+            #expect(readStereoSamples(ring, frames: 1_000).got == 0)
+        }
+        #expect(readStereoSamples(ring, frames: 600).got == 0)
+        let result = readStereoSamples(ring, frames: 1_000)
+        #expect(result.got == 1_000)
+        #expect(result.left == stride(from: 0, to: 2_000, by: 2).map { samples[$0] })
+        #expect(result.right == stride(from: 1, to: 2_000, by: 2).map { samples[$0] })
+        #expect(ring.stats.depthSamples == 0)
+    }
+
+    /// 先累計到差一個 frame，再剛好碰到可注入的逾時值。
+    @Test func primeTimeoutDoesNotReleaseEarly() {
+        let ring = AudioRingBuffer(capacitySamples: 64, primeThresholdSamples: 8,
+                                   primeTimeoutSamples: 10)
+        ring.write([1, -1])
+        #expect(readStereoSamples(ring, frames: 3).got == 0)
+        #expect(readStereoSamples(ring, frames: 1).got == 0)
+        #expect(ring.stats.primeTimeouts == 0)
+        #expect(ring.stats.depthSamples == 2)
+        #expect(readStereoSamples(ring, frames: 1).got == 1)
+    }
+
+    /// 空讀遠超逾時仍不開播，也不能預先消耗之後音效的等待額度。
+    @Test func emptyBufferDoesNotPrimeTimeoutOrUnderrun() {
+        let ring = AudioRingBuffer(capacitySamples: 64, primeThresholdSamples: 8,
+                                   primeTimeoutSamples: 10)
+        for _ in 0..<100 {
+            #expect(readStereoSamples(ring, frames: 5).got == 0)
+        }
+        #expect(ring.stats.underruns == 0)
+        #expect(ring.stats.primes == 0)
+        #expect(ring.stats.primeTimeouts == 0)
+        ring.write([1, -1])
+        #expect(readStereoSamples(ring, frames: 4).got == 0)
+        #expect(readStereoSamples(ring, frames: 1).got == 1)
+    }
+
+    /// 第一輪先等候再正常蓄滿，排乾後的短音效必須重新等滿額度。
+    @Test func primeTimeoutRestartsAfterDrain() {
+        let ring = AudioRingBuffer(capacitySamples: 64, primeThresholdSamples: 8,
+                                   primeTimeoutSamples: 10)
+        ring.write([1, -1])
+        #expect(readStereoSamples(ring, frames: 4).got == 0)
+        ring.write([2, -2, 3, -3, 4, -4])
+        #expect(readStereoSamples(ring, frames: 4).got == 4)
+        #expect(ring.stats.primeTimeouts == 0)
+        #expect(readStereoSamples(ring, frames: 1).got == 0)
+        #expect(ring.stats.underruns == 1)
+        ring.write([5, -5])
+        #expect(readStereoSamples(ring, frames: 4).got == 0)
+        let result = readStereoSamples(ring, frames: 1)
+        #expect(result.got == 1)
+        #expect(result.left == [5])
+        #expect(result.right == [-5])
+        #expect(ring.stats.primeTimeouts == 1)
+        #expect(ring.stats.primes == 2)
+    }
+
+    /// 正常蓄滿不計逾時；逾時只在放行那次增加，後續讀取不重複計數。
+    @Test func primeTimeoutStatsCountOnlyForcedStarts() {
+        let ring = AudioRingBuffer(capacitySamples: 64, primeThresholdSamples: 8,
+                                   primeTimeoutSamples: 10)
+        ring.write([1, -1, 2, -2, 3, -3, 4, -4])
+        #expect(readStereoSamples(ring, frames: 4).got == 4)
+        #expect(ring.stats.primeTimeouts == 0)
+        #expect(readStereoSamples(ring, frames: 1).got == 0)
+        ring.write([5, -5, 6, -6])
+        #expect(readStereoSamples(ring, frames: 4).got == 0)
+        #expect(readStereoSamples(ring, frames: 1).got == 1)
+        #expect(ring.stats.primeTimeouts == 1)
+        #expect(readStereoSamples(ring, frames: 1).got == 1)
+        #expect(ring.stats.primeTimeouts == 1)
+        #expect(ring.stats.primes == 2)
+    }
+
     /// P1-e fast-follow：`stats` 先讀 readIndex 再讀 writeIndex，故 depthSamples 永不為負。
     ///
     /// 用**真實 OS 執行緒**（非 cooperative Task）緊迴圈，因為要打中的窗口只有 `stats`

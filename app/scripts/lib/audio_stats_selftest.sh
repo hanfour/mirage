@@ -211,6 +211,23 @@ EOF
 } > "$WORK/with_events.log"
 check_case "正常序列" "$WORK/normal.log" SOUND_SECS:2 USUM:2 PRIMES:2 UWINDOWS:1 SUPPLY_MEAN:95
 check_case "混入事件" "$WORK/with_events.log" SOUND_SECS:2 USUM:2 PRIMES:2 UWINDOWS:1 SUPPLY_MEAN:95 EVENTS:7 MALFORMED:0
+# D46：取樣欄位順序依 AppModel+Audio.swift，格式事件沿用實際收到端列舉字串。
+cat > "$WORK/ptimeouts.log" <<'EOF'
+[audio] 收到的格式：sr=48000 ch=stereo fmt=audFmtS16（請求的是 sr=48000 ch=2 fmt=audFmtS16）bytes=132
+[audio] pkt=50 smp=86400 supply=90% sr=48000 ch=2 under=10 over=0 primes=2 ptimeouts=1 depth=90ms
+[audio] degraded reason=emulator-output-stalled pkt=6 supply=6%
+[audio] pkt=6 smp=5760 supply=6% sr=48000 ch=2 under=12 over=0 primes=5 ptimeouts=3 depth=10ms
+EOF
+check_case "D46：逾時累積值取最後一筆，事件不干擾" "$WORK/ptimeouts.log" \
+    PTIMEOUTS:3 PRIMES:5 MALFORMED:0 EVENTS:2 AUDIO_LINES:4 SOUND_SECS:2 USUM:2 UWINDOWS:1 SUPPLY_MEAN:48
+# 舊日誌僅缺新增欄位，仍是有效取樣。
+sed 's/ ptimeouts=[0-9]*//g' "$WORK/ptimeouts.log" > "$WORK/no_ptimeouts.log"
+check_case "D46：缺 ptimeouts 的舊日誌" "$WORK/no_ptimeouts.log" \
+    PTIMEOUTS:0 PRIMES:5 MALFORMED:0 EVENTS:2 AUDIO_LINES:4 SOUND_SECS:2 USUM:2 UWINDOWS:1 SUPPLY_MEAN:48
+# 混用新舊格式時，缺欄位沿用最後看到的累積值。
+cat "$WORK/ptimeouts.log" "$WORK/no_ptimeouts.log" > "$WORK/mixed_ptimeouts.log"
+check_case "D46：後續缺欄位保留累積值" "$WORK/mixed_ptimeouts.log" PTIMEOUTS:3 MALFORMED:0 EVENTS:4
+
 # 診斷檔須保留原文且最多五行，不把任意日誌塞進可 eval 的輸出。
 for n in 1 2 3 4 5 6; do
     printf '[audio] unknown-%s pkt=3\n' "$n"
