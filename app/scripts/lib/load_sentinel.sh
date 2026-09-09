@@ -28,6 +28,47 @@ load_gate() {
     return 0
 }
 
+# === 外來 CPU 的硬閘門（D67）===
+#
+# **「非工作負載 CPU 總和 <50%」在 `verify_fps_fullscreen.sh` 裡從來不是閘門。**
+# 那個數字算出來之後只印，沒有進過任何比較，所以 50% 一直只是人工判讀紀律，
+# 而驗收線 7 的每一個 fps 數字都是在這個尺度下判讀的。
+#
+# **同時那把尺會漏報**：`cpu_delta_report` 的預設 floor 是 10，低於 10% 的行程整個不計。
+# 2026-09-08 實測同一時刻 floor 10 是 322 到 351%、floor 0 是 366 到 385%，
+# 差距來自 50 個小行程；另一次量到差 100 個百分點。所以兩個 floor 都要印出來，
+# 讓「這個窗口夠安靜」的判斷不會偏樂觀。
+#
+# **判定仍只用 floor 10**：門檻 50 是在 floor 10 下校準的（安靜窗口的 floor 10 是 29%），
+# 換成 floor 0 需要重新校準而目前沒有那組資料。floor 0 印出來是給人看差距用的。
+#
+# ⚠️ 這裡刻意不重用 `input_latency.sh` 的 `input_latency_cpu_gate`：那支的輸出格式被
+# `input_latency_selftest.sh` 逐字鎖住（`foreign_cpu_floor10=0% foreign_cpu_floor0=54%`），
+# 動它的風險大於這幾行的重複。
+
+# 同一組快照算出兩個 floor 的總和，印成「<floor10> <floor0>」。
+foreign_cpu_totals() {
+    local a="$1" b="$2" seconds="$3" skip="$4"
+    printf '%s %s\n' \
+        "$(cpu_delta_total "$a" "$b" "$seconds" "$skip" 10)" \
+        "$(cpu_delta_total "$a" "$b" "$seconds" "$skip" 0)"
+}
+
+# floor 10 的總和超過上限 → 印警告、回傳 1。非數字也算不通過：拿不到讀數時
+# 放行等於預設「機器很安靜」，而那正是這道閘門要擋的樂觀。
+foreign_cpu_gate() {
+    local value="$1" limit="$2"
+    if ! awk -v v="$value" 'BEGIN { exit !(v ~ /^[0-9]+([.][0-9]+)?$/) }'; then
+        echo "⚠️ 外來 CPU 讀數不是數字（得到「${value}」）——當作不通過。" >&2
+        return 1
+    fi
+    if awk -v v="$value" -v l="$limit" 'BEGIN { exit !(v >= l) }'; then
+        echo "⚠️ 非工作負載 CPU 總和 ${value}% 未低於 ${limit}%——本次量測不可信。" >&2
+        return 1
+    fi
+    return 0
+}
+
 # === 擷取窗口內的負載（D50）===
 #
 # **`load_gate` 只在輪次開始前檢查一次，擋不住「起跑時安靜、跑到一半才飆高」。**

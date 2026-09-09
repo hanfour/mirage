@@ -115,6 +115,39 @@ check "cpu_delta_report：只在第二次快照出現的行程不列入" \
 check "cpu_delta_total：完全沒有超標行程 → 0" \
       "$(cpu_delta_total "$SNAP_A" "$SNAP_A" 10 "")" "0"
 
+# === D67：外來 CPU 的硬閘門 ===
+#
+# 用既有的假快照：busy 50%、iTerm2 50%、ancient 50%、idle 5%（低於 floor 10 會被濾掉）、
+# qemu 90%（被 skip 濾掉）。所以 floor 10 是 150、floor 0 是 155。
+# **這 5 個百分點的差就是 D67 說的漏報**，只是在假資料上只有一個小行程。
+check "foreign_cpu_totals：同時給 floor 10 與 floor 0" \
+      "$(foreign_cpu_totals "$SNAP_A" "$SNAP_B" 10 "qemu-system")" "150 155"
+
+if foreign_cpu_gate 150 50 2>/dev/null; then
+    check "foreign_cpu_gate：150 超過上限 50 應回傳 1" "0" "1"
+else
+    check "foreign_cpu_gate：150 超過上限 50 應回傳 1" "1" "1"
+fi
+if foreign_cpu_gate 29 50 2>/dev/null; then
+    check "foreign_cpu_gate：29 低於上限 50 應回傳 0" "0" "0"
+else
+    check "foreign_cpu_gate：29 低於上限 50 應回傳 0" "1" "0"
+fi
+# 門檻不含等號：剛好 50 不算通過。既有的 input_latency_cpu_gate 也是這個方向。
+if foreign_cpu_gate 50 50 2>/dev/null; then
+    check "foreign_cpu_gate：剛好等於上限應回傳 1" "0" "1"
+else
+    check "foreign_cpu_gate：剛好等於上限應回傳 1" "1" "1"
+fi
+# 拿不到讀數時放行等於預設「機器很安靜」，那正是這道閘門要擋的樂觀。
+for bad in "" "n/a" "12abc"; do
+    if foreign_cpu_gate "$bad" 50 2>/dev/null; then
+        check "foreign_cpu_gate：非數字「${bad}」應回傳 1" "0" "1"
+    else
+        check "foreign_cpu_gate：非數字「${bad}」應回傳 1" "1" "1"
+    fi
+done
+
 # === D50：擷取窗口內的負載取樣 ===
 #
 # 用假的 load_avg_1min 序列取代真實讀數，這樣測的是「取樣與取峰值的邏輯」，

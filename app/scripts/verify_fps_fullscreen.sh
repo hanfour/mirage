@@ -54,11 +54,14 @@ DURATION=20
 # （lib/load_sentinel.sh 開頭那段）。18 貼著這條線的下緣，放行 8–18 的常態波動，
 # 仍擋住真正會讓 `.task` 失效的 20+ 區間。
 LOAD_LIMIT=18
+# D67：非工作負載 CPU 總和的上限（floor 10）。50 是既有的人工判讀紀律，現在是閘門。
+FOREIGN_LIMIT=50
+FOREIGN_RETRY_MAX=3
 
 QUEUE_DEPTH=""
 AB_MODE=0
 
-while getopts "s:p:g:r:d:l:hq:A" opt; do
+while getopts "s:p:g:r:d:l:F:hq:A" opt; do
   case "$opt" in
     s) SERIAL="$OPTARG" ;;
     p) GRPC_PORT="$OPTARG" ;;
@@ -66,10 +69,11 @@ while getopts "s:p:g:r:d:l:hq:A" opt; do
     r) ROUNDS="$OPTARG" ;;
     d) DURATION="$OPTARG" ;;
     l) LOAD_LIMIT="$OPTARG" ;;
+    F) FOREIGN_LIMIT="$OPTARG" ;;
     q) QUEUE_DEPTH="$OPTARG" ;;
     A) AB_MODE=1 ;;
     h) sed -n '2,25p' "$0"; exit 0 ;;
-    *) echo "用法：$0 [-s serial] [-p port] [-g package] [-r rounds] [-d seconds] [-l load上限] [-q depth] [-A]" >&2; exit 2 ;;
+    *) echo "用法：$0 [-s serial] [-p port] [-g package] [-r rounds] [-d seconds] [-l load上限] [-F 外來CPU上限] [-q depth] [-A]" >&2; exit 2 ;;
   esac
 done
 
@@ -153,8 +157,31 @@ echo "=== 主機外來 CPU（取樣 ${BUSY_GAP} 秒）==="
 SNAP_A=$(cpu_snapshot)
 sleep "$BUSY_GAP"
 SNAP_B=$(cpu_snapshot)
-FOREIGN_TOTAL=$(cpu_delta_total "$SNAP_A" "$SNAP_B" "$BUSY_GAP" "$MEASURED_PROCS")
-echo "   非工作負載 CPU 總和：${FOREIGN_TOTAL}%（qemu／MirageApp／WindowServer 已排除）"
+read -r FOREIGN_TOTAL FOREIGN_TOTAL_FLOOR0 <<< "$(foreign_cpu_totals "$SNAP_A" "$SNAP_B" "$BUSY_GAP" "$MEASURED_PROCS")"
+echo "   非工作負載 CPU 總和：floor 10 = ${FOREIGN_TOTAL}%、floor 0 = ${FOREIGN_TOTAL_FLOOR0}%"
+echo "      （qemu／MirageApp／WindowServer 已排除；判定只用 floor 10，floor 0 是給人看差距的）"
+# D67：這個數字以前只印不比，50% 一直是人工判讀紀律。現在是硬閘門。
+# 與 load_gate 同一個處理方式：擋下不等於放棄，先等一下重取樣，連續不過才中止整跑次。
+foreign_attempt=1
+while :; do
+    if foreign_cpu_gate "$FOREIGN_TOTAL" "$FOREIGN_LIMIT"; then
+        break
+    fi
+    if [ "$foreign_attempt" -ge "$FOREIGN_RETRY_MAX" ]; then
+        echo "❌ 重取樣 ${FOREIGN_RETRY_MAX} 次，非工作負載 CPU 都未低於 ${FOREIGN_LIMIT}%。" >&2
+        echo "   這個尺度下量到的 fps 是主機的數字不是產品的數字，不開始跑（如實記錄，不湊數）。" >&2
+        echo "   確定要在這個負載下量的話用 -F 提高上限，但那組數字不能與既有基準並排。" >&2
+        exit 1
+    fi
+    echo "   外來 CPU 閘門攔下（第 ${foreign_attempt}/${FOREIGN_RETRY_MAX} 次），等 ${LOAD_RETRY_WAIT} 秒後重取樣"
+    sleep "$LOAD_RETRY_WAIT"
+    SNAP_A=$(cpu_snapshot)
+    sleep "$BUSY_GAP"
+    SNAP_B=$(cpu_snapshot)
+    read -r FOREIGN_TOTAL FOREIGN_TOTAL_FLOOR0 <<< "$(foreign_cpu_totals "$SNAP_A" "$SNAP_B" "$BUSY_GAP" "$MEASURED_PROCS")"
+    echo "   重取樣：floor 10 = ${FOREIGN_TOTAL}%、floor 0 = ${FOREIGN_TOTAL_FLOOR0}%"
+    foreign_attempt=$((foreign_attempt + 1))
+done
 cpu_delta_report "$SNAP_A" "$SNAP_B" "$BUSY_GAP" "$MEASURED_PROCS" \
     | head -3 | awk '{ c = ""; for (i = 2; i <= NF; i++) { c = c (i > 2 ? " " : "") $i }; printf "     %5.1f%%  %s\n", $1, c }'
 
