@@ -1,9 +1,10 @@
 #!/bin/bash
 # 驗收線 4。用法：/bin/bash app/scripts/verify_wake.sh [-r rounds] [-p grpc_port]
 set -uo pipefail
+
+source "$(dirname "$0")/lib/load_sentinel.sh"
 HERE="$(cd "$(dirname "$0")" && pwd)"
 source "$HERE/lib/verify_common.sh"
-source "$HERE/lib/load_sentinel.sh"
 source "$HERE/lib/input_latency.sh"
 ROUNDS=3
 PORT=8556
@@ -20,6 +21,9 @@ for value in "$ROUNDS" "$PORT"; do
     [ "$value" -gt 0 ] || exit 2
 done
 [ "$ROUNDS" -ge 3 ] && [ "$PORT" -le 65535 ] || exit 2
+# D60(a)：參數解析與驗證完成後，量測前才檢查主機磁碟。
+disk_preflight "$HERE" || exit 1
+
 if pgrep -x MirageApp >/dev/null; then
     echo 'FAIL: MirageApp 已在執行，請先正常退出'; exit 1
 fi

@@ -8,6 +8,10 @@
 # 只量 Swift 那條時，紅燈分不出「上游壞了」與「只有我們的 client 壞了」，
 # 而這兩者的下一步完全相反。D39 之前這個對照是手工搭的，只做過一次。
 set -uo pipefail
+
+# D60(a)：在建置、寫日誌及量測之前檢查主機磁碟，失敗直接中止。
+source "$(dirname "$0")/lib/load_sentinel.sh"
+disk_preflight "$(dirname "$0")" || exit 1
 export ANDROID_SERIAL=emulator-5554
 # **路徑要在 cd 之前解析成絕對路徑。** 原本是 `cd "$(dirname "$0")/.."` 之後再
 # `source "$(dirname "$0")/lib/..."`——`$0` 是相對路徑時，cd 完那個相對路徑就失效了，
@@ -18,7 +22,6 @@ export ANDROID_SERIAL=emulator-5554
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 cd "$SCRIPT_DIR/.." || exit 1
 source "$SCRIPT_DIR/lib/verify_common.sh"
-source "$SCRIPT_DIR/lib/load_sentinel.sh"
 HARNESS="$(cd ../phase0/harness && pwd)"
 # animate 要涵蓋「build + Python 對照 + Swift 測試」整段，不只測試本身。
 ANIM_SECONDS="${ANIM_SECONDS:-90}"

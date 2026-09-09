@@ -114,6 +114,10 @@ fi
   exit 2
 }
 
+# D60(a)：磁碟與下方 D67 外來 CPU 都是開跑前的主機環境閘門。
+# 磁碟不會像 CPU 在幾秒內自己好轉，因此失敗直接中止，不重取樣。
+disk_preflight "$(dirname "$0")" || exit 1
+
 VENV="$(dirname "$0")/../../phase0/harness/.venv-d45/bin/python"
 BASELINE="$(dirname "$0")/../../phase0/harness/fps_baseline.py"
 [ -x "$VENV" ] || { echo "❌ 找不到 venv：${VENV}（見 phase0/harness/README-venv.md）" >&2; exit 2; }

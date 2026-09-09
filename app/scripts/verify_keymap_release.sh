@@ -2,6 +2,10 @@
 # D11／D23：真模擬器上的原始觸控轉移，判定 slot 是否停在 down。
 # 只連到已啟動的模擬器，不負責啟動或關閉模擬器。
 set -uo pipefail
+
+# D60(a)：在建置、寫日誌及量測之前檢查主機磁碟，失敗直接中止。
+source "$(dirname "$0")/lib/load_sentinel.sh"
+disk_preflight "$(dirname "$0")" || exit 1
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 source "${SCRIPT_DIR}/lib/verify_common.sh"
 source "${SCRIPT_DIR}/lib/getevent_touch.sh"

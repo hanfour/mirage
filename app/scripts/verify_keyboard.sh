@@ -16,6 +16,10 @@
 # 本檔遇到的兩處都改用 `${VAR}` 明確收邊字元界線來避開。
 set -uo pipefail
 
+# D60(a)：在建置、寫日誌及量測之前檢查主機磁碟，失敗直接中止。
+source "$(dirname "$0")/lib/load_sentinel.sh"
+disk_preflight "$(dirname "$0")" || exit 1
+
 TARGET_SERIAL="${MIRAGE_ADB_SERIAL:-emulator-5554}"
 TARGET_PORT="${MIRAGE_PORT:-8554}"
 ADB="$HOME/Library/Android/sdk/platform-tools/adb"

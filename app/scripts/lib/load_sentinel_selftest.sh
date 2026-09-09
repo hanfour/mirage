@@ -148,6 +148,15 @@ for bad in "" "n/a" "12abc"; do
     fi
 done
 
+# === D60(a)：磁碟空間純函式 ===
+( disk_gate 5119 5120 2>/dev/null ); check "disk_gate：低於門檻" "$?" 1
+( disk_gate 5121 5120 2>/dev/null ); check "disk_gate：高於門檻" "$?" 0
+( disk_gate 5120 5120 2>/dev/null ); check "disk_gate：等於門檻" "$?" 0
+for bad in "" "n/a" "-1"; do
+    ( disk_gate "$bad" 5120 2>/dev/null ); check "disk_gate：無效讀數「${bad}」" "$?" 1
+    ( disk_gate 6000 "$bad" 2>/dev/null ); check "disk_gate：無效門檻「${bad}」" "$?" 1
+done
+
 # === D50：擷取窗口內的負載取樣 ===
 #
 # 用假的 load_avg_1min 序列取代真實讀數，這樣測的是「取樣與取峰值的邏輯」，

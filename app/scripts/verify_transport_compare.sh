@@ -4,6 +4,8 @@
 # 用法：verify_transport_compare.sh [-p 8556] [-r 3] [-d 20] [-s rgba,swift]
 set -uo pipefail
 
+source "$(dirname "$0")/lib/load_sentinel.sh"
+
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 SCRIPT_PATH="${SCRIPT_DIR}/$(basename "$0")"
 COMMON_LIB="${SCRIPT_DIR}/lib/verify_common.sh"
@@ -85,6 +87,9 @@ for series_index_value in "${!SERIES[@]}"; do
         done
     fi
 done
+
+# D60(a)：參數解析與驗證完成後，量測前才檢查主機磁碟。
+disk_preflight "$SCRIPT_DIR" || exit 1
 
 echo "=== 前置：gRPC ==="
 require_grpc "${PORT}"

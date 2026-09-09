@@ -16,6 +16,10 @@
 #       ./scripts/verify_provisioned_avd.sh mirage-poc
 set -uo pipefail
 
+# D60(a)：在建置、寫日誌及量測之前檢查主機磁碟，失敗直接中止。
+source "$(dirname "$0")/lib/load_sentinel.sh"
+disk_preflight "$(dirname "$0")" || exit 1
+
 # 路徑必須在 cd 之前解析成絕對路徑。`$0` 是相對路徑時（例如從 repo root 呼叫
 # `bash app/scripts/verify_provisioned_avd.sh`），cd 完那個相對路徑就失效，
 # `source` 會靜默失敗——而 `set -u` 不管函式，缺少的函式要到被呼叫時才炸成

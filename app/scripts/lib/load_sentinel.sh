@@ -28,6 +28,62 @@ load_gate() {
     return 0
 }
 
+# === 主機磁碟空間（D60(a)）===
+
+# 取指定路徑所在檔案系統的可用 MiB。固定 KiB 與單行格式，避開人類可讀單位及 locale。
+# df 失敗或欄位不符時不回傳數字，交由 disk_gate 擋下。
+disk_free_mib() {
+    local reading
+    reading=$(LC_ALL=C df -Pk "$1" 2>/dev/null) || return 1
+    printf '%s\n' "$reading" | awk '
+        NR == 2 && $4 ~ /^[0-9]+$/ { printf "%.0f\n", int($4 / 1024); found = 1 }
+        END { if (!found) exit 1 }
+    '
+}
+
+# 純函式：可用空間低於下限才擋下，等於下限可通過。
+# 讀數與門檻都必須是非負整數 MiB；拿不到讀數時不能預設空間足夠。
+disk_gate() {
+    local value="$1" limit="$2"
+    if ! awk -v v="$value" -v l="$limit" 'BEGIN { exit !(v ~ /^[0-9]+$/ && l ~ /^[0-9]+$/) }'; then
+        echo "⚠️ 磁碟讀數或門檻不是非負整數（可用「${value}」MiB，門檻「${limit}」MiB）：當作不通過。" >&2
+        return 1
+    fi
+    if awk -v v="$value" -v l="$limit" 'BEGIN { exit !(v < l) }'; then
+        echo "⚠️ 磁碟可用 ${value} MiB 低於門檻 ${limit} MiB：本次量測不可信。" >&2
+        return 1
+    fi
+    return 0
+}
+
+# 各量測入口共用取值、顯示與判定，呼叫端負責 exit 1。
+disk_preflight() {
+    local path="$1" free_mib
+    # 用絕對路徑顯示同一個檢查目錄；解析失敗時直接擋下。
+    path=$(cd -- "$path" 2>/dev/null && pwd) || {
+        echo "⚠️ 無法解析磁碟檢查路徑：${path}，當作不通過。" >&2
+        return 1
+    }
+    # 5120 MiB（5 GiB）未經校準，不是量出的劣化門檻。它由兩個已知事實推估：
+    # (i) 實測 120 MiB 時已全面崩潰；(ii) emulator 執行期 overlay 會長到約 14 GB。
+    # 5 GiB 是「還沒崩，但再跑一輪可能會」的預警距離，與 CPU／load 門檻獨立。
+    local DISK_MIN_MIB="${DISK_MIN_MIB:-5120}"
+    free_mib=$(disk_free_mib "$path") || free_mib=""
+    echo "=== 主機磁碟空間 ==="
+    echo "   檢查路徑：${path}"
+    # 只格式化有效數字，讀數與門檻分別處理，避免無效輸入被印成 0。
+    LC_ALL=C awk -v v="$free_mib" -v l="$DISK_MIN_MIB" '
+        BEGIN {
+            available = (v ~ /^[0-9]+$/) ? sprintf("%.1f GiB", v / 1024) : "未知"
+            threshold = (l ~ /^[0-9]+$/) ? sprintf("%.1f GiB", l / 1024) : "無效（" l "）"
+            printf "   可用空間：%s（門檻 %s）\n", available, threshold
+        }
+    '
+    echo "      （emulator 執行期的 qcow2 overlay 會長到約 14 GB，停止時才釋放）"
+    # 與 D67 不同：磁碟不會像 CPU 在幾秒內自己好轉，所以不重取樣重試。
+    disk_gate "$free_mib" "$DISK_MIN_MIB"
+}
+
 # === 外來 CPU 的硬閘門（D67）===
 #
 # **「非工作負載 CPU 總和 <50%」在 `verify_fps_fullscreen.sh` 裡從來不是閘門。**

@@ -74,7 +74,9 @@ class WakeTests(unittest.TestCase):
                 shutil.copy(scripts / "verify_wake.sh", root)
                 for name in ("gui_session.sh", "wake_probe.py", "input_latency.sh"):
                     shutil.copy(scripts / "lib" / name, lib)
+                # 這是 load_sentinel.sh 的影子副本：真檔案新增呼叫端用到的函式時，這裡也要補上。
                 (lib / "load_sentinel.sh").write_text(
+                    'disk_preflight() { :; }\n'
                     'cpu_snapshot() { echo stub; }\n'
                     'cpu_delta_total() { echo 0; }\n')
                 (lib / "verify_common.sh").write_text(

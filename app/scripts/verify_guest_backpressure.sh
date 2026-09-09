@@ -4,13 +4,14 @@
 # 用法：verify_guest_backpressure.sh [-p 8556] [-s emulator-5556] [-r 3] [-d 20] [-c none,pull,app]
 set -uo pipefail
 
+source "$(dirname "$0")/lib/load_sentinel.sh"
+
 # 所有 source 路徑先解析成絕對路徑，再切換工作目錄（D55）。
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SCRIPT_PATH="${SCRIPT_DIR}/$(basename "$0")"
 PACKAGE_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 source "${SCRIPT_DIR}/lib/verify_common.sh"
 source "${SCRIPT_DIR}/lib/gui_session.sh"
-source "${SCRIPT_DIR}/lib/load_sentinel.sh"
 source "${SCRIPT_DIR}/lib/guest_fps.sh"
 source "${SCRIPT_DIR}/lib/backpressure.sh"
 cd "${PACKAGE_DIR}" || exit 1
@@ -122,6 +123,9 @@ for ((condition_index = 0; condition_index < CONDITION_COUNT; condition_index++)
         done
     fi
 done
+
+# D60(a)：參數解析與驗證完成後，量測前才檢查主機磁碟。
+disk_preflight "$SCRIPT_DIR" || exit 1
 
 echo "=== 前置：gRPC ==="
 require_grpc "${GRPC_PORT}"

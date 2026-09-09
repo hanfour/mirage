@@ -3,6 +3,10 @@
 # 驗收 2：殺掉模擬器後重啟，App 10 秒內自動恢復畫面。
 # 前置：模擬器執行中、App 未執行。輸出 PASS/FAIL 與時間線。
 set -euo pipefail
+
+# D60(a)：在建置、寫日誌及量測之前檢查主機磁碟，失敗直接中止。
+source "$(dirname "$0")/lib/load_sentinel.sh"
+disk_preflight "$(dirname "$0")" || exit 1
 cd "$(dirname "$0")/../.."
 LOG=/tmp/mirage_reconnect_test.log
 ANIMATE_LOG=/tmp/mirage_reconnect_animate.log

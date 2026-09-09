@@ -6,9 +6,12 @@
 #   ./scripts/verify_fps_under_load.sh -n 0 -p 8556
 set -uo pipefail
 
+# D60(a)：在建置、寫日誌及量測之前檢查主機磁碟，失敗直接中止。
+source "$(dirname "$0")/lib/load_sentinel.sh"
+disk_preflight "$(dirname "$0")" || exit 1
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 VERIFY="${SCRIPT_DIR}/verify_fps_fullscreen.sh"
-source "${SCRIPT_DIR}/lib/load_sentinel.sh"
 
 BURNERS=""
 VERIFY_ARGS=()

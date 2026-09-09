@@ -10,6 +10,10 @@
 #   - `am start -a VIEW -d file://... -t audio/ogg` 確認會叫起 com.android.music/.AudioPreview
 #     並讓 dumpsys audio 看到一個 MediaPlayer piid state:started（sampleRate=44100, stereo）。
 set -uo pipefail
+
+# D60(a)：在建置、寫日誌及量測之前檢查主機磁碟，失敗直接中止。
+source "$(dirname "$0")/lib/load_sentinel.sh"
+disk_preflight "$(dirname "$0")" || exit 1
 source "$(dirname "$0")/lib/verify_common.sh"
 export ANDROID_SERIAL="${ANDROID_SERIAL:-emulator-5554}"
 SOUND="/product/media/audio/ringtones/Ring_Synth_04.ogg"   # 實測存在（Step 1 用 adb shell ls 確認）

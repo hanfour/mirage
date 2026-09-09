@@ -2,9 +2,10 @@
 # 驗收線 2：全螢幕量測到 present 的三個可控段，每輪 20 秒。
 # 用法：verify_input_latency.sh [-r rounds] [-p grpc_port]
 set -uo pipefail
+
+source "$(dirname "$0")/lib/load_sentinel.sh"
 HERE="$(cd "$(dirname "$0")" && pwd)"
 source "$HERE/lib/verify_common.sh"
-source "$HERE/lib/load_sentinel.sh"
 source "$HERE/lib/input_latency.sh"
 ROUNDS=3
 PORT=8556
@@ -23,6 +24,9 @@ for value in "$ROUNDS" "$PORT"; do
     [ "$value" -gt 0 ] || exit 2
 done
 [ "$PORT" -le 65535 ] || exit 2
+# D60(a)：參數解析與驗證完成後，量測前才檢查主機磁碟。
+disk_preflight "$HERE" || exit 1
+
 require_grpc "$PORT"
 build_warm release 3 "$HERE/.." || exit 1
 input_latency_wait_load 18 60 5 || echo '建置後等待已達上限，交由逐輪 load_gate 重試判定'

@@ -29,6 +29,8 @@
 # 就被它擋掉四次（`app/RESULTS-d32.md` 附錄 C）。**A2 紅時先檢查**：截圖或 `dumpsys
 # activity` 確認遊戲當下停留的關卡畫面，而不是先懷疑腳本或產品程式碼。
 set -uo pipefail
+
+source "$(dirname "$0")/lib/load_sentinel.sh"
 source "$(dirname "$0")/lib/verify_common.sh"
 source "$(dirname "$0")/lib/gui_session.sh"
 source "$(dirname "$0")/lib/audio_stats.sh"
@@ -83,6 +85,9 @@ if [ "$DURATION" -lt 10 ]; then
     echo "❌ -d 不接受低於 10 秒：低於此值 A3/A5 的門檻算術會被整數除法截到 0 或 1，斷言形同虛設。" >&2
     exit 2
 fi
+
+# D60(a)：參數解析與驗證完成後，量測前才檢查主機磁碟。
+disk_preflight "$(dirname "$0")" || exit 1
 
 # `audio_stats` 解析 MIRAGE_AUDIO_LOG 的每秒一行，算出六個可 eval 的 KEY=VAL
 # （含 MALFORMED——缺 pkt=/under= 欄位的畸形行計數）。完整設計說明（判準邏輯、

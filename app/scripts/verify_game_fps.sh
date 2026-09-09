@@ -36,6 +36,8 @@
 # 畫面，不會把遊戲重啟回主選單。
 set -uo pipefail
 
+source "$(dirname "$0")/lib/load_sentinel.sh"
+
 source "$(dirname "$0")/lib/gui_session.sh"
 
 SERIAL="emulator-5558"
@@ -58,6 +60,9 @@ while getopts "s:p:g:d:a:nh" opt; do
     *) echo "用法：$0 [-s serial] [-p grpc_port] [-g package] [-d seconds] [-a app_path] [-n]" >&2; exit 2 ;;
   esac
 done
+
+# D60(a)：參數解析與驗證完成後，量測前才檢查主機磁碟。
+disk_preflight "$(dirname "$0")" || exit 1
 
 # adb 常不在 PATH 上；用與 AdbClient.standard() 相同的推導順序。
 SDK="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-$HOME/Library/Android/sdk}}"
