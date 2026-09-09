@@ -29,6 +29,9 @@ enum MirrorShaders {
         float2 p = float2(float((vid << 1) & 2), float(vid & 2));
         VOut out;
         out.pos = float4(p * 2.0 - 1.0, 0.0, 1.0);
+        // y 翻轉是因為 emulator 送來的 RGBA 是**由上而下**排列，而 clip space 的 y 向上。
+        // ⚠️ proto 的 `Image` 註解說 "bottom up"，那是錯的（D68）——照它把這行的翻轉
+        // 拿掉，畫面會上下顛倒。方向由實測決定，不由那段註解決定。
         out.uv = float2(p.x, 1.0 - p.y);
         return out;
     }

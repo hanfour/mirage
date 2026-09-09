@@ -39,10 +39,13 @@ import Testing
         // 36.x）直接發出 MMAP 請求——36.x 收到 MMAP 請求會 SIGSEGV，弄死整台 VM
         // （phase0/RESULTS-0b.md，3/3 確定性重現）。
         let status = try await box.client.getStatus(.init())
-        guard MmapVersionGate.allows(versionString: status.version) else {
-            print("[mmap-live] skipped: emulator \(status.version) < 37——MMAP 請求會使其 SIGSEGV")
-            return
-        }
+        // **失敗而不是安靜跳過（D26）**：原本這裡 print 一行然後 return，於是這條測試在
+        // 舊 emulator 上回報 passed 而零斷言——閘門 3 的哨兵當時只掃單行，抓不到跨行形式。
+        // 使用者是明確設了 `MIRAGE_LIVE_MMAP=1` 才會跑到這裡的，配了跑不動 MMAP 的
+        // emulator 是該知道的環境錯誤。`#require` 會 throw，所以危險的 MMAP 請求
+        // 同樣不會送出（36.x 收到它會 SIGSEGV 弄死整台 VM，phase0/RESULTS-0b.md 3/3 重現）。
+        try #require(MmapVersionGate.allows(versionString: status.version),
+                     "emulator \(status.version) < 37 跑不動 MMAP，請用 37 以上的版本或不要設 MIRAGE_LIVE_MMAP=1")
         let transport = MmapStreamTransport(channel: box)
         var digests: [Int] = []
         for try await frame in transport.frames(width: 540, height: 1200) {

@@ -121,9 +121,10 @@ echo "=== 閘門 3：不得再出現「假 skip」 ==="
 # `return -1` / `return nil` 這種**帶值**的 return 不算——測試函式回傳 Void，
 # 帶值 return 必然來自輔助函式（例如 ChannelTeardownTests 的執行緒計數），不是假 skip。
 #
-# **已知盲區，寫在這裡免得下一個人以為它全包**：只掃單行。跨行的
-# `guard … else {\n print(…)\n return\n }` 抓不到——`MmapStreamLiveTests.swift:31-34`
-# 就是活的一例（見 D26）。要補得用 AST 而不是 grep，那是另一輪的事。
+# **跨行形式（D26，2026-09-09 補上）**：`guard … else {` 換行後 print 一行再 return 的
+# 寫法，單行 grep 抓不到。原本記載「要補得用 AST」，但實際上不需要——從 `else {` 起
+# 做括號計數找到區塊結尾，看區塊裡有沒有裸 `return` 而且沒有任何斷言，就分得出來。
+# 下面第二段 lint 做這件事。活的一例是 `MmapStreamLiveTests`，已同時改成 `#require` 失敗。
 FAKE_SKIP_PAT='guard.*MIRAGE.*else|guard env\[|guard.*else[[:space:]]*\{[^}]*return[[:space:]]*\}'
 # 註解行要排除：LiveGate.swift 與 AudioLiveTests.swift 的說明文字裡逐字引用了
 # `guard ... else { return }`（那正是它們在解釋「以前錯在哪」），本身不是程式碼。
@@ -133,6 +134,40 @@ if [ -n "$BAD" ]; then
     echo "$BAD"
 else
     ok "無單行形式的假 skip（env 形式與 guard…else { return } 皆無命中）"
+fi
+
+# 第二段：跨行的 `guard … else { … return }`（D26）。
+MULTILINE_SKIP=$(python3 - <<'PYSKIP'
+import pathlib, re
+
+# 斷言或拋出＝這個區塊有在做事，不是安靜跳過。
+ASSERT = re.compile(r'#expect|#require|Issue\.record|throw |fatalError|XCTFail')
+BARE_RETURN = re.compile(r'^\s*return\s*(//.*)?$')
+GUARD_ELSE = re.compile(r'^\s*guard\b.*\belse\s*\{\s*(//.*)?$')
+
+hits = []
+for path in sorted(pathlib.Path("../app/Tests").rglob("*.swift")):
+    lines = path.read_text(encoding="utf-8").splitlines()
+    for i, line in enumerate(lines):
+        if line.lstrip().startswith("//") or not GUARD_ELSE.match(line):
+            continue
+        depth = line.count("{") - line.count("}")
+        block, j = [], i + 1
+        while j < len(lines) and depth > 0:
+            block.append(lines[j])
+            depth += lines[j].count("{") - lines[j].count("}")
+            j += 1
+        body = "\n".join(block)
+        if any(BARE_RETURN.match(b) for b in block) and not ASSERT.search(body):
+            hits.append(f"{path}:{i + 1}: guard…else 區塊只有 return，未命中條件時會回報 passed 但零斷言")
+print("\n".join(hits))
+PYSKIP
+)
+if [ -n "$MULTILINE_SKIP" ]; then
+    fail "測試裡出現跨行形式的假 skip："
+    echo "$MULTILINE_SKIP"
+else
+    ok "無跨行形式的假 skip"
 fi
 
 echo ""

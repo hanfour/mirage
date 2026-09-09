@@ -24,6 +24,13 @@ def open_frame_buffer(path: str, width: int, height: int) -> mmap.mmap:
 
 
 def frame_array(buf: mmap.mmap, width: int, height: int) -> np.ndarray:
+    """把映射區當成 (height, width, 4) 的 RGBA 陣列。
+
+    **不翻轉**：資料由上而下排列，第 0 列就是畫面最上面那一列。proto 的 `Image` 註解
+    說 "bottom up"，那是錯的（D68），照它翻會取樣到鏡射位置。目前的呼叫端
+    （`bench_mmap_vs_rgba.py`）只量吞吐與相異幀數，方向不影響結果，但要拿它取像素時
+    這件事就要緊。
+    """
     expected = width * height * 4
     if len(buf) != expected:
         raise ValueError(f"緩衝區 {len(buf)} bytes != {expected}（{width}x{height} RGBA）")
