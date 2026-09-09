@@ -36,6 +36,30 @@ import emulator_controller_pb2_grpc as ecg
 
 CHANNELS = {"mono": 1, "stereo": 2}
 
+# 尾端多久沒有封包才算「中途停止」。封包間隔約 11ms，2 秒等於漏掉約 180 個。
+TAIL_SILENCE_THRESHOLD_SECONDS = 2.0
+
+CONFLATION_CAUTION = (
+    "⚠️ 封包停止不等於 RPC 壞了：guest 停止輸出音訊時 emulator 會關閉主機輸出裝置、"
+    "封包歸零，形狀與 RPC 停止交付完全相同。判定前先確認 guest 當下還有沒有音軌"
+    "（`adb shell dumpsys audio | grep state:started`），"
+    "`app/scripts/measure_audio_window.sh` 會自動幫你查。")
+
+
+def tail_verdict(elapsed, last_packet_offset, threshold=TAIL_SILENCE_THRESHOLD_SECONDS):
+    """判斷尾端的空白算不算「封包中途停止」，並在算的時候附上警告。
+
+    **這個警告是有代價換來的**：2026-09-08 曾把「封包中途停止」直接記成一筆缺陷（D70），
+    說 `streamAudio` 的長連線會靜默停止交付。後來在同一台機器上連續量了 21 分鐘、七個 RPC
+    都沒有重現，而故意在量測中途停掉 guest 音訊就能穩定產生一模一樣的輸出
+    （`LAST_PKT_AT=23.0s TAIL_SILENCE=42.0s`）。這把尺分不出那兩件事。
+    """
+    gap = elapsed - last_packet_offset
+    stopped = gap > threshold
+    verdict = "封包中途停止" if stopped else "交付持續到結束"
+    return gap, verdict, CONFLATION_CAUTION if stopped else ""
+
+
 
 def main() -> int:
     p = argparse.ArgumentParser()
@@ -117,10 +141,11 @@ def main() -> int:
           f"MEAN_PKT_BYTES={total_bytes/packets:.1f}")
     print(f"{tag}SUPPLY_PCT={total_bytes/elapsed/realtime_bps*100:.1f}")
     print(f"{tag}PEAK={peak_all}/32767  RMS={rms:.1f}")
-    gap = elapsed - (last_pkt - started) if last_pkt else elapsed
-    print(f"{tag}LAST_PKT_AT={last_pkt - started:.1f}s  "
-          f"TAIL_SILENCE={gap:.1f}s  "
-          f"{'封包中途停止' if gap > 2 else '交付持續到結束'}")
+    gap, verdict, caution = tail_verdict(elapsed, (last_pkt - started) if last_pkt else 0.0)
+    print(f"{tag}LAST_PKT_AT={(last_pkt - started) if last_pkt else 0.0:.1f}s  "
+          f"TAIL_SILENCE={gap:.1f}s  {verdict}")
+    if caution:
+        print(f"{tag}{caution}")
     line = "  ".join(
         f"{k}s:{buckets[k][0]/realtime_bps*100:.0f}%/pk{buckets[k][1]}"
         for k in sorted(buckets) if k < int(elapsed))

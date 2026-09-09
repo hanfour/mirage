@@ -11,11 +11,20 @@
 # （`pmset -g assertions` 裡的 `Resources: audio-out` 消失，實測 3 到 4 秒），再重新播放。
 # 用媒體鍵暫停再播放不夠，那不會讓 emulator 關閉裝置。
 #
-# 前置：guest 要有一個已知會發聲的來源在播（實測用 YouTube，峰值可到 24542／32767），
-# 且它要能被媒體鍵暫停與續播。Pixel Flow 本身近乎無聲，不能拿來判交付率以外的事。
+# 停止與重啟音源有兩種方式：
+#
+# - 預設用媒體鍵（`KEYCODE_MEDIA_PAUSE`／`PLAY`），適用於有 media session 的 app，
+#   例如 YouTube。
+# - 設 `MIRAGE_AUDIO_PACKAGE=<套件名>` 改用 `am force-stop` 加 launcher intent。
+#   遊戲通常不理媒體鍵（實測 Pixel Flow 就是），只能走這條。
+#
+# 前置：guest 要有音源在播。判交付率用什麼音源都可以；但要判「有沒有聲音」必須用
+# 已知會發聲的來源（實測 YouTube 峰值可到 24542／32767），Pixel Flow 本身近乎無聲。
 #
 # 用法：
 #     app/scripts/measure_audio_window.sh <標籤> [秒數，預設 120]
+#     MIRAGE_AUDIO_PACKAGE=com.loomgames.pixelflow \
+#         app/scripts/measure_audio_window.sh <標籤> [秒數]
 #
 # 完整背景與量測記錄：app/RESULTS-audio-collapse.md
 set -u
@@ -26,6 +35,7 @@ PROBE="$HARNESS/audio_amplitude_probe.py"
 PYTHON="$HARNESS/.venv-d45/bin/python"
 SERIAL="${MIRAGE_SERIAL:-emulator-5556}"
 CLOSE_TIMEOUT="${CLOSE_TIMEOUT:-40}"
+AUDIO_PACKAGE="${MIRAGE_AUDIO_PACKAGE:-}"
 
 LABEL="${1:?用法：measure_audio_window.sh <標籤> [秒數]}"
 SECONDS_TO_RUN="${2:-120}"
@@ -41,7 +51,24 @@ host_audio_device_open() {
   pmset -g assertions 2>/dev/null | grep -q "Resources: audio-out"
 }
 
-adb -s "$SERIAL" shell input keyevent KEYCODE_MEDIA_PAUSE
+stop_source() {
+  if [ -n "$AUDIO_PACKAGE" ]; then
+    adb -s "$SERIAL" shell am force-stop "$AUDIO_PACKAGE" >/dev/null 2>&1
+  else
+    adb -s "$SERIAL" shell input keyevent KEYCODE_MEDIA_PAUSE
+  fi
+}
+
+start_source() {
+  if [ -n "$AUDIO_PACKAGE" ]; then
+    adb -s "$SERIAL" shell monkey -p "$AUDIO_PACKAGE" \
+        -c android.intent.category.LAUNCHER 1 >/dev/null 2>&1
+  else
+    adb -s "$SERIAL" shell input keyevent KEYCODE_MEDIA_PLAY
+  fi
+}
+
+stop_source
 
 waited=0
 while host_audio_device_open; do
@@ -55,5 +82,21 @@ while host_audio_device_open; do
 done
 echo "$LABEL: 主機輸出裝置關閉於 ${waited}s"
 
-adb -s "$SERIAL" shell input keyevent KEYCODE_MEDIA_PLAY
-exec "$PYTHON" "$PROBE" --seconds "$SECONDS_TO_RUN" --label "$LABEL"
+start_source
+"$PYTHON" "$PROBE" --seconds "$SECONDS_TO_RUN" --label "$LABEL"
+probe_status=$?
+
+# 探針判「封包中途停止」時分不出兩件事：RPC 停止交付，或 guest 不放音訊了
+# （後者會讓 emulator 關閉主機輸出裝置、封包歸零，形狀一模一樣）。
+# 這個歧義曾經被直接記成一筆缺陷（D70），所以這裡當場把它解掉：量測結束的當下
+# 問 guest 還有沒有在輸出音訊，讓讀的人不必自己回想。
+started_tracks=$(adb -s "$SERIAL" shell dumpsys audio 2>/dev/null \
+    | grep -c "state:started" || true)
+case "$started_tracks" in ''|*[!0-9]*) started_tracks=0 ;; esac
+if [ "$started_tracks" -eq 0 ]; then
+  echo "$LABEL: ⚠️ 量測結束時 guest 沒有任何 started 音軌。"
+  echo "$LABEL: 若探針判了「封包中途停止」，最可能的解釋是音源自己停了，不是 RPC 的問題。"
+else
+  echo "$LABEL: 量測結束時 guest 仍有 ${started_tracks} 條 started 音軌，音源沒有中斷。"
+fi
+exit "$probe_status"
