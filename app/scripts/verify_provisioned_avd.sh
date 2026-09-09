@@ -16,8 +16,15 @@
 #       ./scripts/verify_provisioned_avd.sh mirage-poc
 set -uo pipefail
 
-cd "$(dirname "$0")/.." || exit 1
-source "$(dirname "$0")/lib/verify_common.sh"
+# 路徑必須在 cd 之前解析成絕對路徑。`$0` 是相對路徑時（例如從 repo root 呼叫
+# `bash app/scripts/verify_provisioned_avd.sh`），cd 完那個相對路徑就失效，
+# `source` 會靜默失敗——而 `set -u` 不管函式，缺少的函式要到被呼叫時才炸成
+# `command not found`（退出碼 127），腳本在沒有 `-e` 的情況下照樣往下跑。
+# 實測從 repo root 呼叫時 `require_adb` 完全沒有執行，而腳本繼續去建立 AVD。
+# 這與 D55 在 `verify_mmap.sh` 修掉的是同一個形狀。
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+cd "${SCRIPT_DIR}/.." || exit 1
+source "${SCRIPT_DIR}/lib/verify_common.sh"
 
 PROVISION="../tools/provision/provision.py"
 SDK="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-$HOME/Library/Android/sdk}}"

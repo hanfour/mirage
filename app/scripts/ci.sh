@@ -168,6 +168,40 @@ else
     ok "無裸變數緊接全形標點"
 fi
 
+# 同一道閘門的第二項（D55，2026-09-09）：`cd` 之後才用相對的 `$0` 去 `source`。
+#
+# `$0` 是相對路徑時（從 repo root 呼叫就是），cd 完那個相對路徑就失效，`source` 靜默失敗。
+# **後果不是腳本停下來**：`set -u` 不管函式，缺少的函式要到被呼叫時才炸成
+# `command not found`（退出碼 127），而這些腳本沒有 `-e`，所以會帶著沒執行過的前置檢查
+# 一路跑完。D55 在 `verify_mmap.sh` 修過一次，當時記載「已掃過其餘 verify_* 腳本，
+# 只有這一支有這個形狀」——2026-09-09 重掃發現 `verify_provisioned_avd.sh` 一模一樣，
+# 實測從 repo root 呼叫時 `require_adb` 完全沒跑而腳本繼續去建立 AVD。
+# 掃描比宣稱可靠，所以這裡改成閘門。
+SOURCE_PATH_LINT=$(python3 - <<'PYSRC'
+import pathlib, re
+hits = []
+cd_pat = re.compile(r'^\s*cd\s')
+src_pat = re.compile(r'^\s*(source|\.)\s+"?\$\(dirname\s+"\$0"\)')
+for p in sorted(pathlib.Path("scripts").rglob("*.sh")):
+    first_cd = None
+    for i, line in enumerate(p.read_text(encoding="utf-8").splitlines(), 1):
+        if line.lstrip().startswith("#"):
+            continue
+        if first_cd is None and cd_pat.match(line):
+            first_cd = i
+        if src_pat.match(line) and first_cd is not None and first_cd < i:
+            hits.append(f"{p}:{i}: cd 在第 {first_cd} 行，之後才用相對的 $0 去 source"
+                        "  → 先 SCRIPT_DIR=\"$(cd \"$(dirname \"$0\")\" && pwd)\" 再用它")
+print("\n".join(hits))
+PYSRC
+)
+if [ -n "$SOURCE_PATH_LINT" ]; then
+    fail "有腳本在 cd 之後才用相對的 \$0 去 source（source 會靜默失敗，前置檢查等於沒跑）："
+    echo "$SOURCE_PATH_LINT"
+else
+    ok "無 cd 之後才解析 \$0 的 source"
+fi
+
 echo ""
 echo '=== 閘門 5：#expect 不得拿 Bool 跟 true/false 比 ==='
 # 2026-07-30 新增（D35）。**這道閘門擋的是「斷言永遠不會紅」**，不是風格問題。
