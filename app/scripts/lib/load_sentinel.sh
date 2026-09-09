@@ -28,6 +28,46 @@ load_gate() {
     return 0
 }
 
+# === 擷取窗口內的負載（D50）===
+#
+# **`load_gate` 只在輪次開始前檢查一次，擋不住「起跑時安靜、跑到一半才飆高」。**
+# D45 補測時有兩個樣本就是這樣被污染的：起始負載過關，負載在 20 秒擷取窗口中間才上來，
+# 量到 `MIRAGE_MEDIAN=6` 與 `11`，而任何一次乾淨量測都落在 35 到 60 一帶。
+# 那兩筆是靠人工比對既有基準才被識別並排除的；沒人回頭核對就會混進中位數。
+#
+# 修法是把擷取窗口的 `sleep` 換成會取樣的版本，回報窗口內的 load average 峰值，
+# 讓呼叫端能在事後判定整輪要不要作廢。**刻意不在窗口中途中止**：中止會讓擷取窗口
+# 長度不一致，而窗口長度本身就是 fps 中位數的分母。
+
+# 睡滿 duration 秒，期間每 interval 秒取樣一次 load average，把峰值印到 stdout。
+# 用法：peak=$(load_watch_sleep <duration> [interval，預設 2])
+#
+# 窗口長度必須精準：interval 除不盡 duration 時，最後一段只睡剩下的秒數，
+# 總時長仍等於 duration。取樣本身不算在裡面（`uptime` 是毫秒等級）。
+load_watch_sleep() {
+    local duration="$1" interval="${2:-2}" peak la elapsed=0 chunk
+    peak=$(load_avg_1min)
+    while [ "$elapsed" -lt "$duration" ]; do
+        chunk=$((duration - elapsed))
+        [ "$chunk" -gt "$interval" ] && chunk="$interval"
+        sleep "$chunk"
+        elapsed=$((elapsed + chunk))
+        la=$(load_avg_1min)
+        peak=$(awk -v a="$la" -v p="$peak" 'BEGIN { print (a > p) ? a : p }')
+    done
+    printf '%s\n' "$peak"
+}
+
+# 窗口峰值超過上限 → 印警告、回傳 1。與 load_gate 同一個方向：紅燈是「這筆不可信」。
+load_peak_gate() {
+    local peak="$1" limit="$2"
+    if awk -v a="$peak" -v l="$limit" 'BEGIN { exit !(a > l) }'; then
+        echo "⚠️ 擷取窗口內 load average 峰值 ${peak} 超過上限 ${limit}——本輪樣本不可信。" >&2
+        return 1
+    fi
+    return 0
+}
+
 # === 外來 CPU 佔用（D56 變異來源 (b)）===
 #
 # **`load_gate` 看的 load average 是 1 分鐘平均，看不出「是誰在吃」。** 量測被污染時

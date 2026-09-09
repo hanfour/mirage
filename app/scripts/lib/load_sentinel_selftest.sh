@@ -115,6 +115,59 @@ check "cpu_delta_report：只在第二次快照出現的行程不列入" \
 check "cpu_delta_total：完全沒有超標行程 → 0" \
       "$(cpu_delta_total "$SNAP_A" "$SNAP_A" 10 "")" "0"
 
+# === D50：擷取窗口內的負載取樣 ===
+#
+# 用假的 load_avg_1min 序列取代真實讀數，這樣測的是「取樣與取峰值的邏輯」，
+# 不是這台機器當下有多忙。窗口長度也一併驗，因為它是 fps 中位數的分母。
+# 計數器放檔案而不是變數：`load_watch_sleep` 用 `$(load_avg_1min)` 取值，那是子行程，
+# 變數的遞增回不到父行程，每次都會拿到同一筆。第一版就是這樣寫的，三條測試同時紅。
+FAKE_DIR=$(mktemp -d -t load_sentinel_selftest)
+trap 'rm -rf "$FAKE_DIR"' EXIT
+FAKE_LOADS=""
+fake_loads_reset() {
+    FAKE_LOADS="$1"
+    printf '0\n' > "$FAKE_DIR/index"
+}
+load_avg_1min() {
+    local i
+    i=$(( $(cat "$FAKE_DIR/index") + 1 ))
+    printf '%s\n' "$i" > "$FAKE_DIR/index"
+    printf '%s\n' "$FAKE_LOADS" | sed -n "${i}p"
+}
+
+fake_loads_reset "$(printf '1.0\n2.0\n30.0\n3.0\n')"
+check "load_watch_sleep：回報窗口內的峰值而不是最後一筆" \
+      "$(load_watch_sleep 3 1)" "30.0"
+
+# 起跑安靜、中途飆高，正是 D50 記載的那兩個被污染的樣本的形狀。
+fake_loads_reset "$(printf '2.0\n2.1\n40.0\n2.2\n')"
+PEAK=$(load_watch_sleep 3 1)
+check "load_watch_sleep：起跑安靜中途飆高也抓得到" "$PEAK" "40.0"
+if load_peak_gate "$PEAK" 18 2>/dev/null; then
+    check "load_peak_gate：峰值 40 超過上限 18 應回傳 1" "0" "1"
+else
+    check "load_peak_gate：峰值 40 超過上限 18 應回傳 1" "1" "1"
+fi
+
+fake_loads_reset "$(printf '5.0\n6.0\n7.0\n')"
+PEAK=$(load_watch_sleep 2 1)
+if load_peak_gate "$PEAK" 18 2>/dev/null; then
+    check "load_peak_gate：峰值 7 未超過上限 18 應回傳 0" "0" "0"
+else
+    check "load_peak_gate：峰值 7 未超過上限 18 應回傳 0" "1" "0"
+fi
+
+# 窗口長度必須精準：interval 除不盡 duration 時不可以超睡。
+fake_loads_reset "$(printf '1.0\n1.0\n1.0\n1.0\n1.0\n')"
+START=$(date +%s)
+load_watch_sleep 5 2 > /dev/null
+ELAPSED=$(( $(date +%s) - START ))
+if [ "$ELAPSED" -ge 5 ] && [ "$ELAPSED" -le 6 ]; then
+    check "load_watch_sleep：duration 5、interval 2 睡滿 5 秒不超睡" "ok" "ok"
+else
+    check "load_watch_sleep：duration 5、interval 2 睡滿 5 秒不超睡" "${ELAPSED}s" "5s"
+fi
+
 echo ""
 if [ "$FAILURES" -eq 0 ]; then
     echo "全部通過"

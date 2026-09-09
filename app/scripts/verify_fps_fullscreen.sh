@@ -257,6 +257,8 @@ SIZE_OK=1
 GUEST_MIN="${GUEST_MIN:-55}"
 GUEST_VALS=""
 GUEST_REJECTED=0
+# D50：擷取窗口內負載飆高而判為無效的輪次數。
+WINDOW_LOAD_REJECTED=0
 
 ab_median_of() {
     printf "%b" "$1" | grep -v '^$' | sort -n \
@@ -280,6 +282,7 @@ AB_LATEST_LAT_P95=""
 AB_QUEUE_LAT_P95=""
 AB_GUEST_VALS=""
 AB_GUEST_REJECTED=0
+AB_WINDOW_LOAD_REJECTED=0
 
 ab_print_result() {
     local round="$1" sink="$2"
@@ -367,7 +370,8 @@ run_ab_sink() {
     before=$(fps_samples "$log")
     lat_before=$(grep -c '^\[app\] lat ' "$log" 2>/dev/null || true)
     guest_window_start "$SERIAL"
-    sleep "$DURATION"
+    # D50：A/B 這條路徑的擷取窗口與主路徑同型，同樣需要窗口內的負載保護。
+    window_peak=$(load_watch_sleep "$DURATION" 2)
     g_raw=$(guest_window_end "$SERIAL" "$PACKAGE") || g_raw=""
     m=$(fps_median "$log")
     a=$(frames_median "$log" arrived "$before")
@@ -404,6 +408,18 @@ run_ab_sink() {
 
     gui_session_cleanup "$bundle"
     sleep 3
+
+    # D50：先判窗口負載。負載污染會同時壓低 guest 與 Mirage 兩側，
+    # 先判 guest 會把成因記成「guest 未達門檻」，掩蓋掉真正的原因。
+    if ! load_peak_gate "$window_peak" "$LOAD_LIMIT"; then
+        AB_WINDOW_LOAD_REJECTED=$((AB_WINDOW_LOAD_REJECTED + 1))
+        echo "   ❌ [sink=${sink}] 本輪判為無效：擷取窗口內 load average 峰值 ${window_peak} 超過 ${LOAD_LIMIT}"
+        # 收尾照既有的 guest 拒絕路徑：呼叫端不看回傳值，所以要自己清 log 並印出結果，
+        # 否則這一輪在輸出裡憑空消失，而殘檔會留下來。
+        rm -f "$log"
+        ab_print_result "$round" "$sink"
+        return 0
+    fi
 
     if [ -z "$g" ] || ! awk -v g="$g" -v t="$GUEST_MIN" 'BEGIN { exit !(g >= t) }'; then
         AB_GUEST_REJECTED=$((AB_GUEST_REJECTED + 1))
@@ -510,6 +526,7 @@ run_ab_mode() {
     echo "LAT_P95_QUEUE=${queue_lat_p95:-無資料}"
     echo "GUEST_VALUES=$(printf '%b' "$AB_GUEST_VALS" | grep -v '^$' | sort -n | tr '\n' ' ' | sed 's/ $//')"
     echo "GUEST_REJECTED=${AB_GUEST_REJECTED}"
+    echo "WINDOW_LOAD_REJECTED=${AB_WINDOW_LOAD_REJECTED}"
     echo "SIZE_OK=${SIZE_OK}"
 
     echo ""
@@ -633,7 +650,11 @@ for round in $(seq 1 "$ROUNDS"); do
     # 一次 65.83 秒的重編——那個平均值不能與任何單輪的 Mirage 數字比較。
     BEFORE=$(fps_samples "$LOG")
     guest_window_start "$SERIAL"
-    sleep "$DURATION"
+    # D50：擷取窗口內每 2 秒取樣一次 load average，回報峰值。
+    # `load_gate` 只在輪次開始前檢查一次，擋不住「起跑安靜、跑到一半才飆高」——
+    # D45 補測有兩個樣本就是這樣被污染的（量到 6 與 11，乾淨量測是 35 到 60 一帶），
+    # 當時是靠人工比對既有基準才被識別的。
+    WINDOW_PEAK=$(load_watch_sleep "$DURATION" 2)
     GUEST_RAW=$(guest_window_end "$SERIAL" "$PACKAGE") || GUEST_RAW=""
     # `mirage=M` 的取樣母體含全螢幕收斂期。既有 `fps_median` 沒有跳過參數，這是既有
     # 行為，本任務不動判定；`arrived`、`dropped`、`presented` 只含量測窗口。
@@ -672,6 +693,19 @@ for round in $(seq 1 "$ROUNDS"); do
     # emulator 得做兩份工，量到的是「兩個消費者下的幀率」而非任一方的能力。
     gui_session_cleanup "$BUNDLE"
     sleep 3
+
+    # === 本輪有效性：擷取窗口內的負載（D50）===
+    #
+    # 刻意放在 guest 判定之前：負載污染會同時壓低 guest 與 Mirage 兩側，
+    # 先判 guest 會把成因記成「guest 未達門檻」，掩蓋掉真正的原因。
+    if ! load_peak_gate "$WINDOW_PEAK" "$LOAD_LIMIT"; then
+        WINDOW_LOAD_REJECTED=$((WINDOW_LOAD_REJECTED + 1))
+        echo "   ❌ 本輪判為無效：擷取窗口內 load average 峰值 ${WINDOW_PEAK} 超過 ${LOAD_LIMIT}——"
+        echo "      起跑時的 load_gate 過了，負載是在窗口中間才上來的。這一輪量到的是"
+        echo "      主機的數字不是產品的數字，不計入中位數（如實記錄，不湊數）。"
+        rm -f "$LOG"
+        continue
+    fi
 
     # === 本輪有效性：guest 有沒有產出足以讓驗收線 7 成立的幀（D56）===
     if [ -z "$G" ] || ! awk -v g="$G" -v t="$GUEST_MIN" 'BEGIN { exit !(g >= t) }'; then
@@ -785,6 +819,7 @@ if [ -n "$MM" ]; then
 fi
 echo "GUEST_VALUES=$(list_of "$GUEST_VALS")"
 echo "GUEST_REJECTED=${GUEST_REJECTED}（guest 未達 ${GUEST_MIN} 而判為無效的輪次數）"
+echo "WINDOW_LOAD_REJECTED=${WINDOW_LOAD_REJECTED}（擷取窗口內 load 峰值超過 ${LOAD_LIMIT} 而判為無效的輪次數）"
 echo "MIRAGE_MEDIAN=${MM:-無資料}"
 echo "ARRIVED_MEDIAN=${AM}"
 echo "DROPPED_MEDIAN=${DM}"
