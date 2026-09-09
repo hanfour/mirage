@@ -213,8 +213,9 @@ public actor EmulatorClient {
         setPower(.waking)
         // spec §8：suspend 期間 qemu 仍在跑，故 wake 只恢復拉幀，不 load 快照。
         // 載入快照會 rewind、丟失 suspend 期間的 guest 狀態；且活體實測 loadSnapshot
-        // 會使運行中的模擬器崩潰（canary 37.2.1，見 RESULTS-p1b §4）。save-on-suspend
-        // 保留為磁碟檢查點（save 正常），但不在 wake 路徑載入。
+        // 會使運行中的模擬器崩潰（canary 37.2.1，見 RESULTS-p1b §4）。
+        // 現在完全不碰快照，suspend 也不儲存快照；SnapshotSaving／GrpcSnapshotService
+        // 已於 2026-09-09 隨 D14／D31 刪除。
         if state == .connected { attachStream(); attachAudio() }             // 恢復拉幀/音訊
         setPower(.active)
     }
