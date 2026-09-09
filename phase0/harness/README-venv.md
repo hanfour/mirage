@@ -104,3 +104,19 @@ pytest==9.1.1
 （例如 `encoded_bench.py` 用到的 `av`），沒有一併驗證過。pytest 測試由 CI 閘門 8
 執行。修好整個 `phase0/harness/` 不在 D45 範圍內，
 另記債務。
+
+## 這個 venv 涵蓋到什麼程度（2026-09-09 逐檔實測）
+
+D49 記載「11 個既有檔案全部 import 不動」。用 `.venv-d45` 逐檔驗過之後，
+**9 個 import 得動**：`animate.py`、`bench_mmap_vs_rgba.py`、`diag_fd_variable.py`、
+`e2e_latency.py`、`input_latency.py`、`probe_mmap.py`、`probe_mmap_explicit.py`、
+`smoke_grpc.py`、`stream_bench.py`。
+
+剩下兩個不是 protobuf 版本的問題：
+
+- **`encoded_bench.py` 需要 `av`（PyAV）**，不在 `requirements-d45.txt` 裡。
+  刻意不加：PyAV 要編 ffmpeg、體積與建置時間都不小，而這支是一次性的編碼實驗工具。
+  真的要用時單獨裝：`./.venv-d45/bin/pip install av`。
+- **`probe_touch_coords.py` 的預設目標是 `emulator-5558`／port 8558**，那是舊環境留下的，
+  本專案現在用 5556／8556。裝置不存在時它原本會炸一個看不出原因的 `AttributeError`，
+  已改成快速失敗並指出要用參數指定目標。

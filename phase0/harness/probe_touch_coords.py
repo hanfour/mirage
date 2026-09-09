@@ -22,7 +22,15 @@ ADB = subprocess.run(["bash", "-lc", "echo $HOME/Library/Android/sdk/platform-to
 
 size = subprocess.run([ADB, "-s", SERIAL, "shell", "wm", "size"],
                       capture_output=True, text=True).stdout
-gw, gh = map(int, re.search(r"(\d+)x(\d+)", size).groups())
+# 裝置不存在時 `wm size` 什麼都不印，原本的 `.groups()` 會炸成 AttributeError，
+# 錯誤訊息完全看不出真正的原因是 serial 不對。預設值 emulator-5558 是舊環境留下的，
+# 本專案現在用 5556，所以這個情況是常態不是意外。
+match = re.search(r"(\d+)x(\d+)", size)
+if match is None:
+    sys.exit(f"讀不到 {SERIAL} 的螢幕尺寸。`adb -s {SERIAL} shell wm size` 沒有輸出，\n"
+             f"最可能是裝置不存在或未授權。用 `adb devices` 確認之後，\n"
+             f"以「python probe_touch_coords.py <grpc_port> <serial>」指定正確的目標。")
+gw, gh = map(int, match.groups())
 print(f"guest 實體解析度 = {gw}x{gh}")
 
 # 送到「串流座標系 540x1200 的正中央」。若座標系其實是實體螢幕，

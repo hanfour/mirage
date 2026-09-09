@@ -307,7 +307,7 @@ else
 fi
 
 echo ""
-echo "=== 閘門 8：phase0/harness Python 測試 ==="
+echo "=== 閘門 8：Python 測試（phase0/harness 與 tools/probe）==="
 HARNESS_PY="../phase0/harness/.venv-d45/bin/python"
 if [ ! -x "${HARNESS_PY}" ]; then
     fail "找不到 phase0/harness/.venv-d45/bin/python，不能 skip 閘門 8"
@@ -317,17 +317,29 @@ elif ! "${HARNESS_PY}" -c "import pytest" > /dev/null 2>&1; then
     fail "venv 裡找不到 pytest，不能 skip 閘門 8"
     echo "   安裝方式：cd phase0/harness && ./.venv-d45/bin/pip install -r requirements-d45.txt"
 else
+    # tools/probe/tests 一併跑（D37）。它的 11 個測試檔從建立起就沒有被執行過，
+    # 原因記載為「本機沒裝 pytest」——那條已經失效，這個 venv 裡就有 pytest。
+    # 真正擋住的只是 `sys.path` 少了 `tools/probe`，補一個 conftest.py 就解鎖 107 條。
+    #
+    # **兩個目錄必須分開跑，不能併成一次 pytest**：`tools/probe/lib` 與
+    # `phase0/harness/lib` 同名，同一個行程裡先被插進 `sys.path` 的那個會遮掉另一個
+    # （實測併跑時 harness 的 5 個測試檔全部 `No module named 'lib.mmap_source'`）。
     if (cd .. && phase0/harness/.venv-d45/bin/python -m pytest -q phase0/harness/tests); then
         ok "phase0/harness pytest 通過"
     else
         fail "phase0/harness pytest 失敗"
+    fi
+    if (cd .. && phase0/harness/.venv-d45/bin/python -m pytest -q tools/probe/tests); then
+        ok "tools/probe pytest 通過"
+    else
+        fail "tools/probe pytest 失敗"
     fi
 fi
 
 echo ""
 echo "======================================"
 if [ "$FAILURES" -eq 0 ]; then
-    echo "全部通過（$RUNS 次跑次、0 行 NIO ERROR、無假 skip、無全形標點陷阱、無永不紅的 #expect、provision 測試綠、八支共用函式庫自我測試（verify_common／audio_stats／load_sentinel／guest_fps／gui_session／backpressure／input_latency／wake）皆綠、phase0/harness pytest 綠）"
+    echo "全部通過（$RUNS 次跑次、0 行 NIO ERROR、無假 skip、無全形標點陷阱、無永不紅的 #expect、provision 測試綠、八支共用函式庫自我測試（verify_common／audio_stats／load_sentinel／guest_fps／gui_session／backpressure／input_latency／wake）皆綠、phase0/harness 與 tools/probe pytest 綠）"
     exit 0
 fi
 echo "$FAILURES 項失敗"
