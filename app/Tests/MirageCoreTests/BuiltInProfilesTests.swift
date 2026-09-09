@@ -15,6 +15,27 @@ import Testing
         #expect(profile.gameId == "com.example.game")
     }
 
+    /// 直接解碼產品 bundle，避免 starter 的 fallback 路徑掩蓋不同步。
+    @Test func fallbackMatchesBundledSampleBindings() throws {
+        let source = try #require(BuiltInProfiles.bundledSources().first {
+            $0.lastPathComponent == "com.example.game.json"
+        })
+        let profile = try JSONDecoder().decode(KeymapProfile.self, from: Data(contentsOf: source))
+        #expect(BuiltInProfiles.fallbackStarterBindings == profile.bindings)
+    }
+
+    /// 目的地不是目錄時，每筆複製失敗都必須有名稱與原因。
+    @Test func seedReportsEveryFailure() throws {
+        let src = tempDir("all-fail")
+        defer { try? FileManager.default.removeItem(at: src) }
+        let a = try writeSource(src, name: "one", body: "{}")
+        let b = try writeSource(src, name: "two", body: "{}")
+        let outcome = BuiltInProfiles.seed(into: URL(fileURLWithPath: "/dev/null/profiles"), from: [a, b])
+        #expect(outcome.copied.isEmpty)
+        #expect(outcome.failed.map(\.name) == ["one", "two"])
+        #expect(outcome.failed.allSatisfy { !$0.error.localizedDescription.isEmpty })
+    }
+
     /// 暫存目錄慣例照抄 ProfileStoreTests.tempDir()。
     private func tempDir(_ tag: String) -> URL {
         let d = FileManager.default.temporaryDirectory
@@ -33,8 +54,8 @@ import Testing
     @Test func seedCopiesWhenAbsent() throws {
         let src = tempDir("src-a"), dst = tempDir("dst-a")
         let a = try writeSource(src, name: "com.example.one", body: "{\"x\":1}")
-        let copied = BuiltInProfiles.seed(into: dst, from: [a])
-        #expect(copied == ["com.example.one"])
+        let outcome = BuiltInProfiles.seed(into: dst, from: [a])
+        #expect(outcome.copied == ["com.example.one"])
         let landed = dst.appendingPathComponent("com.example.one.json")
         #expect(FileManager.default.fileExists(atPath: landed.path))
         #expect(try String(contentsOf: landed, encoding: .utf8) == "{\"x\":1}")
@@ -47,9 +68,10 @@ import Testing
         let existing = dst.appendingPathComponent("com.example.one.json")
         try "{\"userEdited\":true}".write(to: existing, atomically: true, encoding: .utf8)
 
-        let copied = BuiltInProfiles.seed(into: dst, from: [a])
+        let outcome = BuiltInProfiles.seed(into: dst, from: [a])
 
-        #expect(copied.isEmpty)          // 什麼都沒複製
+        #expect(outcome.failed.isEmpty)
+        #expect(outcome.copied.isEmpty)          // 什麼都沒複製
         #expect(try String(contentsOf: existing, encoding: .utf8) == "{\"userEdited\":true}")
     }
 
@@ -58,8 +80,8 @@ import Testing
         let src = tempDir("src-c")
         let dst = tempDir("dst-c").appendingPathComponent("nested/deeper")
         let a = try writeSource(src, name: "com.example.one", body: "{\"x\":1}")
-        let copied = BuiltInProfiles.seed(into: dst, from: [a])
-        #expect(copied == ["com.example.one"])
+        let outcome = BuiltInProfiles.seed(into: dst, from: [a])
+        #expect(outcome.copied == ["com.example.one"])
         #expect(FileManager.default.fileExists(atPath: dst.appendingPathComponent("com.example.one.json").path))
     }
 
@@ -68,14 +90,16 @@ import Testing
         let src = tempDir("src-d"), dst = tempDir("dst-d")
         let missing = src.appendingPathComponent("com.example.ghost.json")
         let real = try writeSource(src, name: "com.example.real", body: "{\"x\":1}")
-        let copied = BuiltInProfiles.seed(into: dst, from: [missing, real])
-        #expect(copied == ["com.example.real"])
+        let outcome = BuiltInProfiles.seed(into: dst, from: [missing, real])
+        #expect(outcome.copied == ["com.example.real"])
+        #expect(outcome.failed.map(\.name) == ["com.example.ghost"])
+        #expect(try !#require(outcome.failed.first).error.localizedDescription.isEmpty)
     }
 
     /// 空清單是合法輸入，不是錯誤。
     @Test func seedWithNoSourcesIsNoOp() {
         let dst = tempDir("dst-e")
-        #expect(BuiltInProfiles.seed(into: dst, from: []).isEmpty)
+        #expect(BuiltInProfiles.seed(into: dst, from: []).copied.isEmpty)
     }
 
     /// bundle 查表要真的找得到東西——這是 seeding 在產品路徑上的來源。
@@ -88,8 +112,8 @@ import Testing
     /// 這條把「資源進得了 bundle」與「種下去的東西是合法 profile」串起來。
     @Test func seedingFromBundleProducesLoadableProfile() throws {
         let dst = tempDir("dst-bundle")
-        let copied = BuiltInProfiles.seed(into: dst, from: BuiltInProfiles.bundledSources())
-        #expect(copied.contains("com.example.game"))
+        let outcome = BuiltInProfiles.seed(into: dst, from: BuiltInProfiles.bundledSources())
+        #expect(outcome.copied.contains("com.example.game"))
 
         let profile = try ProfileStore(directory: dst).load(gameId: "com.example.game")
         #expect(profile.gameId == "com.example.game")

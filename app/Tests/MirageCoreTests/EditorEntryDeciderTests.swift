@@ -50,4 +50,28 @@ import Testing
                                           currentPackage: "com.game.a",
                                           starterBindings: []) == .ignore)
     }
+    /// 不使用 starter 的三個分支不得觸發來源讀取。
+    @Test func unusedStarterIsNotEvaluated() {
+        var reads = 0
+        func readStarter() -> [Binding] { reads += 1; return starter }
+        let p = profile("com.game.a")
+        #expect(EditorEntryDecider.decide(editing: true, profile: nil,
+                                          currentPackage: "com.game.a", starterBindings: readStarter()) == .leave)
+        #expect(EditorEntryDecider.decide(editing: false, profile: p,
+                                          currentPackage: nil, starterBindings: readStarter()) == .enter(p))
+        #expect(EditorEntryDecider.decide(editing: false, profile: nil,
+                                          currentPackage: nil, starterBindings: readStarter()) == .ignore)
+        #expect(reads == 0)
+    }
+
+    /// 建立 starter profile 時只讀一次，空版面仍維持忽略。
+    @Test func neededStarterIsEvaluatedOnce() {
+        var reads = 0
+        func readStarter() -> [Binding] { reads += 1; return starter }
+        #expect(EditorEntryDecider.decide(editing: false, profile: nil,
+                                          currentPackage: "com.game.a", starterBindings: readStarter()) ==
+                .enter(KeymapProfile(gameId: "com.game.a", version: 1, bindings: starter)))
+        #expect(reads == 1)
+    }
+
 }

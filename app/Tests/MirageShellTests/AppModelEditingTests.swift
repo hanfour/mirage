@@ -24,8 +24,8 @@ import Testing
         ProfileStore(directory: URL(fileURLWithPath: "/dev/null/mirage-nope"))
     }
 
-    /// 注入縫本身：構造時用得上注入的 store 與 starter 來源，且不碰真實目錄。
-    @Test func constructsWithInjectedDependencies() {
+    /// currentPackage 初始為 nil，且允許寫入偵測到的 package。
+    @Test func currentPackageStartsNilAndIsWritable() {
         let (store, dir) = Self.tempStore("construct")
         defer { try? FileManager.default.removeItem(at: dir) }
         let starter: [Binding] = [.tap(key: .key("q"), at: NormPoint(x: 0.3, y: 0.3))]
@@ -35,6 +35,24 @@ import Testing
         #expect(model.currentPackage == nil)
         model.currentPackage = "com.game.injected"      // private(set) 時這行編不過
         #expect(model.currentPackage == "com.game.injected")
+    }
+
+    /// 產品呼叫端也必須保留延後求值，不能先讀好再傳給決策器。
+    @Test func toggleEditingDoesNotReadUnusedStarter() {
+        let (store, dir) = Self.tempStore("lazy")
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let model = AppModel(store: store, starterBindings: {
+            Issue.record("不需要 starter 的分支讀取了來源")
+            return []
+        })
+        model.toggleEditing()
+        #expect(!model.editing)
+        let p = KeymapProfile(gameId: "com.game.lazy", version: 1, bindings: [])
+        model.profile = p
+        model.toggleEditing()
+        #expect(model.editing)
+        model.toggleEditing()
+        #expect(!model.editing)
     }
 
     /// 階段 A 的核心：沒有 profile 但知道在玩什麼 → ⌘E 要打得開，且帶著 starter 版面。
@@ -429,6 +447,7 @@ import Testing
 
         model.confirmLeaveSaving()
 
+        #expect(try #require(model.profileSaveError).contains("com.game.savefail"))
         #expect(model.editing, "存不掉就不能離開——離開會從磁碟重讀，變更當場蒸發")
         #expect(try #require(model.editorSession).isDirty, "沒寫出去就還是髒的，存檔鍵要維持可按")
         #expect(model.pendingLeaveConfirmation, "提示要留著，使用者才有機會重試或改選捨棄")
@@ -456,6 +475,19 @@ import Testing
 
         #expect(try #require(model.editorSession).isDirty)
         #expect(model.editorSession?.selectedID == id, "失敗時 session 不重建，選取也不該被清掉")
+        let message = try #require(model.profileSaveError)
+        do {
+            try Self.unwritableStore().save(try #require(model.editorSession).profile())
+            Issue.record("預期寫入失敗")
+        } catch {
+            #expect(message.contains(error.localizedDescription))
+        }
+        model.pendingLeaveConfirmation = true
+        model.dismissProfileSaveError()
+        #expect(model.profileSaveError == nil)
+        #expect(!model.pendingLeaveConfirmation)
+        #expect(model.editing)
+        #expect(try #require(model.editorSession).isDirty)
     }
 
     /// `saveProfile` 的回傳值本身：成功 true、失敗 false。上面兩條靠它做決策。

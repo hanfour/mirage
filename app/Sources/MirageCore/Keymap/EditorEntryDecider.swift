@@ -21,18 +21,20 @@ public enum EditorEntryDecider {
     ///   - editing: 目前是否已在編輯模式。
     ///   - profile: 目前作用中的 profile（`AppModel.profile`）。
     ///   - currentPackage: 偵測到的前景 package；無 adb／無前景遊戲時為 nil。
-    ///   - starterBindings: 沒有 profile 時要用的起始版面（見 `BuiltInProfiles.starterBindings`）。
+    ///   - starterBindings: 只在沒有 profile 且有 currentPackage 時求值的起始版面（見 `BuiltInProfiles.starterBindings`）。
     public static func decide(editing: Bool,
                               profile: KeymapProfile?,
                               currentPackage: String?,
-                              starterBindings: [Binding]) -> EditorEntry
+                              starterBindings: @autoclosure () -> [Binding]) -> EditorEntry
     {
         // 已在編輯模式就一定放行離開——途中偵測可能把 profile 收成 nil，
         // 若這裡跟著擋掉，使用者會卡死在編輯模式出不來。
         if editing { return .leave }
         if let profile { return .enter(profile) }
         // 沒有 profile：要有 gameId 才掛得住，也要有版面才編得動。
-        guard let gameId = currentPackage, !starterBindings.isEmpty else { return .ignore }
-        return .enter(KeymapProfile(gameId: gameId, version: 1, bindings: starterBindings))
+        guard let gameId = currentPackage else { return .ignore }
+        let bindings = starterBindings()
+        guard !bindings.isEmpty else { return .ignore }
+        return .enter(KeymapProfile(gameId: gameId, version: 1, bindings: bindings))
     }
 }

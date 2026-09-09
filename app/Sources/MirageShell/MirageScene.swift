@@ -78,8 +78,9 @@ struct MirageScene: App {
             // 代價：Esc 關不掉這個對話框（`role: .cancel` 的「繼續編輯」仍然可以，它自己
             // 呼叫 `cancelLeave()`）。有未存變更時本來就該要求明確選擇三者其一，
             // 這個取捨可以接受。
+            // 存檔失敗時改顯示原因；按「繼續編輯」才清除兩個提示狀態。
             .alert("有未存的鍵位變更", isPresented: Binding(
-                get: { model.pendingLeaveConfirmation },
+                get: { model.pendingLeaveConfirmation && model.profileSaveError == nil },
                 set: { _ in }
             )) {
                 Button("存檔") { model.confirmLeaveSaving() }
@@ -87,6 +88,15 @@ struct MirageScene: App {
                 Button("繼續編輯", role: .cancel) { model.cancelLeave() }
             } message: {
                 Text("離開編輯模式會丟掉這些變更。")
+            }
+            // 同上：SwiftUI 自動關閉時不清狀態，僅由按鈕明確返回編輯器。
+            .alert("鍵位設定無法存檔", isPresented: Binding(
+                get: { model.profileSaveError != nil },
+                set: { _ in }
+            )) {
+                Button("繼續編輯", role: .cancel) { model.dismissProfileSaveError() }
+            } message: {
+                Text(model.profileSaveError ?? "")
             }
             .frame(minWidth: 270, minHeight: 600)
             .task {

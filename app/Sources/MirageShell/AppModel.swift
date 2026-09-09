@@ -60,6 +60,13 @@ final class AppModel {
     /// 丟掉記憶體裡的 profile。階段 A 那是對的（使用者還不能改任何東西）；階段 B 拖曳
     /// 上線之後，同一行就變成「按 ⌘E ＝靜默丟掉剛才調的所有東西」。
     var pendingLeaveConfirmation = false
+    /// 存檔失敗原因，供 Scene 的錯誤提示使用。
+    private(set) var profileSaveError: String?
+
+    func dismissProfileSaveError() {
+        profileSaveError = nil
+        cancelLeave()
+    }
     let mouseCapture = MouseCapture()
     var isFullScreen = false  // P1-e: 系統通知驅動（涵蓋綠燈/⌃⌘F/選單列）
     /// 目前解碼幀的尺寸。`(0, 0)` 代表尚未收到任何幀。
@@ -144,22 +151,20 @@ final class AppModel {
     /// 一定要印出結果：沒有這行，「內建 profile 到底有沒有到位」就變成只能靠翻檔案系統
     /// 才知道的事——而 D4 的本體正是「那個檔案從來沒到位，卻沒有任何訊號」。
     ///
-    /// **為什麼要先看 `sources.isEmpty` 再看 `copied.isEmpty`**：這兩個空值背後是不同的世界。
-    /// `copied` 為空有三種成因——(a) 目的地已有檔案（正常）、(b) 根本沒有來源（資源打包壞了）、
-    /// (c) 有來源但每筆複製都失敗（權限等）。原本一律印「已存在，未複製」，於是 (b) 這個
-    /// **D4 這筆債的本體**（檔案沒到位卻沒有訊號）會印出「一切正常」——同一個 bug 換個地方復發。
-    ///
-    /// (c) 這裡分不出來：`seed` 目前只回傳成功的清單，不回報失敗筆數，所以「三筆來源全失敗」
-    /// 與「三筆全已存在」在呼叫端長得一樣。要分需要改 `seed` 的回傳型別，記在債務表 D27。
+    /// 無來源、已存在、複製成功與複製失敗分開回報，失敗逐筆附上原因。
     func seedBuiltInProfiles() {
         let sources = BuiltInProfiles.bundledSources()
-        let copied = BuiltInProfiles.seed(into: ProfileStore.standardDirectory(), from: sources)
+        let outcome = BuiltInProfiles.seed(into: ProfileStore.standardDirectory(), from: sources)
         if sources.isEmpty {
-            print("[profile] ⚠️ bundle 內找不到任何內建 profile——資源打包壞了")
-        } else if copied.isEmpty {
+            print("[profile] ⚠️ bundle 內找不到任何內建 profile：資源打包壞了")
+        } else if outcome.copied.isEmpty && outcome.failed.isEmpty {
             print("[profile] 內建 profile 已存在（\(sources.count) 筆），未複製")
-        } else {
-            print("[profile] 種下內建 profile：\(copied.joined(separator: ", "))")
+        }
+        if !outcome.copied.isEmpty {
+            print("[profile] 種下內建 profile：\(outcome.copied.joined(separator: ", "))")
+        }
+        for failure in outcome.failed {
+            print("[profile] ⚠️ 內建 profile \(failure.name) 複製失敗：\(failure.error)")
         }
     }
 
@@ -264,11 +269,13 @@ final class AppModel {
     func saveProfile(_ p: KeymapProfile) -> Bool {
         do {
             try store.save(p)
+            profileSaveError = nil
             profile = p
             keymap?.reload(p)
             return true
         } catch {
             print("[keymap] profile save failed: \(error)")
+            profileSaveError = "無法儲存鍵位設定（\(p.gameId)）：\(error.localizedDescription)\n變更仍保留在編輯器中，排除問題後可再按存檔。"
             return false
         }
     }
