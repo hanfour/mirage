@@ -14,12 +14,13 @@ class Row:
 
 def format_report(title: str, rows: list[Row]) -> str:
     lines = [title]
+    width = max((len(row.label) for row in rows), default=0)
     for row in rows:
         mark = "✓" if row.ok else "✗"
         # 提示只印在有問題的那一列：符合的項目印提示只會製造雜訊，
         # 讓真正該做的事更難被看到。
         suffix = f"  （{row.hint}）" if (not row.ok and row.hint) else ""
-        lines.append(f"  {row.label:<34} {row.detail:<30} {mark}{suffix}")
+        lines.append(f"  {row.label:<{width}} {row.detail:<30} {mark}{suffix}")
     return "\n".join(lines) + "\n"
 
 

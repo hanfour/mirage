@@ -2,11 +2,11 @@
 """Mirage 的 AVD provisioning。
 
 用法：
-    python3 provision.py              # 只報告，一行都不寫
+    python3 provision.py              # 檢查 AVD，並安裝缺少的 SDK 套件
     python3 provision.py --apply      # 另外寫 AVD 的 .ini 與 config.ini
     python3 provision.py --upgrade    # 另外覆蓋 SDK 裡的 package
 
-缺失的東西一律直接裝（無破壞風險）；**已存在但不符**才需要旗標。
+缺少的 SDK 套件會直接安裝；AVD 的建立與修改一律需要 --apply。
 兩個旗標分開的理由：改 config.ini 的 RAM 會讓既有快照失效，換 emulator 則
 影響整台機器上所有已量測的數字——後果不同級，不該由同一個旗標決定。
 """
@@ -104,20 +104,14 @@ def _sdk_rows(sdk_root: str, resolved, upgrade: bool, cache: str) -> list[report
     return rows
 
 
-def _avd_rows(avd_home: str, apply_changes: bool) -> list[report.Row]:
+def _avd_rows(avd_home: str, apply_changes: bool, sdk_root: str | None = None) -> list[report.Row]:
     rows = []
     for spec in SPECS:
         avd_dir = os.path.join(avd_home, spec.name + ".avd")
         config_path = os.path.join(avd_dir, "config.ini")
         pointer_path = os.path.join(avd_home, spec.name + ".ini")
 
-        # `exists`（是否需要 --apply 才能改）刻意只看 config.ini，不是兩者
-        # AND：config.ini 帶著 RAM 之類會讓既有快照失效的設定，「已存在但
-        # 不符才需要旗標」保護的正是它。若改成兩者都要存在才算 exists，
-        # 使用者只是不小心少了指標檔、config.ini 本身還帶著手動調過的合法
-        # 差異，也會被當成「全新 AVD」直接覆寫，繞過那道保護。指標檔本身
-        # 沒有這個風險（覆寫它不會讓快照失效），但它的缺失/錯誤仍要算進
-        # 漂移清單，只是走「需要 --apply」那條路，不是無條件自動建立。
+        # config.ini 與指標檔的任何寫入都需要 --apply。
         config_exists = os.path.isfile(config_path)
         pointer_exists = os.path.isfile(pointer_path)
         exists = config_exists
@@ -126,7 +120,7 @@ def _avd_rows(avd_home: str, apply_changes: bool) -> list[report.Row]:
         if config_exists:
             with open(config_path, encoding="utf-8") as handle:
                 current_config = config_ini.parse_config(handle.read())
-        config_diffs = drift.config_drift(current_config, config_ini.expected_config(spec))
+        config_diffs = drift.config_drift(current_config, config_ini.expected_config(spec, sdk_root))
 
         current_pointer = {}
         if pointer_exists:
@@ -147,16 +141,21 @@ def _avd_rows(avd_home: str, apply_changes: bool) -> list[report.Row]:
         if not diffs:
             rows.append(report.Row(spec.name, True, "符合", ""))
             continue
-        if not exists or apply_changes:
+        if apply_changes:
             os.makedirs(avd_dir, exist_ok=True)
             with open(config_path, "w", encoding="utf-8") as handle:
-                handle.write(config_ini.render_config(spec))
+                handle.write(config_ini.render_config(spec, sdk_root))
             with open(pointer_path, "w", encoding="utf-8") as handle:
                 handle.write(config_ini.render_pointer_ini(spec, avd_home))
             rows.append(report.Row(spec.name, True, "已建立" if not exists else "已修正", ""))
             continue
+        if not exists:
+            rows.append(report.Row(spec.name, False, "缺少（需 --apply 才會建立）", ""))
+            continue
         head = "；".join(
-            f"{d.key} {d.current!r}→{d.expected!r}" for d in diffs[:3]
+            f"{d.key} 應移除" if d.expected is None else
+            f"{d.key} {repr(d.current) if d.current is not None else '缺少'}→{d.expected!r}"
+            for d in diffs[:3]
         )
         more = f"（共 {len(diffs)} 項）" if len(diffs) > 3 else ""
         rows.append(report.Row(spec.name, False, head + more, "--apply 可修正"))
@@ -165,7 +164,7 @@ def _avd_rows(avd_home: str, apply_changes: bool) -> list[report.Row]:
 
 def main(argv: list[str]) -> int:
     parser = argparse.ArgumentParser(description="建立 Mirage 的 Android SDK 與兩台 AVD")
-    parser.add_argument("--apply", action="store_true", help="覆寫已存在但不符的 AVD 設定")
+    parser.add_argument("--apply", action="store_true", help="建立或修正 AVD 設定")
     parser.add_argument("--upgrade", action="store_true", help="覆蓋已安裝但版本不符的 SDK package")
     parser.add_argument("--sdk-root", default=None)
     parser.add_argument("--avd-home", default=None)
@@ -193,7 +192,7 @@ def main(argv: list[str]) -> int:
         # exist_ok=True 不會回頭收緊既有目錄的權限，但至少新建時不留門。
         os.makedirs(cache, mode=0o700, exist_ok=True)
         sdk_rows = _sdk_rows(sdk_root, resolved, args.upgrade, cache)
-        avd_rows = _avd_rows(avd_home, args.apply)
+        avd_rows = _avd_rows(avd_home, args.apply, sdk_root)
     except (fetch.FetchError, OSError) as error:
         # 連 OSError 一起接，是為了讓退出碼契約真的成立。_avd_rows 完全不碰
         # fetch，它寫 config.ini 時的 PermissionError（唯讀家目錄、CI sandbox）

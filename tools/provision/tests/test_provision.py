@@ -241,6 +241,8 @@ class PointerIniDriftTests(unittest.TestCase):
             row = next(r for r in rows if r.label == spec.name)
             self.assertFalse(row.ok, f"config.ini 對、指標檔缺失，應回報漂移：{row}")
             self.assertEqual(report.exit_code(rows), 1)
+            self.assertFalse(os.path.exists(os.path.join(avd_home, SPECS[1].name + ".avd")))
+            self.assertFalse(os.path.exists(os.path.join(avd_home, spec.name + ".ini")))
 
     def test_pointer_ini_pointing_elsewhere_is_reported_as_drift(self):
         spec = SPECS[0]

@@ -2,13 +2,14 @@
 
 `lib/` 底下全是純函式，副作用集中在這裡——這條邊界就是「不下載 GB 也能測」
 的機制（設計文件 §6）。這個檔案本身的測試用 tempfile 與 zipfile 當場造檔案，
-一樣不需要網路；唯一沒有自動測試的是 `fetch_text`。
+下載與文字取得另外用本機 HTTP server 測試，不連外部網路。
 
 **原則：任何中止都不可以留下「看起來裝好了但其實壞掉」的狀態。**
 """
 from __future__ import annotations
 
 import hashlib
+import http.client
 import json
 import os
 import shutil
@@ -33,6 +34,7 @@ def fetch_text(url: str, *, timeout: int = 60) -> str:
         with urllib.request.urlopen(url, timeout=timeout) as response:
             return response.read().decode("utf-8")
     except urllib.error.HTTPError as error:
+        error.close()
         raise FetchError(f"{url} → HTTP {error.code}") from error
     except OSError as error:
         raise FetchError(f"{url} → {error}") from error
@@ -92,7 +94,7 @@ def download(url: str, dest: str, expected_sha1: str, expected_size: int) -> Non
     try:
         with urllib.request.urlopen(url, timeout=120) as response, open(part, "wb") as out:
             shutil.copyfileobj(response, out, length=1024 * 1024)
-    except OSError as error:
+    except (OSError, http.client.HTTPException) as error:
         if os.path.exists(part):
             os.remove(part)
         raise FetchError(f"下載 {url} 失敗：{error}") from error
@@ -153,10 +155,11 @@ def extract_into(zip_path: str, install_dir: str) -> None:
                 f"{os.path.basename(zip_path)} 解開後最外層有 {len(entries)} 個項目，"
                 f"預期恰好一個目錄：{entries[:5]}"
             )
+        orphan = install_dir + ".provision-old"
+        if os.path.exists(orphan):
+            shutil.rmtree(orphan)
         if os.path.exists(install_dir):
-            backup = install_dir + ".provision-old"
-            if os.path.exists(backup):
-                shutil.rmtree(backup)
+            backup = orphan
             os.rename(install_dir, backup)
         os.rename(os.path.join(staging, entries[0]), install_dir)
     except Exception:

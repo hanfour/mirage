@@ -1,4 +1,7 @@
 import unittest
+import os
+from dataclasses import replace
+from lib import versions
 import unittest.mock
 
 from lib.avdspec import SPECS, AvdSpec
@@ -39,24 +42,33 @@ class BaseTemplateTests(unittest.TestCase):
 
 class ExpectedConfigTests(unittest.TestCase):
     def test_poc_uses_the_default_image(self):
-        config = expected_config(POC)
+        config = expected_config(POC, "/opt/sdk")
         self.assertEqual(
-            config["image.sysdir.1"], "system-images/android-35/default/arm64-v8a/"
+            config["image.sysdir.1"], os.path.join("/opt/sdk", POC.sysdir)
         )
         self.assertEqual(config["PlayStore.enabled"], "no")
         self.assertEqual(config["tag.id"], "default")
 
     def test_game_uses_the_playstore_image(self):
-        config = expected_config(GAME)
+        config = expected_config(GAME, "/opt/sdk")
         self.assertEqual(
             config["image.sysdir.1"],
-            "system-images/android-35/google_apis_playstore/arm64-v8a/",
+            os.path.join("/opt/sdk", GAME.sysdir),
         )
         self.assertEqual(config["PlayStore.enabled"], "yes")
         self.assertEqual(config["tag.id"], "google_apis_playstore")
 
+    def test_image_path_follows_changed_pin(self):
+        changed = tuple(replace(pin, install_path="system-images/android-99/default/arm64-v8a")
+                        if pin.manifest_key == POC.image_manifest else pin
+                        for pin in versions.PINS)
+        with unittest.mock.patch.object(versions, "PINS", changed):
+            config = parse_config(render_config(POC, "/opt/custom-sdk"))
+        self.assertEqual(config["image.sysdir.1"],
+                         "/opt/custom-sdk/system-images/android-99/default/arm64-v8a/")
+
     def test_name_fields_follow_the_spec(self):
-        config = expected_config(POC)
+        config = expected_config(POC, "/opt/sdk")
         self.assertEqual(config["avd.id"], "mirage-poc")
         self.assertEqual(config["avd.name"], "mirage-poc")
 

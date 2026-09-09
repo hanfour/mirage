@@ -1,4 +1,4 @@
-"""`AvdSpec` 與 `config.ini` 文字之間的轉換。純函式，不碰磁碟。
+"""`AvdSpec` 與 `config.ini` 文字之間的轉換。不碰磁碟，未指定 SDK root 時讀取環境設定。
 
 **兩種格式，刻意不統一**（皆為實地確認）：
 - `config.ini` 是 `key = value`（等號兩側有空格）——emulator 自己寫出來就長這樣
@@ -8,18 +8,22 @@
 """
 from __future__ import annotations
 
+import os
+
+from lib import sdkpaths
 from lib.avdspec import AvdSpec
 from lib.config_base import BASE
 
 
-def expected_config(spec: AvdSpec) -> dict[str, str]:
+def expected_config(spec: AvdSpec, sdk_root: str | None = None) -> dict[str, str]:
     """共用的 BASE 疊上這台的 8 個 overlay 欄位。"""
+    sdk_root = sdk_root or sdkpaths.sdk_root(dict(os.environ), os.path.expanduser("~"))
     config = dict(BASE)
     config.update(
         {
             "avd.id": spec.name,
             "avd.name": spec.name,
-            "image.sysdir.1": spec.sysdir,
+            "image.sysdir.1": os.path.join(os.path.abspath(sdk_root), spec.sysdir),
             "PlayStore.enabled": "yes" if spec.playstore else "no",
             "tag.id": spec.tag_id,
             "tag.ids": spec.tag_id,
@@ -30,9 +34,9 @@ def expected_config(spec: AvdSpec) -> dict[str, str]:
     return config
 
 
-def render_config(spec: AvdSpec) -> str:
+def render_config(spec: AvdSpec, sdk_root: str | None = None) -> str:
     """key 排序後輸出。**排序是為了輸出穩定**——不穩定的話每次跑都會報成漂移。"""
-    config = expected_config(spec)
+    config = expected_config(spec, sdk_root)
     return "".join(f"{key} = {config[key]}\n" for key in sorted(config))
 
 

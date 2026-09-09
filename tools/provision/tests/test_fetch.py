@@ -94,7 +94,7 @@ class ExtractTests(unittest.TestCase):
     def test_moves_the_single_top_level_dir_into_place(self):
         with tempfile.TemporaryDirectory() as tmp:
             zip_path = _make_zip(tmp, "arm64-v8a", {"build.prop": "x"})
-            install = os.path.join(tmp, "sdk", "system-images", "android-35", "default", "arm64-v8a")
+            install = os.path.join(tmp, "sdk", "system-images", "test-api", "default", "arm64-v8a")
             extract_into(zip_path, install)
             self.assertTrue(os.path.exists(os.path.join(install, "build.prop")))
 

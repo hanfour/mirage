@@ -192,7 +192,7 @@ target = android-35
 | 欄位 | `mirage-poc` | `mirage-game` |
 |---|---|---|
 | `avd.id` / `avd.name` | `mirage-poc` | `mirage-game` |
-| `image.sysdir.1` | `system-images/android-35/default/arm64-v8a/` | `system-images/android-35/google_apis_playstore/arm64-v8a/` |
+| `image.sysdir.1` | `<sdk-root>/system-images/android-35/default/arm64-v8a/` | `<sdk-root>/system-images/android-35/google_apis_playstore/arm64-v8a/` |
 | `PlayStore.enabled` | `no` | `yes` |
 | `tag.id` / `tag.ids` | `default` | `google_apis_playstore` |
 | `tag.display` / `tag.displaynames` | `Default Android System Image` | `Google Play` |
@@ -237,7 +237,7 @@ provision.py [--apply] [--upgrade] [--sdk-root PATH] [--avd-home PATH]
 | 情況 | 預設（無旗標） | `--apply` | `--upgrade` |
 |---|---|---|---|
 | SDK package 缺失 | **直接安裝**（無破壞風險） | 同左 | 同左 |
-| AVD 不存在 | **直接建立**（無破壞風險） | 同左 | 同左 |
+| AVD 不存在 | 回報缺少，不寫入 | 建立 | 回報缺少，不寫入 |
 | AVD 已存在但 `config.ini` 不符 | 報告，不寫 | **覆寫** | 報告 |
 | SDK package 版本不符 | 報告，不寫 | 報告 | **覆蓋安裝** |
 
@@ -281,7 +281,9 @@ AVD: /Users/hanfourhuang/.android/avd
 | 磁碟空間不足 | 下載前先估算所需空間（manifest 有 size），不足就先報 |
 | SDK 路徑不存在 | 建立它——這正是新機器的情境 |
 
-**`--upgrade` 的覆蓋語意**：先把舊目錄 move 到 `<name>.old-<revision>`，解壓新的到位，
+`image.sysdir.1` 的實際值由 pin 的 `install_path` 與 SDK root 組成絕對路徑；表中的 API 版本僅為目前範例。
+
+**`--upgrade` 的覆蓋語意**：先把舊目錄 move 到 `<name>.provision-old`，解壓新的到位，
 成功後才刪掉舊的。中途失敗則把舊的 move 回來——**任何時刻都必須有一份可用的**。
 
 **`mirage-bench` 不在腳本的認知範圍內**：不產出、不報告、不動它。既有的留著（量測記錄

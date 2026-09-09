@@ -17,6 +17,8 @@ from dataclasses import dataclass
 
 from lib.manifest import PackageRef, find_ref
 
+ANDROID_TARGET = "android-35"
+
 _REPO_BASE = "https://dl.google.com/android/repository/"
 
 # zip 的 <url> 是相對於**該 manifest 所在目錄**的，所以 base 要跟著 manifest 走。
@@ -65,21 +67,21 @@ PINS = (
     ),
     Pin(
         manifest_key="sysimg_default",
-        path="system-images;android-35;default;arm64-v8a",
+        path=f"system-images;{ANDROID_TARGET};default;arm64-v8a",
         channel="stable",
         revision="2",
         sha1="2026a06409db630b56711afdbffb457c1dbaed49",
         size=769099654,
-        install_path="system-images/android-35/default/arm64-v8a",
+        install_path=f"system-images/{ANDROID_TARGET}/default/arm64-v8a",
     ),
     Pin(
         manifest_key="sysimg_playstore",
-        path="system-images;android-35;google_apis_playstore;arm64-v8a",
+        path=f"system-images;{ANDROID_TARGET};google_apis_playstore;arm64-v8a",
         channel="stable",
         revision="9",
         sha1="b01416bc0bca12a85295dad179f9b8a1cae3d1e6",
         size=1789211399,
-        install_path="system-images/android-35/google_apis_playstore/arm64-v8a",
+        install_path=f"system-images/{ANDROID_TARGET}/google_apis_playstore/arm64-v8a",
     ),
 )
 

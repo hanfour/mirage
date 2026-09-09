@@ -11,6 +11,8 @@
 tag.id/tag.ids/tag.display/tag.displaynames），那些由 `config_ini.expected_config`
 依 `AvdSpec` 補上。"""
 
+from lib.versions import ANDROID_TARGET
+
 BASE = {
     'abi.type': 'arm64-v8a',
     'avd.ini.encoding': 'UTF-8',
@@ -137,7 +139,7 @@ BASE = {
     'runtime.network.speed': 'full',
     'sdcard.size': '512 MB',
     'showDeviceFrame': 'yes',
-    'target': 'android-35',
+    'target': ANDROID_TARGET,
     'test.delayAdbTillBootComplete': '0',
     'test.monitorAdb': '0',
     'test.quitAfterBootTimeOut': '-1',

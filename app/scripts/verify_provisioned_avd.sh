@@ -9,7 +9,7 @@
 # 正是 D33 這筆債的病本身。升 pin、改 AvdSpec、換 system image 之後都要能重跑。
 #
 # **安全性**：全程用暫存的 AVD home（`ANDROID_AVD_HOME`），**不會動到
-# `~/.android/avd` 底下任何東西**；SDK 端不帶旗標所以只讀不寫。腳本結束時
+# `~/.android/avd` 底下任何東西**；SDK 缺少的套件仍會安裝，既有版本不會更新。腳本結束時
 # 會把暫存目錄清掉。
 #
 # 用法：./scripts/verify_provisioned_avd.sh          （兩台都驗）
@@ -51,10 +51,8 @@ cleanup() {
 trap cleanup EXIT
 
 echo "=== 產生 AVD 到暫存目錄 ${TMPAVD} ==="
-# 不帶旗標：AVD 不存在會直接建立，SDK 端只報告不寫。退出碼可能是 1
-# （SDK 有漂移），那與本次要驗的事無關——所以這裡只斷言 AVD 那兩列真的建了，
-# 不斷言整體退出碼。
-python3 "$PROVISION" --sdk-root "$SDK" --avd-home "$TMPAVD" | sed 's/^/   /'
+# 明確允許建立暫存 AVD；既有 SDK 版本若有漂移，仍由後續開機檢查驗證。
+python3 "$PROVISION" --apply --sdk-root "$SDK" --avd-home "$TMPAVD" | sed 's/^/   /'
 
 for name in ${1:-mirage-poc mirage-game}; do
     if [ ! -f "${TMPAVD}/${name}.ini" ] || [ ! -f "${TMPAVD}/${name}.avd/config.ini" ]; then

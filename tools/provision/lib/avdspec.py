@@ -1,4 +1,4 @@
-"""兩台 AVD 的規格。**純資料，沒有行為。**
+"""兩台 AVD 的規格。映像路徑取自版本 pin。
 
 只有兩台：`mirage-poc`（default image）與 `mirage-game`（playstore image），
 非映像設定完全一致——兩台只差 system image，跨台的 fps 數字才可直接比較。
@@ -11,27 +11,34 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from lib import versions
+
 
 @dataclass(frozen=True)
 class AvdSpec:
     name: str
-    sysdir: str
+    image_manifest: str
     playstore: bool
     tag_id: str
     tag_display: str
+
+    @property
+    def sysdir(self) -> str:
+        return next(pin.install_path for pin in versions.PINS
+                    if pin.manifest_key == self.image_manifest) + "/"
 
 
 SPECS = (
     AvdSpec(
         name="mirage-poc",
-        sysdir="system-images/android-35/default/arm64-v8a/",
+        image_manifest="sysimg_default",
         playstore=False,
         tag_id="default",
         tag_display="Default Android System Image",
     ),
     AvdSpec(
         name="mirage-game",
-        sysdir="system-images/android-35/google_apis_playstore/arm64-v8a/",
+        image_manifest="sysimg_playstore",
         playstore=True,
         tag_id="google_apis_playstore",
         tag_display="Google Play",
