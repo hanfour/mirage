@@ -1,0 +1,1000 @@
+[app] frame sink=latest
+2026-09-10 19:08:35.503 MirageApp[46052:33465564] ApplePersistenceIgnoreState: Existing state will not be touched. New state will be written to /var/folders/fs/cw9m80hj6n59wx62tb60tcn00000gn/T/com.mirage.app.savedState
+[wake-diag] event=mirror-viewDidMoveToWindow appDelegate=SwiftUI.AppDelegate respondsToLastWindowPolicy=true isActive=true mainMenuNil=false mainMenuItems=5 activationPolicy=0 receiver=nil return=nil action=nil windowCount=1 window=ObjectIdentifier%280x0000000105cbf2b0%29 windowClass=..NSKVONotifying_SwiftUI.AppKitWindow number=18605 identifier=mirage-mirror mirror=true key=false visible=false delegate=SwiftUI.AppKitWindowController lifecycle=false contentView=NSKVONotifying__TtGC7SwiftUIP10%241c571ffac23AppKitWindowHostingViewGVS_15ModifiedContentVS_7AnyViewVS_12RootModifier__ controller=SwiftUI.AppKitWindowController level=0 styleMask=32783 width=900 height=632 excludedFromWindowsMenu=true
+[app] endpoint=localhost:8554
+[conn] disconnected --connectRequested--> connecting
+[conn] ensureChannel=true probe=healthy(MirageCore.EmulatorInfo(version: "37.1.11.0 (37.1.11-15917651)", display: Optional((w: 1080, h: 2400))))
+[transport] raw rgba (default; set MIRAGE_TRANSPORT=mmap to try mmap)
+[conn] connecting --connectSucceeded--> connected
+[conn] attachStream 掛上，請求 540x1200
+[conn] streamScreenshot 已送出，等第一幀…
+[conn] 幀 #1 540x1200 bytes=2592000
+[conn] 幀 #2 540x1200 bytes=2592000
+[profile] 內建 profile 已存在（1 筆），未複製
+[wake-diag] event=assign-selected-before appDelegate=SwiftUI.AppDelegate respondsToLastWindowPolicy=true isActive=true mainMenuNil=false mainMenuItems=5 activationPolicy=0 receiver=nil return=nil action=nil windowCount=2 window=ObjectIdentifier%280x0000000105cbf2b0%29 windowClass=..NSKVONotifying_SwiftUI.AppKitWindow number=18605 identifier=mirage-mirror mirror=true key=true visible=true delegate=SwiftUI.AppKitWindowController lifecycle=false contentView=NSKVONotifying__TtGC7SwiftUIP10%241c571ffac23AppKitWindowHostingViewGVS_15ModifiedContentVS_7AnyViewVS_12RootModifier__ controller=SwiftUI.AppKitWindowController level=0 styleMask=32783 width=459 height=1020 excludedFromWindowsMenu=true
+[wake-diag] event=assign-candidate appDelegate=SwiftUI.AppDelegate respondsToLastWindowPolicy=true isActive=true mainMenuNil=false mainMenuItems=5 activationPolicy=0 receiver=nil return=nil action=nil windowCount=2 window=ObjectIdentifier%280x0000000105cbf2b0%29 windowClass=..NSKVONotifying_SwiftUI.AppKitWindow number=18605 identifier=mirage-mirror mirror=true key=true visible=true delegate=SwiftUI.AppKitWindowController lifecycle=false contentView=NSKVONotifying__TtGC7SwiftUIP10%241c571ffac23AppKitWindowHostingViewGVS_15ModifiedContentVS_7AnyViewVS_12RootModifier__ controller=SwiftUI.AppKitWindowController level=0 styleMask=32783 width=459 height=1020 excludedFromWindowsMenu=true
+[wake-diag] event=assign-candidate appDelegate=SwiftUI.AppDelegate respondsToLastWindowPolicy=true isActive=true mainMenuNil=false mainMenuItems=5 activationPolicy=0 receiver=nil return=nil action=nil windowCount=2 window=ObjectIdentifier%280x0000000c6be0c280%29 windowClass=NSStatusBarWindow number=4294967296 identifier=nil mirror=false key=false visible=true delegate=nil lifecycle=false contentView=NSStatusBarContentView controller=nil level=25 styleMask=17180917760 width=39 height=0 excludedFromWindowsMenu=false
+[wake-diag] event=assign-selected-after appDelegate=SwiftUI.AppDelegate respondsToLastWindowPolicy=true isActive=true mainMenuNil=false mainMenuItems=5 activationPolicy=0 receiver=nil return=nil action=nil windowCount=2 window=ObjectIdentifier%280x0000000105cbf2b0%29 windowClass=..NSKVONotifying_SwiftUI.AppKitWindow number=18605 identifier=mirage-mirror mirror=true key=true visible=true delegate=MirageShell.AppLifecycle lifecycle=true contentView=NSKVONotifying__TtGC7SwiftUIP10%241c571ffac23AppKitWindowHostingViewGVS_15ModifiedContentVS_7AnyViewVS_12RootModifier__ controller=SwiftUI.AppKitWindowController level=0 styleMask=32783 width=459 height=1020 excludedFromWindowsMenu=true
+[conn] attachStream 掛上，請求 888x1972
+[conn] streamScreenshot 已送出，等第一幀…
+[conn] 串流錯誤：CancellationError()
+[conn] 幀 #1 887x1972 bytes=6996656
+[conn] 幀 #2 887x1972 bytes=6996656
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=0 over=0 primes=0 ptimeouts=0 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789038516.995668 window_seconds=1.042258
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=0 over=0 primes=0 ptimeouts=0 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789038517.998105 window_seconds=1.002424
+[audio-rpc] event=open round=1 epoch=1789038518.344307
+[audio] 收到的格式：sr=48000 ch=stereo fmt=audFmtS16（請求的是 sr=48000 ch=2 fmt=audFmtS16）bytes=4456
+[audio] pkt=60 smp=67986 supply=70% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=100ms rxpkt=60 rxbytes=135972 pkt_bytes={2228:43,2232:16,4456:1} window_end=1789038519.052098 window_seconds=1.053975
+[audio] pkt=89 smp=100312 supply=104% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=89ms rxpkt=89 rxbytes=200624 pkt_bytes={2228:63,2232:25,4460:1} window_end=1789038520.105804 window_seconds=1.053690
+[conn] 幀 #120 887x1972 bytes=6996656
+[audio] pkt=93 smp=103652 supply=107% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=102ms rxpkt=93 rxbytes=207304 pkt_bytes={2228:68,2232:25} window_end=1789038521.169673 window_seconds=1.063853
+[audio] pkt=87 smp=100312 supply=104% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=91ms rxpkt=87 rxbytes=200624 pkt_bytes={2228:60,2232:24,4456:1,4460:2} window_end=1789038522.230235 window_seconds=1.060547
+[audio] pkt=87 smp=96966 supply=101% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=98ms rxpkt=87 rxbytes=193932 pkt_bytes={2228:63,2232:24} window_end=1789038523.234878 window_seconds=1.004626
+[audio] pkt=87 smp=102538 supply=106% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=99ms rxpkt=87 rxbytes=205076 pkt_bytes={2228:60,2232:22,4456:2,4460:3} window_end=1789038524.299504 window_seconds=1.064615
+[conn] 幀 #240 887x1972 bytes=6996656
+[audio] pkt=87 smp=100312 supply=104% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=110ms rxpkt=87 rxbytes=200624 pkt_bytes={2228:60,2232:24,4456:1,4460:2} window_end=1789038525.337495 window_seconds=1.037972
+[audio] pkt=86 smp=96966 supply=101% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=106ms rxpkt=86 rxbytes=193932 pkt_bytes={2228:61,2232:24,4456:1} window_end=1789038526.351634 window_seconds=1.014124
+[audio] pkt=86 smp=95852 supply=99% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=102ms rxpkt=86 rxbytes=191704 pkt_bytes={2228:62,2232:24} window_end=1789038527.353843 window_seconds=1.002191
+[audio-rpc] event=cancel round=1 epoch=1789038528.350091
+[audio-rpc] event=response-ended round=1 epoch=1789038528.350781
+[audio-rpc] event=closed round=1 epoch=1789038528.351525
+[audio] pkt=84 smp=95852 supply=99% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=23ms rxpkt=84 rxbytes=191704 pkt_bytes={2228:59,2232:23,4456:1,4460:1} window_end=1789038528.425326 window_seconds=1.071470
+[conn] 幀 #360 887x1972 bytes=6996656
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=2 over=0 primes=1 ptimeouts=0 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789038529.431579 window_seconds=1.006237
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=2 over=0 primes=1 ptimeouts=0 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789038530.493299 window_seconds=1.061702
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=2 over=0 primes=1 ptimeouts=0 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789038531.541500 window_seconds=1.048189
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=2 over=0 primes=1 ptimeouts=0 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789038532.608913 window_seconds=1.067395
+[audio-rpc] event=open round=2 epoch=1789038533.431315
+[audio] 收到的格式：sr=48000 ch=stereo fmt=audFmtS16（請求的是 sr=48000 ch=2 fmt=audFmtS16）bytes=2228
+[audio] pkt=21 smp=23404 supply=24% sr=48000 ch=2 under=2 over=0 primes=2 ptimeouts=0 depth=105ms rxpkt=21 rxbytes=46808 pkt_bytes={2228:16,2232:5} window_end=1789038533.675313 window_seconds=1.066391
+[conn] 幀 #480 887x1972 bytes=6996656
+[audio] pkt=85 smp=99196 supply=103% sr=48000 ch=2 under=2 over=0 primes=2 ptimeouts=0 depth=103ms rxpkt=85 rxbytes=198392 pkt_bytes={2228:58,2232:23,4456:2,4460:2} window_end=1789038534.708209 window_seconds=1.032870
+[audio] pkt=89 smp=101424 supply=105% sr=48000 ch=2 under=2 over=0 primes=2 ptimeouts=0 depth=93ms rxpkt=89 rxbytes=202848 pkt_bytes={2228:64,2232:23,4460:2} window_end=1789038535.774567 window_seconds=1.066343
+[audio] pkt=93 smp=103654 supply=107% sr=48000 ch=2 under=2 over=0 primes=2 ptimeouts=0 depth=106ms rxpkt=93 rxbytes=207308 pkt_bytes={2228:67,2232:26} window_end=1789038536.841970 window_seconds=1.067387
+[audio] pkt=86 smp=101426 supply=105% sr=48000 ch=2 under=2 over=0 primes=2 ptimeouts=0 depth=96ms rxpkt=86 rxbytes=202852 pkt_bytes={2228:59,2232:22,4456:1,4460:4} window_end=1789038537.907748 window_seconds=1.065762
+[conn] 幀 #600 887x1972 bytes=6996656
+[audio] pkt=84 smp=98080 supply=102% sr=48000 ch=2 under=2 over=0 primes=2 ptimeouts=0 depth=94ms rxpkt=84 rxbytes=196160 pkt_bytes={2228:58,2232:22,4456:2,4460:2} window_end=1789038538.931678 window_seconds=1.023917
+[audio] pkt=87 smp=101426 supply=105% sr=48000 ch=2 under=2 over=0 primes=2 ptimeouts=0 depth=94ms rxpkt=87 rxbytes=202852 pkt_bytes={2228:59,2232:24,4456:2,4460:2} window_end=1789038539.991700 window_seconds=1.060004
+[audio] pkt=92 smp=103654 supply=107% sr=48000 ch=2 under=2 over=0 primes=2 ptimeouts=0 depth=107ms rxpkt=92 rxbytes=207308 pkt_bytes={2228:65,2232:26,4456:1} window_end=1789038541.057582 window_seconds=1.065865
+[audio] pkt=89 smp=99194 supply=103% sr=48000 ch=2 under=2 over=0 primes=2 ptimeouts=0 depth=106ms rxpkt=89 rxbytes=198388 pkt_bytes={2228:65,2232:24} window_end=1789038542.090831 window_seconds=1.033233
+[audio] pkt=86 smp=95852 supply=99% sr=48000 ch=2 under=2 over=0 primes=2 ptimeouts=0 depth=102ms rxpkt=86 rxbytes=191704 pkt_bytes={2228:62,2232:24} window_end=1789038543.092300 window_seconds=1.001455
+[audio-rpc] event=cancel round=2 epoch=1789038543.431403
+[audio-rpc] event=response-ended round=2 epoch=1789038543.431711
+[audio-rpc] event=closed round=2 epoch=1789038543.431753
+[conn] 幀 #720 887x1972 bytes=6996656
+[audio] pkt=29 smp=32324 supply=33% sr=48000 ch=2 under=4 over=0 primes=2 ptimeouts=0 depth=0ms rxpkt=29 rxbytes=64648 pkt_bytes={2228:20,2232:9} window_end=1789038544.157752 window_seconds=1.065436
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=4 over=0 primes=2 ptimeouts=0 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789038545.224463 window_seconds=1.066697
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=4 over=0 primes=2 ptimeouts=0 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789038546.276492 window_seconds=1.052011
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=4 over=0 primes=2 ptimeouts=0 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789038547.330091 window_seconds=1.053585
+[conn] 幀 #840 887x1972 bytes=6996656
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=4 over=0 primes=2 ptimeouts=0 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789038548.347120 window_seconds=1.017011
+[audio-rpc] event=open round=3 epoch=1789038548.347093
+[audio] 收到的格式：sr=48000 ch=stereo fmt=audFmtS16（請求的是 sr=48000 ch=2 fmt=audFmtS16）bytes=2228
+[audio] pkt=91 smp=102538 supply=106% sr=48000 ch=2 under=4 over=0 primes=3 ptimeouts=0 depth=108ms rxpkt=91 rxbytes=205076 pkt_bytes={2228:65,2232:25,4456:1} window_end=1789038549.414435 window_seconds=1.067301
+[audio] pkt=86 smp=98082 supply=102% sr=48000 ch=2 under=4 over=0 primes=3 ptimeouts=0 depth=116ms rxpkt=86 rxbytes=196164 pkt_bytes={2228:61,2232:23,4460:2} window_end=1789038550.431037 window_seconds=1.016586
+[audio] pkt=86 smp=96966 supply=101% sr=48000 ch=2 under=4 over=0 primes=3 ptimeouts=0 depth=113ms rxpkt=86 rxbytes=193932 pkt_bytes={2228:61,2232:24,4456:1} window_end=1789038551.443811 window_seconds=1.012757
+[audio] pkt=85 smp=95852 supply=99% sr=48000 ch=2 under=4 over=0 primes=3 ptimeouts=0 depth=108ms rxpkt=85 rxbytes=191704 pkt_bytes={2228:61,2232:23,4460:1} window_end=1789038552.444265 window_seconds=1.000439
+[conn] 幀 #960 887x1972 bytes=6996656
+[audio] pkt=85 smp=98080 supply=102% sr=48000 ch=2 under=4 over=0 primes=3 ptimeouts=0 depth=106ms rxpkt=85 rxbytes=196160 pkt_bytes={2228:60,2232:22,4456:1,4460:2} window_end=1789038553.473832 window_seconds=1.029551
+[audio] pkt=93 smp=103654 supply=107% sr=48000 ch=2 under=4 over=0 primes=3 ptimeouts=0 depth=119ms rxpkt=93 rxbytes=207308 pkt_bytes={2228:67,2232:26} window_end=1789038554.540660 window_seconds=1.066814
+[audio] pkt=90 smp=100310 supply=104% sr=48000 ch=2 under=4 over=0 primes=3 ptimeouts=0 depth=108ms rxpkt=90 rxbytes=200620 pkt_bytes={2228:65,2232:25} window_end=1789038555.590492 window_seconds=1.049814
+[audio] pkt=88 smp=100312 supply=104% sr=48000 ch=2 under=4 over=0 primes=3 ptimeouts=0 depth=86ms rxpkt=88 rxbytes=200624 pkt_bytes={2228:62,2232:24,4460:2} window_end=1789038556.657031 window_seconds=1.066523
+[audio] pkt=90 smp=103652 supply=107% sr=48000 ch=2 under=4 over=0 primes=3 ptimeouts=0 depth=99ms rxpkt=90 rxbytes=207304 pkt_bytes={2228:64,2232:23,4456:1,4460:2} window_end=1789038557.723260 window_seconds=1.066212
+[conn] 幀 #1080 887x1972 bytes=6996656
+[audio-rpc] event=cancel round=3 epoch=1789038558.444753
+[audio-rpc] event=response-ended round=3 epoch=1789038558.445208
+[audio-rpc] event=closed round=3 epoch=1789038558.445271
+[audio] pkt=62 smp=69104 supply=71% sr=48000 ch=2 under=6 over=0 primes=3 ptimeouts=0 depth=0ms rxpkt=62 rxbytes=138208 pkt_bytes={2228:44,2232:18} window_end=1789038558.779605 window_seconds=1.056331
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=6 over=0 primes=3 ptimeouts=0 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789038559.824841 window_seconds=1.045219
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=6 over=0 primes=3 ptimeouts=0 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789038560.890676 window_seconds=1.065819
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=6 over=0 primes=3 ptimeouts=0 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789038561.940315 window_seconds=1.049623
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=6 over=0 primes=3 ptimeouts=0 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789038562.956330 window_seconds=1.015999
+[audio-rpc] event=open round=4 epoch=1789038563.398295
+[audio] 收到的格式：sr=48000 ch=stereo fmt=audFmtS16（請求的是 sr=48000 ch=2 fmt=audFmtS16）bytes=2228
+[conn] 幀 #1200 887x1972 bytes=6996656
+[audio] pkt=48 smp=53498 supply=55% sr=48000 ch=2 under=6 over=0 primes=4 ptimeouts=0 depth=87ms rxpkt=48 rxbytes=106996 pkt_bytes={2228:35,2232:13} window_end=1789038563.972946 window_seconds=1.016601
+[audio] pkt=87 smp=96966 supply=101% sr=48000 ch=2 under=6 over=0 primes=4 ptimeouts=0 depth=95ms rxpkt=87 rxbytes=193932 pkt_bytes={2228:63,2232:24} window_end=1789038564.980196 window_seconds=1.007236
+[audio] pkt=84 smp=98082 supply=102% sr=48000 ch=2 under=6 over=0 primes=4 ptimeouts=0 depth=103ms rxpkt=84 rxbytes=196164 pkt_bytes={2228:56,2232:24,4456:3,4460:1} window_end=1789038565.996802 window_seconds=1.016591
+[audio] pkt=79 smp=95852 supply=99% sr=48000 ch=2 under=6 over=0 primes=4 ptimeouts=0 depth=88ms rxpkt=79 rxbytes=191704 pkt_bytes={2228:53,2232:19,4456:2,4460:5} window_end=1789038567.006331 window_seconds=1.009513
+[audio] pkt=89 smp=99194 supply=103% sr=48000 ch=2 under=6 over=0 primes=4 ptimeouts=0 depth=108ms rxpkt=89 rxbytes=198388 pkt_bytes={2228:65,2232:24} window_end=1789038568.022718 window_seconds=1.016370
+[conn] 幀 #1320 887x1972 bytes=6996656
+[audio] pkt=88 smp=102540 supply=106% sr=48000 ch=2 under=6 over=0 primes=4 ptimeouts=0 depth=110ms rxpkt=88 rxbytes=205080 pkt_bytes={2228:59,2232:25,4456:3,4460:1} window_end=1789038569.089319 window_seconds=1.066585
+[audio] pkt=90 smp=101424 supply=105% sr=48000 ch=2 under=6 over=0 primes=4 ptimeouts=0 depth=100ms rxpkt=90 rxbytes=202848 pkt_bytes={2228:65,2232:24,4460:1} window_end=1789038570.156013 window_seconds=1.066680
+[audio] pkt=87 smp=98082 supply=102% sr=48000 ch=2 under=6 over=0 primes=4 ptimeouts=0 depth=87ms rxpkt=87 rxbytes=196164 pkt_bytes={2228:62,2232:24,4460:1} window_end=1789038571.189360 window_seconds=1.033331
+[audio] pkt=86 smp=96966 supply=101% sr=48000 ch=2 under=6 over=0 primes=4 ptimeouts=0 depth=94ms rxpkt=86 rxbytes=193932 pkt_bytes={2228:62,2232:23,4460:1} window_end=1789038572.191662 window_seconds=1.002287
+[audio] pkt=90 smp=102540 supply=106% sr=48000 ch=2 under=6 over=0 primes=4 ptimeouts=0 depth=95ms rxpkt=90 rxbytes=205080 pkt_bytes={2228:63,2232:25,4456:1,4460:1} window_end=1789038573.255772 window_seconds=1.064094
+[audio-rpc] event=cancel round=4 epoch=1789038573.439444
+[audio-rpc] event=response-ended round=4 epoch=1789038573.439858
+[audio-rpc] event=closed round=4 epoch=1789038573.439946
+[conn] 幀 #1440 887x1972 bytes=6996656
+[audio] pkt=15 smp=16718 supply=17% sr=48000 ch=2 under=8 over=0 primes=4 ptimeouts=0 depth=0ms rxpkt=15 rxbytes=33436 pkt_bytes={2228:11,2232:4} window_end=1789038574.289098 window_seconds=1.033310
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=8 over=0 primes=4 ptimeouts=0 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789038575.355715 window_seconds=1.066601
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=8 over=0 primes=4 ptimeouts=0 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789038576.422366 window_seconds=1.066636
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=8 over=0 primes=4 ptimeouts=0 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789038577.438954 window_seconds=1.016572
+[audio-rpc] event=open round=5 epoch=1789038578.439358
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=8 over=0 primes=4 ptimeouts=0 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789038578.439403 window_seconds=1.000434
+[audio] 收到的格式：sr=48000 ch=stereo fmt=audFmtS16（請求的是 sr=48000 ch=2 fmt=audFmtS16）bytes=2228
+[conn] 幀 #1560 887x1972 bytes=6996656
+[audio] pkt=89 smp=102538 supply=106% sr=48000 ch=2 under=8 over=0 primes=5 ptimeouts=0 depth=97ms rxpkt=89 rxbytes=205076 pkt_bytes={2228:61,2232:25,4456:3} window_end=1789038579.505373 window_seconds=1.065953
+[audio] pkt=91 smp=102540 supply=106% sr=48000 ch=2 under=8 over=0 primes=5 ptimeouts=0 depth=98ms rxpkt=91 rxbytes=205080 pkt_bytes={2228:65,2232:25,4460:1} window_end=1789038580.571950 window_seconds=1.066564
+[audio] pkt=89 smp=100310 supply=104% sr=48000 ch=2 under=8 over=0 primes=5 ptimeouts=0 depth=77ms rxpkt=89 rxbytes=200620 pkt_bytes={2228:64,2232:24,4460:1} window_end=1789038581.638796 window_seconds=1.066827
+[audio] pkt=91 smp=103654 supply=107% sr=48000 ch=2 under=8 over=0 primes=5 ptimeouts=0 depth=90ms rxpkt=91 rxbytes=207308 pkt_bytes={2228:63,2232:26,4456:2} window_end=1789038582.705358 window_seconds=1.066545
+[conn] 幀 #1680 887x1972 bytes=6996656
+[audio] pkt=84 smp=101424 supply=105% sr=48000 ch=2 under=8 over=0 primes=5 ptimeouts=0 depth=80ms rxpkt=84 rxbytes=202848 pkt_bytes={2228:56,2232:21,4456:3,4460:4} window_end=1789038583.772706 window_seconds=1.067335
+[audio] pkt=92 smp=102540 supply=106% sr=48000 ch=2 under=8 over=0 primes=5 ptimeouts=0 depth=92ms rxpkt=92 rxbytes=205080 pkt_bytes={2228:66,2232:26} window_end=1789038584.823475 window_seconds=1.050751
+[audio] pkt=87 smp=98080 supply=102% sr=48000 ch=2 under=8 over=0 primes=5 ptimeouts=0 depth=89ms rxpkt=87 rxbytes=196160 pkt_bytes={2228:62,2232:24,4456:1} window_end=1789038585.855054 window_seconds=1.031562
+[audio] pkt=91 smp=103654 supply=107% sr=48000 ch=2 under=8 over=0 primes=5 ptimeouts=0 depth=102ms rxpkt=91 rxbytes=207308 pkt_bytes={2228:65,2232:24,4460:2} window_end=1789038586.921806 window_seconds=1.066737
+[audio] pkt=85 smp=96968 supply=101% sr=48000 ch=2 under=8 over=0 primes=5 ptimeouts=0 depth=88ms rxpkt=85 rxbytes=193936 pkt_bytes={2228:59,2232:24,4456:1,4460:1} window_end=1789038587.938469 window_seconds=1.016647
+[audio-rpc] event=cancel round=5 epoch=1789038588.438523
+[audio-rpc] event=response-ended round=5 epoch=1789038588.438791
+[audio-rpc] event=closed round=5 epoch=1789038588.438829
+[audio] pkt=42 smp=47926 supply=49% sr=48000 ch=2 under=10 over=0 primes=5 ptimeouts=0 depth=0ms rxpkt=42 rxbytes=95852 pkt_bytes={2228:29,2232:12,4456:1} window_end=1789038589.005154 window_seconds=1.066669
+[conn] 幀 #1800 887x1972 bytes=6996656
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=10 over=0 primes=5 ptimeouts=0 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789038590.072265 window_seconds=1.067096
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=10 over=0 primes=5 ptimeouts=0 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789038591.128849 window_seconds=1.056569
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=10 over=0 primes=5 ptimeouts=0 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789038592.191736 window_seconds=1.062868
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=10 over=0 primes=5 ptimeouts=0 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789038593.238004 window_seconds=1.046252
+[audio-rpc] event=open round=6 epoch=1789038593.438863
+[audio] 收到的格式：sr=48000 ch=stereo fmt=audFmtS16（請求的是 sr=48000 ch=2 fmt=audFmtS16）bytes=2228
+[audio] pkt=73 smp=81362 supply=84% sr=48000 ch=2 under=10 over=0 primes=6 ptimeouts=0 depth=90ms rxpkt=73 rxbytes=162724 pkt_bytes={2228:53,2232:20} window_end=1789038594.289096 window_seconds=1.051077
+[conn] 幀 #1920 887x1972 bytes=6996656
+[audio] pkt=90 smp=101424 supply=105% sr=48000 ch=2 under=10 over=0 primes=6 ptimeouts=0 depth=80ms rxpkt=90 rxbytes=202848 pkt_bytes={2228:65,2232:24,4460:1} window_end=1789038595.354991 window_seconds=1.065879
+[audio] pkt=89 smp=102540 supply=106% sr=48000 ch=2 under=10 over=0 primes=6 ptimeouts=0 depth=81ms rxpkt=89 rxbytes=205080 pkt_bytes={2228:61,2232:25,4456:2,4460:1} window_end=1789038596.421442 window_seconds=1.066436
+[audio] pkt=86 smp=96966 supply=101% sr=48000 ch=2 under=10 over=0 primes=6 ptimeouts=0 depth=78ms rxpkt=86 rxbytes=193932 pkt_bytes={2228:62,2232:23,4460:1} window_end=1789038597.437953 window_seconds=1.016495
+[audio] pkt=88 smp=98082 supply=102% sr=48000 ch=2 under=10 over=0 primes=6 ptimeouts=0 depth=97ms rxpkt=88 rxbytes=196164 pkt_bytes={2228:63,2232:25} window_end=1789038598.440554 window_seconds=1.002585
+[audio] pkt=86 smp=101424 supply=105% sr=48000 ch=2 under=10 over=0 primes=6 ptimeouts=0 depth=87ms rxpkt=86 rxbytes=202848 pkt_bytes={2228:58,2232:23,4456:3,4460:2} window_end=1789038599.504386 window_seconds=1.063816
+[audio] pkt=88 smp=100310 supply=104% sr=48000 ch=2 under=10 over=0 primes=6 ptimeouts=0 depth=86ms rxpkt=88 rxbytes=200620 pkt_bytes={2228:62,2232:24,4456:1,4460:1} window_end=1789038600.555032 window_seconds=1.050631
+[conn] 幀 #2040 887x1972 bytes=6996656
+[audio] pkt=81 smp=98082 supply=102% sr=48000 ch=2 under=10 over=0 primes=6 ptimeouts=0 depth=84ms rxpkt=81 rxbytes=196164 pkt_bytes={2228:51,2232:23,4456:5,4460:2} window_end=1789038601.571213 window_seconds=1.016167
+[audio] pkt=81 smp=96966 supply=101% sr=48000 ch=2 under=10 over=0 primes=6 ptimeouts=0 depth=81ms rxpkt=81 rxbytes=193932 pkt_bytes={2228:55,2232:20,4456:2,4460:4} window_end=1789038602.587543 window_seconds=1.016313
+[audio-rpc] event=cancel round=6 epoch=1789038603.396540
+[audio-rpc] event=response-ended round=6 epoch=1789038603.396908
+[audio-rpc] event=closed round=6 epoch=1789038603.396970
+[audio] pkt=69 smp=79134 supply=82% sr=48000 ch=2 under=12 over=0 primes=6 ptimeouts=0 depth=0ms rxpkt=69 rxbytes=158268 pkt_bytes={2228:48,2232:19,4456:1,4460:1} window_end=1789038603.654460 window_seconds=1.066901
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=12 over=0 primes=6 ptimeouts=0 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789038604.670726 window_seconds=1.016252
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=12 over=0 primes=6 ptimeouts=0 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789038605.687646 window_seconds=1.016906
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=12 over=0 primes=6 ptimeouts=0 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789038606.703966 window_seconds=1.016302
+[conn] 幀 #2160 887x1972 bytes=6996656
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=12 over=0 primes=6 ptimeouts=0 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789038607.720402 window_seconds=1.016421
+[audio-rpc] event=open round=7 epoch=1789038608.402993
+[audio] 收到的格式：sr=48000 ch=stereo fmt=audFmtS16（請求的是 sr=48000 ch=2 fmt=audFmtS16）bytes=2228
+[audio] pkt=32 smp=36780 supply=38% sr=48000 ch=2 under=12 over=0 primes=7 ptimeouts=0 depth=95ms rxpkt=32 rxbytes=73560 pkt_bytes={2228:23,2232:8,4460:1} window_end=1789038608.787415 window_seconds=1.066996
+[audio] pkt=88 smp=99194 supply=103% sr=48000 ch=2 under=12 over=0 primes=7 ptimeouts=0 depth=104ms rxpkt=88 rxbytes=198388 pkt_bytes={2228:64,2232:23,4460:1} window_end=1789038609.803920 window_seconds=1.016490
+[audio] pkt=87 smp=96968 supply=101% sr=48000 ch=2 under=12 over=0 primes=7 ptimeouts=0 depth=101ms rxpkt=87 rxbytes=193936 pkt_bytes={2228:62,2232:25} window_end=1789038610.820458 window_seconds=1.016522
+[audio] pkt=86 smp=96966 supply=101% sr=48000 ch=2 under=12 over=0 primes=7 ptimeouts=0 depth=97ms rxpkt=86 rxbytes=193932 pkt_bytes={2228:62,2232:23,4460:1} window_end=1789038611.837055 window_seconds=1.016583
+[audio] pkt=86 smp=98082 supply=102% sr=48000 ch=2 under=12 over=0 primes=7 ptimeouts=0 depth=106ms rxpkt=86 rxbytes=196164 pkt_bytes={2228:59,2232:25,4456:2} window_end=1789038612.853589 window_seconds=1.016518
+[audio] pkt=87 smp=96966 supply=101% sr=48000 ch=2 under=12 over=0 primes=7 ptimeouts=0 depth=92ms rxpkt=87 rxbytes=193932 pkt_bytes={2228:63,2232:24} window_end=1789038613.870154 window_seconds=1.016549
+[conn] 幀 #2280 887x1972 bytes=6996656
+[audio] pkt=88 smp=98080 supply=102% sr=48000 ch=2 under=12 over=0 primes=7 ptimeouts=0 depth=100ms rxpkt=88 rxbytes=196160 pkt_bytes={2228:64,2232:24} window_end=1789038614.886897 window_seconds=1.016733
+[audio] pkt=92 smp=102540 supply=106% sr=48000 ch=2 under=12 over=0 primes=7 ptimeouts=0 depth=102ms rxpkt=92 rxbytes=205080 pkt_bytes={2228:66,2232:26} window_end=1789038615.953293 window_seconds=1.066375
+[audio] pkt=85 smp=96966 supply=101% sr=48000 ch=2 under=12 over=0 primes=7 ptimeouts=0 depth=98ms rxpkt=85 rxbytes=193932 pkt_bytes={2228:61,2232:22,4460:2} window_end=1789038616.970058 window_seconds=1.016749
+[audio] pkt=82 smp=98082 supply=102% sr=48000 ch=2 under=12 over=0 primes=7 ptimeouts=0 depth=96ms rxpkt=82 rxbytes=196164 pkt_bytes={2228:55,2232:21,4456:2,4460:4} window_end=1789038617.986682 window_seconds=1.016610
+[audio-rpc] event=cancel round=7 epoch=1789038618.351004
+[audio-rpc] event=response-ended round=7 epoch=1789038618.351270
+[audio-rpc] event=closed round=7 epoch=1789038618.351331
+[audio] pkt=29 smp=34550 supply=35% sr=48000 ch=2 under=14 over=0 primes=7 ptimeouts=0 depth=0ms rxpkt=29 rxbytes=69100 pkt_bytes={2228:21,2232:6,4460:2} window_end=1789038619.036470 window_seconds=1.049771
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=14 over=0 primes=7 ptimeouts=0 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789038620.053847 window_seconds=1.017364
+[conn] 幀 #2400 887x1972 bytes=6996656
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=14 over=0 primes=7 ptimeouts=0 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789038621.069625 window_seconds=1.015761
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=14 over=0 primes=7 ptimeouts=0 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789038622.087101 window_seconds=1.017462
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=14 over=0 primes=7 ptimeouts=0 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789038623.120203 window_seconds=1.033084
+[audio-rpc] event=open round=8 epoch=1789038623.362167
+[audio] 收到的格式：sr=48000 ch=stereo fmt=audFmtS16（請求的是 sr=48000 ch=2 fmt=audFmtS16）bytes=2228
+[audio] pkt=65 smp=73560 supply=76% sr=48000 ch=2 under=14 over=0 primes=8 ptimeouts=0 depth=104ms rxpkt=65 rxbytes=147120 pkt_bytes={2228:47,2232:17,4460:1} window_end=1789038624.136958 window_seconds=1.016740
+[audio] pkt=87 smp=98080 supply=102% sr=48000 ch=2 under=14 over=0 primes=8 ptimeouts=0 depth=102ms rxpkt=87 rxbytes=196160 pkt_bytes={2228:63,2232:23,4460:1} window_end=1789038625.153201 window_seconds=1.016228
+[audio] pkt=87 smp=96968 supply=101% sr=48000 ch=2 under=14 over=0 primes=8 ptimeouts=0 depth=99ms rxpkt=87 rxbytes=193936 pkt_bytes={2228:62,2232:25} window_end=1789038626.169894 window_seconds=1.016678
+[conn] 幀 #2520 887x1972 bytes=6996656
+[audio] pkt=87 smp=96966 supply=101% sr=48000 ch=2 under=14 over=0 primes=8 ptimeouts=0 depth=96ms rxpkt=87 rxbytes=193932 pkt_bytes={2228:63,2232:24} window_end=1789038627.186576 window_seconds=1.016665
+[audio] pkt=88 smp=99196 supply=103% sr=48000 ch=2 under=14 over=0 primes=8 ptimeouts=0 depth=94ms rxpkt=88 rxbytes=198392 pkt_bytes={2228:62,2232:25,4456:1} window_end=1789038628.219369 window_seconds=1.032778
+[audio] pkt=85 smp=98080 supply=102% sr=48000 ch=2 under=14 over=0 primes=8 ptimeouts=0 depth=103ms rxpkt=85 rxbytes=196160 pkt_bytes={2228:61,2232:21,4460:3} window_end=1789038629.236067 window_seconds=1.016683
+[audio] pkt=88 smp=98082 supply=102% sr=48000 ch=2 under=14 over=0 primes=8 ptimeouts=0 depth=100ms rxpkt=88 rxbytes=196164 pkt_bytes={2228:63,2232:25} window_end=1789038630.252538 window_seconds=1.016455
+[audio] pkt=85 smp=96966 supply=101% sr=48000 ch=2 under=14 over=0 primes=8 ptimeouts=0 depth=97ms rxpkt=85 rxbytes=193932 pkt_bytes={2228:59,2232:24,4456:2} window_end=1789038631.270274 window_seconds=1.017721
+[audio] pkt=84 smp=99196 supply=103% sr=48000 ch=2 under=14 over=0 primes=8 ptimeouts=0 depth=96ms rxpkt=84 rxbytes=198392 pkt_bytes={2228:54,2232:25,4456:5} window_end=1789038632.302517 window_seconds=1.032227
+[audio] pkt=86 smp=98080 supply=102% sr=48000 ch=2 under=14 over=0 primes=8 ptimeouts=0 depth=104ms rxpkt=86 rxbytes=196160 pkt_bytes={2228:62,2232:22,4460:2} window_end=1789038633.319037 window_seconds=1.016505
+[audio-rpc] event=cancel round=8 epoch=1789038633.346520
+[audio-rpc] event=response-ended round=8 epoch=1789038633.346869
+[audio-rpc] event=closed round=8 epoch=1789038633.346932
+[conn] 幀 #2640 887x1972 bytes=6996656
+[audio] pkt=2 smp=2230 supply=2% sr=48000 ch=2 under=16 over=0 primes=8 ptimeouts=0 depth=0ms rxpkt=2 rxbytes=4460 pkt_bytes={2228:1,2232:1} window_end=1789038634.352966 window_seconds=1.033915
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=16 over=0 primes=8 ptimeouts=0 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789038635.368917 window_seconds=1.015934
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=16 over=0 primes=8 ptimeouts=0 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789038636.402946 window_seconds=1.034013
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=16 over=0 primes=8 ptimeouts=0 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789038637.435989 window_seconds=1.033028
+[audio-rpc] event=open round=9 epoch=1789038638.381575
+[audio] 收到的格式：sr=48000 ch=stereo fmt=audFmtS16（請求的是 sr=48000 ch=2 fmt=audFmtS16）bytes=2228
+[audio] pkt=5 smp=5572 supply=5% sr=48000 ch=2 under=16 over=0 primes=8 ptimeouts=0 depth=58ms rxpkt=5 rxbytes=11144 pkt_bytes={2228:4,2232:1} window_end=1789038638.452252 window_seconds=1.016248
+[audio] pkt=87 smp=99196 supply=103% sr=48000 ch=2 under=16 over=0 primes=9 ptimeouts=0 depth=110ms rxpkt=87 rxbytes=198392 pkt_bytes={2228:61,2232:24,4456:1,4460:1} window_end=1789038639.468715 window_seconds=1.016447
+[audio] pkt=87 smp=96966 supply=101% sr=48000 ch=2 under=16 over=0 primes=9 ptimeouts=0 depth=106ms rxpkt=87 rxbytes=193932 pkt_bytes={2228:63,2232:24} window_end=1789038640.485750 window_seconds=1.017020
+[conn] 幀 #2760 887x1972 bytes=6996656
+[audio] pkt=87 smp=101424 supply=105% sr=48000 ch=2 under=16 over=0 primes=9 ptimeouts=0 depth=107ms rxpkt=87 rxbytes=202848 pkt_bytes={2228:59,2232:24,4456:3,4460:1} window_end=1789038641.535301 window_seconds=1.049535
+[audio] pkt=88 smp=98082 supply=102% sr=48000 ch=2 under=16 over=0 primes=9 ptimeouts=0 depth=115ms rxpkt=88 rxbytes=196164 pkt_bytes={2228:63,2232:25} window_end=1789038642.551908 window_seconds=1.016591
+[audio] pkt=84 smp=98080 supply=102% sr=48000 ch=2 under=16 over=0 primes=9 ptimeouts=0 depth=102ms rxpkt=84 rxbytes=196160 pkt_bytes={2228:59,2232:21,4456:1,4460:3} window_end=1789038643.585511 window_seconds=1.033587
+[audio] pkt=88 smp=99196 supply=103% sr=48000 ch=2 under=16 over=0 primes=9 ptimeouts=0 depth=122ms rxpkt=88 rxbytes=198392 pkt_bytes={448:1,1780:1,2228:59,2232:25,4456:2} window_end=1789038644.602148 window_seconds=1.016622
+[audio] pkt=85 smp=99196 supply=103% sr=48000 ch=2 under=16 over=0 primes=9 ptimeouts=0 depth=89ms rxpkt=85 rxbytes=198392 pkt_bytes={2228:57,2232:24,4456:3,4460:1} window_end=1789038645.668461 window_seconds=1.066297
+[audio] pkt=87 smp=99196 supply=103% sr=48000 ch=2 under=16 over=0 primes=9 ptimeouts=0 depth=109ms rxpkt=87 rxbytes=198392 pkt_bytes={2228:61,2232:24,4456:1,4460:1} window_end=1789038646.685296 window_seconds=1.016819
+[audio] pkt=87 smp=96966 supply=101% sr=48000 ch=2 under=16 over=0 primes=9 ptimeouts=0 depth=95ms rxpkt=87 rxbytes=193932 pkt_bytes={2228:63,2232:24} window_end=1789038647.701715 window_seconds=1.016405
+[conn] 幀 #2880 887x1972 bytes=6996656
+[audio-rpc] event=cancel round=9 epoch=1789038648.385460
+[audio-rpc] event=response-ended round=9 epoch=1789038648.385798
+[audio-rpc] event=closed round=9 epoch=1789038648.385862
+[audio] pkt=60 smp=66874 supply=69% sr=48000 ch=2 under=18 over=0 primes=9 ptimeouts=0 depth=0ms rxpkt=60 rxbytes=133748 pkt_bytes={2228:43,2232:17} window_end=1789038648.751728 window_seconds=1.049996
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=18 over=0 primes=9 ptimeouts=0 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789038649.784934 window_seconds=1.033191
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=18 over=0 primes=9 ptimeouts=0 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789038650.801392 window_seconds=1.016442
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=18 over=0 primes=9 ptimeouts=0 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789038651.818207 window_seconds=1.016800
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=18 over=0 primes=9 ptimeouts=0 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789038652.835500 window_seconds=1.017277
+[audio-rpc] event=open round=10 epoch=1789038653.402018
+[audio] 收到的格式：sr=48000 ch=stereo fmt=audFmtS16（請求的是 sr=48000 ch=2 fmt=audFmtS16）bytes=2228
+[audio] pkt=39 smp=43466 supply=45% sr=48000 ch=2 under=18 over=0 primes=10 ptimeouts=0 depth=100ms rxpkt=39 rxbytes=86932 pkt_bytes={2228:29,2232:10} window_end=1789038653.851280 window_seconds=1.015765
+[audio] pkt=86 smp=96968 supply=101% sr=48000 ch=2 under=18 over=0 primes=10 ptimeouts=0 depth=86ms rxpkt=86 rxbytes=193936 pkt_bytes={2228:61,2232:24,4460:1} window_end=1789038654.868085 window_seconds=1.016794
+[audio] pkt=82 smp=98080 supply=102% sr=48000 ch=2 under=18 over=0 primes=10 ptimeouts=0 depth=95ms rxpkt=82 rxbytes=196160 pkt_bytes={2228:54,2232:22,4456:4,4460:2} window_end=1789038655.884547 window_seconds=1.016442
+[conn] 幀 #3000 887x1972 bytes=6996656
+[audio] pkt=85 smp=96966 supply=101% sr=48000 ch=2 under=18 over=0 primes=10 ptimeouts=0 depth=91ms rxpkt=85 rxbytes=193932 pkt_bytes={2228:59,2232:24,4456:2} window_end=1789038656.901144 window_seconds=1.016582
+[audio] pkt=88 smp=98082 supply=102% sr=48000 ch=2 under=18 over=0 primes=10 ptimeouts=0 depth=89ms rxpkt=88 rxbytes=196164 pkt_bytes={2228:63,2232:25} window_end=1789038657.917792 window_seconds=1.016632
+[audio] pkt=86 smp=96966 supply=101% sr=48000 ch=2 under=18 over=0 primes=10 ptimeouts=0 depth=86ms rxpkt=86 rxbytes=193932 pkt_bytes={2228:61,2232:24,4456:1} window_end=1789038658.934321 window_seconds=1.016513
+[audio] pkt=85 smp=98082 supply=102% sr=48000 ch=2 under=18 over=0 primes=10 ptimeouts=0 depth=94ms rxpkt=85 rxbytes=196164 pkt_bytes={2228:57,2232:25,4456:3} window_end=1789038659.951127 window_seconds=1.016792
+[audio] pkt=88 smp=98080 supply=102% sr=48000 ch=2 under=18 over=0 primes=10 ptimeouts=0 depth=103ms rxpkt=88 rxbytes=196160 pkt_bytes={2228:64,2232:24} window_end=1789038660.968022 window_seconds=1.016879
+[audio] pkt=85 smp=96968 supply=101% sr=48000 ch=2 under=18 over=0 primes=10 ptimeouts=0 depth=89ms rxpkt=85 rxbytes=193936 pkt_bytes={2228:58,2232:25,4456:2} window_end=1789038661.984591 window_seconds=1.016554
+[audio] pkt=92 smp=103652 supply=107% sr=48000 ch=2 under=18 over=0 primes=10 ptimeouts=0 depth=102ms rxpkt=92 rxbytes=207304 pkt_bytes={2228:66,2232:25,4456:1} window_end=1789038663.051000 window_seconds=1.066394
+[audio-rpc] event=cancel round=10 epoch=1789038663.362769
+[audio-rpc] event=response-ended round=10 epoch=1789038663.363098
+[audio-rpc] event=closed round=10 epoch=1789038663.363163
+[audio] pkt=26 smp=28980 supply=30% sr=48000 ch=2 under=20 over=0 primes=10 ptimeouts=0 depth=0ms rxpkt=26 rxbytes=57960 pkt_bytes={2228:18,2232:8} window_end=1789038664.067467 window_seconds=1.016449
+[conn] 幀 #3120 887x1972 bytes=6996656
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=20 over=0 primes=10 ptimeouts=0 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789038665.084448 window_seconds=1.016967
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=20 over=0 primes=10 ptimeouts=0 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789038666.100572 window_seconds=1.016107
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=20 over=0 primes=10 ptimeouts=0 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789038667.117731 window_seconds=1.017144
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=20 over=0 primes=10 ptimeouts=0 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789038668.167709 window_seconds=1.049964
+[audio-rpc] event=open round=11 epoch=1789038668.357294
+[audio] 收到的格式：sr=48000 ch=stereo fmt=audFmtS16（請求的是 sr=48000 ch=2 fmt=audFmtS16）bytes=2228
+[audio] pkt=70 smp=79132 supply=82% sr=48000 ch=2 under=20 over=0 primes=11 ptimeouts=0 depth=98ms rxpkt=70 rxbytes=158264 pkt_bytes={2228:51,2232:18,4460:1} window_end=1789038669.184056 window_seconds=1.016331
+[audio] pkt=85 smp=96966 supply=101% sr=48000 ch=2 under=20 over=0 primes=11 ptimeouts=0 depth=95ms rxpkt=85 rxbytes=193932 pkt_bytes={2228:61,2232:22,4460:2} window_end=1789038670.200835 window_seconds=1.016763
+[audio] pkt=87 smp=98082 supply=102% sr=48000 ch=2 under=20 over=0 primes=11 ptimeouts=0 depth=104ms rxpkt=87 rxbytes=196164 pkt_bytes={2228:62,2232:24,4460:1} window_end=1789038671.217265 window_seconds=1.016415
+[audio] pkt=87 smp=98082 supply=102% sr=48000 ch=2 under=20 over=0 primes=11 ptimeouts=0 depth=101ms rxpkt=87 rxbytes=196164 pkt_bytes={2228:61,2232:25,4456:1} window_end=1789038672.233992 window_seconds=1.016712
+[audio] pkt=85 smp=96966 supply=101% sr=48000 ch=2 under=20 over=0 primes=11 ptimeouts=0 depth=98ms rxpkt=85 rxbytes=193932 pkt_bytes={2228:60,2232:23,4456:1,4460:1} window_end=1789038673.250650 window_seconds=1.016643
+[conn] 幀 #3240 887x1972 bytes=6996656
+[audio] pkt=88 smp=98080 supply=102% sr=48000 ch=2 under=20 over=0 primes=11 ptimeouts=0 depth=106ms rxpkt=88 rxbytes=196160 pkt_bytes={2228:64,2232:24} window_end=1789038674.267346 window_seconds=1.016680
+[audio] pkt=85 smp=99196 supply=103% sr=48000 ch=2 under=20 over=0 primes=11 ptimeouts=0 depth=105ms rxpkt=85 rxbytes=198392 pkt_bytes={2228:59,2232:22,4456:1,4460:3} window_end=1789038675.300380 window_seconds=1.033018
+[audio] pkt=85 smp=98082 supply=102% sr=48000 ch=2 under=20 over=0 primes=11 ptimeouts=0 depth=103ms rxpkt=85 rxbytes=196164 pkt_bytes={2228:58,2232:24,4456:2,4460:1} window_end=1789038676.317139 window_seconds=1.016745
+[audio] pkt=91 smp=102538 supply=106% sr=48000 ch=2 under=20 over=0 primes=11 ptimeouts=0 depth=104ms rxpkt=91 rxbytes=205076 pkt_bytes={2228:66,2232:24,4460:1} window_end=1789038677.384365 window_seconds=1.067208
+[audio-rpc] event=cancel round=11 epoch=1789038678.392573
+[audio-rpc] event=response-ended round=11 epoch=1789038678.392856
+[audio-rpc] event=closed round=11 epoch=1789038678.392920
+[audio] pkt=85 smp=96968 supply=101% sr=48000 ch=2 under=20 over=0 primes=11 ptimeouts=0 depth=101ms rxpkt=85 rxbytes=193936 pkt_bytes={928:1,2228:58,2232:24,4456:1,5760:1} window_end=1789038678.400587 window_seconds=1.016209
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=22 over=0 primes=11 ptimeouts=0 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789038679.418450 window_seconds=1.017846
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=22 over=0 primes=11 ptimeouts=0 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789038680.433457 window_seconds=1.014993
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=22 over=0 primes=11 ptimeouts=0 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789038681.450295 window_seconds=1.016822
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=22 over=0 primes=11 ptimeouts=0 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789038682.466974 window_seconds=1.016662
+[conn] 幀 #3360 887x1972 bytes=6996656
+[audio-rpc] event=open round=12 epoch=1789038683.406801
+[audio] 收到的格式：sr=48000 ch=stereo fmt=audFmtS16（請求的是 sr=48000 ch=2 fmt=audFmtS16）bytes=2228
+[audio] pkt=7 smp=7800 supply=8% sr=48000 ch=2 under=22 over=0 primes=11 ptimeouts=0 depth=81ms rxpkt=7 rxbytes=15600 pkt_bytes={2228:6,2232:1} window_end=1789038683.483271 window_seconds=1.016281
+[audio] pkt=86 smp=95852 supply=99% sr=48000 ch=2 under=22 over=0 primes=12 ptimeouts=0 depth=98ms rxpkt=86 rxbytes=191704 pkt_bytes={2228:62,2232:24} window_end=1789038684.483730 window_seconds=1.000445
+[audio] pkt=88 smp=98082 supply=102% sr=48000 ch=2 under=22 over=0 primes=12 ptimeouts=0 depth=106ms rxpkt=88 rxbytes=196164 pkt_bytes={2228:63,2232:25} window_end=1789038685.499918 window_seconds=1.016174
+[audio] pkt=83 smp=95852 supply=99% sr=48000 ch=2 under=22 over=0 primes=12 ptimeouts=0 depth=81ms rxpkt=83 rxbytes=191704 pkt_bytes={2228:57,2232:23,4456:2,4460:1} window_end=1789038686.516834 window_seconds=1.016899
+[audio] pkt=85 smp=96966 supply=101% sr=48000 ch=2 under=22 over=0 primes=12 ptimeouts=0 depth=77ms rxpkt=85 rxbytes=193932 pkt_bytes={2228:60,2232:23,4456:1,4460:1} window_end=1789038687.533989 window_seconds=1.017140
+[audio] pkt=89 smp=100310 supply=104% sr=48000 ch=2 under=22 over=0 primes=12 ptimeouts=0 depth=109ms rxpkt=89 rxbytes=200620 pkt_bytes={2228:63,2232:25,4456:1} window_end=1789038688.550024 window_seconds=1.016020
+[audio] pkt=84 smp=96968 supply=101% sr=48000 ch=2 under=22 over=0 primes=12 ptimeouts=0 depth=95ms rxpkt=84 rxbytes=193936 pkt_bytes={2228:58,2232:23,4456:1,4460:2} window_end=1789038689.566530 window_seconds=1.016491
+[audio] pkt=88 smp=102538 supply=106% sr=48000 ch=2 under=22 over=0 primes=12 ptimeouts=0 depth=97ms rxpkt=88 rxbytes=205076 pkt_bytes={2228:61,2232:23,4456:2,4460:2} window_end=1789038690.633476 window_seconds=1.066931
+[audio] pkt=84 smp=96966 supply=101% sr=48000 ch=2 under=22 over=0 primes=12 ptimeouts=0 depth=72ms rxpkt=84 rxbytes=193932 pkt_bytes={2228:59,2232:22,4456:1,4460:2} window_end=1789038691.666373 window_seconds=1.032881
+[conn] 幀 #3480 887x1972 bytes=6996656
+[audio] pkt=88 smp=99196 supply=103% sr=48000 ch=2 under=22 over=0 primes=12 ptimeouts=0 depth=92ms rxpkt=88 rxbytes=198392 pkt_bytes={2228:62,2232:25,4456:1} window_end=1789038692.682922 window_seconds=1.016533
+[audio-rpc] event=cancel round=12 epoch=1789038693.378545
+[audio-rpc] event=response-ended round=12 epoch=1789038693.378850
+[audio-rpc] event=closed round=12 epoch=1789038693.378928
+[audio] pkt=58 smp=67988 supply=70% sr=48000 ch=2 under=24 over=0 primes=12 ptimeouts=0 depth=0ms rxpkt=58 rxbytes=135976 pkt_bytes={2228:39,2232:16,4456:2,4460:1} window_end=1789038693.702068 window_seconds=1.019131
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=24 over=0 primes=12 ptimeouts=0 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789038694.716136 window_seconds=1.014051
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=24 over=0 primes=12 ptimeouts=0 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789038695.733347 window_seconds=1.017198
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=24 over=0 primes=12 ptimeouts=0 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789038696.749678 window_seconds=1.016314
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=24 over=0 primes=12 ptimeouts=0 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789038697.766188 window_seconds=1.016497
+[audio-rpc] event=open round=13 epoch=1789038698.387497
+[audio] 收到的格式：sr=48000 ch=stereo fmt=audFmtS16（請求的是 sr=48000 ch=2 fmt=audFmtS16）bytes=2228
+[audio] pkt=34 smp=37894 supply=39% sr=48000 ch=2 under=24 over=0 primes=13 ptimeouts=0 depth=85ms rxpkt=34 rxbytes=75788 pkt_bytes={2228:25,2232:9} window_end=1789038698.783314 window_seconds=1.017110
+[audio] pkt=90 smp=102540 supply=106% sr=48000 ch=2 under=24 over=0 primes=13 ptimeouts=0 depth=86ms rxpkt=90 rxbytes=205080 pkt_bytes={2228:62,2232:26,4456:2} window_end=1789038699.849792 window_seconds=1.066462
+[audio] pkt=86 smp=98080 supply=102% sr=48000 ch=2 under=24 over=0 primes=13 ptimeouts=0 depth=95ms rxpkt=86 rxbytes=196160 pkt_bytes={2228:61,2232:23,4456:1,4460:1} window_end=1789038700.866765 window_seconds=1.016956
+[conn] 幀 #3600 887x1972 bytes=6996656
+[audio] pkt=88 smp=98082 supply=102% sr=48000 ch=2 under=24 over=0 primes=13 ptimeouts=0 depth=92ms rxpkt=88 rxbytes=196164 pkt_bytes={2228:63,2232:25} window_end=1789038701.884092 window_seconds=1.017311
+[audio] pkt=84 smp=98080 supply=102% sr=48000 ch=2 under=24 over=0 primes=13 ptimeouts=0 depth=101ms rxpkt=84 rxbytes=196160 pkt_bytes={2228:59,2232:21,4456:1,4460:3} window_end=1789038702.901545 window_seconds=1.017438
+[audio] pkt=81 smp=95852 supply=99% sr=48000 ch=2 under=24 over=0 primes=13 ptimeouts=0 depth=86ms rxpkt=81 rxbytes=191704 pkt_bytes={2228:53,2232:23,4456:4,4460:1} window_end=1789038703.915907 window_seconds=1.014346
+[audio] pkt=89 smp=100310 supply=104% sr=48000 ch=2 under=24 over=0 primes=13 ptimeouts=0 depth=85ms rxpkt=89 rxbytes=200620 pkt_bytes={2228:64,2232:24,4460:1} window_end=1789038704.965859 window_seconds=1.049937
+[audio] pkt=89 smp=101426 supply=105% sr=48000 ch=2 under=24 over=0 primes=13 ptimeouts=0 depth=86ms rxpkt=89 rxbytes=202852 pkt_bytes={924:1,2228:61,2232:25,4460:1,5760:1} window_end=1789038706.015827 window_seconds=1.049953
+[audio] pkt=89 smp=100310 supply=104% sr=48000 ch=2 under=24 over=0 primes=13 ptimeouts=0 depth=96ms rxpkt=89 rxbytes=200620 pkt_bytes={2228:64,2232:24,4460:1} window_end=1789038707.049087 window_seconds=1.033243
+[audio] pkt=83 smp=95852 supply=99% sr=48000 ch=2 under=24 over=0 primes=13 ptimeouts=0 depth=81ms rxpkt=83 rxbytes=191704 pkt_bytes={2228:58,2232:22,4456:1,4460:2} window_end=1789038708.065767 window_seconds=1.016665
+[audio-rpc] event=cancel round=13 epoch=1789038708.376814
+[audio-rpc] event=response-ended round=13 epoch=1789038708.377086
+[audio-rpc] event=closed round=13 epoch=1789038708.377174
+[audio] pkt=28 smp=31208 supply=32% sr=48000 ch=2 under=26 over=0 primes=13 ptimeouts=0 depth=0ms rxpkt=28 rxbytes=62416 pkt_bytes={2228:20,2232:8} window_end=1789038709.115782 window_seconds=1.049999
+[conn] 幀 #3720 887x1972 bytes=6996656
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=26 over=0 primes=13 ptimeouts=0 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789038710.132162 window_seconds=1.016365
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=26 over=0 primes=13 ptimeouts=0 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789038711.149009 window_seconds=1.016832
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=26 over=0 primes=13 ptimeouts=0 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789038712.166277 window_seconds=1.017252
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=26 over=0 primes=13 ptimeouts=0 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789038713.181978 window_seconds=1.015688
+[audio-rpc] event=open round=14 epoch=1789038713.372258
+[audio] 收到的格式：sr=48000 ch=stereo fmt=audFmtS16（請求的是 sr=48000 ch=2 fmt=audFmtS16）bytes=2228
+[audio] pkt=66 smp=79132 supply=82% sr=48000 ch=2 under=26 over=0 primes=14 ptimeouts=0 depth=88ms rxpkt=66 rxbytes=158264 pkt_bytes={2228:44,2232:17,4456:3,4460:2} window_end=1789038714.215337 window_seconds=1.033341
+[audio] pkt=85 smp=95852 supply=99% sr=48000 ch=2 under=26 over=0 primes=14 ptimeouts=0 depth=73ms rxpkt=85 rxbytes=191704 pkt_bytes={2228:61,2232:23,4460:1} window_end=1789038715.231920 window_seconds=1.016568
+[audio] pkt=84 smp=98082 supply=102% sr=48000 ch=2 under=26 over=0 primes=14 ptimeouts=0 depth=81ms rxpkt=84 rxbytes=196164 pkt_bytes={2228:58,2232:22,4456:1,4460:3} window_end=1789038716.249095 window_seconds=1.017159
+[audio] pkt=88 smp=100310 supply=104% sr=48000 ch=2 under=26 over=0 primes=14 ptimeouts=0 depth=92ms rxpkt=88 rxbytes=200620 pkt_bytes={2228:61,2232:25,4456:2} window_end=1789038717.282350 window_seconds=1.033240
+[audio] pkt=85 smp=98080 supply=102% sr=48000 ch=2 under=26 over=0 primes=14 ptimeouts=0 depth=100ms rxpkt=85 rxbytes=196160 pkt_bytes={2228:59,2232:23,4456:2,4460:1} window_end=1789038718.298516 window_seconds=1.016150
+[audio] pkt=89 smp=99196 supply=103% sr=48000 ch=2 under=26 over=0 primes=14 ptimeouts=0 depth=98ms rxpkt=89 rxbytes=198392 pkt_bytes={2228:64,2232:25} window_end=1789038719.332764 window_seconds=1.034232
+[conn] 幀 #3840 887x1972 bytes=6996656
+[audio] pkt=83 smp=95852 supply=99% sr=48000 ch=2 under=26 over=0 primes=14 ptimeouts=0 depth=73ms rxpkt=83 rxbytes=191704 pkt_bytes={2228:58,2232:22,4456:1,4460:2} window_end=1789038720.349053 window_seconds=1.016276
+[audio] pkt=81 smp=84706 supply=88% sr=48000 ch=2 under=29 over=0 primes=14 ptimeouts=0 depth=81ms rxpkt=81 rxbytes=169412 pkt_bytes={48:1,52:1,100:1,132:2,136:3,2096:1,2172:3,2176:7,2180:4,2228:39,2232:16,4456:2,4460:1} window_end=1789038721.398856 window_seconds=1.049785
+[audio] pkt=81 smp=98082 supply=102% sr=48000 ch=2 under=29 over=0 primes=15 ptimeouts=0 depth=79ms rxpkt=81 rxbytes=196164 pkt_bytes={232:1,2176:1,2228:50,2232:20,2284:1,4228:1,4456:4,4460:3} window_end=1789038722.431644 window_seconds=1.032772
+[audio-rpc] event=cancel round=14 epoch=1789038723.378606
+[audio-rpc] event=response-ended round=14 epoch=1789038723.378926
+[audio-rpc] event=closed round=14 epoch=1789038723.378992
+[audio] pkt=76 smp=90280 supply=94% sr=48000 ch=2 under=29 over=0 primes=15 ptimeouts=0 depth=6ms rxpkt=76 rxbytes=180560 pkt_bytes={2228:51,2232:20,4456:2,4460:3} window_end=1789038723.449206 window_seconds=1.017547
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=31 over=0 primes=15 ptimeouts=0 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789038724.464990 window_seconds=1.015769
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=31 over=0 primes=15 ptimeouts=0 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789038725.499032 window_seconds=1.034025
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=31 over=0 primes=15 ptimeouts=0 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789038726.514860 window_seconds=1.015813
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=31 over=0 primes=15 ptimeouts=0 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789038727.531398 window_seconds=1.016524
+[conn] 幀 #3960 887x1972 bytes=6996656
+[audio-rpc] event=open round=15 epoch=1789038728.350255
+[audio] 收到的格式：sr=48000 ch=stereo fmt=audFmtS16（請求的是 sr=48000 ch=2 fmt=audFmtS16）bytes=2228
+[audio] pkt=17 smp=18946 supply=19% sr=48000 ch=2 under=31 over=0 primes=16 ptimeouts=0 depth=90ms rxpkt=17 rxbytes=37892 pkt_bytes={2228:13,2232:4} window_end=1789038728.547854 window_seconds=1.016439
+[audio] pkt=87 smp=98082 supply=102% sr=48000 ch=2 under=31 over=0 primes=16 ptimeouts=0 depth=88ms rxpkt=87 rxbytes=196164 pkt_bytes={2228:61,2232:25,4456:1} window_end=1789038729.564645 window_seconds=1.016777
+[audio] pkt=85 smp=98080 supply=102% sr=48000 ch=2 under=31 over=0 primes=16 ptimeouts=0 depth=96ms rxpkt=85 rxbytes=196160 pkt_bytes={2228:60,2232:22,4456:1,4460:2} window_end=1789038730.581108 window_seconds=1.016452
+[audio] pkt=81 smp=96968 supply=101% sr=48000 ch=2 under=31 over=0 primes=16 ptimeouts=0 depth=93ms rxpkt=81 rxbytes=193936 pkt_bytes={2228:54,2232:21,4456:2,4460:4} window_end=1789038731.597743 window_seconds=1.016615
+[audio] pkt=85 smp=98080 supply=102% sr=48000 ch=2 under=31 over=0 primes=16 ptimeouts=0 depth=91ms rxpkt=85 rxbytes=196160 pkt_bytes={2228:58,2232:24,4456:3} window_end=1789038732.614812 window_seconds=1.017054
+[conn] 幀 #4080 887x1972 bytes=6996656
+[audio] pkt=87 smp=99196 supply=103% sr=48000 ch=2 under=31 over=0 primes=16 ptimeouts=0 depth=89ms rxpkt=87 rxbytes=198392 pkt_bytes={2228:61,2232:24,4456:1,4460:1} window_end=1789038733.647855 window_seconds=1.033027
+[audio] pkt=82 smp=96966 supply=101% sr=48000 ch=2 under=31 over=0 primes=16 ptimeouts=0 depth=86ms rxpkt=82 rxbytes=193932 pkt_bytes={2228:56,2232:21,4456:2,4460:3} window_end=1789038734.664471 window_seconds=1.016601
+[audio] pkt=84 smp=98082 supply=102% sr=48000 ch=2 under=31 over=0 primes=16 ptimeouts=0 depth=94ms rxpkt=84 rxbytes=196164 pkt_bytes={2228:57,2232:23,4456:2,4460:2} window_end=1789038735.681291 window_seconds=1.016805
+[audio] pkt=86 smp=99196 supply=103% sr=48000 ch=2 under=31 over=0 primes=16 ptimeouts=0 depth=93ms rxpkt=86 rxbytes=198392 pkt_bytes={2228:59,2232:24,4456:2,4460:1} window_end=1789038736.714313 window_seconds=1.033006
+[audio] pkt=83 smp=96966 supply=101% sr=48000 ch=2 under=31 over=0 primes=16 ptimeouts=0 depth=90ms rxpkt=83 rxbytes=193932 pkt_bytes={2228:58,2232:21,4456:1,4460:3} window_end=1789038737.731346 window_seconds=1.017021
+[audio-rpc] event=cancel round=15 epoch=1789038738.363495
+[audio-rpc] event=response-ended round=15 epoch=1789038738.363766
+[audio-rpc] event=closed round=15 epoch=1789038738.363812
+[audio] pkt=53 smp=60186 supply=62% sr=48000 ch=2 under=33 over=0 primes=16 ptimeouts=0 depth=0ms rxpkt=53 rxbytes=120372 pkt_bytes={2228:37,2232:15,4456:1} window_end=1789038738.747570 window_seconds=1.016206
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=33 over=0 primes=16 ptimeouts=0 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789038739.764702 window_seconds=1.017118
+[conn] 幀 #4200 887x1972 bytes=6996656
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=33 over=0 primes=16 ptimeouts=0 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789038740.781056 window_seconds=1.016337
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=33 over=0 primes=16 ptimeouts=0 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789038741.797578 window_seconds=1.016507
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=33 over=0 primes=16 ptimeouts=0 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789038742.831136 window_seconds=1.033544
+[audio-rpc] event=open round=16 epoch=1789038743.391517
+[audio] 收到的格式：sr=48000 ch=stereo fmt=audFmtS16（請求的是 sr=48000 ch=2 fmt=audFmtS16）bytes=2228
+[audio] pkt=37 smp=41238 supply=42% sr=48000 ch=2 under=33 over=0 primes=17 ptimeouts=0 depth=77ms rxpkt=37 rxbytes=82476 pkt_bytes={2228:27,2232:10} window_end=1789038743.847579 window_seconds=1.016428
+[audio] pkt=84 smp=98080 supply=102% sr=48000 ch=2 under=33 over=0 primes=17 ptimeouts=0 depth=85ms rxpkt=84 rxbytes=196160 pkt_bytes={2228:58,2232:22,4456:2,4460:2} window_end=1789038744.864815 window_seconds=1.017221
+[audio] pkt=88 smp=101426 supply=105% sr=48000 ch=2 under=33 over=0 primes=17 ptimeouts=0 depth=86ms rxpkt=88 rxbytes=202852 pkt_bytes={2228:61,2232:24,4456:1,4460:2} window_end=1789038745.914594 window_seconds=1.049763
+[audio] pkt=84 smp=98080 supply=102% sr=48000 ch=2 under=33 over=0 primes=17 ptimeouts=0 depth=94ms rxpkt=84 rxbytes=196160 pkt_bytes={2228:57,2232:23,4456:3,4460:1} window_end=1789038746.932239 window_seconds=1.017630
+[audio] pkt=80 smp=99196 supply=103% sr=48000 ch=2 under=33 over=0 primes=17 ptimeouts=0 depth=93ms rxpkt=80 rxbytes=198392 pkt_bytes={928:1,2228:51,2232:19,4456:3,4460:5,5760:1} window_end=1789038747.964238 window_seconds=1.031983
+[audio] pkt=83 smp=98082 supply=102% sr=48000 ch=2 under=33 over=0 primes=17 ptimeouts=0 depth=101ms rxpkt=83 rxbytes=196164 pkt_bytes={2228:56,2232:22,4456:2,4460:3} window_end=1789038748.981655 window_seconds=1.017402
+[audio] pkt=82 smp=96966 supply=101% sr=48000 ch=2 under=33 over=0 primes=17 ptimeouts=0 depth=98ms rxpkt=82 rxbytes=193932 pkt_bytes={2228:55,2232:22,4456:3,4460:2} window_end=1789038749.998237 window_seconds=1.016567
+[conn] 幀 #4320 887x1972 bytes=6996656
+[audio] pkt=82 smp=96966 supply=101% sr=48000 ch=2 under=33 over=0 primes=17 ptimeouts=0 depth=84ms rxpkt=82 rxbytes=193932 pkt_bytes={2228:55,2232:22,4456:3,4460:2} window_end=1789038751.014058 window_seconds=1.015805
+[audio] pkt=86 smp=100310 supply=104% sr=48000 ch=2 under=33 over=0 primes=17 ptimeouts=0 depth=94ms rxpkt=86 rxbytes=200620 pkt_bytes={2228:61,2232:21,4460:4} window_end=1789038752.047506 window_seconds=1.033431
+[audio] pkt=87 smp=96966 supply=101% sr=48000 ch=2 under=33 over=0 primes=17 ptimeouts=0 depth=91ms rxpkt=87 rxbytes=193932 pkt_bytes={2228:63,2232:24} window_end=1789038753.065705 window_seconds=1.018187
+[audio-rpc] event=cancel round=16 epoch=1789038753.356161
+[audio-rpc] event=response-ended round=16 epoch=1789038753.356480
+[audio-rpc] event=closed round=16 epoch=1789038753.356538
+[audio] pkt=23 smp=27864 supply=29% sr=48000 ch=2 under=35 over=0 primes=17 ptimeouts=0 depth=0ms rxpkt=23 rxbytes=55728 pkt_bytes={2228:16,2232:5,4460:2} window_end=1789038754.081373 window_seconds=1.015650
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=35 over=0 primes=17 ptimeouts=0 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789038755.097478 window_seconds=1.016090
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=35 over=0 primes=17 ptimeouts=0 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789038756.114053 window_seconds=1.016561
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=35 over=0 primes=17 ptimeouts=0 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789038757.131483 window_seconds=1.017415
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=35 over=0 primes=17 ptimeouts=0 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789038758.165094 window_seconds=1.033594
+[audio-rpc] event=open round=17 epoch=1789038758.348688
+[audio] 收到的格式：sr=48000 ch=stereo fmt=audFmtS16（請求的是 sr=48000 ch=2 fmt=audFmtS16）bytes=2228
+[audio] pkt=70 smp=79132 supply=82% sr=48000 ch=2 under=35 over=0 primes=18 ptimeouts=0 depth=98ms rxpkt=70 rxbytes=158264 pkt_bytes={2228:51,2232:18,4460:1} window_end=1789038759.181058 window_seconds=1.015949
+[audio] pkt=85 smp=99196 supply=103% sr=48000 ch=2 under=35 over=0 primes=18 ptimeouts=0 depth=97ms rxpkt=85 rxbytes=198392 pkt_bytes={2228:57,2232:24,4456:3,4460:1} window_end=1789038760.214314 window_seconds=1.033243
+[conn] 幀 #4440 887x1972 bytes=6996656
+[audio] pkt=86 smp=99196 supply=103% sr=48000 ch=2 under=35 over=0 primes=18 ptimeouts=0 depth=96ms rxpkt=86 rxbytes=198392 pkt_bytes={2228:58,2232:25,4456:3} window_end=1789038761.247081 window_seconds=1.032750
+[audio] pkt=84 smp=96966 supply=101% sr=48000 ch=2 under=35 over=0 primes=18 ptimeouts=0 depth=92ms rxpkt=84 rxbytes=193932 pkt_bytes={2228:60,2232:21,4460:3} window_end=1789038762.264267 window_seconds=1.017170
+[audio] pkt=86 smp=98082 supply=102% sr=48000 ch=2 under=35 over=0 primes=18 ptimeouts=0 depth=90ms rxpkt=86 rxbytes=196164 pkt_bytes={2228:60,2232:24,4456:1,4460:1} window_end=1789038763.285725 window_seconds=1.021442
+[audio] pkt=85 smp=99194 supply=103% sr=48000 ch=2 under=35 over=0 primes=18 ptimeouts=0 depth=89ms rxpkt=85 rxbytes=198388 pkt_bytes={2228:60,2232:21,4456:1,4460:3} window_end=1789038764.313374 window_seconds=1.027633
+[audio] pkt=85 smp=96968 supply=101% sr=48000 ch=2 under=35 over=0 primes=18 ptimeouts=0 depth=85ms rxpkt=85 rxbytes=193936 pkt_bytes={2228:59,2232:24,4456:1,4460:1} window_end=1789038765.330426 window_seconds=1.017037
+[audio] pkt=88 smp=99196 supply=103% sr=48000 ch=2 under=35 over=0 primes=18 ptimeouts=0 depth=84ms rxpkt=88 rxbytes=198392 pkt_bytes={2228:63,2232:24,4460:1} window_end=1789038766.363634 window_seconds=1.033192
+[audio] pkt=85 smp=98080 supply=102% sr=48000 ch=2 under=35 over=0 primes=18 ptimeouts=0 depth=92ms rxpkt=85 rxbytes=196160 pkt_bytes={2228:60,2232:22,4456:1,4460:2} window_end=1789038767.380388 window_seconds=1.016739
+[conn] 幀 #4560 887x1972 bytes=6996656
+[audio-rpc] event=cancel round=17 epoch=1789038768.395267
+[audio-rpc] event=response-ended round=17 epoch=1789038768.395466
+[audio-rpc] event=closed round=17 epoch=1789038768.395520
+[audio] pkt=85 smp=98082 supply=102% sr=48000 ch=2 under=35 over=0 primes=18 ptimeouts=0 depth=101ms rxpkt=85 rxbytes=196164 pkt_bytes={2228:60,2232:22,4460:3} window_end=1789038768.396969 window_seconds=1.016565
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=37 over=0 primes=18 ptimeouts=0 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789038769.413670 window_seconds=1.016686
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=37 over=0 primes=18 ptimeouts=0 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789038770.449537 window_seconds=1.035853
+[conn] 幀 #4680 887x1972 bytes=6996656
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=37 over=0 primes=18 ptimeouts=0 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789038771.463436 window_seconds=1.013882
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=37 over=0 primes=18 ptimeouts=0 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789038772.480096 window_seconds=1.016645
+[audio-rpc] event=open round=18 epoch=1789038773.370115
+[audio] 收到的格式：sr=48000 ch=stereo fmt=audFmtS16（請求的是 sr=48000 ch=2 fmt=audFmtS16）bytes=2228
+[audio] pkt=11 smp=13374 supply=13% sr=48000 ch=2 under=37 over=0 primes=19 ptimeouts=0 depth=96ms rxpkt=11 rxbytes=26748 pkt_bytes={2228:7,2232:3,4456:1} window_end=1789038773.513297 window_seconds=1.033186
+[audio] pkt=86 smp=96966 supply=101% sr=48000 ch=2 under=37 over=0 primes=19 ptimeouts=0 depth=93ms rxpkt=86 rxbytes=193932 pkt_bytes={2228:61,2232:24,4456:1} window_end=1789038774.529990 window_seconds=1.016678
+[conn] 幀 #4800 887x1972 bytes=6996656
+[audio] pkt=86 smp=98082 supply=102% sr=48000 ch=2 under=37 over=0 primes=19 ptimeouts=0 depth=91ms rxpkt=86 rxbytes=196164 pkt_bytes={2228:60,2232:24,4456:1,4460:1} window_end=1789038775.546765 window_seconds=1.016760
+[audio] pkt=86 smp=98080 supply=102% sr=48000 ch=2 under=37 over=0 primes=19 ptimeouts=0 depth=99ms rxpkt=86 rxbytes=196160 pkt_bytes={2228:61,2232:23,4456:1,4460:1} window_end=1789038776.563233 window_seconds=1.016453
+[audio] pkt=85 smp=96966 supply=101% sr=48000 ch=2 under=37 over=0 primes=19 ptimeouts=0 depth=96ms rxpkt=85 rxbytes=193932 pkt_bytes={2228:60,2232:23,4456:1,4460:1} window_end=1789038777.579911 window_seconds=1.016663
+[conn] 幀 #4920 887x1972 bytes=6996656
+[audio] pkt=89 smp=99196 supply=103% sr=48000 ch=2 under=37 over=0 primes=19 ptimeouts=0 depth=94ms rxpkt=89 rxbytes=198392 pkt_bytes={2228:64,2232:25} window_end=1789038778.613170 window_seconds=1.033243
+[audio] pkt=86 smp=98082 supply=102% sr=48000 ch=2 under=37 over=0 primes=19 ptimeouts=0 depth=103ms rxpkt=86 rxbytes=196164 pkt_bytes={2228:61,2232:23,4460:2} window_end=1789038779.629941 window_seconds=1.016759
+[audio] pkt=81 smp=96966 supply=101% sr=48000 ch=2 under=37 over=0 primes=19 ptimeouts=0 depth=89ms rxpkt=81 rxbytes=193932 pkt_bytes={2228:56,2232:19,4456:1,4460:5} window_end=1789038780.646428 window_seconds=1.016468
+[conn] 幀 #5040 887x1972 bytes=6996656
+[audio] pkt=89 smp=100310 supply=104% sr=48000 ch=2 under=37 over=0 primes=19 ptimeouts=0 depth=99ms rxpkt=89 rxbytes=200620 pkt_bytes={2228:64,2232:24,4460:1} window_end=1789038781.680035 window_seconds=1.033593
+[audio] pkt=85 smp=96966 supply=101% sr=48000 ch=2 under=37 over=0 primes=19 ptimeouts=0 depth=96ms rxpkt=85 rxbytes=193932 pkt_bytes={2228:61,2232:22,4460:2} window_end=1789038782.696502 window_seconds=1.016450
+[audio-rpc] event=cancel round=18 epoch=1789038783.386437
+[audio-rpc] event=response-ended round=18 epoch=1789038783.386735
+[audio-rpc] event=closed round=18 epoch=1789038783.386803
+[audio] pkt=56 smp=66874 supply=69% sr=48000 ch=2 under=39 over=0 primes=19 ptimeouts=0 depth=0ms rxpkt=56 rxbytes=133748 pkt_bytes={2228:37,2232:15,4456:2,4460:2} window_end=1789038783.712999 window_seconds=1.016482
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=39 over=0 primes=19 ptimeouts=0 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789038784.729759 window_seconds=1.016745
+[conn] 幀 #5160 887x1972 bytes=6996656
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=39 over=0 primes=19 ptimeouts=0 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789038785.762878 window_seconds=1.033103
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=39 over=0 primes=19 ptimeouts=0 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789038786.779429 window_seconds=1.016535
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=39 over=0 primes=19 ptimeouts=0 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789038787.796081 window_seconds=1.016636
+[conn] 幀 #5280 887x1972 bytes=6996656
+[audio-rpc] event=open round=19 epoch=1789038788.361870
+[audio] 收到的格式：sr=48000 ch=stereo fmt=audFmtS16（請求的是 sr=48000 ch=2 fmt=audFmtS16）bytes=2228
+[audio] pkt=37 smp=42352 supply=44% sr=48000 ch=2 under=39 over=0 primes=20 ptimeouts=0 depth=99ms rxpkt=37 rxbytes=84704 pkt_bytes={2228:27,2232:9,4460:1} window_end=1789038788.812799 window_seconds=1.016703
+[audio] pkt=87 smp=98082 supply=102% sr=48000 ch=2 under=39 over=0 primes=20 ptimeouts=0 depth=97ms rxpkt=87 rxbytes=196164 pkt_bytes={2228:62,2232:24,4460:1} window_end=1789038789.829405 window_seconds=1.016590
+[audio] pkt=85 smp=98080 supply=102% sr=48000 ch=2 under=39 over=0 primes=20 ptimeouts=0 depth=84ms rxpkt=85 rxbytes=196160 pkt_bytes={2228:60,2232:22,4456:1,4460:2} window_end=1789038790.862915 window_seconds=1.033495
+[conn] 幀 #5400 887x1972 bytes=6996656
+[audio] pkt=85 smp=99196 supply=103% sr=48000 ch=2 under=39 over=0 primes=20 ptimeouts=0 depth=104ms rxpkt=85 rxbytes=198392 pkt_bytes={2228:60,2232:21,4460:4} window_end=1789038791.879394 window_seconds=1.016464
+[audio] pkt=85 smp=96966 supply=101% sr=48000 ch=2 under=39 over=0 primes=20 ptimeouts=0 depth=101ms rxpkt=85 rxbytes=193932 pkt_bytes={2228:59,2232:24,4456:2} window_end=1789038792.896111 window_seconds=1.016702
+[audio] pkt=86 smp=98082 supply=102% sr=48000 ch=2 under=39 over=0 primes=20 ptimeouts=0 depth=98ms rxpkt=86 rxbytes=196164 pkt_bytes={2228:60,2232:24,4456:1,4460:1} window_end=1789038793.912751 window_seconds=1.016624
+[audio] pkt=82 smp=98080 supply=102% sr=48000 ch=2 under=39 over=0 primes=20 ptimeouts=0 depth=107ms rxpkt=82 rxbytes=196160 pkt_bytes={2228:56,2232:20,4456:2,4460:4} window_end=1789038794.929231 window_seconds=1.016465
+[conn] 幀 #5520 887x1972 bytes=6996656
+[audio] pkt=86 smp=96968 supply=101% sr=48000 ch=2 under=39 over=0 primes=20 ptimeouts=0 depth=103ms rxpkt=86 rxbytes=193936 pkt_bytes={2228:60,2232:25,4456:1} window_end=1789038795.945882 window_seconds=1.016635
+[audio] pkt=85 smp=96966 supply=101% sr=48000 ch=2 under=39 over=0 primes=20 ptimeouts=0 depth=100ms rxpkt=85 rxbytes=193932 pkt_bytes={2228:60,2232:23,4456:1,4460:1} window_end=1789038796.962652 window_seconds=1.016754
+[audio] pkt=81 smp=98080 supply=102% sr=48000 ch=2 under=39 over=0 primes=20 ptimeouts=0 depth=98ms rxpkt=81 rxbytes=196160 pkt_bytes={2228:53,2232:21,4456:4,4460:3} window_end=1789038797.979380 window_seconds=1.016713
+[audio-rpc] event=cancel round=19 epoch=1789038798.371426
+[audio-rpc] event=response-ended round=19 epoch=1789038798.371826
+[audio-rpc] event=closed round=19 epoch=1789038798.371874
+[conn] 幀 #5640 887x1972 bytes=6996656
+[audio] pkt=33 smp=37896 supply=39% sr=48000 ch=2 under=41 over=0 primes=20 ptimeouts=0 depth=0ms rxpkt=33 rxbytes=75792 pkt_bytes={2228:23,2232:9,4460:1} window_end=1789038799.012518 window_seconds=1.033122
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=41 over=0 primes=20 ptimeouts=0 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789038800.045846 window_seconds=1.033312
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=41 over=0 primes=20 ptimeouts=0 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789038801.062636 window_seconds=1.016774
+[conn] 幀 #5760 887x1972 bytes=6996656
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=41 over=0 primes=20 ptimeouts=0 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789038802.095899 window_seconds=1.033250
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=41 over=0 primes=20 ptimeouts=0 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789038803.112434 window_seconds=1.016518
+[audio-rpc] event=open round=20 epoch=1789038803.361447
+[audio] 收到的格式：sr=48000 ch=stereo fmt=audFmtS16（請求的是 sr=48000 ch=2 fmt=audFmtS16）bytes=4456
+[audio] pkt=63 smp=73560 supply=76% sr=48000 ch=2 under=41 over=0 primes=21 ptimeouts=0 depth=94ms rxpkt=63 rxbytes=147120 pkt_bytes={2228:43,2232:17,4456:2,4460:1} window_end=1789038804.129027 window_seconds=1.016576
+[conn] 幀 #5880 887x1972 bytes=6996656
+[audio] pkt=86 smp=99196 supply=103% sr=48000 ch=2 under=41 over=0 primes=21 ptimeouts=0 depth=103ms rxpkt=86 rxbytes=198392 pkt_bytes={2228:59,2232:24,4456:2,4460:1} window_end=1789038805.145774 window_seconds=1.016733
+[audio] pkt=85 smp=96966 supply=101% sr=48000 ch=2 under=41 over=0 primes=21 ptimeouts=0 depth=100ms rxpkt=85 rxbytes=193932 pkt_bytes={2228:59,2232:24,4456:2} window_end=1789038806.162322 window_seconds=1.016533
+[audio] pkt=86 smp=96966 supply=101% sr=48000 ch=2 under=41 over=0 primes=21 ptimeouts=0 depth=97ms rxpkt=86 rxbytes=193932 pkt_bytes={2228:61,2232:24,4456:1} window_end=1789038807.178993 window_seconds=1.016656
+[audio] pkt=84 smp=99196 supply=103% sr=48000 ch=2 under=41 over=0 primes=21 ptimeouts=0 depth=95ms rxpkt=84 rxbytes=198392 pkt_bytes={2228:57,2232:22,4456:2,4460:3} window_end=1789038808.212490 window_seconds=1.033482
+[conn] 幀 #6000 887x1972 bytes=6996656
+[audio] pkt=85 smp=96966 supply=101% sr=48000 ch=2 under=41 over=0 primes=21 ptimeouts=0 depth=92ms rxpkt=85 rxbytes=193932 pkt_bytes={2228:60,2232:23,4456:1,4460:1} window_end=1789038809.229000 window_seconds=1.016494
+[audio] pkt=84 smp=99196 supply=103% sr=48000 ch=2 under=41 over=0 primes=21 ptimeouts=0 depth=101ms rxpkt=84 rxbytes=198392 pkt_bytes={2228:58,2232:21,4456:1,4460:4} window_end=1789038810.245544 window_seconds=1.016528
+[audio] pkt=84 smp=96966 supply=101% sr=48000 ch=2 under=41 over=0 primes=21 ptimeouts=0 depth=98ms rxpkt=84 rxbytes=193932 pkt_bytes={2228:59,2232:22,4456:1,4460:2} window_end=1789038811.262231 window_seconds=1.016672
+[conn] 幀 #6120 887x1972 bytes=6996656
+[audio] pkt=84 smp=99196 supply=103% sr=48000 ch=2 under=41 over=0 primes=21 ptimeouts=0 depth=97ms rxpkt=84 rxbytes=198392 pkt_bytes={2228:57,2232:22,4456:2,4460:3} window_end=1789038812.295547 window_seconds=1.033300
+[audio] pkt=86 smp=98082 supply=102% sr=48000 ch=2 under=41 over=0 primes=21 ptimeouts=0 depth=105ms rxpkt=86 rxbytes=196164 pkt_bytes={2228:61,2232:23,4460:2} window_end=1789038813.312227 window_seconds=1.016665
+[audio-rpc] event=cancel round=20 epoch=1789038813.364720
+[audio-rpc] event=response-ended round=20 epoch=1789038813.365042
+[audio-rpc] event=closed round=20 epoch=1789038813.365110
+[audio] pkt=4 smp=4458 supply=4% sr=48000 ch=2 under=43 over=0 primes=21 ptimeouts=0 depth=0ms rxpkt=4 rxbytes=8916 pkt_bytes={2228:3,2232:1} window_end=1789038814.328811 window_seconds=1.016569
+[conn] 幀 #6240 887x1972 bytes=6996656
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=43 over=0 primes=21 ptimeouts=0 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789038815.345512 window_seconds=1.016686
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=43 over=0 primes=21 ptimeouts=0 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789038816.348546 window_seconds=1.003019
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=43 over=0 primes=21 ptimeouts=0 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789038817.378675 window_seconds=1.030113
+[conn] 幀 #6360 887x1972 bytes=6996656
+[audio-rpc] event=open round=21 epoch=1789038818.388398
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=43 over=0 primes=21 ptimeouts=0 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789038818.395410 window_seconds=1.016720
+[audio] 收到的格式：sr=48000 ch=stereo fmt=audFmtS16（請求的是 sr=48000 ch=2 fmt=audFmtS16）bytes=2228
+[audio] pkt=86 smp=96966 supply=101% sr=48000 ch=2 under=43 over=0 primes=22 ptimeouts=0 depth=103ms rxpkt=86 rxbytes=193932 pkt_bytes={2228:62,2232:23,4460:1} window_end=1789038819.396253 window_seconds=1.000828
+[audio] pkt=86 smp=99196 supply=103% sr=48000 ch=2 under=43 over=0 primes=22 ptimeouts=0 depth=102ms rxpkt=86 rxbytes=198392 pkt_bytes={2228:60,2232:23,4456:1,4460:2} window_end=1789038820.430153 window_seconds=1.033883
+[audio] pkt=86 smp=96966 supply=101% sr=48000 ch=2 under=43 over=0 primes=22 ptimeouts=0 depth=109ms rxpkt=86 rxbytes=193932 pkt_bytes={2228:62,2232:23,4460:1} window_end=1789038821.435397 window_seconds=1.005231
+[conn] 幀 #6480 887x1972 bytes=6996656
+[audio] pkt=84 smp=95852 supply=99% sr=48000 ch=2 under=43 over=0 primes=22 ptimeouts=0 depth=94ms rxpkt=84 rxbytes=191704 pkt_bytes={2228:59,2232:23,4456:1,4460:1} window_end=1789038822.449413 window_seconds=1.014000
+[audio] pkt=88 smp=101424 supply=105% sr=48000 ch=2 under=43 over=0 primes=22 ptimeouts=0 depth=105ms rxpkt=88 rxbytes=202848 pkt_bytes={2228:62,2232:23,4456:1,4460:2} window_end=1789038823.495147 window_seconds=1.045716
+[audio] pkt=86 smp=98082 supply=102% sr=48000 ch=2 under=43 over=0 primes=22 ptimeouts=0 depth=114ms rxpkt=86 rxbytes=196164 pkt_bytes={2228:60,2232:24,4456:1,4460:1} window_end=1789038824.513093 window_seconds=1.017932
+[conn] 幀 #6600 887x1972 bytes=6996656
+[audio] pkt=87 smp=96966 supply=101% sr=48000 ch=2 under=43 over=0 primes=22 ptimeouts=0 depth=100ms rxpkt=87 rxbytes=193932 pkt_bytes={2228:63,2232:24} window_end=1789038825.528580 window_seconds=1.015471
+[audio] pkt=85 smp=98080 supply=102% sr=48000 ch=2 under=43 over=0 primes=22 ptimeouts=0 depth=108ms rxpkt=85 rxbytes=196160 pkt_bytes={2228:59,2232:23,4456:2,4460:1} window_end=1789038826.545161 window_seconds=1.016566
+[audio] pkt=87 smp=98082 supply=102% sr=48000 ch=2 under=43 over=0 primes=22 ptimeouts=0 depth=106ms rxpkt=87 rxbytes=196164 pkt_bytes={2228:61,2232:25,4456:1} window_end=1789038827.565615 window_seconds=1.020441
+[audio-rpc] event=cancel round=21 epoch=1789038828.351836
+[audio-rpc] event=response-ended round=21 epoch=1789038828.352128
+[audio-rpc] event=closed round=21 epoch=1789038828.352188
+[audio] pkt=62 smp=74676 supply=77% sr=48000 ch=2 under=45 over=0 primes=22 ptimeouts=0 depth=0ms rxpkt=62 rxbytes=149352 pkt_bytes={2228:41,2232:16,4456:2,4460:3} window_end=1789038828.565845 window_seconds=1.000213
+[conn] 幀 #6720 887x1972 bytes=6996656
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=45 over=0 primes=22 ptimeouts=0 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789038829.568479 window_seconds=1.002619
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=45 over=0 primes=22 ptimeouts=0 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789038830.581157 window_seconds=1.012664
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=45 over=0 primes=22 ptimeouts=0 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789038831.585118 window_seconds=1.003945
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=45 over=0 primes=22 ptimeouts=0 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789038832.611666 window_seconds=1.026532
+[conn] 幀 #6840 887x1972 bytes=6996656
+[audio-rpc] event=open round=22 epoch=1789038833.368371
+[audio] 收到的格式：sr=48000 ch=stereo fmt=audFmtS16（請求的是 sr=48000 ch=2 fmt=audFmtS16）bytes=2228
+[audio] pkt=21 smp=23404 supply=24% sr=48000 ch=2 under=45 over=0 primes=23 ptimeouts=0 depth=94ms rxpkt=21 rxbytes=46808 pkt_bytes={2228:16,2232:5} window_end=1789038833.628364 window_seconds=1.016683
+[audio] pkt=88 smp=99196 supply=103% sr=48000 ch=2 under=45 over=0 primes=23 ptimeouts=0 depth=114ms rxpkt=88 rxbytes=198392 pkt_bytes={2228:63,2232:24,4460:1} window_end=1789038834.645069 window_seconds=1.016689
+[audio] pkt=84 smp=98082 supply=102% sr=48000 ch=2 under=45 over=0 primes=23 ptimeouts=0 depth=112ms rxpkt=84 rxbytes=196164 pkt_bytes={2228:57,2232:23,4456:2,4460:2} window_end=1789038835.666213 window_seconds=1.021131
+[conn] 幀 #6960 887x1972 bytes=6996656
+[audio] pkt=84 smp=95852 supply=99% sr=48000 ch=2 under=45 over=0 primes=23 ptimeouts=0 depth=107ms rxpkt=84 rxbytes=191704 pkt_bytes={2228:59,2232:23,4456:1,4460:1} window_end=1789038836.668253 window_seconds=1.002023
+[audio] pkt=85 smp=95852 supply=99% sr=48000 ch=2 under=45 over=0 primes=23 ptimeouts=0 depth=103ms rxpkt=85 rxbytes=191704 pkt_bytes={2228:61,2232:23,4460:1} window_end=1789038837.668616 window_seconds=1.000347
+[audio] pkt=88 smp=100310 supply=104% sr=48000 ch=2 under=45 over=0 primes=23 ptimeouts=0 depth=103ms rxpkt=88 rxbytes=200620 pkt_bytes={2228:61,2232:25,4456:2} window_end=1789038838.713928 window_seconds=1.045296
+[audio] pkt=87 smp=98080 supply=102% sr=48000 ch=2 under=45 over=0 primes=23 ptimeouts=0 depth=100ms rxpkt=87 rxbytes=196160 pkt_bytes={444:1,2228:62,2232:22,4016:1,4460:1} window_end=1789038839.736751 window_seconds=1.022809
+[conn] 幀 #7080 887x1972 bytes=6996656
+[audio] pkt=86 smp=98082 supply=102% sr=48000 ch=2 under=45 over=0 primes=23 ptimeouts=0 depth=98ms rxpkt=86 rxbytes=196164 pkt_bytes={2228:60,2232:24,4456:1,4460:1} window_end=1789038840.761451 window_seconds=1.024682
+[audio] pkt=84 smp=98080 supply=102% sr=48000 ch=2 under=45 over=0 primes=23 ptimeouts=0 depth=106ms rxpkt=84 rxbytes=196160 pkt_bytes={2228:58,2232:22,4456:2,4460:2} window_end=1789038841.777948 window_seconds=1.016481
+[audio] pkt=86 smp=98082 supply=102% sr=48000 ch=2 under=45 over=0 primes=23 ptimeouts=0 depth=104ms rxpkt=86 rxbytes=196164 pkt_bytes={2228:59,2232:25,4456:2} window_end=1789038842.797579 window_seconds=1.019617
+[conn] 幀 #7200 887x1972 bytes=6996656
+[audio-rpc] event=cancel round=22 epoch=1789038843.371158
+[audio-rpc] event=response-ended round=22 epoch=1789038843.371348
+[audio-rpc] event=closed round=22 epoch=1789038843.371382
+[audio] pkt=48 smp=54614 supply=56% sr=48000 ch=2 under=47 over=0 primes=23 ptimeouts=0 depth=0ms rxpkt=48 rxbytes=109228 pkt_bytes={2228:33,2232:14,4456:1} window_end=1789038843.818221 window_seconds=1.020630
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=47 over=0 primes=23 ptimeouts=0 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789038844.844689 window_seconds=1.026449
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=47 over=0 primes=23 ptimeouts=0 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789038845.861241 window_seconds=1.016536
+[conn] 幀 #7320 887x1972 bytes=6996656
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=47 over=0 primes=23 ptimeouts=0 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789038846.878082 window_seconds=1.016827
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=47 over=0 primes=23 ptimeouts=0 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789038847.898816 window_seconds=1.020717
+[audio-rpc] event=open round=23 epoch=1789038848.360197
+[audio] 收到的格式：sr=48000 ch=stereo fmt=audFmtS16（請求的是 sr=48000 ch=2 fmt=audFmtS16）bytes=2228
+[audio] pkt=44 smp=53498 supply=55% sr=48000 ch=2 under=47 over=0 primes=24 ptimeouts=0 depth=109ms rxpkt=44 rxbytes=106996 pkt_bytes={2228:29,2232:11,4456:2,4460:2} window_end=1789038848.918054 window_seconds=1.019224
+[conn] 幀 #7440 887x1972 bytes=6996656
+[audio] pkt=86 smp=98080 supply=102% sr=48000 ch=2 under=47 over=0 primes=24 ptimeouts=0 depth=96ms rxpkt=86 rxbytes=196160 pkt_bytes={2228:61,2232:23,4456:1,4460:1} window_end=1789038849.944695 window_seconds=1.026625
+[audio] pkt=86 smp=95852 supply=99% sr=48000 ch=2 under=47 over=0 primes=24 ptimeouts=0 depth=92ms rxpkt=86 rxbytes=191704 pkt_bytes={2228:62,2232:24} window_end=1789038850.947755 window_seconds=1.003048
+[audio] pkt=85 smp=99196 supply=103% sr=48000 ch=2 under=47 over=0 primes=24 ptimeouts=0 depth=101ms rxpkt=85 rxbytes=198392 pkt_bytes={2228:59,2232:22,4456:1,4460:3} window_end=1789038851.977827 window_seconds=1.030053
+[audio] pkt=85 smp=96966 supply=101% sr=48000 ch=2 under=47 over=0 primes=24 ptimeouts=0 depth=87ms rxpkt=85 rxbytes=193932 pkt_bytes={2228:61,2232:22,4460:2} window_end=1789038852.996543 window_seconds=1.018702
+[conn] 幀 #7560 887x1972 bytes=6996656
+[audio] pkt=83 smp=99196 supply=103% sr=48000 ch=2 under=47 over=0 primes=24 ptimeouts=0 depth=96ms rxpkt=83 rxbytes=198392 pkt_bytes={2228:56,2232:21,4456:2,4460:4} window_end=1789038854.017776 window_seconds=1.021219
+[audio] pkt=87 smp=98082 supply=102% sr=48000 ch=2 under=47 over=0 primes=24 ptimeouts=0 depth=94ms rxpkt=87 rxbytes=196164 pkt_bytes={2228:61,2232:25,4456:1} window_end=1789038855.044274 window_seconds=1.026480
+[audio] pkt=86 smp=99196 supply=103% sr=48000 ch=2 under=47 over=0 primes=24 ptimeouts=0 depth=103ms rxpkt=86 rxbytes=198392 pkt_bytes={2228:60,2232:23,4456:1,4460:2} window_end=1789038856.067843 window_seconds=1.023553
+[conn] 幀 #7680 887x1972 bytes=6996656
+[audio] pkt=84 smp=94736 supply=98% sr=48000 ch=2 under=47 over=0 primes=24 ptimeouts=0 depth=87ms rxpkt=84 rxbytes=189472 pkt_bytes={2228:60,2232:23,4456:1} window_end=1789038857.077620 window_seconds=1.009761
+[audio] pkt=82 smp=98082 supply=102% sr=48000 ch=2 under=47 over=0 primes=24 ptimeouts=0 depth=85ms rxpkt=82 rxbytes=196164 pkt_bytes={2228:54,2232:22,4456:3,4460:3} window_end=1789038858.094279 window_seconds=1.016644
+[audio-rpc] event=cancel round=23 epoch=1789038858.362002
+[audio-rpc] event=response-ended round=23 epoch=1789038858.362424
+[audio-rpc] event=closed round=23 epoch=1789038858.362481
+[audio] pkt=24 smp=26750 supply=27% sr=48000 ch=2 under=49 over=0 primes=24 ptimeouts=0 depth=0ms rxpkt=24 rxbytes=53500 pkt_bytes={2228:17,2232:7} window_end=1789038859.130019 window_seconds=1.035725
+[conn] 幀 #7800 887x1972 bytes=6996656
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=49 over=0 primes=24 ptimeouts=0 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789038860.161101 window_seconds=1.031066
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=49 over=0 primes=24 ptimeouts=0 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789038861.177643 window_seconds=1.016526
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=49 over=0 primes=24 ptimeouts=0 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789038862.196195 window_seconds=1.018537
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=49 over=0 primes=24 ptimeouts=0 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789038863.217669 window_seconds=1.021459
+[audio-rpc] event=open round=24 epoch=1789038863.374148
+[audio] 收到的格式：sr=48000 ch=stereo fmt=audFmtS16（請求的是 sr=48000 ch=2 fmt=audFmtS16）bytes=2228
+[conn] 幀 #7920 887x1972 bytes=6996656
+[audio] pkt=71 smp=81362 supply=84% sr=48000 ch=2 under=49 over=0 primes=25 ptimeouts=0 depth=90ms rxpkt=71 rxbytes=162724 pkt_bytes={2228:50,2232:19,4456:1,4460:1} window_end=1789038864.244274 window_seconds=1.026590
+[audio] pkt=86 smp=99196 supply=103% sr=48000 ch=2 under=49 over=0 primes=25 ptimeouts=0 depth=99ms rxpkt=86 rxbytes=198392 pkt_bytes={2228:60,2232:23,4456:1,4460:2} window_end=1789038865.261177 window_seconds=1.016888
+[audio] pkt=85 smp=98080 supply=102% sr=48000 ch=2 under=49 over=0 primes=25 ptimeouts=0 depth=107ms rxpkt=85 rxbytes=196160 pkt_bytes={2228:61,2232:21,4460:3} window_end=1789038866.280538 window_seconds=1.019344
+[conn] 幀 #8040 887x1972 bytes=6996656
+[audio] pkt=87 smp=98082 supply=102% sr=48000 ch=2 under=49 over=0 primes=25 ptimeouts=0 depth=105ms rxpkt=87 rxbytes=196164 pkt_bytes={2228:62,2232:24,4460:1} window_end=1789038867.300909 window_seconds=1.020356
+[audio] pkt=85 smp=98080 supply=102% sr=48000 ch=2 under=49 over=0 primes=25 ptimeouts=0 depth=113ms rxpkt=85 rxbytes=196160 pkt_bytes={2228:58,2232:24,4456:3} window_end=1789038868.317557 window_seconds=1.016633
+[audio] pkt=88 smp=98082 supply=102% sr=48000 ch=2 under=49 over=0 primes=25 ptimeouts=0 depth=100ms rxpkt=88 rxbytes=196164 pkt_bytes={4:1,2228:62,2232:24,4456:1} window_end=1789038869.348365 window_seconds=1.030792
+[conn] 幀 #8160 887x1972 bytes=6996656
+[audio] pkt=86 smp=98080 supply=102% sr=48000 ch=2 under=49 over=0 primes=25 ptimeouts=0 depth=109ms rxpkt=86 rxbytes=196160 pkt_bytes={2228:62,2232:22,4460:2} window_end=1789038870.367557 window_seconds=1.019179
+[audio] pkt=86 smp=98082 supply=102% sr=48000 ch=2 under=49 over=0 primes=25 ptimeouts=0 depth=96ms rxpkt=86 rxbytes=196164 pkt_bytes={2228:59,2232:25,4456:2} window_end=1789038871.394162 window_seconds=1.026588
+[audio] pkt=83 smp=96966 supply=101% sr=48000 ch=2 under=49 over=0 primes=25 ptimeouts=0 depth=92ms rxpkt=83 rxbytes=193932 pkt_bytes={2228:56,2232:23,4456:3,4460:1} window_end=1789038872.410645 window_seconds=1.016466
+[audio-rpc] event=cancel round=24 epoch=1789038873.364056
+[audio-rpc] event=response-ended round=24 epoch=1789038873.364218
+[audio-rpc] event=closed round=24 epoch=1789038873.364262
+[audio] pkt=83 smp=92508 supply=96% sr=48000 ch=2 under=49 over=0 primes=25 ptimeouts=0 depth=43ms rxpkt=83 rxbytes=185016 pkt_bytes={2228:60,2232:23} window_end=1789038873.428376 window_seconds=1.017716
+[conn] 幀 #8280 887x1972 bytes=6996656
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=51 over=0 primes=25 ptimeouts=0 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789038874.428624 window_seconds=1.000233
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=51 over=0 primes=25 ptimeouts=0 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789038875.444200 window_seconds=1.015564
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=51 over=0 primes=25 ptimeouts=0 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789038876.467369 window_seconds=1.023151
+[conn] 幀 #8400 887x1972 bytes=6996656
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=51 over=0 primes=25 ptimeouts=0 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789038877.494283 window_seconds=1.026900
+[audio-rpc] event=open round=25 epoch=1789038878.350649
+[audio] 收到的格式：sr=48000 ch=stereo fmt=audFmtS16（請求的是 sr=48000 ch=2 fmt=audFmtS16）bytes=2228
+[audio] pkt=13 smp=14488 supply=15% sr=48000 ch=2 under=51 over=0 primes=26 ptimeouts=0 depth=97ms rxpkt=13 rxbytes=28976 pkt_bytes={2228:10,2232:3} window_end=1789038878.500950 window_seconds=1.006650
+[audio] pkt=85 smp=99196 supply=103% sr=48000 ch=2 under=51 over=0 primes=26 ptimeouts=0 depth=96ms rxpkt=85 rxbytes=198392 pkt_bytes={2228:60,2232:21,4460:4} window_end=1789038879.531110 window_seconds=1.030144
+[conn] 幀 #8520 887x1972 bytes=6996656
+[audio] pkt=87 smp=98080 supply=102% sr=48000 ch=2 under=51 over=0 primes=26 ptimeouts=0 depth=93ms rxpkt=87 rxbytes=196160 pkt_bytes={2228:63,2232:23,4460:1} window_end=1789038880.560391 window_seconds=1.029265
+[audio] pkt=83 smp=96968 supply=101% sr=48000 ch=2 under=51 over=0 primes=26 ptimeouts=0 depth=90ms rxpkt=83 rxbytes=193936 pkt_bytes={2228:57,2232:22,4456:1,4460:3} window_end=1789038881.579023 window_seconds=1.018617
+[audio] pkt=86 smp=99194 supply=103% sr=48000 ch=2 under=51 over=0 primes=26 ptimeouts=0 depth=89ms rxpkt=86 rxbytes=198388 pkt_bytes={2228:62,2232:21,4460:3} window_end=1789038882.610381 window_seconds=1.031342
+[conn] 幀 #8640 887x1972 bytes=6996656
+[audio] pkt=81 smp=98082 supply=102% sr=48000 ch=2 under=51 over=0 primes=26 ptimeouts=0 depth=86ms rxpkt=81 rxbytes=196164 pkt_bytes={2228:55,2232:19,4456:1,4460:6} window_end=1789038883.627115 window_seconds=1.016719
+[audio] pkt=88 smp=98082 supply=102% sr=48000 ch=2 under=51 over=0 primes=26 ptimeouts=0 depth=95ms rxpkt=88 rxbytes=196164 pkt_bytes={2228:63,2232:25} window_end=1789038884.643675 window_seconds=1.016547
+[audio] pkt=87 smp=96966 supply=101% sr=48000 ch=2 under=51 over=0 primes=26 ptimeouts=0 depth=92ms rxpkt=87 rxbytes=193932 pkt_bytes={2228:63,2232:24} window_end=1789038885.660819 window_seconds=1.017126
+[audio] pkt=85 smp=98080 supply=102% sr=48000 ch=2 under=51 over=0 primes=26 ptimeouts=0 depth=89ms rxpkt=85 rxbytes=196160 pkt_bytes={2228:59,2232:23,4456:2,4460:1} window_end=1789038886.680922 window_seconds=1.020088
+[conn] 幀 #8760 887x1972 bytes=6996656
+[audio] pkt=86 smp=98082 supply=102% sr=48000 ch=2 under=51 over=0 primes=26 ptimeouts=0 depth=98ms rxpkt=86 rxbytes=196164 pkt_bytes={2228:60,2232:24,4456:1,4460:1} window_end=1789038887.696790 window_seconds=1.015852
+[audio-rpc] event=cancel round=25 epoch=1789038888.369272
+[audio-rpc] event=response-ended round=25 epoch=1789038888.369463
+[audio-rpc] event=closed round=25 epoch=1789038888.369497
+[audio] pkt=54 smp=64644 supply=67% sr=48000 ch=2 under=53 over=0 primes=26 ptimeouts=0 depth=0ms rxpkt=54 rxbytes=129288 pkt_bytes={2228:36,2232:14,4456:2,4460:2} window_end=1789038888.726813 window_seconds=1.030008
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=53 over=0 primes=26 ptimeouts=0 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789038889.744048 window_seconds=1.017222
+[conn] 幀 #8880 887x1972 bytes=6996656
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=53 over=0 primes=26 ptimeouts=0 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789038890.761733 window_seconds=1.017667
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=53 over=0 primes=26 ptimeouts=0 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789038891.783666 window_seconds=1.021919
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=53 over=0 primes=26 ptimeouts=0 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789038892.812255 window_seconds=1.028572
+[audio-rpc] event=open round=26 epoch=1789038893.353675
+[audio] 收到的格式：sr=48000 ch=stereo fmt=audFmtS16（請求的是 sr=48000 ch=2 fmt=audFmtS16）bytes=2228
+[conn] 幀 #9000 887x1972 bytes=6996656
+[audio] pkt=39 smp=45696 supply=47% sr=48000 ch=2 under=53 over=0 primes=27 ptimeouts=0 depth=102ms rxpkt=39 rxbytes=91392 pkt_bytes={2228:26,2232:11,4456:2} window_end=1789038893.826745 window_seconds=1.014474
+[audio] pkt=86 smp=96966 supply=101% sr=48000 ch=2 under=53 over=0 primes=27 ptimeouts=0 depth=88ms rxpkt=86 rxbytes=193932 pkt_bytes={2228:62,2232:23,4460:1} window_end=1789038894.848991 window_seconds=1.022232
+[audio] pkt=84 smp=99196 supply=103% sr=48000 ch=2 under=53 over=0 primes=27 ptimeouts=0 depth=98ms rxpkt=84 rxbytes=198392 pkt_bytes={2228:57,2232:22,4456:2,4460:3} window_end=1789038895.876736 window_seconds=1.027729
+[audio] pkt=86 smp=99196 supply=103% sr=48000 ch=2 under=53 over=0 primes=27 ptimeouts=0 depth=107ms rxpkt=86 rxbytes=198392 pkt_bytes={2228:58,2232:25,4456:3} window_end=1789038896.899046 window_seconds=1.022295
+[conn] 幀 #9120 887x1972 bytes=6996656
+[audio] pkt=84 smp=96966 supply=101% sr=48000 ch=2 under=53 over=0 primes=27 ptimeouts=0 depth=93ms rxpkt=84 rxbytes=193932 pkt_bytes={2228:59,2232:22,4456:1,4460:2} window_end=1789038897.926819 window_seconds=1.027757
+[audio] pkt=85 smp=99196 supply=103% sr=48000 ch=2 under=53 over=0 primes=27 ptimeouts=0 depth=113ms rxpkt=85 rxbytes=198392 pkt_bytes={2228:59,2232:22,4456:1,4460:3} window_end=1789038898.943499 window_seconds=1.016664
+[audio] pkt=83 smp=94738 supply=98% sr=48000 ch=2 under=53 over=0 primes=27 ptimeouts=0 depth=97ms rxpkt=83 rxbytes=189476 pkt_bytes={2228:57,2232:24,4456:2} window_end=1789038899.944440 window_seconds=1.000926
+[audio] pkt=86 smp=96966 supply=101% sr=48000 ch=2 under=53 over=0 primes=27 ptimeouts=0 depth=94ms rxpkt=86 rxbytes=193932 pkt_bytes={2228:62,2232:23,4460:1} window_end=1789038900.950092 window_seconds=1.005637
+[conn] 幀 #9240 887x1972 bytes=6996656
+[audio] pkt=82 smp=98080 supply=102% sr=48000 ch=2 under=53 over=0 primes=27 ptimeouts=0 depth=102ms rxpkt=82 rxbytes=196160 pkt_bytes={2228:55,2232:21,4456:3,4460:3} window_end=1789038901.966725 window_seconds=1.016617
+[audio] pkt=81 smp=95852 supply=99% sr=48000 ch=2 under=53 over=0 primes=27 ptimeouts=0 depth=87ms rxpkt=81 rxbytes=191704 pkt_bytes={2228:55,2232:21,4456:2,4460:3} window_end=1789038902.976527 window_seconds=1.009787
+[audio-rpc] event=cancel round=26 epoch=1789038903.355690
+[audio-rpc] event=response-ended round=26 epoch=1789038903.356402
+[audio-rpc] event=closed round=26 epoch=1789038903.356513
+[audio] pkt=32 smp=37896 supply=39% sr=48000 ch=2 under=55 over=0 primes=27 ptimeouts=0 depth=0ms rxpkt=32 rxbytes=75792 pkt_bytes={2228:21,2232:9,4456:1,4460:1} window_end=1789038903.993209 window_seconds=1.016666
+[conn] 幀 #9360 887x1972 bytes=6996656
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=55 over=0 primes=27 ptimeouts=0 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789038905.009815 window_seconds=1.016591
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=55 over=0 primes=27 ptimeouts=0 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789038906.026573 window_seconds=1.016743
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=55 over=0 primes=27 ptimeouts=0 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789038907.029601 window_seconds=1.003014
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=55 over=0 primes=27 ptimeouts=0 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789038908.043126 window_seconds=1.013509
+[audio-rpc] event=open round=27 epoch=1789038908.362558
+[audio] 收到的格式：sr=48000 ch=stereo fmt=audFmtS16（請求的是 sr=48000 ch=2 fmt=audFmtS16）bytes=2228
+[conn] 幀 #9480 887x1972 bytes=6996656
+[audio] pkt=55 smp=65758 supply=68% sr=48000 ch=2 under=55 over=0 primes=28 ptimeouts=0 depth=98ms rxpkt=55 rxbytes=131516 pkt_bytes={2228:35,2232:16,4456:4} window_end=1789038909.046544 window_seconds=1.003403
+[audio] pkt=85 smp=98080 supply=102% sr=48000 ch=2 under=55 over=0 primes=28 ptimeouts=0 depth=106ms rxpkt=85 rxbytes=196160 pkt_bytes={2228:60,2232:22,4456:1,4460:2} window_end=1789038910.066556 window_seconds=1.019998
+[audio] pkt=86 smp=96968 supply=101% sr=48000 ch=2 under=55 over=0 primes=28 ptimeouts=0 depth=103ms rxpkt=86 rxbytes=193936 pkt_bytes={2228:61,2232:24,4460:1} window_end=1789038911.076291 window_seconds=1.009717
+[conn] 幀 #9600 887x1972 bytes=6996656
+[audio] pkt=84 smp=95852 supply=99% sr=48000 ch=2 under=55 over=0 primes=28 ptimeouts=0 depth=99ms rxpkt=84 rxbytes=191704 pkt_bytes={2228:60,2232:22,4460:2} window_end=1789038912.079855 window_seconds=1.003551
+[audio] pkt=81 smp=96966 supply=101% sr=48000 ch=2 under=55 over=0 primes=28 ptimeouts=0 depth=95ms rxpkt=81 rxbytes=193932 pkt_bytes={2228:55,2232:20,4456:2,4460:4} window_end=1789038913.092905 window_seconds=1.013033
+[audio] pkt=86 smp=98080 supply=102% sr=48000 ch=2 under=55 over=0 primes=28 ptimeouts=0 depth=104ms rxpkt=86 rxbytes=196160 pkt_bytes={2228:62,2232:22,4460:2} window_end=1789038914.109596 window_seconds=1.016676
+[audio] pkt=87 smp=98082 supply=102% sr=48000 ch=2 under=55 over=0 primes=28 ptimeouts=0 depth=101ms rxpkt=87 rxbytes=196164 pkt_bytes={2228:61,2232:25,4456:1} window_end=1789038915.133069 window_seconds=1.023459
+[conn] 幀 #9720 887x1972 bytes=6996656
+[audio] pkt=84 smp=96966 supply=101% sr=48000 ch=2 under=55 over=0 primes=28 ptimeouts=0 depth=98ms rxpkt=84 rxbytes=193932 pkt_bytes={2228:58,2232:23,4456:2,4460:1} window_end=1789038916.142853 window_seconds=1.009767
+[audio] pkt=84 smp=96968 supply=101% sr=48000 ch=2 under=55 over=0 primes=28 ptimeouts=0 depth=106ms rxpkt=84 rxbytes=193936 pkt_bytes={2228:57,2232:24,4456:2,4460:1} window_end=1789038917.149697 window_seconds=1.006829
+[audio] pkt=80 smp=98080 supply=102% sr=48000 ch=2 under=55 over=0 primes=28 ptimeouts=0 depth=93ms rxpkt=80 rxbytes=196160 pkt_bytes={2228:51,2232:21,4456:5,4460:3} window_end=1789038918.176237 window_seconds=1.026524
+[audio-rpc] event=cancel round=27 epoch=1789038918.362174
+[audio-rpc] event=response-ended round=27 epoch=1789038918.362465
+[audio-rpc] event=closed round=27 epoch=1789038918.362505
+[conn] 幀 #9840 887x1972 bytes=6996656
+[audio] pkt=14 smp=16718 supply=17% sr=48000 ch=2 under=57 over=0 primes=28 ptimeouts=0 depth=0ms rxpkt=14 rxbytes=33436 pkt_bytes={2228:10,2232:3,4460:1} window_end=1789038919.193589 window_seconds=1.017337
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=57 over=0 primes=28 ptimeouts=0 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789038920.214208 window_seconds=1.020603
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=57 over=0 primes=28 ptimeouts=0 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789038921.242837 window_seconds=1.028614
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=57 over=0 primes=28 ptimeouts=0 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789038922.264229 window_seconds=1.021376
+[conn] 幀 #9960 887x1972 bytes=6996656
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=57 over=0 primes=28 ptimeouts=0 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789038923.280786 window_seconds=1.016543
+[audio-rpc] event=open round=28 epoch=1789038923.382890
+[audio] 收到的格式：sr=48000 ch=stereo fmt=audFmtS16（請求的是 sr=48000 ch=2 fmt=audFmtS16）bytes=2228
+[audio] pkt=77 smp=85820 supply=89% sr=48000 ch=2 under=57 over=0 primes=29 ptimeouts=0 depth=83ms rxpkt=77 rxbytes=171640 pkt_bytes={2228:56,2232:21} window_end=1789038924.299538 window_seconds=1.018736
+[audio] pkt=89 smp=100310 supply=104% sr=48000 ch=2 under=57 over=0 primes=29 ptimeouts=0 depth=104ms rxpkt=89 rxbytes=200620 pkt_bytes={2228:64,2232:24,4460:1} window_end=1789038925.326243 window_seconds=1.026690
+[conn] 幀 #10080 887x1972 bytes=6996656
+[audio] pkt=82 smp=96966 supply=101% sr=48000 ch=2 under=57 over=0 primes=29 ptimeouts=0 depth=100ms rxpkt=82 rxbytes=193932 pkt_bytes={2228:55,2232:22,4456:3,4460:2} window_end=1789038926.342906 window_seconds=1.016647
+[audio] pkt=82 smp=96968 supply=101% sr=48000 ch=2 under=57 over=0 primes=29 ptimeouts=0 depth=108ms rxpkt=82 rxbytes=193936 pkt_bytes={2228:54,2232:23,4456:3,4460:2} window_end=1789038927.345091 window_seconds=1.002169
+[audio] pkt=84 smp=98080 supply=102% sr=48000 ch=2 under=57 over=0 primes=29 ptimeouts=0 depth=106ms rxpkt=84 rxbytes=196160 pkt_bytes={2228:60,2232:20,4460:4} window_end=1789038928.366110 window_seconds=1.021005
+[audio] pkt=87 smp=98082 supply=102% sr=48000 ch=2 under=57 over=0 primes=29 ptimeouts=0 depth=103ms rxpkt=87 rxbytes=196164 pkt_bytes={2228:61,2232:25,4456:1} window_end=1789038929.392549 window_seconds=1.026422
+[conn] 幀 #10200 887x1972 bytes=6996656
+[audio] pkt=86 smp=96966 supply=101% sr=48000 ch=2 under=57 over=0 primes=29 ptimeouts=0 depth=100ms rxpkt=86 rxbytes=193932 pkt_bytes={2228:61,2232:24,4456:1} window_end=1789038930.409271 window_seconds=1.016707
+[audio] pkt=86 smp=98080 supply=102% sr=48000 ch=2 under=57 over=0 primes=29 ptimeouts=0 depth=98ms rxpkt=86 rxbytes=196160 pkt_bytes={2228:62,2232:22,4460:2} window_end=1789038931.428190 window_seconds=1.018904
+[audio] pkt=86 smp=98082 supply=102% sr=48000 ch=2 under=57 over=0 primes=29 ptimeouts=0 depth=95ms rxpkt=86 rxbytes=196164 pkt_bytes={2228:60,2232:24,4456:1,4460:1} window_end=1789038932.448241 window_seconds=1.020035
+[conn] 幀 #10320 887x1972 bytes=6996656
+[audio-rpc] event=cancel round=28 epoch=1789038933.366003
+[audio-rpc] event=response-ended round=28 epoch=1789038933.366193
+[audio-rpc] event=closed round=28 epoch=1789038933.366249
+[audio] pkt=76 smp=88050 supply=91% sr=48000 ch=2 under=59 over=0 primes=29 ptimeouts=0 depth=0ms rxpkt=76 rxbytes=176100 pkt_bytes={2228:53,2232:20,4456:1,4460:2} window_end=1789038933.475786 window_seconds=1.027530
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=59 over=0 primes=29 ptimeouts=0 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789038934.492574 window_seconds=1.016773
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=59 over=0 primes=29 ptimeouts=0 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789038935.509174 window_seconds=1.016584
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=59 over=0 primes=29 ptimeouts=0 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789038936.525759 window_seconds=1.016570
+[conn] 幀 #10440 887x1972 bytes=6996656
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=59 over=0 primes=29 ptimeouts=0 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789038937.542715 window_seconds=1.016941
+[audio-rpc] event=open round=29 epoch=1789038938.381740
+[audio] 收到的格式：sr=48000 ch=stereo fmt=audFmtS16（請求的是 sr=48000 ch=2 fmt=audFmtS16）bytes=2228
+[audio] pkt=14 smp=16718 supply=17% sr=48000 ch=2 under=59 over=0 primes=30 ptimeouts=0 depth=78ms rxpkt=14 rxbytes=33436 pkt_bytes={2228:9,2232:4,4456:1} window_end=1789038938.575708 window_seconds=1.032978
+[audio] pkt=86 smp=99194 supply=103% sr=48000 ch=2 under=59 over=0 primes=30 ptimeouts=0 depth=98ms rxpkt=86 rxbytes=198388 pkt_bytes={2228:61,2232:22,4456:1,4460:2} window_end=1789038939.592360 window_seconds=1.016636
+[conn] 幀 #10560 887x1972 bytes=6996656
+[audio] pkt=85 smp=99196 supply=103% sr=48000 ch=2 under=59 over=0 primes=30 ptimeouts=0 depth=96ms rxpkt=85 rxbytes=198392 pkt_bytes={2228:56,2232:25,4456:4} window_end=1789038940.625873 window_seconds=1.033500
+[audio] pkt=86 smp=98082 supply=102% sr=48000 ch=2 under=59 over=0 primes=30 ptimeouts=0 depth=94ms rxpkt=86 rxbytes=196164 pkt_bytes={2228:59,2232:25,4456:2} window_end=1789038941.642266 window_seconds=1.016375
+[audio] pkt=86 smp=98080 supply=102% sr=48000 ch=2 under=59 over=0 primes=30 ptimeouts=0 depth=92ms rxpkt=86 rxbytes=196160 pkt_bytes={2228:61,2232:23,4456:1,4460:1} window_end=1789038942.675704 window_seconds=1.033422
+[audio] pkt=84 smp=96968 supply=101% sr=48000 ch=2 under=59 over=0 primes=30 ptimeouts=0 depth=78ms rxpkt=84 rxbytes=193936 pkt_bytes={2228:59,2232:22,4460:3} window_end=1789038943.692330 window_seconds=1.016611
+[conn] 幀 #10680 887x1972 bytes=6996656
+[audio] pkt=80 smp=99194 supply=103% sr=48000 ch=2 under=59 over=0 primes=30 ptimeouts=0 depth=76ms rxpkt=80 rxbytes=198388 pkt_bytes={2228:53,2232:18,4456:3,4460:6} window_end=1789038944.725656 window_seconds=1.033310
+[audio] pkt=84 smp=98082 supply=102% sr=48000 ch=2 under=59 over=0 primes=30 ptimeouts=0 depth=85ms rxpkt=84 rxbytes=196164 pkt_bytes={2228:56,2232:24,4456:3,4460:1} window_end=1789038945.742468 window_seconds=1.016797
+[audio] pkt=86 smp=98082 supply=102% sr=48000 ch=2 under=59 over=0 primes=30 ptimeouts=0 depth=93ms rxpkt=86 rxbytes=196164 pkt_bytes={2228:60,2232:24,4456:1,4460:1} window_end=1789038946.758861 window_seconds=1.016377
+[conn] 幀 #10800 887x1972 bytes=6996656
+[audio] pkt=87 smp=100310 supply=104% sr=48000 ch=2 under=59 over=0 primes=30 ptimeouts=0 depth=82ms rxpkt=87 rxbytes=200620 pkt_bytes={2228:60,2232:24,4456:2,4460:1} window_end=1789038947.808885 window_seconds=1.050009
+[audio-rpc] event=cancel round=29 epoch=1789038948.374488
+[audio-rpc] event=response-ended round=29 epoch=1789038948.374730
+[audio-rpc] event=closed round=29 epoch=1789038948.374795
+[audio] pkt=49 smp=54612 supply=56% sr=48000 ch=2 under=61 over=0 primes=30 ptimeouts=0 depth=0ms rxpkt=49 rxbytes=109224 pkt_bytes={2228:36,2232:13} window_end=1789038948.825373 window_seconds=1.016472
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=61 over=0 primes=30 ptimeouts=0 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789038949.859048 window_seconds=1.033659
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=61 over=0 primes=30 ptimeouts=0 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789038950.875392 window_seconds=1.016328
+[conn] 幀 #10920 887x1972 bytes=6996656
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=61 over=0 primes=30 ptimeouts=0 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789038951.892122 window_seconds=1.016715
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=61 over=0 primes=30 ptimeouts=0 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789038952.925765 window_seconds=1.033627
+[audio-rpc] event=open round=30 epoch=1789038953.354627
+[audio] 收到的格式：sr=48000 ch=stereo fmt=audFmtS16（請求的是 sr=48000 ch=2 fmt=audFmtS16）bytes=2228
+[audio] pkt=48 smp=56842 supply=59% sr=48000 ch=2 under=61 over=0 primes=31 ptimeouts=0 depth=90ms rxpkt=48 rxbytes=113684 pkt_bytes={2228:33,2232:12,4456:1,4460:2} window_end=1789038953.942569 window_seconds=1.016791
+[conn] 幀 #11040 887x1972 bytes=6996656
+[audio] pkt=87 smp=98080 supply=102% sr=48000 ch=2 under=61 over=0 primes=31 ptimeouts=0 depth=99ms rxpkt=87 rxbytes=196160 pkt_bytes={2228:62,2232:24,4456:1} window_end=1789038954.958836 window_seconds=1.016249
+[audio] pkt=86 smp=96966 supply=101% sr=48000 ch=2 under=61 over=0 primes=31 ptimeouts=0 depth=95ms rxpkt=86 rxbytes=193932 pkt_bytes={2228:61,2232:24,4456:1} window_end=1789038955.975417 window_seconds=1.016566
+[audio] pkt=86 smp=99196 supply=103% sr=48000 ch=2 under=61 over=0 primes=31 ptimeouts=0 depth=94ms rxpkt=86 rxbytes=198392 pkt_bytes={2228:59,2232:24,4456:2,4460:1} window_end=1789038957.008678 window_seconds=1.033246
+[audio] pkt=86 smp=99196 supply=103% sr=48000 ch=2 under=61 over=0 primes=31 ptimeouts=0 depth=103ms rxpkt=86 rxbytes=198392 pkt_bytes={2228:60,2232:23,4456:1,4460:2} window_end=1789038958.025817 window_seconds=1.017125
+[conn] 幀 #11160 887x1972 bytes=6996656
+[audio] pkt=82 smp=95852 supply=99% sr=48000 ch=2 under=61 over=0 primes=31 ptimeouts=0 depth=88ms rxpkt=82 rxbytes=191704 pkt_bytes={2228:56,2232:22,4456:2,4460:2} window_end=1789038959.041929 window_seconds=1.016095
+[audio] pkt=86 smp=98082 supply=102% sr=48000 ch=2 under=61 over=0 primes=31 ptimeouts=0 depth=97ms rxpkt=86 rxbytes=196164 pkt_bytes={2228:61,2232:23,4460:2} window_end=1789038960.058597 window_seconds=1.016653
+[audio] pkt=87 smp=100310 supply=104% sr=48000 ch=2 under=61 over=0 primes=31 ptimeouts=0 depth=107ms rxpkt=87 rxbytes=200620 pkt_bytes={2228:59,2232:25,4456:3} window_end=1789038961.092472 window_seconds=1.033861
+[conn] 幀 #11280 887x1972 bytes=6996656
+[audio] pkt=86 smp=96966 supply=101% sr=48000 ch=2 under=61 over=0 primes=31 ptimeouts=0 depth=104ms rxpkt=86 rxbytes=193932 pkt_bytes={2228:61,2232:24,4456:1} window_end=1789038962.108633 window_seconds=1.016144
+[audio] pkt=86 smp=98082 supply=102% sr=48000 ch=2 under=61 over=0 primes=31 ptimeouts=0 depth=101ms rxpkt=86 rxbytes=196164 pkt_bytes={2228:60,2232:24,4456:1,4460:1} window_end=1789038963.125500 window_seconds=1.016851
+[audio-rpc] event=cancel round=30 epoch=1789038963.378812
+[audio-rpc] event=response-ended round=30 epoch=1789038963.379069
+[audio-rpc] event=closed round=30 epoch=1789038963.379130
+[audio] pkt=21 smp=23404 supply=24% sr=48000 ch=2 under=63 over=0 primes=31 ptimeouts=0 depth=0ms rxpkt=21 rxbytes=46808 pkt_bytes={2228:16,2232:5} window_end=1789038964.158423 window_seconds=1.032907
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=63 over=0 primes=31 ptimeouts=0 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789038965.175206 window_seconds=1.016767
+[conn] 幀 #11400 887x1972 bytes=6996656
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=63 over=0 primes=31 ptimeouts=0 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789038966.191869 window_seconds=1.016648
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=63 over=0 primes=31 ptimeouts=0 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789038967.225137 window_seconds=1.033252
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=63 over=0 primes=31 ptimeouts=0 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789038968.241673 window_seconds=1.016521
+[audio-rpc] event=open round=31 epoch=1789038968.365273
+[audio] 收到的格式：sr=48000 ch=stereo fmt=audFmtS16（請求的是 sr=48000 ch=2 fmt=audFmtS16）bytes=2228
+[audio] pkt=78 smp=88048 supply=91% sr=48000 ch=2 under=63 over=0 primes=32 ptimeouts=0 depth=106ms rxpkt=78 rxbytes=176096 pkt_bytes={2228:56,2232:21,4456:1} window_end=1789038969.275230 window_seconds=1.033542
+[conn] 幀 #11520 887x1972 bytes=6996656
+[audio] pkt=85 smp=98082 supply=102% sr=48000 ch=2 under=63 over=0 primes=32 ptimeouts=0 depth=104ms rxpkt=85 rxbytes=196164 pkt_bytes={2228:58,2232:24,4456:2,4460:1} window_end=1789038970.291747 window_seconds=1.016501
+[audio] pkt=84 smp=98082 supply=102% sr=48000 ch=2 under=63 over=0 primes=32 ptimeouts=0 depth=101ms rxpkt=84 rxbytes=196164 pkt_bytes={2228:57,2232:23,4456:2,4460:2} window_end=1789038971.325222 window_seconds=1.033460
+[audio] pkt=86 smp=99194 supply=103% sr=48000 ch=2 under=63 over=0 primes=32 ptimeouts=0 depth=111ms rxpkt=86 rxbytes=198388 pkt_bytes={4:1,2228:59,2232:22,4456:3,4460:1} window_end=1789038972.341778 window_seconds=1.016541
+[audio] pkt=84 smp=98082 supply=102% sr=48000 ch=2 under=63 over=0 primes=32 ptimeouts=0 depth=98ms rxpkt=84 rxbytes=196164 pkt_bytes={2228:57,2232:23,4456:2,4460:2} window_end=1789038973.375049 window_seconds=1.033254
+[conn] 幀 #11640 887x1972 bytes=6996656
+[audio] pkt=85 smp=96966 supply=101% sr=48000 ch=2 under=63 over=0 primes=32 ptimeouts=0 depth=94ms rxpkt=85 rxbytes=193932 pkt_bytes={2228:60,2232:23,4456:1,4460:1} window_end=1789038974.391799 window_seconds=1.016736
+[audio] pkt=88 smp=99196 supply=103% sr=48000 ch=2 under=63 over=0 primes=32 ptimeouts=0 depth=114ms rxpkt=88 rxbytes=198392 pkt_bytes={2228:63,2232:24,4460:1} window_end=1789038975.408334 window_seconds=1.016519
+[audio] pkt=86 smp=98082 supply=102% sr=48000 ch=2 under=63 over=0 primes=32 ptimeouts=0 depth=101ms rxpkt=86 rxbytes=196164 pkt_bytes={2228:61,2232:23,4460:2} window_end=1789038976.435968 window_seconds=1.027619
+[audio] pkt=86 smp=95852 supply=99% sr=48000 ch=2 under=63 over=0 primes=32 ptimeouts=0 depth=97ms rxpkt=86 rxbytes=191704 pkt_bytes={2228:62,2232:24} window_end=1789038977.441757 window_seconds=1.005773
+[audio-rpc] event=cancel round=31 epoch=1789038978.398399
+[audio-rpc] event=response-ended round=31 epoch=1789038978.398643
+[audio-rpc] event=closed round=31 epoch=1789038978.398701
+[audio] pkt=78 smp=91392 supply=95% sr=48000 ch=2 under=63 over=0 primes=32 ptimeouts=0 depth=15ms rxpkt=78 rxbytes=182784 pkt_bytes={2228:55,2232:19,4456:1,4460:3} window_end=1789038978.475070 window_seconds=1.033297
+[conn] 幀 #11760 887x1972 bytes=6996656
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=65 over=0 primes=32 ptimeouts=0 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789038979.491871 window_seconds=1.016786
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=65 over=0 primes=32 ptimeouts=0 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789038980.508389 window_seconds=1.016502
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=65 over=0 primes=32 ptimeouts=0 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789038981.525035 window_seconds=1.016630
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=65 over=0 primes=32 ptimeouts=0 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789038982.541702 window_seconds=1.016651
+[audio-rpc] event=open round=32 epoch=1789038983.373310
+[audio] 收到的格式：sr=48000 ch=stereo fmt=audFmtS16（請求的是 sr=48000 ch=2 fmt=audFmtS16）bytes=2228
+[audio] pkt=16 smp=17832 supply=18% sr=48000 ch=2 under=65 over=0 primes=33 ptimeouts=0 depth=89ms rxpkt=16 rxbytes=35664 pkt_bytes={2228:12,2232:4} window_end=1789038983.574636 window_seconds=1.032919
+[audio] pkt=85 smp=96966 supply=101% sr=48000 ch=2 under=65 over=0 primes=33 ptimeouts=0 depth=86ms rxpkt=85 rxbytes=193932 pkt_bytes={2228:60,2232:23,4456:1,4460:1} window_end=1789038984.591344 window_seconds=1.016693
+[conn] 幀 #11880 887x1972 bytes=6996656
+[audio] pkt=86 smp=99196 supply=103% sr=48000 ch=2 under=65 over=0 primes=33 ptimeouts=0 depth=106ms rxpkt=86 rxbytes=198392 pkt_bytes={2228:60,2232:23,4456:1,4460:2} window_end=1789038985.607869 window_seconds=1.016510
+[audio] pkt=85 smp=95852 supply=99% sr=48000 ch=2 under=65 over=0 primes=33 ptimeouts=0 depth=80ms rxpkt=85 rxbytes=191704 pkt_bytes={2228:61,2232:23,4460:1} window_end=1789038986.624997 window_seconds=1.017111
+[audio] pkt=86 smp=99196 supply=103% sr=48000 ch=2 under=65 over=0 primes=33 ptimeouts=0 depth=100ms rxpkt=86 rxbytes=198392 pkt_bytes={2228:59,2232:24,4456:2,4460:1} window_end=1789038987.641715 window_seconds=1.016704
+[audio] pkt=87 smp=101424 supply=105% sr=48000 ch=2 under=65 over=0 primes=33 ptimeouts=0 depth=90ms rxpkt=87 rxbytes=202848 pkt_bytes={2228:60,2232:23,4456:2,4460:2} window_end=1789038988.708230 window_seconds=1.066499
+[audio] pkt=83 smp=96966 supply=101% sr=48000 ch=2 under=65 over=0 primes=33 ptimeouts=0 depth=66ms rxpkt=83 rxbytes=193932 pkt_bytes={2228:56,2232:23,4456:3,4460:1} window_end=1789038989.742036 window_seconds=1.033791
+[audio] pkt=80 smp=89166 supply=92% sr=48000 ch=2 under=69 over=0 primes=33 ptimeouts=0 depth=11ms rxpkt=80 rxbytes=178332 pkt_bytes={20:1,52:1,56:1,132:2,136:1,2148:1,2172:1,2176:7,2208:1,2228:40,2232:17,2388:1,4300:1,4456:2,4460:3} window_end=1789038990.758011 window_seconds=1.015960
+[audio] pkt=75 smp=90388 supply=94% sr=48000 ch=2 under=69 over=0 primes=34 ptimeouts=0 depth=25ms rxpkt=75 rxbytes=180776 pkt_bytes={136:4,276:1,304:1,604:1,924:1,928:2,1624:1,2176:1,2228:35,2232:15,3156:2,3884:1,4180:1,4456:2,4460:2,5760:5} window_end=1789038991.774582 window_seconds=1.016555
+[audio] pkt=78 smp=90170 supply=93% sr=48000 ch=2 under=71 over=0 primes=35 ptimeouts=0 depth=61ms rxpkt=78 rxbytes=180340 pkt_bytes={52:1,132:1,136:3,928:1,2120:2,2132:1,2172:3,2176:6,2228:36,2232:15,2328:1,4352:1,4456:3,4460:3,5760:1} window_end=1789038992.807824 window_seconds=1.033227
+[audio-rpc] event=cancel round=32 epoch=1789038993.381438
+[audio-rpc] event=response-ended round=32 epoch=1789038993.381852
+[audio-rpc] event=closed round=32 epoch=1789038993.381951
+[audio] pkt=45 smp=54614 supply=56% sr=48000 ch=2 under=73 over=0 primes=35 ptimeouts=0 depth=0ms rxpkt=45 rxbytes=109228 pkt_bytes={2228:29,2232:12,4456:2,4460:2} window_end=1789038993.858431 window_seconds=1.050590
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=73 over=0 primes=35 ptimeouts=0 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789038994.891411 window_seconds=1.032965
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=73 over=0 primes=35 ptimeouts=0 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789038995.907800 window_seconds=1.016373
+[conn] 幀 #12000 887x1972 bytes=6996656
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=73 over=0 primes=35 ptimeouts=0 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789038996.925009 window_seconds=1.017194
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=73 over=0 primes=35 ptimeouts=0 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789038997.941605 window_seconds=1.016581
+[audio-rpc] event=open round=33 epoch=1789038998.355913
+[audio] 收到的格式：sr=48000 ch=stereo fmt=audFmtS16（請求的是 sr=48000 ch=2 fmt=audFmtS16）bytes=2228
+[audio] pkt=49 smp=53606 supply=55% sr=48000 ch=2 under=73 over=0 primes=36 ptimeouts=0 depth=67ms rxpkt=49 rxbytes=107212 pkt_bytes={132:1,136:1,2176:1,2228:33,2232:12,4460:1} window_end=1789038998.957514 window_seconds=1.015893
+[audio] pkt=71 smp=80140 supply=83% sr=48000 ch=2 under=75 over=0 primes=37 ptimeouts=0 depth=88ms rxpkt=71 rxbytes=160280 pkt_bytes={52:1,132:1,136:1,292:1,2096:1,2120:1,2172:1,2176:4,2180:1,2228:37,2232:16,2252:1,4068:1,4168:1,4456:2,4848:1} window_end=1789038999.975133 window_seconds=1.017604
+[audio] pkt=83 smp=96966 supply=101% sr=48000 ch=2 under=75 over=0 primes=37 ptimeouts=0 depth=74ms rxpkt=83 rxbytes=193932 pkt_bytes={2228:57,2232:22,4456:2,4460:2} window_end=1789039000.991847 window_seconds=1.016699
+[audio] pkt=86 smp=93624 supply=97% sr=48000 ch=2 under=79 over=0 primes=37 ptimeouts=0 depth=27ms rxpkt=86 rxbytes=187248 pkt_bytes={52:1,104:1,132:1,188:1,2124:1,2172:2,2176:3,2180:2,2228:51,2232:21,4456:1,4460:1} window_end=1789039002.041418 window_seconds=1.049555
+[audio] pkt=83 smp=95852 supply=99% sr=48000 ch=2 under=81 over=0 primes=38 ptimeouts=0 depth=83ms rxpkt=83 rxbytes=191704 pkt_bytes={2228:57,2232:23,4456:2,4460:1} window_end=1789039003.058465 window_seconds=1.017032
+[audio] pkt=86 smp=101424 supply=105% sr=48000 ch=2 under=81 over=0 primes=38 ptimeouts=0 depth=105ms rxpkt=86 rxbytes=202848 pkt_bytes={2228:60,2232:21,4456:1,4460:4} window_end=1789039004.091783 window_seconds=1.033303
+[audio] pkt=86 smp=96966 supply=101% sr=48000 ch=2 under=81 over=0 primes=38 ptimeouts=0 depth=91ms rxpkt=86 rxbytes=193932 pkt_bytes={2228:61,2232:24,4456:1} window_end=1789039005.108543 window_seconds=1.016744
+[audio] pkt=86 smp=98082 supply=102% sr=48000 ch=2 under=81 over=0 primes=38 ptimeouts=0 depth=99ms rxpkt=86 rxbytes=196164 pkt_bytes={2228:59,2232:25,4456:2} window_end=1789039006.125392 window_seconds=1.016834
+[audio] pkt=80 smp=96966 supply=101% sr=48000 ch=2 under=81 over=0 primes=38 ptimeouts=0 depth=96ms rxpkt=80 rxbytes=193932 pkt_bytes={2228:54,2232:19,4456:2,4460:5} window_end=1789039007.141637 window_seconds=1.016230
+[audio] pkt=79 smp=92508 supply=96% sr=48000 ch=2 under=81 over=0 primes=38 ptimeouts=0 depth=36ms rxpkt=79 rxbytes=185016 pkt_bytes={52:1,132:1,136:1,2012:1,2176:2,2228:47,2232:19,4456:3,4460:4} window_end=1789039008.158128 window_seconds=1.016475
+[audio-rpc] event=cancel round=33 epoch=1789039008.359411
+[audio-rpc] event=response-ended round=33 epoch=1789039008.359691
+[audio-rpc] event=closed round=33 epoch=1789039008.359750
+[conn] 幀 #12120 887x1972 bytes=6996656
+[audio] pkt=17 smp=17968 supply=18% sr=48000 ch=2 under=83 over=0 primes=38 ptimeouts=0 depth=0ms rxpkt=17 rxbytes=35936 pkt_bytes={132:1,136:1,680:1,2228:8,2232:4,3776:1,4460:1} window_end=1789039009.174730 window_seconds=1.016586
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=83 over=0 primes=38 ptimeouts=0 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789039010.191606 window_seconds=1.016861
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=83 over=0 primes=38 ptimeouts=0 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789039011.208320 window_seconds=1.016699
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=83 over=0 primes=38 ptimeouts=0 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789039012.241248 window_seconds=1.032911
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=83 over=0 primes=38 ptimeouts=0 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789039013.291438 window_seconds=1.050175
+[audio-rpc] event=open round=34 epoch=1789039013.351942
+[audio] 收到的格式：sr=48000 ch=stereo fmt=audFmtS16（請求的是 sr=48000 ch=2 fmt=audFmtS16）bytes=2228
+[audio] pkt=78 smp=89164 supply=92% sr=48000 ch=2 under=83 over=0 primes=39 ptimeouts=0 depth=86ms rxpkt=78 rxbytes=178328 pkt_bytes={80:1,132:1,764:1,2172:1,2176:2,2180:1,2228:49,2232:17,3696:1,4456:1,4460:3} window_end=1789039014.307992 window_seconds=1.016539
+[audio] pkt=80 smp=96966 supply=101% sr=48000 ch=2 under=83 over=0 primes=39 ptimeouts=0 depth=61ms rxpkt=80 rxbytes=193932 pkt_bytes={52:1,928:1,2176:1,2228:50,2232:19,4456:3,4460:4,5760:1} window_end=1789039015.341471 window_seconds=1.033463
+[audio] pkt=84 smp=101424 supply=105% sr=48000 ch=2 under=83 over=0 primes=39 ptimeouts=0 depth=72ms rxpkt=84 rxbytes=202848 pkt_bytes={2228:55,2232:22,4456:4,4460:3} window_end=1789039016.391295 window_seconds=1.049807
+[audio] pkt=71 smp=78020 supply=81% sr=48000 ch=2 under=91 over=0 primes=41 ptimeouts=0 depth=85ms rxpkt=71 rxbytes=156040 pkt_bytes={52:2,56:1,136:3,184:1,688:1,2120:1,2172:3,2176:8,2180:1,2228:31,2232:12,3768:1,4456:1,4460:5} window_end=1789039017.407931 window_seconds=1.016621
+[audio] pkt=89 smp=100310 supply=104% sr=48000 ch=2 under=91 over=0 primes=41 ptimeouts=0 depth=85ms rxpkt=89 rxbytes=200620 pkt_bytes={2228:64,2232:24,4460:1} window_end=1789039018.458409 window_seconds=1.050463
+[audio] pkt=89 smp=99196 supply=103% sr=48000 ch=2 under=91 over=0 primes=41 ptimeouts=0 depth=84ms rxpkt=89 rxbytes=198392 pkt_bytes={2228:64,2232:25} window_end=1789039019.491615 window_seconds=1.033192
+[audio] pkt=81 smp=91394 supply=95% sr=48000 ch=2 under=95 over=0 primes=41 ptimeouts=0 depth=26ms rxpkt=81 rxbytes=182788 pkt_bytes={52:1,136:1,240:1,2172:2,2176:5,2180:1,2228:46,2232:20,4456:3,4460:1} window_end=1789039020.524755 window_seconds=1.033122
+[audio] pkt=86 smp=96966 supply=101% sr=48000 ch=2 under=98 over=0 primes=41 ptimeouts=0 depth=28ms rxpkt=86 rxbytes=193932 pkt_bytes={2228:61,2232:24,4456:1} window_end=1789039021.541293 window_seconds=1.016523
+[conn] 幀 #12240 887x1972 bytes=6996656
+[audio] pkt=85 smp=99196 supply=103% sr=48000 ch=2 under=99 over=0 primes=41 ptimeouts=0 depth=38ms rxpkt=85 rxbytes=198392 pkt_bytes={924:1,2228:57,2232:22,3004:1,3684:1,4460:2,5760:1} window_end=1789039022.558281 window_seconds=1.016972
+[audio-rpc] event=cancel round=34 epoch=1789039023.363301
+[audio-rpc] event=response-ended round=34 epoch=1789039023.363606
+[audio-rpc] event=closed round=34 epoch=1789039023.363667
+[audio] pkt=68 smp=75790 supply=78% sr=48000 ch=2 under=101 over=0 primes=41 ptimeouts=0 depth=0ms rxpkt=68 rxbytes=151580 pkt_bytes={2228:49,2232:19} window_end=1789039023.591266 window_seconds=1.032970
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=101 over=0 primes=41 ptimeouts=0 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789039024.609051 window_seconds=1.017770
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=101 over=0 primes=41 ptimeouts=0 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789039025.625210 window_seconds=1.016144
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=101 over=0 primes=41 ptimeouts=0 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789039026.657859 window_seconds=1.032634
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=101 over=0 primes=41 ptimeouts=0 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789039027.707906 window_seconds=1.050030
+[audio-rpc] event=open round=35 epoch=1789039028.366075
+[audio] 收到的格式：sr=48000 ch=stereo fmt=audFmtS16（請求的是 sr=48000 ch=2 fmt=audFmtS16）bytes=2228
+[audio] pkt=31 smp=34550 supply=35% sr=48000 ch=2 under=101 over=0 primes=42 ptimeouts=0 depth=61ms rxpkt=31 rxbytes=69100 pkt_bytes={2228:23,2232:8} window_end=1789039028.757795 window_seconds=1.049874
+[audio] pkt=74 smp=86936 supply=90% sr=48000 ch=2 under=109 over=0 primes=42 ptimeouts=0 depth=104ms rxpkt=74 rxbytes=173872 pkt_bytes={52:1,136:4,2064:1,2172:1,2176:4,2180:1,2228:41,2232:12,4348:1,4456:1,4460:7} window_end=1789039029.774402 window_seconds=1.016591
+[audio] pkt=84 smp=95852 supply=99% sr=48000 ch=2 under=109 over=0 primes=43 ptimeouts=0 depth=68ms rxpkt=84 rxbytes=191704 pkt_bytes={2228:60,2232:22,4460:2} window_end=1789039030.807840 window_seconds=1.033422
+[audio] pkt=88 smp=101424 supply=105% sr=48000 ch=2 under=109 over=0 primes=43 ptimeouts=0 depth=90ms rxpkt=88 rxbytes=202848 pkt_bytes={2228:61,2232:24,4456:2,4460:1} window_end=1789039031.841083 window_seconds=1.033227
+[audio] pkt=87 smp=95852 supply=99% sr=48000 ch=2 under=109 over=0 primes=43 ptimeouts=0 depth=43ms rxpkt=87 rxbytes=191704 pkt_bytes={56:1,132:2,136:2,1952:1,2172:1,2176:3,2180:2,2228:52,2232:19,4456:1,4460:3} window_end=1789039032.892367 window_seconds=1.051269
+[audio] pkt=84 smp=99196 supply=103% sr=48000 ch=2 under=110 over=0 primes=43 ptimeouts=0 depth=27ms rxpkt=84 rxbytes=198392 pkt_bytes={2228:56,2232:22,3164:1,3524:1,4456:2,4460:2} window_end=1789039033.941474 window_seconds=1.049091
+[audio] pkt=83 smp=98082 supply=102% sr=48000 ch=2 under=110 over=0 primes=43 ptimeouts=0 depth=14ms rxpkt=83 rxbytes=196164 pkt_bytes={2228:55,2232:23,4456:3,4460:2} window_end=1789039034.974578 window_seconds=1.033088
+[conn] 幀 #12360 887x1972 bytes=6996656
+[audio] pkt=84 smp=96966 supply=101% sr=48000 ch=2 under=110 over=0 primes=43 ptimeouts=0 depth=11ms rxpkt=84 rxbytes=193932 pkt_bytes={2228:57,2232:24,4456:3} window_end=1789039035.991233 window_seconds=1.016640
+[audio] pkt=83 smp=96966 supply=101% sr=48000 ch=2 under=110 over=0 primes=43 ptimeouts=0 depth=18ms rxpkt=83 rxbytes=193932 pkt_bytes={2228:56,2232:23,4456:3,4460:1} window_end=1789039036.992327 window_seconds=1.001079
+[audio] pkt=85 smp=99196 supply=103% sr=48000 ch=2 under=110 over=0 primes=43 ptimeouts=0 depth=38ms rxpkt=85 rxbytes=198392 pkt_bytes={2228:58,2232:23,4456:2,4460:2} window_end=1789039038.009067 window_seconds=1.016726
+[audio-rpc] event=cancel round=35 epoch=1789039038.357546
+[audio-rpc] event=response-ended round=35 epoch=1789039038.357826
+[audio-rpc] event=closed round=35 epoch=1789039038.357890
+[audio] pkt=23 smp=27838 supply=28% sr=48000 ch=2 under=114 over=0 primes=44 ptimeouts=0 depth=0ms rxpkt=23 rxbytes=55676 pkt_bytes={136:2,2012:1,2176:2,2228:10,2232:5,4456:1,5384:1,5760:1} window_end=1789039039.024649 window_seconds=1.015565
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=114 over=0 primes=44 ptimeouts=0 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789039040.057768 window_seconds=1.033103
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=114 over=0 primes=44 ptimeouts=0 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789039041.091190 window_seconds=1.033406
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=114 over=0 primes=44 ptimeouts=0 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789039042.124468 window_seconds=1.033262
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=114 over=0 primes=44 ptimeouts=0 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789039043.141286 window_seconds=1.016804
+[audio-rpc] event=open round=36 epoch=1789039043.353697
+[audio] 收到的格式：sr=48000 ch=stereo fmt=audFmtS16（請求的是 sr=48000 ch=2 fmt=audFmtS16）bytes=2228
+[audio] pkt=64 smp=74674 supply=77% sr=48000 ch=2 under=114 over=0 primes=45 ptimeouts=0 depth=84ms rxpkt=64 rxbytes=149348 pkt_bytes={2228:45,2232:16,4456:1,4460:2} window_end=1789039044.157946 window_seconds=1.016645
+[audio] pkt=89 smp=79018 supply=82% sr=48000 ch=2 under=117 over=0 primes=45 ptimeouts=0 depth=6ms rxpkt=89 rxbytes=158036 pkt_bytes={132:2,136:16,140:2,1508:1,2228:48,2232:19,4456:1} window_end=1789039045.176170 window_seconds=1.018208
+[audio] pkt=92 smp=6324 supply=6% sr=48000 ch=2 under=142 over=0 primes=49 ptimeouts=4 depth=1ms rxpkt=92 rxbytes=12648 pkt_bytes={132:9,136:73,140:9,272:1} window_end=1789039046.208146 window_seconds=1.031960
+[audio] pkt=94 smp=6596 supply=6% sr=48000 ch=2 under=162 over=0 primes=52 ptimeouts=7 depth=14ms rxpkt=94 rxbytes=13192 pkt_bytes={132:7,136:77,140:7,272:3} window_end=1789039047.241142 window_seconds=1.032980
+[audio] pkt=93 smp=6528 supply=6% sr=48000 ch=2 under=199 over=0 primes=56 ptimeouts=11 depth=0ms rxpkt=93 rxbytes=13056 pkt_bytes={8:1,24:1,52:1,76:1,112:1,128:1,132:7,136:63,140:8,144:1,164:1,192:1,216:1,248:1,264:1,272:3} window_end=1789039048.307422 window_seconds=1.066264
+[audio] pkt=86 smp=6324 supply=6% sr=48000 ch=2 under=214 over=0 primes=60 ptimeouts=15 depth=0ms rxpkt=86 rxbytes=12648 pkt_bytes={40:1,68:1,100:1,124:1,132:6,136:59,140:7,148:1,172:1,200:1,228:1,272:4,276:1,408:1} window_end=1789039049.324459 window_seconds=1.017022
+[conn] 幀 #12480 887x1972 bytes=6996656
+[audio] degraded reason=emulator-output-stalled pkt=86 supply=6%
+[audio] pkt=86 smp=5984 supply=6% sr=48000 ch=2 under=238 over=0 primes=63 ptimeouts=18 depth=7ms rxpkt=86 rxbytes=11968 pkt_bytes={32:1,88:1,104:1,116:1,132:8,136:59,140:9,156:1,164:1,184:1,240:1,272:2} window_end=1789039050.363083 window_seconds=1.038608
+[audio] pkt=91 smp=6324 supply=6% sr=48000 ch=2 under=251 over=0 primes=67 ptimeouts=22 depth=11ms rxpkt=91 rxbytes=12648 pkt_bytes={4:1,28:1,60:1,80:1,112:1,132:10,136:60,140:9,164:1,196:1,212:1,244:1,264:1,272:2} window_end=1789039051.375854 window_seconds=1.012755
+[audio] pkt=87 smp=6188 supply=6% sr=48000 ch=2 under=274 over=0 primes=71 ptimeouts=26 depth=7ms rxpkt=87 rxbytes=12376 pkt_bytes={4:2,64:1,76:1,104:1,128:1,132:7,136:55,140:10,168:1,196:1,204:1,268:2,272:4} window_end=1789039052.408769 window_seconds=1.032900
+[audio-rpc] event=cancel round=36 epoch=1789039053.355956
+[audio-rpc] event=response-ended round=36 epoch=1789039053.356267
+[audio-rpc] event=closed round=36 epoch=1789039053.356325
+[audio] pkt=81 smp=5780 supply=6% sr=48000 ch=2 under=300 over=0 primes=75 ptimeouts=30 depth=0ms rxpkt=81 rxbytes=11560 pkt_bytes={72:1,96:1,120:1,132:6,136:59,140:6,152:1,176:1,200:1,272:4} window_end=1789039053.424241 window_seconds=1.015456
+[audio] degraded-cleared reason=guest-audio-stopped pkt=0 supply=0%
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=300 over=0 primes=75 ptimeouts=30 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789039054.430495 window_seconds=1.006241
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=300 over=0 primes=75 ptimeouts=30 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789039055.475605 window_seconds=1.045095
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=300 over=0 primes=75 ptimeouts=30 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789039056.491220 window_seconds=1.015597
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=300 over=0 primes=75 ptimeouts=30 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789039057.507530 window_seconds=1.016295
+[audio-rpc] event=open round=37 epoch=1789039058.356885
+[audio] 收到的格式：sr=48000 ch=stereo fmt=audFmtS16（請求的是 sr=48000 ch=2 fmt=audFmtS16）bytes=132
+[audio] pkt=13 smp=950 supply=0% sr=48000 ch=2 under=300 over=0 primes=75 ptimeouts=30 depth=9ms rxpkt=13 rxbytes=1900 pkt_bytes={76:1,112:1,132:2,136:5,140:1,160:1,196:1,272:1} window_end=1789039058.524185 window_seconds=1.016640
+[audio] pkt=92 smp=6256 supply=6% sr=48000 ch=2 under=322 over=0 primes=79 ptimeouts=34 depth=7ms rxpkt=92 rxbytes=12512 pkt_bytes={28:1,32:1,52:1,56:1,84:2,104:1,108:1,132:7,136:57,140:12,164:2,184:1,192:1,212:1,216:1,236:1,240:1} window_end=1789039059.540671 window_seconds=1.016472
+[audio] pkt=89 smp=6324 supply=6% sr=48000 ch=2 under=346 over=0 primes=83 ptimeouts=38 depth=2ms rxpkt=89 rxbytes=12648 pkt_bytes={40:1,76:1,100:1,112:1,128:1,132:4,136:64,140:7,144:1,160:1,172:1,196:1,232:1,260:1,272:3} window_end=1789039060.557428 window_seconds=1.016741
+[audio] pkt=91 smp=6324 supply=6% sr=48000 ch=2 under=366 over=0 primes=87 ptimeouts=42 depth=4ms rxpkt=91 rxbytes=12648 pkt_bytes={12:1,16:1,24:1,64:1,124:1,132:9,136:61,140:9,148:1,212:1,252:2,256:1,272:2} window_end=1789039061.590500 window_seconds=1.033056
+[audio] degraded reason=emulator-output-stalled pkt=85 supply=6%
+[audio] pkt=85 smp=6120 supply=6% sr=48000 ch=2 under=393 over=0 primes=90 ptimeouts=45 depth=4ms rxpkt=85 rxbytes=12240 pkt_bytes={20:1,36:1,88:1,116:1,132:5,136:59,140:7,152:1,188:1,192:1,212:1,236:1,248:1,272:4} window_end=1789039062.607399 window_seconds=1.016883
+[conn] 幀 #12600 887x1972 bytes=6996656
+[audio] pkt=88 smp=5984 supply=6% sr=48000 ch=2 under=408 over=0 primes=94 ptimeouts=49 depth=7ms rxpkt=88 rxbytes=11968 pkt_bytes={20:1,28:1,56:1,80:1,88:1,108:2,132:6,136:63,140:5,160:1,164:1,188:1,192:1,220:1,244:1,252:1} window_end=1789039063.624094 window_seconds=1.016679
+[audio] pkt=91 smp=6324 supply=6% sr=48000 ch=2 under=430 over=0 primes=98 ptimeouts=53 depth=4ms rxpkt=91 rxbytes=12648 pkt_bytes={40:1,72:1,128:1,132:7,136:68,140:8,144:1,196:1,232:1,272:2} window_end=1789039064.640634 window_seconds=1.016525
+[audio] pkt=84 smp=6256 supply=6% sr=48000 ch=2 under=448 over=0 primes=102 ptimeouts=57 depth=4ms rxpkt=84 rxbytes=12512 pkt_bytes={16:2,92:1,120:1,132:10,136:46,140:11,144:1,148:1,184:2,220:1,256:2,264:1,272:4,408:1} window_end=1789039065.657774 window_seconds=1.017124
+[audio] pkt=89 smp=6256 supply=6% sr=48000 ch=2 under=463 over=0 primes=106 ptimeouts=61 depth=7ms rxpkt=89 rxbytes=12512 pkt_bytes={32:1,60:1,84:1,108:1,112:1,132:7,136:60,140:9,156:1,160:1,188:1,212:1,240:1,272:3} window_end=1789039066.674042 window_seconds=1.016253
+[audio] pkt=87 smp=6460 supply=6% sr=48000 ch=2 under=483 over=0 primes=110 ptimeouts=65 depth=9ms rxpkt=87 rxbytes=12920 pkt_bytes={4:1,48:1,56:1,60:1,72:1,76:1,108:1,132:5,136:54,140:8,160:1,196:1,204:1,208:1,220:1,264:1,272:5,352:1,408:1} window_end=1789039067.741985 window_seconds=1.067930
+[audio-rpc] event=cancel round=37 epoch=1789039068.363195
+[audio-rpc] event=response-ended round=37 epoch=1789039068.363810
+[audio-rpc] event=closed round=37 epoch=1789039068.363905
+[audio] pkt=49 smp=3672 supply=3% sr=48000 ch=2 under=498 over=0 primes=113 ptimeouts=68 depth=0ms rxpkt=49 rxbytes=7344 pkt_bytes={72:1,100:1,128:1,132:4,136:31,140:5,144:1,172:1,200:1,272:1,404:1,408:1} window_end=1789039068.790618 window_seconds=1.048616
+[audio] degraded-cleared reason=guest-audio-stopped pkt=0 supply=0%
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=498 over=0 primes=113 ptimeouts=68 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789039069.840545 window_seconds=1.049910
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=498 over=0 primes=113 ptimeouts=68 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789039070.874304 window_seconds=1.033744
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=498 over=0 primes=113 ptimeouts=68 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789039071.890578 window_seconds=1.016259
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=498 over=0 primes=113 ptimeouts=68 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789039072.907761 window_seconds=1.017168
+[audio-rpc] event=open round=38 epoch=1789039073.389259
+[audio] 收到的格式：sr=48000 ch=stereo fmt=audFmtS16（請求的是 sr=48000 ch=2 fmt=audFmtS16）bytes=68
+[audio] pkt=45 smp=3124 supply=3% sr=48000 ch=2 under=506 over=0 primes=115 ptimeouts=70 depth=0ms rxpkt=45 rxbytes=6248 pkt_bytes={20:1,68:1,120:1,132:3,136:31,140:3,148:1,152:1,200:1,252:1,256:1} window_end=1789039073.923771 window_seconds=1.015995
+[audio] pkt=82 smp=6054 supply=6% sr=48000 ch=2 under=528 over=0 primes=118 ptimeouts=73 depth=9ms rxpkt=82 rxbytes=12108 pkt_bytes={108:1,132:5,136:60,140:9,160:1,268:1,272:4,404:1} window_end=1789039074.940550 window_seconds=1.016763
+[conn] 幀 #12720 887x1972 bytes=6996656
+[audio] pkt=81 smp=5848 supply=6% sr=48000 ch=2 under=540 over=0 primes=122 ptimeouts=77 depth=8ms rxpkt=81 rxbytes=11696 pkt_bytes={4:1,20:1,108:1,132:10,136:52,140:9,168:1,256:1,268:1,272:3,404:1} window_end=1789039075.957461 window_seconds=1.016895
+[audio] pkt=92 smp=6392 supply=6% sr=48000 ch=2 under=560 over=0 primes=126 ptimeouts=81 depth=7ms rxpkt=92 rxbytes=12784 pkt_bytes={44:1,96:2,120:1,124:1,132:11,136:59,140:10,148:1,152:1,172:1,180:1,232:1,272:2} window_end=1789039076.991116 window_seconds=1.033640
+[audio] degraded reason=emulator-output-stalled pkt=87 supply=6%
+[audio] pkt=87 smp=6188 supply=6% sr=48000 ch=2 under=576 over=0 primes=130 ptimeouts=85 depth=8ms rxpkt=87 rxbytes=12376 pkt_bytes={8:1,16:1,32:1,88:1,112:1,132:7,136:57,140:10,156:1,180:1,252:1,264:1,272:3,376:1} window_end=1789039078.007475 window_seconds=1.016343
+[audio] pkt=86 smp=6256 supply=6% sr=48000 ch=2 under=597 over=0 primes=134 ptimeouts=89 depth=5ms rxpkt=86 rxbytes=12512 pkt_bytes={60:1,76:1,104:1,116:1,132:8,136:56,140:8,160:1,164:1,196:1,216:1,268:1,272:5} window_end=1789039079.024242 window_seconds=1.016753
+[audio] pkt=85 smp=6256 supply=6% sr=48000 ch=2 under=615 over=0 primes=138 ptimeouts=93 depth=4ms rxpkt=85 rxbytes=12512 pkt_bytes={40:1,48:1,76:1,100:1,128:1,132:10,136:49,140:10,144:1,168:1,192:1,228:1,236:1,268:1,272:3,276:1,408:1} window_end=1789039080.057395 window_seconds=1.033138
+[audio] pkt=89 smp=6246 supply=6% sr=48000 ch=2 under=638 over=0 primes=142 ptimeouts=97 depth=0ms rxpkt=89 rxbytes=12492 pkt_bytes={16:1,52:1,64:1,76:1,116:1,124:2,132:7,136:61,140:7,148:1,196:1,208:1,232:1,256:1,272:1,408:1} window_end=1789039081.091087 window_seconds=1.033677
+[audio] pkt=86 smp=6062 supply=6% sr=48000 ch=2 under=656 over=0 primes=146 ptimeouts=101 depth=1ms rxpkt=86 rxbytes=12124 pkt_bytes={36:1,48:1,52:1,84:1,88:1,112:1,132:9,136:52,140:9,156:1,164:1,184:2,220:1,224:1,240:1,268:1,272:2} window_end=1789039082.107317 window_seconds=1.016214
+[audio] pkt=88 smp=6188 supply=6% sr=48000 ch=2 under=677 over=0 primes=150 ptimeouts=105 depth=0ms rxpkt=88 rxbytes=12376 pkt_bytes={28:1,52:1,84:1,132:7,136:64,140:8,184:1,220:1,244:1,272:3} window_end=1789039083.140336 window_seconds=1.033003
+[audio-rpc] event=cancel round=38 epoch=1789039083.364432
+[audio-rpc] event=response-ended round=38 epoch=1789039083.364740
+[audio-rpc] event=closed round=38 epoch=1789039083.364808
+[audio] pkt=20 smp=1428 supply=1% sr=48000 ch=2 under=682 over=0 primes=151 ptimeouts=106 depth=0ms rxpkt=20 rxbytes=2856 pkt_bytes={132:3,136:12,140:3,196:1,212:1} window_end=1789039084.173806 window_seconds=1.033454
+[audio] degraded-cleared reason=guest-audio-stopped pkt=0 supply=0%
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=682 over=0 primes=151 ptimeouts=106 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789039085.190673 window_seconds=1.016852
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=682 over=0 primes=151 ptimeouts=106 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789039086.206952 window_seconds=1.016263
+[conn] 幀 #12840 887x1972 bytes=6996656
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=682 over=0 primes=151 ptimeouts=106 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789039087.223820 window_seconds=1.016853
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=682 over=0 primes=151 ptimeouts=106 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789039088.240974 window_seconds=1.017138
+[audio-rpc] event=open round=39 epoch=1789039088.374087
+[audio] 收到的格式：sr=48000 ch=stereo fmt=audFmtS16（請求的是 sr=48000 ch=2 fmt=audFmtS16）bytes=132
+[audio] pkt=76 smp=5370 supply=5% sr=48000 ch=2 under=698 over=0 primes=154 ptimeouts=109 depth=7ms rxpkt=76 rxbytes=10740 pkt_bytes={8:1,36:1,64:1,72:1,100:1,120:1,132:4,136:52,140:6,152:1,180:1,200:1,204:1,224:1,236:1,304:1,400:1} window_end=1789039089.273699 window_seconds=1.032711
+[audio] pkt=86 smp=6120 supply=6% sr=48000 ch=2 under=720 over=0 primes=158 ptimeouts=113 depth=4ms rxpkt=86 rxbytes=12240 pkt_bytes={56:1,60:1,76:2,84:1,132:4,136:61,140:6,160:1,164:1,184:1,192:1,212:1,216:1,244:1,272:1,276:1,304:1} window_end=1789039090.308560 window_seconds=1.034844
+[audio] pkt=89 smp=6256 supply=6% sr=48000 ch=2 under=733 over=0 primes=162 ptimeouts=117 depth=9ms rxpkt=89 rxbytes=12512 pkt_bytes={48:1,56:1,60:1,76:1,128:1,132:4,136:65,140:7,144:1,192:1,208:1,212:1,224:1,272:3} window_end=1789039091.323789 window_seconds=1.015214
+[audio] pkt=89 smp=6324 supply=6% sr=48000 ch=2 under=759 over=0 primes=166 ptimeouts=121 depth=4ms rxpkt=89 rxbytes=12648 pkt_bytes={40:1,68:1,72:1,96:1,100:1,128:1,132:6,136:61,140:7,144:1,172:1,180:1,200:1,204:1,228:1,268:1,276:1,404:1} window_end=1789039092.340366 window_seconds=1.016562
+[audio] degraded reason=emulator-output-stalled pkt=87 supply=6%
+[audio] pkt=87 smp=6188 supply=6% sr=48000 ch=2 under=774 over=0 primes=170 ptimeouts=125 depth=3ms rxpkt=87 rxbytes=12376 pkt_bytes={36:1,64:1,88:1,104:1,132:5,136:64,140:6,164:1,188:1,204:1,236:1,272:4} window_end=1789039093.390441 window_seconds=1.050059
+[audio] pkt=83 smp=5984 supply=6% sr=48000 ch=2 under=793 over=0 primes=174 ptimeouts=129 depth=3ms rxpkt=83 rxbytes=11968 pkt_bytes={20:1,28:2,32:1,56:1,108:2,112:1,132:8,136:44,140:10,160:2,164:1,212:1,240:2,244:1,248:1,272:3,276:2} window_end=1789039094.407025 window_seconds=1.016570
+[audio] pkt=90 smp=6190 supply=6% sr=48000 ch=2 under=813 over=0 primes=178 ptimeouts=133 depth=0ms rxpkt=90 rxbytes=12380 pkt_bytes={8:1,32:1,52:1,64:1,76:1,104:1,128:1,132:8,136:58,140:9,168:1,172:1,196:1,212:1,216:1,236:1,240:1,272:1} window_end=1789039095.423542 window_seconds=1.016501
+[audio] pkt=90 smp=6254 supply=6% sr=48000 ch=2 under=838 over=0 primes=181 ptimeouts=136 depth=8ms rxpkt=90 rxbytes=12508 pkt_bytes={12:1,16:1,40:1,68:1,72:1,120:1,132:7,136:62,140:7,152:1,200:1,204:1,236:1,256:1,260:1,264:1,272:1} window_end=1789039096.440279 window_seconds=1.016722
+[audio] pkt=89 smp=6258 supply=6% sr=48000 ch=2 under=858 over=0 primes=185 ptimeouts=140 depth=7ms rxpkt=89 rxbytes=12516 pkt_bytes={8:1,32:1,60:1,88:1,104:1,116:1,132:5,136:61,140:8,160:1,164:1,184:1,212:1,236:1,264:1,268:1,272:2} window_end=1789039097.456895 window_seconds=1.016600
+[audio-rpc] event=cancel round=39 epoch=1789039098.408769
+[audio-rpc] event=response-ended round=39 epoch=1789039098.409031
+[audio-rpc] event=closed round=39 epoch=1789039098.409089
+[audio] pkt=83 smp=5778 supply=6% sr=48000 ch=2 under=875 over=0 primes=189 ptimeouts=144 depth=2ms rxpkt=83 rxbytes=11556 pkt_bytes={32:1,56:1,80:1,108:1,132:5,136:63,140:5,164:1,196:1,212:1,236:1,272:2} window_end=1789039098.474412 window_seconds=1.017504
+[conn] 幀 #12960 887x1972 bytes=6996656
+[audio] degraded-cleared reason=guest-audio-stopped pkt=0 supply=0%
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=877 over=0 primes=190 ptimeouts=145 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789039099.490240 window_seconds=1.015811
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=877 over=0 primes=190 ptimeouts=145 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789039100.540266 window_seconds=1.050010
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=877 over=0 primes=190 ptimeouts=145 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789039101.556971 window_seconds=1.016692
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=877 over=0 primes=190 ptimeouts=145 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789039102.573488 window_seconds=1.016499
+[audio-rpc] event=open round=40 epoch=1789039103.370362
+[audio] 收到的格式：sr=48000 ch=stereo fmt=audFmtS16（請求的是 sr=48000 ch=2 fmt=audFmtS16）bytes=132
+[audio] pkt=17 smp=1222 supply=1% sr=48000 ch=2 under=877 over=0 primes=190 ptimeouts=145 depth=12ms rxpkt=17 rxbytes=2444 pkt_bytes={64:1,72:1,132:5,136:5,140:2,204:1,208:1,276:1} window_end=1789039103.590281 window_seconds=1.016778
+[audio] pkt=94 smp=6462 supply=6% sr=48000 ch=2 under=896 over=0 primes=195 ptimeouts=150 depth=0ms rxpkt=94 rxbytes=12924 pkt_bytes={12:1,40:1,64:1,96:1,116:1,124:1,132:17,136:44,140:20,148:1,152:1,180:1,204:1,232:1,256:1,272:1} window_end=1789039104.640297 window_seconds=1.050000
+[audio] pkt=93 smp=6528 supply=6% sr=48000 ch=2 under=919 over=0 primes=198 ptimeouts=153 depth=12ms rxpkt=93 rxbytes=13056 pkt_bytes={4:2,36:1,104:1,112:1,132:20,136:42,140:19,164:1,236:1,264:1,272:3,304:1} window_end=1789039105.690313 window_seconds=1.050000
+[audio] pkt=88 smp=6186 supply=6% sr=48000 ch=2 under=942 over=0 primes=202 ptimeouts=157 depth=8ms rxpkt=88 rxbytes=12372 pkt_bytes={4:1,20:1,52:1,76:1,88:1,104:1,132:13,136:44,140:16,164:1,184:1,192:1,216:1,248:1,268:1,272:3} window_end=1789039106.706737 window_seconds=1.016409
+[audio] degraded reason=emulator-output-stalled pkt=85 supply=6%
+[audio] pkt=85 smp=6052 supply=6% sr=48000 ch=2 under=969 over=0 primes=206 ptimeouts=161 depth=0ms rxpkt=85 rxbytes=12104 pkt_bytes={16:1,64:1,68:2,72:1,92:1,132:16,136:39,140:15,200:2,208:2,256:1,272:2,276:1,316:1} window_end=1789039107.723611 window_seconds=1.016859
+[audio] pkt=92 smp=6460 supply=6% sr=48000 ch=2 under=990 over=0 primes=209 ptimeouts=164 depth=13ms rxpkt=92 rxbytes=12920 pkt_bytes={40:1,60:1,116:1,120:1,132:21,136:41,140:19,148:1,160:1,216:1,232:1,272:2,276:1} window_end=1789039108.757122 window_seconds=1.033495
+[audio] pkt=90 smp=6188 supply=6% sr=48000 ch=2 under=1006 over=0 primes=213 ptimeouts=168 depth=14ms rxpkt=90 rxbytes=12376 pkt_bytes={4:1,24:1,32:1,80:1,108:1,132:16,136:44,140:19,160:1,188:1,240:1,244:1,264:1,276:1} window_end=1789039109.758316 window_seconds=1.001179
+[conn] 幀 #13080 887x1972 bytes=6996656
+[audio] pkt=93 smp=6460 supply=6% sr=48000 ch=2 under=1027 over=0 primes=217 ptimeouts=172 depth=13ms rxpkt=93 rxbytes=12920 pkt_bytes={4:1,20:1,44:1,80:1,96:1,132:22,136:39,140:19,144:1,176:1,196:1,228:1,256:1,268:2,272:1} window_end=1789039110.807101 window_seconds=1.048769
+[audio] pkt=92 smp=6324 supply=6% sr=48000 ch=2 under=1044 over=0 primes=222 ptimeouts=177 depth=0ms rxpkt=92 rxbytes=12648 pkt_bytes={8:1,12:1,96:1,124:1,132:17,136:45,140:21,144:1,172:1,260:2,268:1} window_end=1789039111.840347 window_seconds=1.033230
+[audio] pkt=89 smp=6256 supply=6% sr=48000 ch=2 under=1057 over=0 primes=226 ptimeouts=181 depth=0ms rxpkt=89 rxbytes=12512 pkt_bytes={20:1,56:1,112:1,120:1,132:18,136:40,140:19,148:1,156:1,160:1,212:1,236:1,268:1,272:1,276:1} window_end=1789039112.857226 window_seconds=1.016863
+[audio-rpc] event=cancel round=40 epoch=1789039113.361240
+[audio-rpc] event=response-ended round=40 epoch=1789039113.361560
+[audio-rpc] event=closed round=40 epoch=1789039113.361630
+[audio] pkt=42 smp=2924 supply=3% sr=48000 ch=2 under=1071 over=0 primes=228 ptimeouts=183 depth=0ms rxpkt=42 rxbytes=5848 pkt_bytes={28:1,132:8,136:21,140:10,240:1,268:1} window_end=1789039113.890318 window_seconds=1.033076
+[audio] degraded-cleared reason=guest-audio-stopped pkt=0 supply=0%
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=1071 over=0 primes=228 ptimeouts=183 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789039114.907259 window_seconds=1.016926
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=1071 over=0 primes=228 ptimeouts=183 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789039115.956907 window_seconds=1.049632
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=1071 over=0 primes=228 ptimeouts=183 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789039116.990479 window_seconds=1.033556
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=1071 over=0 primes=228 ptimeouts=183 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789039118.040227 window_seconds=1.049732
+[audio-rpc] event=complete round=40 epoch=1789039118.372058
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=1071 over=0 primes=228 ptimeouts=183 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789039119.057097 window_seconds=1.016855
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=1071 over=0 primes=228 ptimeouts=183 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789039120.089983 window_seconds=1.032871
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=1071 over=0 primes=228 ptimeouts=183 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789039121.140434 window_seconds=1.050435
+[conn] 幀 #13200 887x1972 bytes=6996656
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=1071 over=0 primes=228 ptimeouts=183 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789039122.173365 window_seconds=1.032915
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=1071 over=0 primes=228 ptimeouts=183 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789039123.190025 window_seconds=1.016645
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=1071 over=0 primes=228 ptimeouts=183 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789039124.239963 window_seconds=1.049921
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=1071 over=0 primes=228 ptimeouts=183 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789039125.256779 window_seconds=1.016801
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=1071 over=0 primes=228 ptimeouts=183 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789039126.273584 window_seconds=1.016792
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=1071 over=0 primes=228 ptimeouts=183 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789039127.290454 window_seconds=1.016853
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=1071 over=0 primes=228 ptimeouts=183 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789039128.323393 window_seconds=1.032923
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=1071 over=0 primes=228 ptimeouts=183 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789039129.339927 window_seconds=1.016519
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=1071 over=0 primes=228 ptimeouts=183 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789039130.356770 window_seconds=1.016827
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=1071 over=0 primes=228 ptimeouts=183 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789039131.373222 window_seconds=1.016437
+[conn] 幀 #13320 887x1972 bytes=6996656
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=1071 over=0 primes=228 ptimeouts=183 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789039132.423548 window_seconds=1.050311
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=1071 over=0 primes=228 ptimeouts=183 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789039133.456814 window_seconds=1.033250
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=1071 over=0 primes=228 ptimeouts=183 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789039134.473582 window_seconds=1.016752
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=1071 over=0 primes=228 ptimeouts=183 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789039135.490470 window_seconds=1.016873
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=1071 over=0 primes=228 ptimeouts=183 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789039136.506559 window_seconds=1.016074
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=1071 over=0 primes=228 ptimeouts=183 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789039137.523464 window_seconds=1.016889
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=1071 over=0 primes=228 ptimeouts=183 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789039138.539923 window_seconds=1.016445
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=1071 over=0 primes=228 ptimeouts=183 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789039139.557035 window_seconds=1.017096
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=1071 over=0 primes=228 ptimeouts=183 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789039140.573479 window_seconds=1.016429
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=1071 over=0 primes=228 ptimeouts=183 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789039141.590223 window_seconds=1.016729
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=1071 over=0 primes=228 ptimeouts=183 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789039142.606483 window_seconds=1.016243
+[conn] 幀 #13440 887x1972 bytes=6996656
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=1071 over=0 primes=228 ptimeouts=183 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789039143.622987 window_seconds=1.016489
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=1071 over=0 primes=228 ptimeouts=183 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789039144.640187 window_seconds=1.017185
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=1071 over=0 primes=228 ptimeouts=183 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789039145.657073 window_seconds=1.016871
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=1071 over=0 primes=228 ptimeouts=183 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789039146.689800 window_seconds=1.032713
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=1071 over=0 primes=228 ptimeouts=183 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789039147.707199 window_seconds=1.017382
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=1071 over=0 primes=228 ptimeouts=183 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789039148.724722 window_seconds=1.017507
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=1071 over=0 primes=228 ptimeouts=183 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789039149.773183 window_seconds=1.048448
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=1071 over=0 primes=228 ptimeouts=183 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789039150.790245 window_seconds=1.017045
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=1071 over=0 primes=228 ptimeouts=183 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789039151.806348 window_seconds=1.016087
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=1071 over=0 primes=228 ptimeouts=183 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789039152.822906 window_seconds=1.016543
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=1071 over=0 primes=228 ptimeouts=183 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789039153.844826 window_seconds=1.021906
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=1071 over=0 primes=228 ptimeouts=183 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789039154.873008 window_seconds=1.028164
+[conn] 幀 #13560 887x1972 bytes=6996656
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=1071 over=0 primes=228 ptimeouts=183 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789039155.906413 window_seconds=1.033389
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=1071 over=0 primes=228 ptimeouts=183 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789039156.907465 window_seconds=1.001037
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=1071 over=0 primes=228 ptimeouts=183 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789039157.909275 window_seconds=1.001796
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=1071 over=0 primes=228 ptimeouts=183 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789039158.941276 window_seconds=1.031984
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=1071 over=0 primes=228 ptimeouts=183 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789039159.956679 window_seconds=1.015388
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=1071 over=0 primes=228 ptimeouts=183 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789039160.973545 window_seconds=1.016850
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=1071 over=0 primes=228 ptimeouts=183 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789039162.010870 window_seconds=1.037310
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=1071 over=0 primes=228 ptimeouts=183 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789039163.022924 window_seconds=1.012039
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=1071 over=0 primes=228 ptimeouts=183 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789039164.056898 window_seconds=1.033959
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=1071 over=0 primes=228 ptimeouts=183 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789039165.076459 window_seconds=1.019545
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=1071 over=0 primes=228 ptimeouts=183 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789039166.108089 window_seconds=1.031614
+[conn] 幀 #13680 887x1972 bytes=6996656
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=1071 over=0 primes=228 ptimeouts=183 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789039167.139894 window_seconds=1.031790
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=1071 over=0 primes=228 ptimeouts=183 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789039168.156324 window_seconds=1.016415
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=1071 over=0 primes=228 ptimeouts=183 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789039169.189608 window_seconds=1.033268
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=1071 over=0 primes=228 ptimeouts=183 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789039170.206270 window_seconds=1.016647
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=1071 over=0 primes=228 ptimeouts=183 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789039171.239931 window_seconds=1.033645
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=1071 over=0 primes=228 ptimeouts=183 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789039172.256654 window_seconds=1.016708
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=1071 over=0 primes=228 ptimeouts=183 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789039173.291311 window_seconds=1.034642
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=1071 over=0 primes=228 ptimeouts=183 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789039174.323409 window_seconds=1.032082
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=1071 over=0 primes=228 ptimeouts=183 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789039175.356771 window_seconds=1.033346
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=1071 over=0 primes=228 ptimeouts=183 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789039176.389480 window_seconds=1.032696
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=1071 over=0 primes=228 ptimeouts=183 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789039177.422826 window_seconds=1.033329
+[conn] 幀 #13800 887x1972 bytes=6996656
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=1071 over=0 primes=228 ptimeouts=183 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789039178.439477 window_seconds=1.016635
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=1071 over=0 primes=228 ptimeouts=183 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789039179.473551 window_seconds=1.034059
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=1071 over=0 primes=228 ptimeouts=183 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789039180.489468 window_seconds=1.015901
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=1071 over=0 primes=228 ptimeouts=183 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789039181.522936 window_seconds=1.033452
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=1071 over=0 primes=228 ptimeouts=183 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789039182.556097 window_seconds=1.033146
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=1071 over=0 primes=228 ptimeouts=183 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789039183.589885 window_seconds=1.033772
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=1071 over=0 primes=228 ptimeouts=183 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={} window_end=1789039184.622880 window_seconds=1.032980

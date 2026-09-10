@@ -86,7 +86,15 @@ public actor EmulatorClient {
                 makeHealthProbe: @escaping @Sendable (GrpcChannelBox) -> HealthProbe
                     = { GrpcHealthProbe(channel: $0) },
                 makeAudioTransport: @escaping @Sendable (GrpcChannelBox) -> AudioTransport
-                    = { GrpcAudioTransport(channel: $0) },
+                    = { channel in
+                        let base = GrpcAudioTransport(channel: channel)
+                        let env = ProcessInfo.processInfo.environment
+                        if env["MIRAGE_AUDIO_REOPEN"] == "1" {
+                            return AudioReopenTransport(base: base,
+                                startEpoch: env["MIRAGE_AUDIO_REOPEN_START_EPOCH"].flatMap(Double.init))
+                        }
+                        return base
+                    },
                 makeMmapTransport: @escaping @Sendable (GrpcChannelBox) -> DisplayTransport
                     = { MmapStreamTransport(channel: $0) },
                 backoff: BackoffPolicy = .init(),

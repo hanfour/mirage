@@ -1,0 +1,3491 @@
+{
+  "audio_windows": 652,
+  "valid_windows": 309,
+  "guard_queries": 601,
+  "invalid_guards": 0,
+  "target_stopped_guards": 0,
+  "invalid_reasons": {
+    "unbracketed": 68,
+    "outside_capture": 68,
+    "rpc_off_or_boundary": 303,
+    "rpc_startup": 40
+  },
+  "candidate_t": 527.9491281509399,
+  "confirmed_t": 532.1040649414062,
+  "pre": {
+    "windows": 30,
+    "seconds": 30.83385,
+    "start_t": 466.33234095573425,
+    "end_t": 519.7500491142273,
+    "lines": [
+      736,
+      737,
+      738,
+      739,
+      740,
+      741,
+      742,
+      743,
+      757,
+      758,
+      759,
+      760,
+      761,
+      762,
+      763,
+      764,
+      778,
+      780,
+      781,
+      782,
+      783,
+      785,
+      798,
+      799,
+      800,
+      801,
+      802,
+      804,
+      805,
+      806
+    ],
+    "rpc_rounds": [
+      32,
+      33,
+      34,
+      35
+    ],
+    "packets": 2521,
+    "bytes": 5813532,
+    "mean_bytes": 2306.042046806823,
+    "p10": 2228,
+    "p50": 2228,
+    "p90": 2232,
+    "packets_per_second": 81.76079211645643,
+    "rx_supply": 98.19990854207308,
+    "accepted_supply": 98.19990854207308,
+    "histogram": {
+      "20": 1,
+      "52": 5,
+      "56": 2,
+      "104": 1,
+      "132": 7,
+      "136": 12,
+      "188": 1,
+      "240": 1,
+      "276": 1,
+      "304": 1,
+      "604": 1,
+      "924": 2,
+      "928": 3,
+      "1624": 1,
+      "1952": 1,
+      "2012": 1,
+      "2120": 2,
+      "2124": 1,
+      "2132": 1,
+      "2148": 1,
+      "2172": 9,
+      "2176": 27,
+      "2180": 5,
+      "2208": 1,
+      "2228": 1655,
+      "2232": 654,
+      "2328": 1,
+      "2388": 1,
+      "3004": 1,
+      "3156": 2,
+      "3164": 1,
+      "3524": 1,
+      "3684": 1,
+      "3884": 1,
+      "4180": 1,
+      "4300": 1,
+      "4352": 1,
+      "4456": 53,
+      "4460": 52,
+      "5760": 7
+    }
+  },
+  "post": {
+    "windows": 30,
+    "seconds": 30.71267900000001,
+    "start_t": 532.1040811538696,
+    "end_t": 591.4992980957031,
+    "lines": [
+      826,
+      827,
+      841,
+      842,
+      844,
+      846,
+      847,
+      848,
+      849,
+      850,
+      865,
+      866,
+      868,
+      869,
+      870,
+      871,
+      872,
+      873,
+      888,
+      889,
+      891,
+      892,
+      893,
+      894,
+      895,
+      910,
+      911,
+      913,
+      914,
+      915
+    ],
+    "rpc_rounds": [
+      36,
+      37,
+      38,
+      39,
+      40
+    ],
+    "packets": 2641,
+    "bytes": 373728,
+    "mean_bytes": 141.51003407800076,
+    "p10": 132,
+    "p50": 136,
+    "p90": 140,
+    "packets_per_second": 85.99054481701187,
+    "rx_supply": 6.33777339970896,
+    "accepted_supply": 6.33777339970896,
+    "histogram": {
+      "4": 9,
+      "8": 3,
+      "12": 2,
+      "16": 7,
+      "20": 5,
+      "24": 2,
+      "28": 5,
+      "32": 6,
+      "36": 4,
+      "40": 6,
+      "44": 1,
+      "48": 4,
+      "52": 5,
+      "56": 4,
+      "60": 7,
+      "64": 6,
+      "68": 4,
+      "72": 5,
+      "76": 9,
+      "80": 3,
+      "84": 3,
+      "88": 7,
+      "92": 2,
+      "96": 3,
+      "100": 3,
+      "104": 7,
+      "108": 8,
+      "112": 7,
+      "116": 5,
+      "120": 4,
+      "124": 4,
+      "128": 7,
+      "132": 268,
+      "136": 1665,
+      "140": 296,
+      "144": 6,
+      "148": 5,
+      "152": 3,
+      "156": 3,
+      "160": 10,
+      "164": 9,
+      "168": 4,
+      "172": 4,
+      "180": 3,
+      "184": 7,
+      "188": 5,
+      "192": 5,
+      "196": 8,
+      "200": 4,
+      "204": 5,
+      "208": 5,
+      "212": 8,
+      "216": 4,
+      "220": 5,
+      "224": 2,
+      "228": 2,
+      "232": 5,
+      "236": 7,
+      "240": 6,
+      "244": 5,
+      "248": 3,
+      "252": 4,
+      "256": 7,
+      "260": 2,
+      "264": 8,
+      "268": 9,
+      "272": 75,
+      "276": 7,
+      "304": 1,
+      "316": 1,
+      "352": 1,
+      "376": 1,
+      "404": 2,
+      "408": 4
+    }
+  },
+  "events": [
+    {
+      "line": 5,
+      "text": "[conn] disconnected --connectRequested--> connecting"
+    },
+    {
+      "line": 8,
+      "text": "[conn] connecting --connectSucceeded--> connected"
+    },
+    {
+      "line": 9,
+      "text": "[conn] attachStream \u639b\u4e0a\uff0c\u8acb\u6c42 540x1200"
+    },
+    {
+      "line": 18,
+      "text": "[conn] attachStream \u639b\u4e0a\uff0c\u8acb\u6c42 888x1972"
+    },
+    {
+      "line": 26,
+      "text": "[audio] \u6536\u5230\u7684\u683c\u5f0f\uff1asr=48000 ch=stereo fmt=audFmtS16\uff08\u8acb\u6c42\u7684\u662f sr=48000 ch=2 fmt=audFmtS16\uff09bytes=4456"
+    },
+    {
+      "line": 48,
+      "text": "[audio] \u6536\u5230\u7684\u683c\u5f0f\uff1asr=48000 ch=stereo fmt=audFmtS16\uff08\u8acb\u6c42\u7684\u662f sr=48000 ch=2 fmt=audFmtS16\uff09bytes=2228"
+    },
+    {
+      "line": 72,
+      "text": "[audio] \u6536\u5230\u7684\u683c\u5f0f\uff1asr=48000 ch=stereo fmt=audFmtS16\uff08\u8acb\u6c42\u7684\u662f sr=48000 ch=2 fmt=audFmtS16\uff09bytes=2228"
+    },
+    {
+      "line": 93,
+      "text": "[audio] \u6536\u5230\u7684\u683c\u5f0f\uff1asr=48000 ch=stereo fmt=audFmtS16\uff08\u8acb\u6c42\u7684\u662f sr=48000 ch=2 fmt=audFmtS16\uff09bytes=2228"
+    },
+    {
+      "line": 116,
+      "text": "[audio] \u6536\u5230\u7684\u683c\u5f0f\uff1asr=48000 ch=stereo fmt=audFmtS16\uff08\u8acb\u6c42\u7684\u662f sr=48000 ch=2 fmt=audFmtS16\uff09bytes=2228"
+    },
+    {
+      "line": 138,
+      "text": "[audio] \u6536\u5230\u7684\u683c\u5f0f\uff1asr=48000 ch=stereo fmt=audFmtS16\uff08\u8acb\u6c42\u7684\u662f sr=48000 ch=2 fmt=audFmtS16\uff09bytes=2228"
+    },
+    {
+      "line": 160,
+      "text": "[audio] \u6536\u5230\u7684\u683c\u5f0f\uff1asr=48000 ch=stereo fmt=audFmtS16\uff08\u8acb\u6c42\u7684\u662f sr=48000 ch=2 fmt=audFmtS16\uff09bytes=2228"
+    },
+    {
+      "line": 182,
+      "text": "[audio] \u6536\u5230\u7684\u683c\u5f0f\uff1asr=48000 ch=stereo fmt=audFmtS16\uff08\u8acb\u6c42\u7684\u662f sr=48000 ch=2 fmt=audFmtS16\uff09bytes=2228"
+    },
+    {
+      "line": 203,
+      "text": "[audio] \u6536\u5230\u7684\u683c\u5f0f\uff1asr=48000 ch=stereo fmt=audFmtS16\uff08\u8acb\u6c42\u7684\u662f sr=48000 ch=2 fmt=audFmtS16\uff09bytes=2228"
+    },
+    {
+      "line": 225,
+      "text": "[audio] \u6536\u5230\u7684\u683c\u5f0f\uff1asr=48000 ch=stereo fmt=audFmtS16\uff08\u8acb\u6c42\u7684\u662f sr=48000 ch=2 fmt=audFmtS16\uff09bytes=2228"
+    },
+    {
+      "line": 247,
+      "text": "[audio] \u6536\u5230\u7684\u683c\u5f0f\uff1asr=48000 ch=stereo fmt=audFmtS16\uff08\u8acb\u6c42\u7684\u662f sr=48000 ch=2 fmt=audFmtS16\uff09bytes=2228"
+    },
+    {
+      "line": 268,
+      "text": "[audio] \u6536\u5230\u7684\u683c\u5f0f\uff1asr=48000 ch=stereo fmt=audFmtS16\uff08\u8acb\u6c42\u7684\u662f sr=48000 ch=2 fmt=audFmtS16\uff09bytes=2228"
+    },
+    {
+      "line": 289,
+      "text": "[audio] \u6536\u5230\u7684\u683c\u5f0f\uff1asr=48000 ch=stereo fmt=audFmtS16\uff08\u8acb\u6c42\u7684\u662f sr=48000 ch=2 fmt=audFmtS16\uff09bytes=2228"
+    },
+    {
+      "line": 311,
+      "text": "[audio] \u6536\u5230\u7684\u683c\u5f0f\uff1asr=48000 ch=stereo fmt=audFmtS16\uff08\u8acb\u6c42\u7684\u662f sr=48000 ch=2 fmt=audFmtS16\uff09bytes=2228"
+    },
+    {
+      "line": 332,
+      "text": "[audio] \u6536\u5230\u7684\u683c\u5f0f\uff1asr=48000 ch=stereo fmt=audFmtS16\uff08\u8acb\u6c42\u7684\u662f sr=48000 ch=2 fmt=audFmtS16\uff09bytes=2228"
+    },
+    {
+      "line": 354,
+      "text": "[audio] \u6536\u5230\u7684\u683c\u5f0f\uff1asr=48000 ch=stereo fmt=audFmtS16\uff08\u8acb\u6c42\u7684\u662f sr=48000 ch=2 fmt=audFmtS16\uff09bytes=2228"
+    },
+    {
+      "line": 375,
+      "text": "[audio] \u6536\u5230\u7684\u683c\u5f0f\uff1asr=48000 ch=stereo fmt=audFmtS16\uff08\u8acb\u6c42\u7684\u662f sr=48000 ch=2 fmt=audFmtS16\uff09bytes=2228"
+    },
+    {
+      "line": 397,
+      "text": "[audio] \u6536\u5230\u7684\u683c\u5f0f\uff1asr=48000 ch=stereo fmt=audFmtS16\uff08\u8acb\u6c42\u7684\u662f sr=48000 ch=2 fmt=audFmtS16\uff09bytes=2228"
+    },
+    {
+      "line": 422,
+      "text": "[audio] \u6536\u5230\u7684\u683c\u5f0f\uff1asr=48000 ch=stereo fmt=audFmtS16\uff08\u8acb\u6c42\u7684\u662f sr=48000 ch=2 fmt=audFmtS16\uff09bytes=2228"
+    },
+    {
+      "line": 446,
+      "text": "[audio] \u6536\u5230\u7684\u683c\u5f0f\uff1asr=48000 ch=stereo fmt=audFmtS16\uff08\u8acb\u6c42\u7684\u662f sr=48000 ch=2 fmt=audFmtS16\uff09bytes=4456"
+    },
+    {
+      "line": 471,
+      "text": "[audio] \u6536\u5230\u7684\u683c\u5f0f\uff1asr=48000 ch=stereo fmt=audFmtS16\uff08\u8acb\u6c42\u7684\u662f sr=48000 ch=2 fmt=audFmtS16\uff09bytes=2228"
+    },
+    {
+      "line": 494,
+      "text": "[audio] \u6536\u5230\u7684\u683c\u5f0f\uff1asr=48000 ch=stereo fmt=audFmtS16\uff08\u8acb\u6c42\u7684\u662f sr=48000 ch=2 fmt=audFmtS16\uff09bytes=2228"
+    },
+    {
+      "line": 518,
+      "text": "[audio] \u6536\u5230\u7684\u683c\u5f0f\uff1asr=48000 ch=stereo fmt=audFmtS16\uff08\u8acb\u6c42\u7684\u662f sr=48000 ch=2 fmt=audFmtS16\uff09bytes=2228"
+    },
+    {
+      "line": 542,
+      "text": "[audio] \u6536\u5230\u7684\u683c\u5f0f\uff1asr=48000 ch=stereo fmt=audFmtS16\uff08\u8acb\u6c42\u7684\u662f sr=48000 ch=2 fmt=audFmtS16\uff09bytes=2228"
+    },
+    {
+      "line": 566,
+      "text": "[audio] \u6536\u5230\u7684\u683c\u5f0f\uff1asr=48000 ch=stereo fmt=audFmtS16\uff08\u8acb\u6c42\u7684\u662f sr=48000 ch=2 fmt=audFmtS16\uff09bytes=2228"
+    },
+    {
+      "line": 590,
+      "text": "[audio] \u6536\u5230\u7684\u683c\u5f0f\uff1asr=48000 ch=stereo fmt=audFmtS16\uff08\u8acb\u6c42\u7684\u662f sr=48000 ch=2 fmt=audFmtS16\uff09bytes=2228"
+    },
+    {
+      "line": 614,
+      "text": "[audio] \u6536\u5230\u7684\u683c\u5f0f\uff1asr=48000 ch=stereo fmt=audFmtS16\uff08\u8acb\u6c42\u7684\u662f sr=48000 ch=2 fmt=audFmtS16\uff09bytes=2228"
+    },
+    {
+      "line": 639,
+      "text": "[audio] \u6536\u5230\u7684\u683c\u5f0f\uff1asr=48000 ch=stereo fmt=audFmtS16\uff08\u8acb\u6c42\u7684\u662f sr=48000 ch=2 fmt=audFmtS16\uff09bytes=2228"
+    },
+    {
+      "line": 662,
+      "text": "[audio] \u6536\u5230\u7684\u683c\u5f0f\uff1asr=48000 ch=stereo fmt=audFmtS16\uff08\u8acb\u6c42\u7684\u662f sr=48000 ch=2 fmt=audFmtS16\uff09bytes=2228"
+    },
+    {
+      "line": 686,
+      "text": "[audio] \u6536\u5230\u7684\u683c\u5f0f\uff1asr=48000 ch=stereo fmt=audFmtS16\uff08\u8acb\u6c42\u7684\u662f sr=48000 ch=2 fmt=audFmtS16\uff09bytes=2228"
+    },
+    {
+      "line": 710,
+      "text": "[audio] \u6536\u5230\u7684\u683c\u5f0f\uff1asr=48000 ch=stereo fmt=audFmtS16\uff08\u8acb\u6c42\u7684\u662f sr=48000 ch=2 fmt=audFmtS16\uff09bytes=2228"
+    },
+    {
+      "line": 732,
+      "text": "[audio] \u6536\u5230\u7684\u683c\u5f0f\uff1asr=48000 ch=stereo fmt=audFmtS16\uff08\u8acb\u6c42\u7684\u662f sr=48000 ch=2 fmt=audFmtS16\uff09bytes=2228"
+    },
+    {
+      "line": 754,
+      "text": "[audio] \u6536\u5230\u7684\u683c\u5f0f\uff1asr=48000 ch=stereo fmt=audFmtS16\uff08\u8acb\u6c42\u7684\u662f sr=48000 ch=2 fmt=audFmtS16\uff09bytes=2228"
+    },
+    {
+      "line": 775,
+      "text": "[audio] \u6536\u5230\u7684\u683c\u5f0f\uff1asr=48000 ch=stereo fmt=audFmtS16\uff08\u8acb\u6c42\u7684\u662f sr=48000 ch=2 fmt=audFmtS16\uff09bytes=2228"
+    },
+    {
+      "line": 795,
+      "text": "[audio] \u6536\u5230\u7684\u683c\u5f0f\uff1asr=48000 ch=stereo fmt=audFmtS16\uff08\u8acb\u6c42\u7684\u662f sr=48000 ch=2 fmt=audFmtS16\uff09bytes=2228"
+    },
+    {
+      "line": 816,
+      "text": "[audio] \u6536\u5230\u7684\u683c\u5f0f\uff1asr=48000 ch=stereo fmt=audFmtS16\uff08\u8acb\u6c42\u7684\u662f sr=48000 ch=2 fmt=audFmtS16\uff09bytes=2228"
+    },
+    {
+      "line": 824,
+      "text": "[audio] degraded reason=emulator-output-stalled pkt=86 supply=6%"
+    },
+    {
+      "line": 832,
+      "text": "[audio] degraded-cleared reason=guest-audio-stopped pkt=0 supply=0%"
+    },
+    {
+      "line": 838,
+      "text": "[audio] \u6536\u5230\u7684\u683c\u5f0f\uff1asr=48000 ch=stereo fmt=audFmtS16\uff08\u8acb\u6c42\u7684\u662f sr=48000 ch=2 fmt=audFmtS16\uff09bytes=132"
+    },
+    {
+      "line": 843,
+      "text": "[audio] degraded reason=emulator-output-stalled pkt=85 supply=6%"
+    },
+    {
+      "line": 855,
+      "text": "[audio] degraded-cleared reason=guest-audio-stopped pkt=0 supply=0%"
+    },
+    {
+      "line": 861,
+      "text": "[audio] \u6536\u5230\u7684\u683c\u5f0f\uff1asr=48000 ch=stereo fmt=audFmtS16\uff08\u8acb\u6c42\u7684\u662f sr=48000 ch=2 fmt=audFmtS16\uff09bytes=68"
+    },
+    {
+      "line": 867,
+      "text": "[audio] degraded reason=emulator-output-stalled pkt=87 supply=6%"
+    },
+    {
+      "line": 878,
+      "text": "[audio] degraded-cleared reason=guest-audio-stopped pkt=0 supply=0%"
+    },
+    {
+      "line": 885,
+      "text": "[audio] \u6536\u5230\u7684\u683c\u5f0f\uff1asr=48000 ch=stereo fmt=audFmtS16\uff08\u8acb\u6c42\u7684\u662f sr=48000 ch=2 fmt=audFmtS16\uff09bytes=132"
+    },
+    {
+      "line": 890,
+      "text": "[audio] degraded reason=emulator-output-stalled pkt=87 supply=6%"
+    },
+    {
+      "line": 901,
+      "text": "[audio] degraded-cleared reason=guest-audio-stopped pkt=0 supply=0%"
+    },
+    {
+      "line": 907,
+      "text": "[audio] \u6536\u5230\u7684\u683c\u5f0f\uff1asr=48000 ch=stereo fmt=audFmtS16\uff08\u8acb\u6c42\u7684\u662f sr=48000 ch=2 fmt=audFmtS16\uff09bytes=132"
+    },
+    {
+      "line": 912,
+      "text": "[audio] degraded reason=emulator-output-stalled pkt=85 supply=6%"
+    },
+    {
+      "line": 924,
+      "text": "[audio] degraded-cleared reason=guest-audio-stopped pkt=0 supply=0%"
+    }
+  ],
+  "comparison_available": true,
+  "pre_role": "precollapse",
+  "all_valid": {
+    "windows": 309,
+    "seconds": 316.9858500000002,
+    "start_t": 1.846801996231079,
+    "end_t": 594.598207950592,
+    "lines": [
+      30,
+      31,
+      32,
+      33,
+      35,
+      36,
+      37,
+      52,
+      53,
+      54,
+      56,
+      57,
+      58,
+      59,
+      60,
+      74,
+      75,
+      76,
+      78,
+      79,
+      80,
+      81,
+      82,
+      97,
+      98,
+      99,
+      101,
+      102,
+      103,
+      104,
+      105,
+      119,
+      120,
+      121,
+      123,
+      124,
+      125,
+      126,
+      127,
+      142,
+      143,
+      144,
+      145,
+      146,
+      148,
+      149,
+      163,
+      164,
+      165,
+      166,
+      168,
+      169,
+      170,
+      171,
+      185,
+      187,
+      188,
+      189,
+      190,
+      191,
+      192,
+      193,
+      206,
+      208,
+      209,
+      210,
+      211,
+      212,
+      213,
+      214,
+      228,
+      230,
+      231,
+      232,
+      233,
+      234,
+      235,
+      236,
+      250,
+      251,
+      252,
+      254,
+      255,
+      256,
+      257,
+      271,
+      272,
+      273,
+      274,
+      275,
+      276,
+      277,
+      279,
+      292,
+      294,
+      295,
+      296,
+      297,
+      298,
+      299,
+      300,
+      314,
+      315,
+      316,
+      317,
+      319,
+      320,
+      321,
+      335,
+      336,
+      337,
+      339,
+      340,
+      341,
+      342,
+      343,
+      357,
+      358,
+      359,
+      360,
+      361,
+      363,
+      364,
+      365,
+      379,
+      380,
+      381,
+      382,
+      383,
+      384,
+      385,
+      401,
+      402,
+      403,
+      405,
+      406,
+      407,
+      409,
+      410,
+      425,
+      427,
+      428,
+      429,
+      430,
+      432,
+      433,
+      434,
+      450,
+      451,
+      452,
+      454,
+      455,
+      456,
+      458,
+      459,
+      473,
+      474,
+      476,
+      477,
+      478,
+      480,
+      481,
+      482,
+      497,
+      499,
+      500,
+      501,
+      502,
+      504,
+      505,
+      506,
+      522,
+      523,
+      524,
+      526,
+      527,
+      528,
+      530,
+      531,
+      546,
+      548,
+      549,
+      550,
+      552,
+      553,
+      554,
+      570,
+      571,
+      572,
+      574,
+      575,
+      576,
+      577,
+      579,
+      594,
+      595,
+      597,
+      598,
+      599,
+      600,
+      602,
+      603,
+      618,
+      620,
+      621,
+      622,
+      623,
+      625,
+      626,
+      627,
+      643,
+      644,
+      645,
+      646,
+      648,
+      649,
+      650,
+      666,
+      667,
+      668,
+      669,
+      671,
+      672,
+      673,
+      675,
+      690,
+      691,
+      692,
+      694,
+      695,
+      696,
+      698,
+      699,
+      714,
+      715,
+      716,
+      718,
+      719,
+      720,
+      721,
+      736,
+      737,
+      738,
+      739,
+      740,
+      741,
+      742,
+      743,
+      757,
+      758,
+      759,
+      760,
+      761,
+      762,
+      763,
+      764,
+      778,
+      779,
+      780,
+      781,
+      782,
+      783,
+      785,
+      798,
+      799,
+      800,
+      801,
+      802,
+      804,
+      805,
+      806,
+      819,
+      820,
+      821,
+      822,
+      825,
+      826,
+      827,
+      841,
+      842,
+      844,
+      846,
+      847,
+      848,
+      849,
+      850,
+      865,
+      866,
+      868,
+      869,
+      870,
+      871,
+      872,
+      873,
+      888,
+      889,
+      891,
+      892,
+      893,
+      894,
+      895,
+      910,
+      911,
+      913,
+      914,
+      915,
+      917,
+      918,
+      919
+    ],
+    "rpc_rounds": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18,
+      19,
+      20,
+      21,
+      22,
+      23,
+      24,
+      25,
+      26,
+      27,
+      28,
+      29,
+      30,
+      31,
+      32,
+      33,
+      34,
+      35,
+      36,
+      37,
+      38,
+      39,
+      40
+    ],
+    "packets": 26542,
+    "bytes": 53659788,
+    "mean_bytes": 2021.6934669580287,
+    "p10": 136,
+    "p50": 2228,
+    "p90": 2232,
+    "packets_per_second": 83.73244420847172,
+    "rx_supply": 88.16736220244526,
+    "accepted_supply": 88.16736220244526,
+    "histogram": {
+      "4": 12,
+      "8": 5,
+      "12": 3,
+      "16": 7,
+      "20": 8,
+      "24": 3,
+      "28": 5,
+      "32": 7,
+      "36": 4,
+      "40": 7,
+      "44": 2,
+      "48": 5,
+      "52": 14,
+      "56": 8,
+      "60": 7,
+      "64": 6,
+      "68": 5,
+      "72": 5,
+      "76": 10,
+      "80": 4,
+      "84": 3,
+      "88": 8,
+      "92": 2,
+      "96": 5,
+      "100": 5,
+      "104": 9,
+      "108": 8,
+      "112": 9,
+      "116": 6,
+      "120": 5,
+      "124": 6,
+      "128": 8,
+      "132": 371,
+      "136": 2138,
+      "140": 395,
+      "144": 9,
+      "148": 7,
+      "152": 3,
+      "156": 5,
+      "160": 11,
+      "164": 11,
+      "168": 4,
+      "172": 6,
+      "176": 1,
+      "180": 3,
+      "184": 9,
+      "188": 6,
+      "192": 6,
+      "196": 9,
+      "200": 5,
+      "204": 5,
+      "208": 5,
+      "212": 9,
+      "216": 5,
+      "220": 5,
+      "224": 2,
+      "228": 4,
+      "232": 6,
+      "236": 8,
+      "240": 8,
+      "244": 5,
+      "248": 4,
+      "252": 4,
+      "256": 8,
+      "260": 4,
+      "264": 9,
+      "268": 13,
+      "272": 90,
+      "276": 10,
+      "304": 2,
+      "316": 1,
+      "352": 1,
+      "376": 1,
+      "404": 2,
+      "408": 5,
+      "444": 1,
+      "448": 1,
+      "604": 1,
+      "688": 1,
+      "924": 3,
+      "928": 4,
+      "1624": 1,
+      "1780": 1,
+      "1952": 1,
+      "2012": 1,
+      "2096": 1,
+      "2120": 3,
+      "2124": 1,
+      "2132": 1,
+      "2148": 1,
+      "2172": 15,
+      "2176": 43,
+      "2180": 10,
+      "2208": 1,
+      "2228": 16053,
+      "2232": 6240,
+      "2284": 1,
+      "2328": 1,
+      "2388": 1,
+      "3004": 1,
+      "3156": 2,
+      "3164": 1,
+      "3524": 1,
+      "3684": 1,
+      "3768": 1,
+      "3884": 1,
+      "4016": 1,
+      "4180": 1,
+      "4228": 1,
+      "4300": 1,
+      "4352": 1,
+      "4456": 337,
+      "4460": 380,
+      "5760": 9
+    }
+  },
+  "healthy_tail": {
+    "windows": 30,
+    "seconds": 30.83385,
+    "start_t": 466.33234095573425,
+    "end_t": 519.7500491142273,
+    "lines": [
+      736,
+      737,
+      738,
+      739,
+      740,
+      741,
+      742,
+      743,
+      757,
+      758,
+      759,
+      760,
+      761,
+      762,
+      763,
+      764,
+      778,
+      780,
+      781,
+      782,
+      783,
+      785,
+      798,
+      799,
+      800,
+      801,
+      802,
+      804,
+      805,
+      806
+    ],
+    "rpc_rounds": [
+      32,
+      33,
+      34,
+      35
+    ],
+    "packets": 2521,
+    "bytes": 5813532,
+    "mean_bytes": 2306.042046806823,
+    "p10": 2228,
+    "p50": 2228,
+    "p90": 2232,
+    "packets_per_second": 81.76079211645643,
+    "rx_supply": 98.19990854207308,
+    "accepted_supply": 98.19990854207308,
+    "histogram": {
+      "20": 1,
+      "52": 5,
+      "56": 2,
+      "104": 1,
+      "132": 7,
+      "136": 12,
+      "188": 1,
+      "240": 1,
+      "276": 1,
+      "304": 1,
+      "604": 1,
+      "924": 2,
+      "928": 3,
+      "1624": 1,
+      "1952": 1,
+      "2012": 1,
+      "2120": 2,
+      "2124": 1,
+      "2132": 1,
+      "2148": 1,
+      "2172": 9,
+      "2176": 27,
+      "2180": 5,
+      "2208": 1,
+      "2228": 1655,
+      "2232": 654,
+      "2328": 1,
+      "2388": 1,
+      "3004": 1,
+      "3156": 2,
+      "3164": 1,
+      "3524": 1,
+      "3684": 1,
+      "3884": 1,
+      "4180": 1,
+      "4300": 1,
+      "4352": 1,
+      "4456": 53,
+      "4460": 52,
+      "5760": 7
+    }
+  },
+  "rpc_schedule": {
+    "rounds": [
+      {
+        "round": 1,
+        "formats": [
+          "[audio] \u6536\u5230\u7684\u683c\u5f0f\uff1asr=48000 ch=stereo fmt=audFmtS16\uff08\u8acb\u6c42\u7684\u662f sr=48000 ch=2 fmt=audFmtS16\uff09bytes=4456"
+        ],
+        "open": 1789038518.344307,
+        "cancel": 1789038528.350091,
+        "response-ended": 1789038528.350781,
+        "closed": 1789038528.351525,
+        "reasons": [],
+        "valid": true
+      },
+      {
+        "round": 2,
+        "formats": [
+          "[audio] \u6536\u5230\u7684\u683c\u5f0f\uff1asr=48000 ch=stereo fmt=audFmtS16\uff08\u8acb\u6c42\u7684\u662f sr=48000 ch=2 fmt=audFmtS16\uff09bytes=2228"
+        ],
+        "open": 1789038533.431315,
+        "cancel": 1789038543.431403,
+        "response-ended": 1789038543.431711,
+        "closed": 1789038543.431753,
+        "reasons": [],
+        "valid": true
+      },
+      {
+        "round": 3,
+        "formats": [
+          "[audio] \u6536\u5230\u7684\u683c\u5f0f\uff1asr=48000 ch=stereo fmt=audFmtS16\uff08\u8acb\u6c42\u7684\u662f sr=48000 ch=2 fmt=audFmtS16\uff09bytes=2228"
+        ],
+        "open": 1789038548.347093,
+        "cancel": 1789038558.444753,
+        "response-ended": 1789038558.445208,
+        "closed": 1789038558.445271,
+        "reasons": [],
+        "valid": true
+      },
+      {
+        "round": 4,
+        "formats": [
+          "[audio] \u6536\u5230\u7684\u683c\u5f0f\uff1asr=48000 ch=stereo fmt=audFmtS16\uff08\u8acb\u6c42\u7684\u662f sr=48000 ch=2 fmt=audFmtS16\uff09bytes=2228"
+        ],
+        "open": 1789038563.398295,
+        "cancel": 1789038573.439444,
+        "response-ended": 1789038573.439858,
+        "closed": 1789038573.439946,
+        "reasons": [],
+        "valid": true
+      },
+      {
+        "round": 5,
+        "formats": [
+          "[audio] \u6536\u5230\u7684\u683c\u5f0f\uff1asr=48000 ch=stereo fmt=audFmtS16\uff08\u8acb\u6c42\u7684\u662f sr=48000 ch=2 fmt=audFmtS16\uff09bytes=2228"
+        ],
+        "open": 1789038578.439358,
+        "cancel": 1789038588.438523,
+        "response-ended": 1789038588.438791,
+        "closed": 1789038588.438829,
+        "reasons": [],
+        "valid": true
+      },
+      {
+        "round": 6,
+        "formats": [
+          "[audio] \u6536\u5230\u7684\u683c\u5f0f\uff1asr=48000 ch=stereo fmt=audFmtS16\uff08\u8acb\u6c42\u7684\u662f sr=48000 ch=2 fmt=audFmtS16\uff09bytes=2228"
+        ],
+        "open": 1789038593.438863,
+        "cancel": 1789038603.39654,
+        "response-ended": 1789038603.396908,
+        "closed": 1789038603.39697,
+        "reasons": [],
+        "valid": true
+      },
+      {
+        "round": 7,
+        "formats": [
+          "[audio] \u6536\u5230\u7684\u683c\u5f0f\uff1asr=48000 ch=stereo fmt=audFmtS16\uff08\u8acb\u6c42\u7684\u662f sr=48000 ch=2 fmt=audFmtS16\uff09bytes=2228"
+        ],
+        "open": 1789038608.402993,
+        "cancel": 1789038618.351004,
+        "response-ended": 1789038618.35127,
+        "closed": 1789038618.351331,
+        "reasons": [],
+        "valid": true
+      },
+      {
+        "round": 8,
+        "formats": [
+          "[audio] \u6536\u5230\u7684\u683c\u5f0f\uff1asr=48000 ch=stereo fmt=audFmtS16\uff08\u8acb\u6c42\u7684\u662f sr=48000 ch=2 fmt=audFmtS16\uff09bytes=2228"
+        ],
+        "open": 1789038623.362167,
+        "cancel": 1789038633.34652,
+        "response-ended": 1789038633.346869,
+        "closed": 1789038633.346932,
+        "reasons": [],
+        "valid": true
+      },
+      {
+        "round": 9,
+        "formats": [
+          "[audio] \u6536\u5230\u7684\u683c\u5f0f\uff1asr=48000 ch=stereo fmt=audFmtS16\uff08\u8acb\u6c42\u7684\u662f sr=48000 ch=2 fmt=audFmtS16\uff09bytes=2228"
+        ],
+        "open": 1789038638.381575,
+        "cancel": 1789038648.38546,
+        "response-ended": 1789038648.385798,
+        "closed": 1789038648.385862,
+        "reasons": [],
+        "valid": true
+      },
+      {
+        "round": 10,
+        "formats": [
+          "[audio] \u6536\u5230\u7684\u683c\u5f0f\uff1asr=48000 ch=stereo fmt=audFmtS16\uff08\u8acb\u6c42\u7684\u662f sr=48000 ch=2 fmt=audFmtS16\uff09bytes=2228"
+        ],
+        "open": 1789038653.402018,
+        "cancel": 1789038663.362769,
+        "response-ended": 1789038663.363098,
+        "closed": 1789038663.363163,
+        "reasons": [],
+        "valid": true
+      },
+      {
+        "round": 11,
+        "formats": [
+          "[audio] \u6536\u5230\u7684\u683c\u5f0f\uff1asr=48000 ch=stereo fmt=audFmtS16\uff08\u8acb\u6c42\u7684\u662f sr=48000 ch=2 fmt=audFmtS16\uff09bytes=2228"
+        ],
+        "open": 1789038668.357294,
+        "cancel": 1789038678.392573,
+        "response-ended": 1789038678.392856,
+        "closed": 1789038678.39292,
+        "reasons": [],
+        "valid": true
+      },
+      {
+        "round": 12,
+        "formats": [
+          "[audio] \u6536\u5230\u7684\u683c\u5f0f\uff1asr=48000 ch=stereo fmt=audFmtS16\uff08\u8acb\u6c42\u7684\u662f sr=48000 ch=2 fmt=audFmtS16\uff09bytes=2228"
+        ],
+        "open": 1789038683.406801,
+        "cancel": 1789038693.378545,
+        "response-ended": 1789038693.37885,
+        "closed": 1789038693.378928,
+        "reasons": [],
+        "valid": true
+      },
+      {
+        "round": 13,
+        "formats": [
+          "[audio] \u6536\u5230\u7684\u683c\u5f0f\uff1asr=48000 ch=stereo fmt=audFmtS16\uff08\u8acb\u6c42\u7684\u662f sr=48000 ch=2 fmt=audFmtS16\uff09bytes=2228"
+        ],
+        "open": 1789038698.387497,
+        "cancel": 1789038708.376814,
+        "response-ended": 1789038708.377086,
+        "closed": 1789038708.377174,
+        "reasons": [],
+        "valid": true
+      },
+      {
+        "round": 14,
+        "formats": [
+          "[audio] \u6536\u5230\u7684\u683c\u5f0f\uff1asr=48000 ch=stereo fmt=audFmtS16\uff08\u8acb\u6c42\u7684\u662f sr=48000 ch=2 fmt=audFmtS16\uff09bytes=2228"
+        ],
+        "open": 1789038713.372258,
+        "cancel": 1789038723.378606,
+        "response-ended": 1789038723.378926,
+        "closed": 1789038723.378992,
+        "reasons": [],
+        "valid": true
+      },
+      {
+        "round": 15,
+        "formats": [
+          "[audio] \u6536\u5230\u7684\u683c\u5f0f\uff1asr=48000 ch=stereo fmt=audFmtS16\uff08\u8acb\u6c42\u7684\u662f sr=48000 ch=2 fmt=audFmtS16\uff09bytes=2228"
+        ],
+        "open": 1789038728.350255,
+        "cancel": 1789038738.363495,
+        "response-ended": 1789038738.363766,
+        "closed": 1789038738.363812,
+        "reasons": [],
+        "valid": true
+      },
+      {
+        "round": 16,
+        "formats": [
+          "[audio] \u6536\u5230\u7684\u683c\u5f0f\uff1asr=48000 ch=stereo fmt=audFmtS16\uff08\u8acb\u6c42\u7684\u662f sr=48000 ch=2 fmt=audFmtS16\uff09bytes=2228"
+        ],
+        "open": 1789038743.391517,
+        "cancel": 1789038753.356161,
+        "response-ended": 1789038753.35648,
+        "closed": 1789038753.356538,
+        "reasons": [],
+        "valid": true
+      },
+      {
+        "round": 17,
+        "formats": [
+          "[audio] \u6536\u5230\u7684\u683c\u5f0f\uff1asr=48000 ch=stereo fmt=audFmtS16\uff08\u8acb\u6c42\u7684\u662f sr=48000 ch=2 fmt=audFmtS16\uff09bytes=2228"
+        ],
+        "open": 1789038758.348688,
+        "cancel": 1789038768.395267,
+        "response-ended": 1789038768.395466,
+        "closed": 1789038768.39552,
+        "reasons": [],
+        "valid": true
+      },
+      {
+        "round": 18,
+        "formats": [
+          "[audio] \u6536\u5230\u7684\u683c\u5f0f\uff1asr=48000 ch=stereo fmt=audFmtS16\uff08\u8acb\u6c42\u7684\u662f sr=48000 ch=2 fmt=audFmtS16\uff09bytes=2228"
+        ],
+        "open": 1789038773.370115,
+        "cancel": 1789038783.386437,
+        "response-ended": 1789038783.386735,
+        "closed": 1789038783.386803,
+        "reasons": [],
+        "valid": true
+      },
+      {
+        "round": 19,
+        "formats": [
+          "[audio] \u6536\u5230\u7684\u683c\u5f0f\uff1asr=48000 ch=stereo fmt=audFmtS16\uff08\u8acb\u6c42\u7684\u662f sr=48000 ch=2 fmt=audFmtS16\uff09bytes=2228"
+        ],
+        "open": 1789038788.36187,
+        "cancel": 1789038798.371426,
+        "response-ended": 1789038798.371826,
+        "closed": 1789038798.371874,
+        "reasons": [],
+        "valid": true
+      },
+      {
+        "round": 20,
+        "formats": [
+          "[audio] \u6536\u5230\u7684\u683c\u5f0f\uff1asr=48000 ch=stereo fmt=audFmtS16\uff08\u8acb\u6c42\u7684\u662f sr=48000 ch=2 fmt=audFmtS16\uff09bytes=4456"
+        ],
+        "open": 1789038803.361447,
+        "cancel": 1789038813.36472,
+        "response-ended": 1789038813.365042,
+        "closed": 1789038813.36511,
+        "reasons": [],
+        "valid": true
+      },
+      {
+        "round": 21,
+        "formats": [
+          "[audio] \u6536\u5230\u7684\u683c\u5f0f\uff1asr=48000 ch=stereo fmt=audFmtS16\uff08\u8acb\u6c42\u7684\u662f sr=48000 ch=2 fmt=audFmtS16\uff09bytes=2228"
+        ],
+        "open": 1789038818.388398,
+        "cancel": 1789038828.351836,
+        "response-ended": 1789038828.352128,
+        "closed": 1789038828.352188,
+        "reasons": [],
+        "valid": true
+      },
+      {
+        "round": 22,
+        "formats": [
+          "[audio] \u6536\u5230\u7684\u683c\u5f0f\uff1asr=48000 ch=stereo fmt=audFmtS16\uff08\u8acb\u6c42\u7684\u662f sr=48000 ch=2 fmt=audFmtS16\uff09bytes=2228"
+        ],
+        "open": 1789038833.368371,
+        "cancel": 1789038843.371158,
+        "response-ended": 1789038843.371348,
+        "closed": 1789038843.371382,
+        "reasons": [],
+        "valid": true
+      },
+      {
+        "round": 23,
+        "formats": [
+          "[audio] \u6536\u5230\u7684\u683c\u5f0f\uff1asr=48000 ch=stereo fmt=audFmtS16\uff08\u8acb\u6c42\u7684\u662f sr=48000 ch=2 fmt=audFmtS16\uff09bytes=2228"
+        ],
+        "open": 1789038848.360197,
+        "cancel": 1789038858.362002,
+        "response-ended": 1789038858.362424,
+        "closed": 1789038858.362481,
+        "reasons": [],
+        "valid": true
+      },
+      {
+        "round": 24,
+        "formats": [
+          "[audio] \u6536\u5230\u7684\u683c\u5f0f\uff1asr=48000 ch=stereo fmt=audFmtS16\uff08\u8acb\u6c42\u7684\u662f sr=48000 ch=2 fmt=audFmtS16\uff09bytes=2228"
+        ],
+        "open": 1789038863.374148,
+        "cancel": 1789038873.364056,
+        "response-ended": 1789038873.364218,
+        "closed": 1789038873.364262,
+        "reasons": [],
+        "valid": true
+      },
+      {
+        "round": 25,
+        "formats": [
+          "[audio] \u6536\u5230\u7684\u683c\u5f0f\uff1asr=48000 ch=stereo fmt=audFmtS16\uff08\u8acb\u6c42\u7684\u662f sr=48000 ch=2 fmt=audFmtS16\uff09bytes=2228"
+        ],
+        "open": 1789038878.350649,
+        "cancel": 1789038888.369272,
+        "response-ended": 1789038888.369463,
+        "closed": 1789038888.369497,
+        "reasons": [],
+        "valid": true
+      },
+      {
+        "round": 26,
+        "formats": [
+          "[audio] \u6536\u5230\u7684\u683c\u5f0f\uff1asr=48000 ch=stereo fmt=audFmtS16\uff08\u8acb\u6c42\u7684\u662f sr=48000 ch=2 fmt=audFmtS16\uff09bytes=2228"
+        ],
+        "open": 1789038893.353675,
+        "cancel": 1789038903.35569,
+        "response-ended": 1789038903.356402,
+        "closed": 1789038903.356513,
+        "reasons": [],
+        "valid": true
+      },
+      {
+        "round": 27,
+        "formats": [
+          "[audio] \u6536\u5230\u7684\u683c\u5f0f\uff1asr=48000 ch=stereo fmt=audFmtS16\uff08\u8acb\u6c42\u7684\u662f sr=48000 ch=2 fmt=audFmtS16\uff09bytes=2228"
+        ],
+        "open": 1789038908.362558,
+        "cancel": 1789038918.362174,
+        "response-ended": 1789038918.362465,
+        "closed": 1789038918.362505,
+        "reasons": [],
+        "valid": true
+      },
+      {
+        "round": 28,
+        "formats": [
+          "[audio] \u6536\u5230\u7684\u683c\u5f0f\uff1asr=48000 ch=stereo fmt=audFmtS16\uff08\u8acb\u6c42\u7684\u662f sr=48000 ch=2 fmt=audFmtS16\uff09bytes=2228"
+        ],
+        "open": 1789038923.38289,
+        "cancel": 1789038933.366003,
+        "response-ended": 1789038933.366193,
+        "closed": 1789038933.366249,
+        "reasons": [],
+        "valid": true
+      },
+      {
+        "round": 29,
+        "formats": [
+          "[audio] \u6536\u5230\u7684\u683c\u5f0f\uff1asr=48000 ch=stereo fmt=audFmtS16\uff08\u8acb\u6c42\u7684\u662f sr=48000 ch=2 fmt=audFmtS16\uff09bytes=2228"
+        ],
+        "open": 1789038938.38174,
+        "cancel": 1789038948.374488,
+        "response-ended": 1789038948.37473,
+        "closed": 1789038948.374795,
+        "reasons": [],
+        "valid": true
+      },
+      {
+        "round": 30,
+        "formats": [
+          "[audio] \u6536\u5230\u7684\u683c\u5f0f\uff1asr=48000 ch=stereo fmt=audFmtS16\uff08\u8acb\u6c42\u7684\u662f sr=48000 ch=2 fmt=audFmtS16\uff09bytes=2228"
+        ],
+        "open": 1789038953.354627,
+        "cancel": 1789038963.378812,
+        "response-ended": 1789038963.379069,
+        "closed": 1789038963.37913,
+        "reasons": [],
+        "valid": true
+      },
+      {
+        "round": 31,
+        "formats": [
+          "[audio] \u6536\u5230\u7684\u683c\u5f0f\uff1asr=48000 ch=stereo fmt=audFmtS16\uff08\u8acb\u6c42\u7684\u662f sr=48000 ch=2 fmt=audFmtS16\uff09bytes=2228"
+        ],
+        "open": 1789038968.365273,
+        "cancel": 1789038978.398399,
+        "response-ended": 1789038978.398643,
+        "closed": 1789038978.398701,
+        "reasons": [],
+        "valid": true
+      },
+      {
+        "round": 32,
+        "formats": [
+          "[audio] \u6536\u5230\u7684\u683c\u5f0f\uff1asr=48000 ch=stereo fmt=audFmtS16\uff08\u8acb\u6c42\u7684\u662f sr=48000 ch=2 fmt=audFmtS16\uff09bytes=2228"
+        ],
+        "open": 1789038983.37331,
+        "cancel": 1789038993.381438,
+        "response-ended": 1789038993.381852,
+        "closed": 1789038993.381951,
+        "reasons": [],
+        "valid": true
+      },
+      {
+        "round": 33,
+        "formats": [
+          "[audio] \u6536\u5230\u7684\u683c\u5f0f\uff1asr=48000 ch=stereo fmt=audFmtS16\uff08\u8acb\u6c42\u7684\u662f sr=48000 ch=2 fmt=audFmtS16\uff09bytes=2228"
+        ],
+        "open": 1789038998.355913,
+        "cancel": 1789039008.359411,
+        "response-ended": 1789039008.359691,
+        "closed": 1789039008.35975,
+        "reasons": [],
+        "valid": true
+      },
+      {
+        "round": 34,
+        "formats": [
+          "[audio] \u6536\u5230\u7684\u683c\u5f0f\uff1asr=48000 ch=stereo fmt=audFmtS16\uff08\u8acb\u6c42\u7684\u662f sr=48000 ch=2 fmt=audFmtS16\uff09bytes=2228"
+        ],
+        "open": 1789039013.351942,
+        "cancel": 1789039023.363301,
+        "response-ended": 1789039023.363606,
+        "closed": 1789039023.363667,
+        "reasons": [],
+        "valid": true
+      },
+      {
+        "round": 35,
+        "formats": [
+          "[audio] \u6536\u5230\u7684\u683c\u5f0f\uff1asr=48000 ch=stereo fmt=audFmtS16\uff08\u8acb\u6c42\u7684\u662f sr=48000 ch=2 fmt=audFmtS16\uff09bytes=2228"
+        ],
+        "open": 1789039028.366075,
+        "cancel": 1789039038.357546,
+        "response-ended": 1789039038.357826,
+        "closed": 1789039038.35789,
+        "reasons": [],
+        "valid": true
+      },
+      {
+        "round": 36,
+        "formats": [
+          "[audio] \u6536\u5230\u7684\u683c\u5f0f\uff1asr=48000 ch=stereo fmt=audFmtS16\uff08\u8acb\u6c42\u7684\u662f sr=48000 ch=2 fmt=audFmtS16\uff09bytes=2228"
+        ],
+        "open": 1789039043.353697,
+        "cancel": 1789039053.355956,
+        "response-ended": 1789039053.356267,
+        "closed": 1789039053.356325,
+        "reasons": [],
+        "valid": true
+      },
+      {
+        "round": 37,
+        "formats": [
+          "[audio] \u6536\u5230\u7684\u683c\u5f0f\uff1asr=48000 ch=stereo fmt=audFmtS16\uff08\u8acb\u6c42\u7684\u662f sr=48000 ch=2 fmt=audFmtS16\uff09bytes=132"
+        ],
+        "open": 1789039058.356885,
+        "cancel": 1789039068.363195,
+        "response-ended": 1789039068.36381,
+        "closed": 1789039068.363905,
+        "reasons": [],
+        "valid": true
+      },
+      {
+        "round": 38,
+        "formats": [
+          "[audio] \u6536\u5230\u7684\u683c\u5f0f\uff1asr=48000 ch=stereo fmt=audFmtS16\uff08\u8acb\u6c42\u7684\u662f sr=48000 ch=2 fmt=audFmtS16\uff09bytes=68"
+        ],
+        "open": 1789039073.389259,
+        "cancel": 1789039083.364432,
+        "response-ended": 1789039083.36474,
+        "closed": 1789039083.364808,
+        "reasons": [],
+        "valid": true
+      },
+      {
+        "round": 39,
+        "formats": [
+          "[audio] \u6536\u5230\u7684\u683c\u5f0f\uff1asr=48000 ch=stereo fmt=audFmtS16\uff08\u8acb\u6c42\u7684\u662f sr=48000 ch=2 fmt=audFmtS16\uff09bytes=132"
+        ],
+        "open": 1789039088.374087,
+        "cancel": 1789039098.408769,
+        "response-ended": 1789039098.409031,
+        "closed": 1789039098.409089,
+        "reasons": [],
+        "valid": true
+      },
+      {
+        "round": 40,
+        "formats": [
+          "[audio] \u6536\u5230\u7684\u683c\u5f0f\uff1asr=48000 ch=stereo fmt=audFmtS16\uff08\u8acb\u6c42\u7684\u662f sr=48000 ch=2 fmt=audFmtS16\uff09bytes=132"
+        ],
+        "open": 1789039103.370362,
+        "cancel": 1789039113.36124,
+        "response-ended": 1789039113.36156,
+        "closed": 1789039113.36163,
+        "reasons": [],
+        "valid": true
+      }
+    ],
+    "errors": [],
+    "complete_epoch": 1789039118.372058
+  },
+  "per_rpc": [
+    {
+      "round": 1,
+      "valid": true,
+      "reasons": [],
+      "data": {
+        "windows": 7,
+        "seconds": 7.247927999999999,
+        "start_t": 1.846801996231079,
+        "end_t": 9.094825029373169,
+        "lines": [
+          30,
+          31,
+          32,
+          33,
+          35,
+          36,
+          37
+        ],
+        "rpc_rounds": [
+          1
+        ],
+        "packets": 613,
+        "bytes": 1393196,
+        "mean_bytes": 2272.7504078303427,
+        "p10": 2228,
+        "p50": 2228,
+        "p90": 2232,
+        "packets_per_second": 84.57589534553877,
+        "rx_supply": 100.11453158291125,
+        "accepted_supply": 100.11453158291125,
+        "histogram": {
+          "2228": 434,
+          "2232": 167,
+          "4456": 5,
+          "4460": 7
+        }
+      },
+      "low_windows": 0,
+      "zero_windows": 0
+    },
+    {
+      "round": 2,
+      "valid": true,
+      "reasons": [],
+      "data": {
+        "windows": 8,
+        "seconds": 8.383966000000001,
+        "start_t": 16.44920587539673,
+        "end_t": 24.833281993865967,
+        "lines": [
+          52,
+          53,
+          54,
+          56,
+          57,
+          58,
+          59,
+          60
+        ],
+        "rpc_rounds": [
+          2
+        ],
+        "packets": 706,
+        "bytes": 1609420,
+        "mean_bytes": 2279.631728045326,
+        "p10": 2228,
+        "p50": 2228,
+        "p90": 2232,
+        "packets_per_second": 84.20835676098876,
+        "rx_supply": 99.98127179109902,
+        "accepted_supply": 99.98127179109902,
+        "histogram": {
+          "2228": 499,
+          "2232": 191,
+          "4456": 6,
+          "4460": 10
+        }
+      },
+      "low_windows": 0,
+      "zero_windows": 0
+    },
+    {
+      "round": 3,
+      "valid": true,
+      "reasons": [],
+      "data": {
+        "windows": 8,
+        "seconds": 8.308696000000001,
+        "start_t": 31.15543293952942,
+        "end_t": 39.46424198150635,
+        "lines": [
+          74,
+          75,
+          76,
+          78,
+          79,
+          80,
+          81,
+          82
+        ],
+        "rpc_rounds": [
+          3
+        ],
+        "packets": 703,
+        "bytes": 1593816,
+        "mean_bytes": 2267.1635846372687,
+        "p10": 2228,
+        "p50": 2228,
+        "p90": 2232,
+        "packets_per_second": 84.6101482109828,
+        "rx_supply": 99.90887860140747,
+        "accepted_supply": 99.90887860140747,
+        "histogram": {
+          "2228": 501,
+          "2232": 190,
+          "4456": 3,
+          "4460": 9
+        }
+      },
+      "low_windows": 0,
+      "zero_windows": 0
+    },
+    {
+      "round": 4,
+      "valid": true,
+      "reasons": [],
+      "data": {
+        "windows": 8,
+        "seconds": 8.275451,
+        "start_t": 46.721193075180054,
+        "end_t": 54.99675416946411,
+        "lines": [
+          97,
+          98,
+          99,
+          101,
+          102,
+          103,
+          104,
+          105
+        ],
+        "rpc_rounds": [
+          4
+        ],
+        "packets": 693,
+        "bytes": 1589360,
+        "mean_bytes": 2293.4487734487734,
+        "p10": 2228,
+        "p50": 2228,
+        "p90": 2232,
+        "packets_per_second": 83.74165951801297,
+        "rx_supply": 100.0297949521623,
+        "accepted_supply": 100.0297949521623,
+        "histogram": {
+          "2228": 485,
+          "2232": 188,
+          "4456": 9,
+          "4460": 11
+        }
+      },
+      "low_windows": 0,
+      "zero_windows": 0
+    },
+    {
+      "round": 5,
+      "valid": true,
+      "reasons": [],
+      "data": {
+        "windows": 8,
+        "seconds": 8.432968,
+        "start_t": 61.24636793136597,
+        "end_t": 69.67945098876953,
+        "lines": [
+          119,
+          120,
+          121,
+          123,
+          124,
+          125,
+          126,
+          127
+        ],
+        "rpc_rounds": [
+          5
+        ],
+        "packets": 710,
+        "bytes": 1618340,
+        "mean_bytes": 2279.3521126760565,
+        "p10": 2228,
+        "p50": 2228,
+        "p90": 2232,
+        "packets_per_second": 84.19337059028327,
+        "rx_supply": 99.95121725431267,
+        "accepted_supply": 99.95121725431267,
+        "histogram": {
+          "2228": 500,
+          "2232": 194,
+          "4456": 7,
+          "4460": 9
+        }
+      },
+      "low_windows": 0,
+      "zero_windows": 0
+    },
+    {
+      "round": 6,
+      "valid": true,
+      "reasons": [],
+      "data": {
+        "windows": 7,
+        "seconds": 7.232443000000001,
+        "start_t": 77.09598803520203,
+        "end_t": 84.32852506637573,
+        "lines": [
+          142,
+          143,
+          144,
+          145,
+          146,
+          148,
+          149
+        ],
+        "rpc_rounds": [
+          6
+        ],
+        "packets": 599,
+        "bytes": 1388740,
+        "mean_bytes": 2318.430717863105,
+        "p10": 2228,
+        "p50": 2228,
+        "p90": 2232,
+        "packets_per_second": 82.82125417372801,
+        "rx_supply": 100.00798946266612,
+        "accepted_supply": 100.00798946266612,
+        "histogram": {
+          "2228": 412,
+          "2232": 163,
+          "4456": 13,
+          "4460": 11
+        }
+      },
+      "low_windows": 0,
+      "zero_windows": 0
+    },
+    {
+      "round": 7,
+      "valid": true,
+      "reasons": [],
+      "data": {
+        "windows": 8,
+        "seconds": 8.182639,
+        "start_t": 91.54491806030273,
+        "end_t": 99.72766399383545,
+        "lines": [
+          163,
+          164,
+          165,
+          166,
+          168,
+          169,
+          170,
+          171
+        ],
+        "rpc_rounds": [
+          7
+        ],
+        "packets": 693,
+        "bytes": 1569300,
+        "mean_bytes": 2264.5021645021643,
+        "p10": 2228,
+        "p50": 2228,
+        "p90": 2232,
+        "packets_per_second": 84.6915035601595,
+        "rx_supply": 99.88754850360624,
+        "accepted_supply": 99.88754850360624,
+        "histogram": {
+          "2228": 492,
+          "2232": 190,
+          "4456": 4,
+          "4460": 7
+        }
+      },
+      "low_windows": 0,
+      "zero_windows": 0
+    },
+    {
+      "round": 8,
+      "valid": true,
+      "reasons": [],
+      "data": {
+        "windows": 8,
+        "seconds": 8.165712,
+        "start_t": 106.89419794082642,
+        "end_t": 115.06001901626587,
+        "lines": [
+          185,
+          187,
+          188,
+          189,
+          190,
+          191,
+          192,
+          193
+        ],
+        "rpc_rounds": [
+          8
+        ],
+        "packets": 690,
+        "bytes": 1567068,
+        "mean_bytes": 2271.113043478261,
+        "p10": 2228,
+        "p50": 2228,
+        "p90": 2232,
+        "packets_per_second": 84.49967375778132,
+        "rx_supply": 99.95224543799733,
+        "accepted_supply": 99.95224543799733,
+        "histogram": {
+          "2228": 486,
+          "2232": 191,
+          "4456": 8,
+          "4460": 5
+        }
+      },
+      "low_windows": 0,
+      "zero_windows": 0
+    },
+    {
+      "round": 9,
+      "valid": true,
+      "reasons": [],
+      "data": {
+        "windows": 8,
+        "seconds": 8.232876000000001,
+        "start_t": 121.20971202850342,
+        "end_t": 129.44269704818726,
+        "lines": [
+          206,
+          208,
+          209,
+          210,
+          211,
+          212,
+          213,
+          214
+        ],
+        "rpc_rounds": [
+          9
+        ],
+        "packets": 693,
+        "bytes": 1578212,
+        "mean_bytes": 2277.3621933621935,
+        "p10": 2228,
+        "p50": 2228,
+        "p90": 2232,
+        "packets_per_second": 84.17471610163932,
+        "rx_supply": 99.8418312952444,
+        "accepted_supply": 99.8418312952444,
+        "histogram": {
+          "448": 1,
+          "1780": 1,
+          "2228": 484,
+          "2232": 191,
+          "4456": 10,
+          "4460": 6
+        }
+      },
+      "low_windows": 0,
+      "zero_windows": 0
+    },
+    {
+      "round": 10,
+      "valid": true,
+      "reasons": [],
+      "data": {
+        "windows": 8,
+        "seconds": 8.182788,
+        "start_t": 136.60908699035645,
+        "end_t": 144.79198217391968,
+        "lines": [
+          228,
+          230,
+          231,
+          232,
+          233,
+          234,
+          235,
+          236
+        ],
+        "rpc_rounds": [
+          10
+        ],
+        "packets": 691,
+        "bytes": 1573752,
+        "mean_bytes": 2277.4992764109984,
+        "p10": 2228,
+        "p50": 2228,
+        "p90": 2232,
+        "packets_per_second": 84.44554594350971,
+        "rx_supply": 100.1690988450391,
+        "accepted_supply": 100.1690988450391,
+        "histogram": {
+          "2228": 482,
+          "2232": 194,
+          "4456": 13,
+          "4460": 2
+        }
+      },
+      "low_windows": 0,
+      "zero_windows": 0
+    },
+    {
+      "round": 11,
+      "valid": true,
+      "reasons": [],
+      "data": {
+        "windows": 7,
+        "seconds": 7.183421000000001,
+        "start_t": 151.9418318271637,
+        "end_t": 159.12534713745117,
+        "lines": [
+          250,
+          251,
+          252,
+          254,
+          255,
+          256,
+          257
+        ],
+        "rpc_rounds": [
+          11
+        ],
+        "packets": 608,
+        "bytes": 1382052,
+        "mean_bytes": 2273.1118421052633,
+        "p10": 2228,
+        "p50": 2228,
+        "p90": 2232,
+        "packets_per_second": 84.63933827628924,
+        "rx_supply": 100.2055636165554,
+        "accepted_supply": 100.2055636165554,
+        "histogram": {
+          "2228": 430,
+          "2232": 166,
+          "4456": 5,
+          "4460": 7
+        }
+      },
+      "low_windows": 0,
+      "zero_windows": 0
+    },
+    {
+      "round": 12,
+      "valid": true,
+      "reasons": [],
+      "data": {
+        "windows": 8,
+        "seconds": 8.199069,
+        "start_t": 166.22472596168518,
+        "end_t": 174.42390394210815,
+        "lines": [
+          271,
+          272,
+          273,
+          274,
+          275,
+          276,
+          277,
+          279
+        ],
+        "rpc_rounds": [
+          12
+        ],
+        "packets": 689,
+        "bytes": 1573756,
+        "mean_bytes": 2284.1161103047893,
+        "p10": 2228,
+        "p50": 2228,
+        "p90": 2232,
+        "packets_per_second": 84.0339311695023,
+        "rx_supply": 99.9704458315125,
+        "accepted_supply": 99.9704458315125,
+        "histogram": {
+          "2228": 483,
+          "2232": 189,
+          "4456": 9,
+          "4460": 8
+        }
+      },
+      "low_windows": 0,
+      "zero_windows": 0
+    },
+    {
+      "round": 13,
+      "valid": true,
+      "reasons": [],
+      "data": {
+        "windows": 8,
+        "seconds": 8.215849,
+        "start_t": 181.59079098701477,
+        "end_t": 189.8067491054535,
+        "lines": [
+          292,
+          294,
+          295,
+          296,
+          297,
+          298,
+          299,
+          300
+        ],
+        "rpc_rounds": [
+          13
+        ],
+        "packets": 689,
+        "bytes": 1575984,
+        "mean_bytes": 2287.3497822931786,
+        "p10": 2228,
+        "p50": 2228,
+        "p90": 2232,
+        "packets_per_second": 83.86230077987071,
+        "rx_supply": 99.90750803720955,
+        "accepted_supply": 99.90750803720955,
+        "histogram": {
+          "924": 1,
+          "2228": 483,
+          "2232": 187,
+          "4456": 7,
+          "4460": 10,
+          "5760": 1
+        }
+      },
+      "low_windows": 0,
+      "zero_windows": 0
+    },
+    {
+      "round": 14,
+      "valid": true,
+      "reasons": [],
+      "data": {
+        "windows": 7,
+        "seconds": 7.199613999999999,
+        "start_t": 196.97291803359985,
+        "end_t": 204.17262601852417,
+        "lines": [
+          314,
+          315,
+          316,
+          317,
+          319,
+          320,
+          321
+        ],
+        "rpc_rounds": [
+          14
+        ],
+        "packets": 591,
+        "bytes": 1348616,
+        "mean_bytes": 2281.922165820643,
+        "p10": 2228,
+        "p50": 2228,
+        "p90": 2232,
+        "packets_per_second": 82.08773414796961,
+        "rx_supply": 97.56136463241873,
+        "accepted_supply": 97.56136463241873,
+        "histogram": {
+          "48": 1,
+          "52": 1,
+          "100": 1,
+          "132": 2,
+          "136": 3,
+          "232": 1,
+          "2096": 1,
+          "2172": 3,
+          "2176": 8,
+          "2180": 4,
+          "2228": 389,
+          "2232": 153,
+          "2284": 1,
+          "4228": 1,
+          "4456": 12,
+          "4460": 10
+        }
+      },
+      "low_windows": 0,
+      "zero_windows": 0
+    },
+    {
+      "round": 15,
+      "valid": true,
+      "reasons": [],
+      "data": {
+        "windows": 8,
+        "seconds": 8.166580999999999,
+        "start_t": 211.30563807487488,
+        "end_t": 219.47232794761658,
+        "lines": [
+          335,
+          336,
+          337,
+          339,
+          340,
+          341,
+          342,
+          343
+        ],
+        "rpc_rounds": [
+          15
+        ],
+        "packets": 673,
+        "bytes": 1567068,
+        "mean_bytes": 2328.481426448737,
+        "p10": 2228,
+        "p50": 2228,
+        "p90": 2232,
+        "packets_per_second": 82.40902771918874,
+        "rx_supply": 99.94160959157817,
+        "accepted_supply": 99.94160959157817,
+        "histogram": {
+          "2228": 463,
+          "2232": 180,
+          "4456": 14,
+          "4460": 16
+        }
+      },
+      "low_windows": 0,
+      "zero_windows": 0
+    },
+    {
+      "round": 16,
+      "valid": true,
+      "reasons": [],
+      "data": {
+        "windows": 8,
+        "seconds": 8.200768,
+        "start_t": 226.60581302642822,
+        "end_t": 234.80668711662292,
+        "lines": [
+          357,
+          358,
+          359,
+          360,
+          361,
+          363,
+          364,
+          365
+        ],
+        "rpc_rounds": [
+          16
+        ],
+        "packets": 672,
+        "bytes": 1575984,
+        "mean_bytes": 2345.214285714286,
+        "p10": 2228,
+        "p50": 2228,
+        "p90": 2232,
+        "packets_per_second": 81.94354479970656,
+        "rx_supply": 100.09123535746896,
+        "accepted_supply": 100.09123535746896,
+        "histogram": {
+          "928": 1,
+          "2228": 459,
+          "2232": 177,
+          "4456": 15,
+          "4460": 19,
+          "5760": 1
+        }
+      },
+      "low_windows": 0,
+      "zero_windows": 0
+    },
+    {
+      "round": 17,
+      "valid": true,
+      "reasons": [],
+      "data": {
+        "windows": 7,
+        "seconds": 7.1659630000000005,
+        "start_t": 241.955313205719,
+        "end_t": 249.12137007713318,
+        "lines": [
+          379,
+          380,
+          381,
+          382,
+          383,
+          384,
+          385
+        ],
+        "rpc_rounds": [
+          17
+        ],
+        "packets": 599,
+        "bytes": 1375364,
+        "mean_bytes": 2296.1001669449083,
+        "p10": 2228,
+        "p50": 2228,
+        "p90": 2232,
+        "packets_per_second": 83.58960268145397,
+        "rx_supply": 99.96359409986721,
+        "accepted_supply": 99.96359409986721,
+        "histogram": {
+          "2228": 420,
+          "2232": 161,
+          "4456": 7,
+          "4460": 11
+        }
+      },
+      "low_windows": 0,
+      "zero_windows": 0
+    },
+    {
+      "round": 18,
+      "valid": true,
+      "reasons": [],
+      "data": {
+        "windows": 8,
+        "seconds": 8.166389,
+        "start_t": 256.270987033844,
+        "end_t": 264.4374840259552,
+        "lines": [
+          401,
+          402,
+          403,
+          405,
+          406,
+          407,
+          409,
+          410
+        ],
+        "rpc_rounds": [
+          18
+        ],
+        "packets": 687,
+        "bytes": 1569296,
+        "mean_bytes": 2284.2736535662298,
+        "p10": 2228,
+        "p50": 2228,
+        "p90": 2232,
+        "packets_per_second": 84.12530924010599,
+        "rx_supply": 100.08605598712805,
+        "accepted_supply": 100.08605598712805,
+        "histogram": {
+          "2228": 487,
+          "2232": 183,
+          "4456": 4,
+          "4460": 13
+        }
+      },
+      "low_windows": 0,
+      "zero_windows": 0
+    },
+    {
+      "round": 19,
+      "valid": true,
+      "reasons": [],
+      "data": {
+        "windows": 8,
+        "seconds": 8.149852,
+        "start_t": 271.57040214538574,
+        "end_t": 279.7203619480133,
+        "lines": [
+          425,
+          427,
+          428,
+          429,
+          430,
+          432,
+          433,
+          434
+        ],
+        "rpc_rounds": [
+          19
+        ],
+        "packets": 675,
+        "bytes": 1564836,
+        "mean_bytes": 2318.2755555555555,
+        "p10": 2228,
+        "p50": 2228,
+        "p90": 2232,
+        "packets_per_second": 82.823589925314,
+        "rx_supply": 100.00411663917332,
+        "accepted_supply": 100.00411663917332,
+        "histogram": {
+          "2228": 468,
+          "2232": 180,
+          "4456": 12,
+          "4460": 15
+        }
+      },
+      "low_windows": 0,
+      "zero_windows": 0
+    },
+    {
+      "round": 20,
+      "valid": true,
+      "reasons": [],
+      "data": {
+        "windows": 8,
+        "seconds": 8.16633,
+        "start_t": 286.8867712020874,
+        "end_t": 295.053209066391,
+        "lines": [
+          450,
+          451,
+          452,
+          454,
+          455,
+          456,
+          458,
+          459
+        ],
+        "rpc_rounds": [
+          20
+        ],
+        "packets": 678,
+        "bytes": 1567068,
+        "mean_bytes": 2311.309734513274,
+        "p10": 2228,
+        "p50": 2228,
+        "p90": 2232,
+        "packets_per_second": 83.02383077833004,
+        "rx_supply": 99.94468139298803,
+        "accepted_supply": 99.94468139298803,
+        "histogram": {
+          "2228": 472,
+          "2232": 181,
+          "4456": 10,
+          "4460": 15
+        }
+      },
+      "low_windows": 0,
+      "zero_windows": 0
+    },
+    {
+      "round": 21,
+      "valid": true,
+      "reasons": [],
+      "data": {
+        "windows": 8,
+        "seconds": 8.169239999999999,
+        "start_t": 301.13725185394287,
+        "end_t": 309.3065969944,
+        "lines": [
+          473,
+          474,
+          476,
+          477,
+          478,
+          480,
+          481,
+          482
+        ],
+        "rpc_rounds": [
+          21
+        ],
+        "packets": 689,
+        "bytes": 1569296,
+        "mean_bytes": 2277.6429608127723,
+        "p10": 2228,
+        "p50": 2228,
+        "p90": 2232,
+        "packets_per_second": 84.34077098971264,
+        "rx_supply": 100.05112674700054,
+        "accepted_supply": 100.05112674700054,
+        "histogram": {
+          "2228": 486,
+          "2232": 188,
+          "4456": 7,
+          "4460": 8
+        }
+      },
+      "low_windows": 0,
+      "zero_windows": 0
+    },
+    {
+      "round": 22,
+      "valid": true,
+      "reasons": [],
+      "data": {
+        "windows": 8,
+        "seconds": 8.152386,
+        "start_t": 316.3860640525818,
+        "end_t": 324.53856110572815,
+        "lines": [
+          497,
+          499,
+          500,
+          501,
+          502,
+          504,
+          505,
+          506
+        ],
+        "rpc_rounds": [
+          22
+        ],
+        "packets": 684,
+        "bytes": 1564840,
+        "mean_bytes": 2287.777777777778,
+        "p10": 2228,
+        "p50": 2228,
+        "p90": 2232,
+        "packets_per_second": 83.90181721032346,
+        "rx_supply": 99.97328798382871,
+        "accepted_supply": 99.97328798382871,
+        "histogram": {
+          "444": 1,
+          "2228": 477,
+          "2232": 187,
+          "4016": 1,
+          "4456": 10,
+          "4460": 8
+        }
+      },
+      "low_windows": 0,
+      "zero_windows": 0
+    },
+    {
+      "round": 23,
+      "valid": true,
+      "reasons": [],
+      "data": {
+        "windows": 8,
+        "seconds": 8.149460000000001,
+        "start_t": 331.6856892108917,
+        "end_t": 339.8352611064911,
+        "lines": [
+          522,
+          523,
+          524,
+          526,
+          527,
+          528,
+          530,
+          531
+        ],
+        "rpc_rounds": [
+          23
+        ],
+        "packets": 678,
+        "bytes": 1562612,
+        "mean_bytes": 2304.7374631268435,
+        "p10": 2228,
+        "p50": 2228,
+        "p90": 2232,
+        "packets_per_second": 83.19569640197018,
+        "rx_supply": 99.86679076486867,
+        "accepted_supply": 99.86679076486867,
+        "histogram": {
+          "2228": 473,
+          "2232": 182,
+          "4456": 9,
+          "4460": 14
+        }
+      },
+      "low_windows": 0,
+      "zero_windows": 0
+    },
+    {
+      "round": 24,
+      "valid": true,
+      "reasons": [],
+      "data": {
+        "windows": 7,
+        "seconds": 7.149358,
+        "start_t": 347.00217604637146,
+        "end_t": 354.1516270637512,
+        "lines": [
+          546,
+          548,
+          549,
+          550,
+          552,
+          553,
+          554
+        ],
+        "rpc_rounds": [
+          24
+        ],
+        "packets": 600,
+        "bytes": 1370904,
+        "mean_bytes": 2284.84,
+        "p10": 2228,
+        "p50": 2228,
+        "p90": 2232,
+        "packets_per_second": 83.92361943547938,
+        "rx_supply": 99.8708555369587,
+        "accepted_supply": 99.8708555369587,
+        "histogram": {
+          "4": 1,
+          "2228": 420,
+          "2232": 163,
+          "4456": 9,
+          "4460": 7
+        }
+      },
+      "low_windows": 0,
+      "zero_windows": 0
+    },
+    {
+      "round": 25,
+      "valid": true,
+      "reasons": [],
+      "data": {
+        "windows": 8,
+        "seconds": 8.165556,
+        "start_t": 361.27210807800293,
+        "end_t": 369.43777203559875,
+        "lines": [
+          570,
+          571,
+          572,
+          574,
+          575,
+          576,
+          577,
+          579
+        ],
+        "rpc_rounds": [
+          25
+        ],
+        "packets": 683,
+        "bytes": 1567068,
+        "mean_bytes": 2294.389458272328,
+        "p10": 2228,
+        "p50": 2228,
+        "p90": 2232,
+        "packets_per_second": 83.64402864912077,
+        "rx_supply": 99.95415498956838,
+        "accepted_supply": 99.95415498956838,
+        "histogram": {
+          "2228": 482,
+          "2232": 181,
+          "4456": 5,
+          "4460": 15
+        }
+      },
+      "low_windows": 0,
+      "zero_windows": 0
+    },
+    {
+      "round": 26,
+      "valid": true,
+      "reasons": [],
+      "data": {
+        "windows": 8,
+        "seconds": 8.127412,
+        "start_t": 376.5899889469147,
+        "end_t": 384.7175090312958,
+        "lines": [
+          594,
+          595,
+          597,
+          598,
+          599,
+          600,
+          602,
+          603
+        ],
+        "rpc_rounds": [
+          26
+        ],
+        "packets": 671,
+        "bytes": 1560380,
+        "mean_bytes": 2325.4545454545455,
+        "p10": 2228,
+        "p50": 2228,
+        "p90": 2232,
+        "packets_per_second": 82.56010646439482,
+        "rx_supply": 99.9946744014782,
+        "accepted_supply": 99.9946744014782,
+        "histogram": {
+          "2228": 462,
+          "2232": 180,
+          "4456": 14,
+          "4460": 15
+        }
+      },
+      "low_windows": 0,
+      "zero_windows": 0
+    },
+    {
+      "round": 27,
+      "valid": true,
+      "reasons": [],
+      "data": {
+        "windows": 8,
+        "seconds": 8.109556,
+        "start_t": 391.80755615234375,
+        "end_t": 399.9172191619873,
+        "lines": [
+          618,
+          620,
+          621,
+          622,
+          623,
+          625,
+          626,
+          627
+        ],
+        "rpc_rounds": [
+          27
+        ],
+        "packets": 672,
+        "bytes": 1555924,
+        "mean_bytes": 2315.3630952380954,
+        "p10": 2228,
+        "p50": 2228,
+        "p90": 2232,
+        "packets_per_second": 82.865202484575,
+        "rx_supply": 99.92866235011306,
+        "accepted_supply": 99.92866235011306,
+        "histogram": {
+          "2228": 465,
+          "2232": 181,
+          "4456": 12,
+          "4460": 14
+        }
+      },
+      "low_windows": 0,
+      "zero_windows": 0
+    },
+    {
+      "round": 28,
+      "valid": true,
+      "reasons": [],
+      "data": {
+        "windows": 7,
+        "seconds": 7.121889,
+        "start_t": 407.06724095344543,
+        "end_t": 414.18922305107117,
+        "lines": [
+          643,
+          644,
+          645,
+          646,
+          648,
+          649,
+          650
+        ],
+        "rpc_rounds": [
+          28
+        ],
+        "packets": 593,
+        "bytes": 1366448,
+        "mean_bytes": 2304.2967959527823,
+        "p10": 2228,
+        "p50": 2228,
+        "p90": 2232,
+        "packets_per_second": 83.26442605325637,
+        "rx_supply": 99.93018238091982,
+        "accepted_supply": 99.93018238091982,
+        "histogram": {
+          "2228": 413,
+          "2232": 160,
+          "4456": 9,
+          "4460": 11
+        }
+      },
+      "low_windows": 0,
+      "zero_windows": 0
+    },
+    {
+      "round": 29,
+      "valid": true,
+      "reasons": [],
+      "data": {
+        "windows": 8,
+        "seconds": 8.216401,
+        "start_t": 421.33335518836975,
+        "end_t": 429.5498671531677,
+        "lines": [
+          666,
+          667,
+          668,
+          669,
+          671,
+          672,
+          673,
+          675
+        ],
+        "rpc_rounds": [
+          29
+        ],
+        "packets": 678,
+        "bytes": 1575988,
+        "mean_bytes": 2324.466076696165,
+        "p10": 2228,
+        "p50": 2228,
+        "p90": 2232,
+        "packets_per_second": 82.51788100410387,
+        "rx_supply": 99.9010495390054,
+        "accepted_supply": 99.9010495390054,
+        "histogram": {
+          "2228": 464,
+          "2232": 185,
+          "4456": 16,
+          "4460": 13
+        }
+      },
+      "low_windows": 0,
+      "zero_windows": 0
+    },
+    {
+      "round": 30,
+      "valid": true,
+      "reasons": [],
+      "data": {
+        "windows": 8,
+        "seconds": 8.166540999999999,
+        "start_t": 436.69983291625977,
+        "end_t": 444.86648201942444,
+        "lines": [
+          690,
+          691,
+          692,
+          694,
+          695,
+          696,
+          698,
+          699
+        ],
+        "rpc_rounds": [
+          30
+        ],
+        "packets": 685,
+        "bytes": 1569300,
+        "mean_bytes": 2290.9489051094893,
+        "p10": 2228,
+        "p50": 2228,
+        "p90": 2232,
+        "packets_per_second": 83.87884172748292,
+        "rx_supply": 100.08444823824433,
+        "accepted_supply": 100.08444823824433,
+        "histogram": {
+          "2228": 477,
+          "2232": 189,
+          "4456": 11,
+          "4460": 8
+        }
+      },
+      "low_windows": 0,
+      "zero_windows": 0
+    },
+    {
+      "round": 31,
+      "valid": true,
+      "reasons": [],
+      "data": {
+        "windows": 7,
+        "seconds": 7.149901999999999,
+        "start_t": 452.03274416923523,
+        "end_t": 459.1827390193939,
+        "lines": [
+          714,
+          715,
+          716,
+          718,
+          719,
+          720,
+          721
+        ],
+        "rpc_rounds": [
+          31
+        ],
+        "packets": 599,
+        "bytes": 1370908,
+        "mean_bytes": 2288.661101836394,
+        "p10": 2228,
+        "p50": 2228,
+        "p90": 2232,
+        "packets_per_second": 83.77737205349109,
+        "rx_supply": 99.86354824630232,
+        "accepted_supply": 99.86354824630232,
+        "histogram": {
+          "4": 1,
+          "2228": 419,
+          "2232": 162,
+          "4456": 8,
+          "4460": 9
+        }
+      },
+      "low_windows": 0,
+      "zero_windows": 0
+    },
+    {
+      "round": 32,
+      "valid": true,
+      "reasons": [],
+      "data": {
+        "windows": 8,
+        "seconds": 8.216357,
+        "start_t": 466.33234095573425,
+        "end_t": 474.54880595207214,
+        "lines": [
+          736,
+          737,
+          738,
+          739,
+          740,
+          741,
+          742,
+          743
+        ],
+        "rpc_rounds": [
+          32
+        ],
+        "packets": 660,
+        "bytes": 1524716,
+        "mean_bytes": 2310.1757575757574,
+        "p10": 2228,
+        "p50": 2228,
+        "p90": 2232,
+        "packets_per_second": 80.32757096606197,
+        "rx_supply": 96.65146203684513,
+        "accepted_supply": 96.65146203684513,
+        "histogram": {
+          "20": 1,
+          "52": 2,
+          "56": 1,
+          "132": 3,
+          "136": 8,
+          "276": 1,
+          "304": 1,
+          "604": 1,
+          "924": 1,
+          "928": 3,
+          "1624": 1,
+          "2120": 2,
+          "2132": 1,
+          "2148": 1,
+          "2172": 4,
+          "2176": 14,
+          "2208": 1,
+          "2228": 407,
+          "2232": 163,
+          "2328": 1,
+          "2388": 1,
+          "3156": 2,
+          "3884": 1,
+          "4180": 1,
+          "4300": 1,
+          "4352": 1,
+          "4456": 15,
+          "4460": 15,
+          "5760": 6
+        }
+      },
+      "low_windows": 0,
+      "zero_windows": 0
+    },
+    {
+      "round": 33,
+      "valid": true,
+      "reasons": [],
+      "data": {
+        "windows": 8,
+        "seconds": 8.182872,
+        "start_t": 481.71613001823425,
+        "end_t": 489.89911007881165,
+        "lines": [
+          757,
+          758,
+          759,
+          760,
+          761,
+          762,
+          763,
+          764
+        ],
+        "rpc_rounds": [
+          33
+        ],
+        "packets": 669,
+        "bytes": 1544776,
+        "mean_bytes": 2309.0822122571003,
+        "p10": 2228,
+        "p50": 2228,
+        "p90": 2232,
+        "packets_per_second": 81.75613647628852,
+        "rx_supply": 98.32377108346964,
+        "accepted_supply": 98.32377108346964,
+        "histogram": {
+          "52": 2,
+          "104": 1,
+          "132": 2,
+          "136": 1,
+          "188": 1,
+          "2012": 1,
+          "2124": 1,
+          "2172": 2,
+          "2176": 5,
+          "2180": 2,
+          "2228": 446,
+          "2232": 174,
+          "4456": 14,
+          "4460": 17
+        }
+      },
+      "low_windows": 0,
+      "zero_windows": 0
+    },
+    {
+      "round": 34,
+      "valid": true,
+      "reasons": [],
+      "data": {
+        "windows": 7,
+        "seconds": 7.216700000000001,
+        "start_t": 497.08246994018555,
+        "end_t": 504.2992630004883,
+        "lines": [
+          778,
+          779,
+          780,
+          781,
+          782,
+          783,
+          785
+        ],
+        "rpc_rounds": [
+          34
+        ],
+        "packets": 585,
+        "bytes": 1333012,
+        "mean_bytes": 2278.6529914529915,
+        "p10": 2228,
+        "p50": 2228,
+        "p90": 2232,
+        "packets_per_second": 81.06198123796193,
+        "rx_supply": 96.2042323130147,
+        "accepted_supply": 96.2042323130147,
+        "histogram": {
+          "52": 3,
+          "56": 1,
+          "136": 4,
+          "184": 1,
+          "240": 1,
+          "688": 1,
+          "924": 1,
+          "2120": 1,
+          "2172": 5,
+          "2176": 13,
+          "2180": 2,
+          "2228": 378,
+          "2232": 149,
+          "3004": 1,
+          "3684": 1,
+          "3768": 1,
+          "4456": 9,
+          "4460": 12,
+          "5760": 1
+        }
+      },
+      "low_windows": 0,
+      "zero_windows": 0
+    },
+    {
+      "round": 35,
+      "valid": true,
+      "reasons": [],
+      "data": {
+        "windows": 8,
+        "seconds": 8.234542,
+        "start_t": 511.5154001712799,
+        "end_t": 519.7500491142273,
+        "lines": [
+          798,
+          799,
+          800,
+          801,
+          802,
+          804,
+          805,
+          806
+        ],
+        "rpc_rounds": [
+          35
+        ],
+        "packets": 678,
+        "bytes": 1567068,
+        "mean_bytes": 2311.309734513274,
+        "p10": 2228,
+        "p50": 2228,
+        "p90": 2232,
+        "packets_per_second": 82.33609106614551,
+        "rx_supply": 99.11677540778832,
+        "accepted_supply": 99.11677540778832,
+        "histogram": {
+          "56": 1,
+          "132": 2,
+          "136": 2,
+          "1952": 1,
+          "2172": 1,
+          "2176": 3,
+          "2180": 2,
+          "2228": 455,
+          "2232": 180,
+          "3164": 1,
+          "3524": 1,
+          "4456": 16,
+          "4460": 13
+        }
+      },
+      "low_windows": 0,
+      "zero_windows": 0
+    },
+    {
+      "round": 36,
+      "valid": true,
+      "reasons": [],
+      "data": {
+        "windows": 7,
+        "seconds": 7.232489,
+        "start_t": 526.9171681404114,
+        "end_t": 534.1497509479523,
+        "lines": [
+          819,
+          820,
+          821,
+          822,
+          825,
+          826,
+          827
+        ],
+        "rpc_rounds": [
+          36
+        ],
+        "packets": 629,
+        "bytes": 88536,
+        "mean_bytes": 140.75675675675674,
+        "p10": 132,
+        "p50": 136,
+        "p90": 140,
+        "packets_per_second": 86.96867703497371,
+        "rx_supply": 6.3757442285774655,
+        "accepted_supply": 6.3757442285774655,
+        "histogram": {
+          "4": 3,
+          "8": 1,
+          "24": 1,
+          "28": 1,
+          "32": 1,
+          "40": 1,
+          "52": 1,
+          "60": 1,
+          "64": 1,
+          "68": 1,
+          "76": 2,
+          "80": 1,
+          "88": 1,
+          "100": 1,
+          "104": 2,
+          "112": 2,
+          "116": 1,
+          "124": 1,
+          "128": 2,
+          "132": 54,
+          "136": 446,
+          "140": 59,
+          "144": 1,
+          "148": 1,
+          "156": 1,
+          "164": 3,
+          "168": 1,
+          "172": 1,
+          "184": 1,
+          "192": 1,
+          "196": 2,
+          "200": 1,
+          "204": 1,
+          "212": 1,
+          "216": 1,
+          "228": 1,
+          "240": 1,
+          "244": 1,
+          "248": 1,
+          "264": 2,
+          "268": 2,
+          "272": 19,
+          "276": 1,
+          "408": 1
+        }
+      },
+      "low_windows": 7,
+      "zero_windows": 0
+    },
+    {
+      "round": 37,
+      "valid": true,
+      "reasons": [],
+      "data": {
+        "windows": 8,
+        "seconds": 8.201191,
+        "start_t": 541.2816689014435,
+        "end_t": 549.4829671382904,
+        "lines": [
+          841,
+          842,
+          844,
+          846,
+          847,
+          848,
+          849,
+          850
+        ],
+        "rpc_rounds": [
+          37
+        ],
+        "packets": 704,
+        "bytes": 100096,
+        "mean_bytes": 142.1818181818182,
+        "p10": 132,
+        "p50": 136,
+        "p90": 144,
+        "packets_per_second": 85.84119062706868,
+        "rx_supply": 6.356800290754518,
+        "accepted_supply": 6.356800290754518,
+        "histogram": {
+          "4": 1,
+          "12": 1,
+          "16": 3,
+          "20": 2,
+          "24": 1,
+          "28": 1,
+          "32": 1,
+          "36": 1,
+          "40": 2,
+          "48": 1,
+          "56": 2,
+          "60": 2,
+          "64": 1,
+          "72": 2,
+          "76": 2,
+          "80": 1,
+          "84": 1,
+          "88": 2,
+          "92": 1,
+          "100": 1,
+          "108": 4,
+          "112": 2,
+          "116": 1,
+          "120": 1,
+          "124": 1,
+          "128": 2,
+          "132": 53,
+          "136": 475,
+          "140": 64,
+          "144": 3,
+          "148": 2,
+          "152": 1,
+          "156": 1,
+          "160": 4,
+          "164": 1,
+          "172": 1,
+          "184": 2,
+          "188": 3,
+          "192": 2,
+          "196": 3,
+          "204": 1,
+          "208": 1,
+          "212": 3,
+          "220": 3,
+          "232": 2,
+          "236": 1,
+          "240": 1,
+          "244": 1,
+          "248": 1,
+          "252": 3,
+          "256": 3,
+          "260": 1,
+          "264": 2,
+          "272": 23,
+          "352": 1,
+          "408": 2
+        }
+      },
+      "low_windows": 8,
+      "zero_windows": 0
+    },
+    {
+      "round": 38,
+      "valid": true,
+      "reasons": [],
+      "data": {
+        "windows": 8,
+        "seconds": 8.199663000000001,
+        "start_t": 556.6815481185913,
+        "end_t": 564.8813180923462,
+        "lines": [
+          865,
+          866,
+          868,
+          869,
+          870,
+          871,
+          872,
+          873
+        ],
+        "rpc_rounds": [
+          38
+        ],
+        "packets": 694,
+        "bytes": 98872,
+        "mean_bytes": 142.46685878962535,
+        "p10": 132,
+        "p50": 136,
+        "p90": 140,
+        "packets_per_second": 84.63762474140704,
+        "rx_supply": 6.280237777251739,
+        "accepted_supply": 6.280237777251739,
+        "histogram": {
+          "4": 1,
+          "8": 1,
+          "16": 2,
+          "20": 1,
+          "28": 1,
+          "32": 1,
+          "36": 1,
+          "40": 1,
+          "44": 1,
+          "48": 2,
+          "52": 3,
+          "60": 1,
+          "64": 1,
+          "76": 3,
+          "84": 2,
+          "88": 2,
+          "96": 2,
+          "100": 1,
+          "104": 1,
+          "108": 1,
+          "112": 2,
+          "116": 2,
+          "120": 1,
+          "124": 3,
+          "128": 1,
+          "132": 69,
+          "136": 450,
+          "140": 71,
+          "144": 1,
+          "148": 2,
+          "152": 1,
+          "156": 2,
+          "160": 1,
+          "164": 2,
+          "168": 2,
+          "172": 1,
+          "180": 2,
+          "184": 3,
+          "192": 1,
+          "196": 2,
+          "208": 1,
+          "216": 1,
+          "220": 2,
+          "224": 1,
+          "228": 1,
+          "232": 2,
+          "236": 1,
+          "240": 1,
+          "244": 1,
+          "252": 1,
+          "256": 2,
+          "264": 1,
+          "268": 4,
+          "272": 22,
+          "276": 1,
+          "376": 1,
+          "404": 1,
+          "408": 2
+        }
+      },
+      "low_windows": 8,
+      "zero_windows": 0
+    },
+    {
+      "round": 39,
+      "valid": true,
+      "reasons": [],
+      "data": {
+        "windows": 7,
+        "seconds": 7.148228,
+        "start_t": 572.0495569705963,
+        "end_t": 579.1978771686554,
+        "lines": [
+          888,
+          889,
+          891,
+          892,
+          893,
+          894,
+          895
+        ],
+        "rpc_rounds": [
+          39
+        ],
+        "packets": 617,
+        "bytes": 86908,
+        "mean_bytes": 140.85575364667747,
+        "p10": 132,
+        "p50": 136,
+        "p90": 144,
+        "packets_per_second": 86.31509795154828,
+        "rx_supply": 6.332280298464646,
+        "accepted_supply": 6.332280298464646,
+        "histogram": {
+          "8": 2,
+          "12": 1,
+          "16": 1,
+          "20": 1,
+          "28": 2,
+          "32": 3,
+          "36": 1,
+          "40": 2,
+          "48": 1,
+          "52": 1,
+          "56": 2,
+          "60": 2,
+          "64": 2,
+          "68": 2,
+          "72": 2,
+          "76": 2,
+          "88": 2,
+          "96": 1,
+          "100": 1,
+          "104": 3,
+          "108": 2,
+          "112": 1,
+          "116": 1,
+          "120": 1,
+          "128": 3,
+          "132": 43,
+          "136": 415,
+          "140": 54,
+          "144": 2,
+          "152": 1,
+          "160": 3,
+          "164": 3,
+          "168": 1,
+          "172": 2,
+          "180": 1,
+          "184": 1,
+          "188": 1,
+          "192": 1,
+          "196": 1,
+          "200": 2,
+          "204": 3,
+          "208": 1,
+          "212": 4,
+          "216": 1,
+          "224": 1,
+          "228": 1,
+          "236": 4,
+          "240": 3,
+          "244": 1,
+          "248": 1,
+          "256": 1,
+          "260": 1,
+          "264": 2,
+          "268": 2,
+          "272": 14,
+          "276": 3,
+          "404": 1
+        }
+      },
+      "low_windows": 7,
+      "zero_windows": 0
+    },
+    {
+      "round": 40,
+      "valid": true,
+      "reasons": [],
+      "data": {
+        "windows": 8,
+        "seconds": 8.216804000000002,
+        "start_t": 586.3812952041626,
+        "end_t": 594.598207950592,
+        "lines": [
+          910,
+          911,
+          913,
+          914,
+          915,
+          917,
+          918,
+          919
+        ],
+        "rpc_rounds": [
+          40
+        ],
+        "packets": 722,
+        "bytes": 100908,
+        "mean_bytes": 139.7617728531856,
+        "p10": 132,
+        "p50": 136,
+        "p90": 140,
+        "packets_per_second": 87.86871391845295,
+        "rx_supply": 6.396191268527275,
+        "accepted_supply": 6.396191268527275,
+        "histogram": {
+          "4": 5,
+          "8": 1,
+          "12": 1,
+          "16": 1,
+          "20": 3,
+          "24": 1,
+          "32": 1,
+          "36": 1,
+          "40": 1,
+          "44": 1,
+          "52": 1,
+          "56": 1,
+          "60": 1,
+          "64": 1,
+          "68": 2,
+          "72": 1,
+          "76": 1,
+          "80": 2,
+          "88": 1,
+          "92": 1,
+          "96": 2,
+          "104": 2,
+          "108": 1,
+          "112": 2,
+          "116": 1,
+          "120": 2,
+          "124": 1,
+          "132": 143,
+          "136": 334,
+          "140": 147,
+          "144": 2,
+          "148": 2,
+          "156": 1,
+          "160": 3,
+          "164": 2,
+          "172": 1,
+          "176": 1,
+          "184": 1,
+          "188": 1,
+          "192": 1,
+          "196": 1,
+          "200": 2,
+          "208": 2,
+          "212": 1,
+          "216": 2,
+          "228": 1,
+          "232": 1,
+          "236": 2,
+          "240": 1,
+          "244": 1,
+          "248": 1,
+          "256": 2,
+          "260": 2,
+          "264": 2,
+          "268": 5,
+          "272": 12,
+          "276": 4,
+          "304": 1,
+          "316": 1
+        }
+      },
+      "low_windows": 8,
+      "zero_windows": 0
+    }
+  ]
+}

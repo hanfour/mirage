@@ -6,6 +6,7 @@ from collections import Counter
 import json
 from pathlib import Path
 import re
+from audio_rpc_windows import rpc_schedule, window_round
 
 
 def main():
@@ -20,9 +21,11 @@ def main():
     guards = [json.loads(line) for line in guard_text.splitlines()]
     for g in guards:
         g['t'] = (g['audio']['start'] + g['audio']['end']) / 2
+    log = (args.log or root / "app.log").read_text()
+    schedule = rpc_schedule(log) if "[audio-rpc]" in log else None
     rows = []
     events = []
-    for line_number, line in enumerate((args.log or root / 'app.log').read_text().splitlines(), 1):
+    for line_number, line in enumerate(log.splitlines(), 1):
         if not line.startswith('[audio] pkt='):
             if '[audio]' in line or '[conn]' in line and any(s in line for s in ['attachStream', '連線', '斷線', 'connected', 'suspend']):
                 events.append(dict(line=line_number, text=line))
@@ -66,9 +69,15 @@ def main():
             reasons.append('window_duration')
         if start < meta['start_epoch'] or end > meta['start_epoch'] + meta['seconds']:
             reasons.append('outside_capture')
+        rpc_round = None
+        if schedule is not None:
+            rpc_round, rpc_reasons = window_round(start, end, schedule)
+            reasons.extend(rpc_reasons)
+            if schedule['errors']:
+                reasons.append('rpc_run_aborted')
         smp = int(fields['smp'])
         rows.append(dict(line=line_number, start=start, end=end, t=end-meta['start_epoch'], dt=dt,
-                         valid=not reasons, reasons=reasons, guards=[g['second'] for g in nearby],
+                         rpc_round=rpc_round, valid=not reasons, reasons=reasons, guards=[g['second'] for g in nearby],
                          pkt=int(fields['pkt']), smp=smp, supply=smp/dt/96000*100,
                          rxpkt=rxpkt, rxbytes=rxbytes, rx_supply=rxbytes/dt/192000*100,
                          histogram=dict(sorted(bins.items())), over=int(fields['over'])))
@@ -80,7 +89,7 @@ def main():
     low = lambda r: r['valid'] and r['rxpkt'] > 0 and r['supply'] < 50 and r['rx_supply'] < 50
     candidate = None
     for i in range(len(rows)-4):
-        if all(low(r) for r in rows[i:i+5]) and len([r for r in rows[:i] if healthy(r)]) >= 30:
+        if all(low(r) for r in rows[i:i+5]) and len({r['rpc_round'] for r in rows[i:i+5]}) == 1:
             candidate = i
             break
     def summarize(selected):
@@ -98,7 +107,7 @@ def main():
                     return k
         return dict(windows=len(selected), seconds=seconds, start_t=selected[0]['start']-meta['start_epoch'] if selected else None,
                     end_t=selected[-1]['t'] if selected else None,
-                    lines=[r['line'] for r in selected], packets=packets, bytes=byte_count,
+                    lines=[r['line'] for r in selected], rpc_rounds=sorted({r['rpc_round'] for r in selected if r['rpc_round'] is not None}), packets=packets, bytes=byte_count,
                     mean_bytes=byte_count/packets if packets else None,
                     p10=quantile(.1), p50=quantile(.5), p90=quantile(.9),
                     packets_per_second=packets/seconds if seconds else None,
@@ -123,9 +132,15 @@ def main():
                    pre_role='precollapse' if candidate is not None else 'healthy_baseline_not_precollapse',
                    all_valid=summarize([r for r in rows if r['valid']]),
                    healthy_tail=summarize([r for r in rows if healthy(r)][-30:]))
+    if schedule is not None:
+        summary['rpc_schedule'] = schedule
+        summary['per_rpc'] = [dict(round=r['round'], valid=r['valid'], reasons=r['reasons'],
+            data=summarize([x for x in rows if x['valid'] and x['rpc_round']==r['round']]),
+            low_windows=sum(low(x) for x in rows if x['rpc_round']==r['round']),
+            zero_windows=sum(x['valid'] and x['rxpkt']==0 for x in rows if x['rpc_round']==r['round'])) for r in schedule['rounds']]
     (root/'timeline.json').write_text(json.dumps(rows, indent=2))
     (root/'summary.json').write_text(json.dumps(summary, indent=2))
-    print(json.dumps({k:v for k,v in summary.items() if k not in ['pre','post','events','all_valid','healthy_tail']}, indent=2))
+    print(json.dumps({k:v for k,v in summary.items() if k not in ['pre','post','events','all_valid','healthy_tail','rpc_schedule','per_rpc']}, indent=2))
     for label in ['pre','post']:
         print(label, json.dumps({k:v for k,v in summary[label].items() if k not in ['histogram','lines']}))
 

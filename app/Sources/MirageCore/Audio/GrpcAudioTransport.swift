@@ -3,7 +3,7 @@ import GRPC
 
 /// `streamAudio` 的 gRPC 封裝。持有真正的 call 物件，讓 `cancelStream()` 能中斷
 /// 一條「guest 靜音時會無限阻塞」的串流（proto 明載此行為）。
-public final class GrpcAudioTransport: AudioTransport, @unchecked Sendable {
+public final class GrpcAudioTransport: AwaitableAudioTransport, @unchecked Sendable {
     private let channel: GrpcChannelBox
     // call 型別非 Sendable，用鎖保護；@unchecked Sendable 的理由與既有 GrpcChannelBox 相同。
     private let lock = NSLock()
@@ -11,6 +11,24 @@ public final class GrpcAudioTransport: AudioTransport, @unchecked Sendable {
         Android_Emulation_Control_AudioFormat,
         Android_Emulation_Control_AudioPacket
     >?
+
+    private var responseTask: Task<Void, Never>?
+
+    private func storeResponseTask(_ task: Task<Void, Never>) {
+        lock.lock(); defer { lock.unlock() }
+        responseTask = task
+    }
+
+    private func currentResponseTask() -> Task<Void, Never>? {
+        lock.lock(); defer { lock.unlock() }
+        return responseTask
+    }
+
+    public func cancelStreamAndWait() async {
+        let task = currentResponseTask()
+        cancelStream()
+        await task?.value
+    }
 
     public init(channel: GrpcChannelBox) { self.channel = channel }
 
@@ -43,6 +61,7 @@ public final class GrpcAudioTransport: AudioTransport, @unchecked Sendable {
         let responses = call.responseStream
         return AsyncThrowingStream { cont in
             let task = Task {
+                defer { cont.finish() }
                 do {
                     // **收到的格式從來沒有人檢查過。** `AudioPacket` 帶著 emulator 實際
                     // 送出的 `format`，而這裡一路假設它等於上面請求的 48000/stereo/S16——
@@ -70,6 +89,7 @@ public final class GrpcAudioTransport: AudioTransport, @unchecked Sendable {
                     cont.finish(throwing: error)
                 }
             }
+            storeResponseTask(task)
             cont.onTermination = { _ in task.cancel() }
         }
     }

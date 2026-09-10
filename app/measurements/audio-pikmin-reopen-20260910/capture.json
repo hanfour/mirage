@@ -1,0 +1,14 @@
+{
+  "start_epoch": 1789038518.259018,
+  "seconds": 600,
+  "serial": "emulator-5554",
+  "package": "com.nianticlabs.pikmin",
+  "uid": 10209,
+  "package_query": {
+    "start": 1789038501.808806,
+    "end": 1789038501.890423,
+    "rc": 0,
+    "stdout": "package:com.nianticlabs.pikmin uid:10209\n",
+    "stderr": ""
+  }
+}

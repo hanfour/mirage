@@ -67,6 +67,7 @@ def main():
     parser.add_argument('--package', default='com.nianticlabs.pikmin')
     parser.add_argument('--seconds', type=int, default=600)
     parser.add_argument('--out', type=Path)
+    parser.add_argument('--start-epoch', type=float, help='Shared scheduled start with Mirage reopen mode')
     args = parser.parse_args()
     if args.selftest:
         selftest()
@@ -80,6 +81,11 @@ def main():
         raise RuntimeError('cannot establish target UID: ' + repr(package))
     uid = int(match[1])
     args.out.mkdir(parents=True, exist_ok=True)
+    if args.start_epoch is not None:
+        wait = args.start_epoch - time.time()
+        if wait <= 0:
+            raise RuntimeError("scheduled start already passed")
+        time.sleep(wait)
     start = time.monotonic()
     metadata = dict(start_epoch=time.time(), seconds=args.seconds, serial=args.serial, package=args.package, uid=uid, package_query=package)
     (args.out / 'capture.json').write_text(json.dumps(metadata, indent=2))

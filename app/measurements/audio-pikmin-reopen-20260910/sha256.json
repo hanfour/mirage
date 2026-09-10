@@ -1,0 +1,13 @@
+{
+  "/private/tmp/mirage-audio-reopen-run/Mirage.app/Contents/MacOS/MirageApp": "59e122f72ccffd92a85c064ca06f40b30df089653086fe02b0e8307b521e467b",
+  "app/Sources/MirageCore/Audio/AudioReopenTransport.swift": "5d349742d8d9c95f5d0dc0f4ab0fd4083df8a9d5d3bac384378b7496f2a3fcdb",
+  "app/Sources/MirageCore/Audio/GrpcAudioTransport.swift": "81b89e86281ae8e27fedd9dfef38fe1b90aa72851253524a8aa081101339bbd3",
+  "app/Sources/MirageCore/EmulatorClient.swift": "3a5bd2ddabed3a6c33727233fdf6b0638845c1f51637f40441d5a838e072576a",
+  "app/Sources/MirageShell/AppModel+Audio.swift": "05b1d0bc800f24a39a130f8916413c737df375afdfdd61fa3adbb9ba8a8d4c83",
+  "app/scripts/lib/audio_packet_capture.py": "1b02640e1d9486c8d3e6c0d08070827b3c27bc8baf0e7e5c4ee7468c7e23f629",
+  "app/scripts/lib/audio_packet_analyze.py": "2c4a92b54fc6e6fdd1b6a51228843c328775a0f9a238c3e87c05d6bd727c3dc3",
+  "app/scripts/lib/audio_rpc_windows.py": "0099fe4c0549f71e458e61f1e6fd83f46c92f3fa463cbe718e00be5488f868f0",
+  "app/measurements/audio-pikmin-reopen-20260910/app.log": "34629f3511680c5e849d06a01bf549e7ce22d41ca904a10f91e508683aafc1e0",
+  "app/measurements/audio-pikmin-reopen-20260910/guards.jsonl.gz": "a6493efc4944ceb64089a8f90ae4a16dc32ae2b4790a3d2220eb0c9e4bf5630e",
+  "app/scripts/lib/audio_reopen_selftest.py": "efd4f14879fe760559f41ea57004a0af61f8cafa268b28c7f6925fefb55d808a"
+}
