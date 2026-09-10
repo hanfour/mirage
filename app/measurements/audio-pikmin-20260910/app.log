@@ -1,0 +1,802 @@
+[app] frame sink=latest
+2026-09-10 18:16:10.965 MirageApp[34439:33401290] ApplePersistenceIgnoreState: Existing state will not be touched. New state will be written to /var/folders/fs/cw9m80hj6n59wx62tb60tcn00000gn/T/com.mirage.app.savedState
+[wake-diag] event=mirror-viewDidMoveToWindow appDelegate=SwiftUI.AppDelegate respondsToLastWindowPolicy=true isActive=true mainMenuNil=false mainMenuItems=5 activationPolicy=0 receiver=nil return=nil action=nil windowCount=1 window=ObjectIdentifier%280x0000000104c13820%29 windowClass=..NSKVONotifying_SwiftUI.AppKitWindow number=18548 identifier=mirage-mirror mirror=true key=false visible=false delegate=SwiftUI.AppKitWindowController lifecycle=false contentView=NSKVONotifying__TtGC7SwiftUIP10%241c571ffac23AppKitWindowHostingViewGVS_15ModifiedContentVS_7AnyViewVS_12RootModifier__ controller=SwiftUI.AppKitWindowController level=0 styleMask=32783 width=900 height=632 excludedFromWindowsMenu=true
+[app] endpoint=localhost:8554
+[conn] disconnected --connectRequested--> connecting
+[conn] ensureChannel=true probe=healthy(MirageCore.EmulatorInfo(version: "37.1.11.0 (37.1.11-15917651)", display: Optional((w: 1080, h: 2400))))
+[transport] raw rgba (default; set MIRAGE_TRANSPORT=mmap to try mmap)
+[conn] connecting --connectSucceeded--> connected
+[conn] attachStream 掛上，請求 540x1200
+[conn] streamScreenshot 已送出，等第一幀…
+[conn] 幀 #1 540x1200 bytes=2592000
+[conn] 幀 #2 540x1200 bytes=2592000
+[profile] 內建 profile 已存在（1 筆），未複製
+[conn] attachStream 掛上，請求 900x2000
+[conn] streamScreenshot 已送出，等第一幀…
+[conn] 串流錯誤：CancellationError()
+[wake-diag] event=assign-selected-before appDelegate=SwiftUI.AppDelegate respondsToLastWindowPolicy=true isActive=true mainMenuNil=false mainMenuItems=5 activationPolicy=0 receiver=nil return=nil action=nil windowCount=2 window=ObjectIdentifier%280x0000000104c13820%29 windowClass=..NSKVONotifying_SwiftUI.AppKitWindow number=18548 identifier=mirage-mirror mirror=true key=true visible=true delegate=SwiftUI.AppKitWindowController lifecycle=false contentView=NSKVONotifying__TtGC7SwiftUIP10%241c571ffac23AppKitWindowHostingViewGVS_15ModifiedContentVS_7AnyViewVS_12RootModifier__ controller=SwiftUI.AppKitWindowController level=0 styleMask=32783 width=459 height=1020 excludedFromWindowsMenu=true
+[wake-diag] event=assign-candidate appDelegate=SwiftUI.AppDelegate respondsToLastWindowPolicy=true isActive=true mainMenuNil=false mainMenuItems=5 activationPolicy=0 receiver=nil return=nil action=nil windowCount=2 window=ObjectIdentifier%280x0000000104c13820%29 windowClass=..NSKVONotifying_SwiftUI.AppKitWindow number=18548 identifier=mirage-mirror mirror=true key=true visible=true delegate=SwiftUI.AppKitWindowController lifecycle=false contentView=NSKVONotifying__TtGC7SwiftUIP10%241c571ffac23AppKitWindowHostingViewGVS_15ModifiedContentVS_7AnyViewVS_12RootModifier__ controller=SwiftUI.AppKitWindowController level=0 styleMask=32783 width=459 height=1020 excludedFromWindowsMenu=true
+[wake-diag] event=assign-candidate appDelegate=SwiftUI.AppDelegate respondsToLastWindowPolicy=true isActive=true mainMenuNil=false mainMenuItems=5 activationPolicy=0 receiver=nil return=nil action=nil windowCount=2 window=ObjectIdentifier%280x0000000b580bc280%29 windowClass=NSStatusBarWindow number=4294967296 identifier=nil mirror=false key=false visible=true delegate=nil lifecycle=false contentView=NSStatusBarContentView controller=nil level=25 styleMask=17180917760 width=39 height=22 excludedFromWindowsMenu=false
+[wake-diag] event=assign-selected-after appDelegate=SwiftUI.AppDelegate respondsToLastWindowPolicy=true isActive=true mainMenuNil=false mainMenuItems=5 activationPolicy=0 receiver=nil return=nil action=nil windowCount=2 window=ObjectIdentifier%280x0000000104c13820%29 windowClass=..NSKVONotifying_SwiftUI.AppKitWindow number=18548 identifier=mirage-mirror mirror=true key=true visible=true delegate=MirageShell.AppLifecycle lifecycle=true contentView=NSKVONotifying__TtGC7SwiftUIP10%241c571ffac23AppKitWindowHostingViewGVS_15ModifiedContentVS_7AnyViewVS_12RootModifier__ controller=SwiftUI.AppKitWindowController level=0 styleMask=32783 width=459 height=1020 excludedFromWindowsMenu=true
+[audio] 收到的格式：sr=48000 ch=stereo fmt=audFmtS16（請求的是 sr=48000 ch=2 fmt=audFmtS16）bytes=2228
+[conn] 幀 #1 900x2000 bytes=7200000
+[conn] 幀 #2 900x2000 bytes=7200000
+[conn] attachStream 掛上，請求 888x1972
+[conn] streamScreenshot 已送出，等第一幀…
+[conn] 串流錯誤：CancellationError()
+[conn] 幀 #1 887x1972 bytes=6996656
+[conn] 幀 #2 887x1972 bytes=6996656
+[audio] pkt=85 smp=95850 supply=99% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=91ms rxpkt=85 rxbytes=191700 pkt_bytes={2228:61,2232:23,4456:1} window_end=1789035374.989948 window_seconds=1.004550
+[audio] pkt=91 smp=101426 supply=105% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=102ms rxpkt=91 rxbytes=202852 pkt_bytes={4:1,2228:65,2232:24,4460:1} window_end=1789035376.044706 window_seconds=1.054751
+[audio] pkt=86 smp=99196 supply=103% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=90ms rxpkt=86 rxbytes=198392 pkt_bytes={2228:59,2232:24,4456:2,4460:1} window_end=1789035377.086397 window_seconds=1.041685
+[conn] 幀 #120 887x1972 bytes=6996656
+[audio] pkt=91 smp=101424 supply=105% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=91ms rxpkt=91 rxbytes=202848 pkt_bytes={2228:66,2232:25} window_end=1789035378.141238 window_seconds=1.054836
+[audio] pkt=92 smp=102540 supply=106% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=92ms rxpkt=92 rxbytes=205080 pkt_bytes={2228:66,2232:26} window_end=1789035379.207421 window_seconds=1.066178
+[conn] 幀 #240 887x1972 bytes=6996656
+[audio] pkt=90 smp=102538 supply=106% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=94ms rxpkt=90 rxbytes=205076 pkt_bytes={2228:64,2232:24,4456:1,4460:1} window_end=1789035380.272085 window_seconds=1.064657
+[audio] pkt=87 smp=99196 supply=103% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=103ms rxpkt=87 rxbytes=198392 pkt_bytes={2228:61,2232:24,4456:1,4460:1} window_end=1789035381.293693 window_seconds=1.021603
+[audio] pkt=84 smp=96966 supply=101% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=100ms rxpkt=84 rxbytes=193932 pkt_bytes={2228:57,2232:24,4456:3} window_end=1789035382.312122 window_seconds=1.018423
+[conn] 幀 #360 887x1972 bytes=6996656
+[audio] pkt=90 smp=102540 supply=106% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=101ms rxpkt=90 rxbytes=205080 pkt_bytes={2228:63,2232:25,4456:1,4460:1} window_end=1789035383.377155 window_seconds=1.065027
+[audio] pkt=89 smp=99196 supply=103% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=89ms rxpkt=89 rxbytes=198392 pkt_bytes={2228:64,2232:25} window_end=1789035384.421739 window_seconds=1.044578
+[audio] pkt=88 smp=98080 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=108ms rxpkt=88 rxbytes=196160 pkt_bytes={2228:64,2232:24} window_end=1789035385.432123 window_seconds=1.010379
+[conn] 幀 #480 887x1972 bytes=6996656
+[audio] pkt=89 smp=98082 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=106ms rxpkt=89 rxbytes=196164 pkt_bytes={4:1,2228:64,2232:24} window_end=1789035386.456097 window_seconds=1.023969
+[audio] pkt=91 smp=101424 supply=105% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=85ms rxpkt=91 rxbytes=202848 pkt_bytes={2228:66,2232:25} window_end=1789035387.523118 window_seconds=1.067013
+[audio] pkt=91 smp=102540 supply=106% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=97ms rxpkt=91 rxbytes=205080 pkt_bytes={2228:64,2232:26,4456:1} window_end=1789035388.588725 window_seconds=1.065602
+[conn] 幀 #600 887x1972 bytes=6996656
+[audio] pkt=90 smp=100310 supply=104% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=86ms rxpkt=90 rxbytes=200620 pkt_bytes={4:1,2228:65,2232:23,4460:1} window_end=1789035389.634693 window_seconds=1.045961
+[audio] pkt=91 smp=102540 supply=106% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=98ms rxpkt=91 rxbytes=205080 pkt_bytes={2228:65,2232:25,4460:1} window_end=1789035390.698859 window_seconds=1.064161
+[audio] pkt=86 smp=102538 supply=106% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=100ms rxpkt=86 rxbytes=205076 pkt_bytes={2228:59,2232:21,4456:2,4460:4} window_end=1789035391.762482 window_seconds=1.063616
+[conn] 幀 #720 887x1972 bytes=6996656
+[audio] pkt=90 smp=102540 supply=106% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=101ms rxpkt=90 rxbytes=205080 pkt_bytes={2228:64,2232:24,4460:2} window_end=1789035392.823871 window_seconds=1.061384
+[audio] pkt=86 smp=95852 supply=99% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=97ms rxpkt=86 rxbytes=191704 pkt_bytes={2228:62,2232:24} window_end=1789035393.826522 window_seconds=1.002645
+[conn] 幀 #840 887x1972 bytes=6996656
+[audio] pkt=91 smp=101424 supply=105% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=97ms rxpkt=91 rxbytes=202848 pkt_bytes={2228:66,2232:25} window_end=1789035394.887680 window_seconds=1.061152
+[audio] pkt=87 smp=99196 supply=103% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=96ms rxpkt=87 rxbytes=198392 pkt_bytes={2228:61,2232:24,4456:1,4460:1} window_end=1789035395.921090 window_seconds=1.033405
+[audio] pkt=88 smp=99196 supply=103% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=95ms rxpkt=88 rxbytes=198392 pkt_bytes={2228:63,2232:24,4460:1} window_end=1789035396.953977 window_seconds=1.032882
+[conn] 幀 #960 887x1972 bytes=6996656
+[audio] pkt=87 smp=99196 supply=103% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=93ms rxpkt=87 rxbytes=198392 pkt_bytes={2228:60,2232:25,4456:2} window_end=1789035397.988932 window_seconds=1.034950
+[audio] pkt=88 smp=99196 supply=103% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=92ms rxpkt=88 rxbytes=198392 pkt_bytes={2228:63,2232:24,4460:1} window_end=1789035399.023836 window_seconds=1.034896
+[audio] pkt=91 smp=102538 supply=106% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=104ms rxpkt=91 rxbytes=205076 pkt_bytes={2228:66,2232:24,4460:1} window_end=1789035400.083346 window_seconds=1.059505
+[conn] 幀 #1080 887x1972 bytes=6996656
+[audio] pkt=90 smp=101426 supply=105% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=105ms rxpkt=90 rxbytes=202852 pkt_bytes={2228:63,2232:26,4456:1} window_end=1789035401.135585 window_seconds=1.052232
+[audio] pkt=85 smp=94736 supply=98% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=89ms rxpkt=85 rxbytes=189472 pkt_bytes={2228:62,2232:23} window_end=1789035402.138238 window_seconds=1.002647
+[audio] pkt=91 smp=101426 supply=105% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=100ms rxpkt=91 rxbytes=202852 pkt_bytes={2228:65,2232:26} window_end=1789035403.190102 window_seconds=1.051863
+[conn] 幀 #1200 887x1972 bytes=6996656
+[audio] pkt=92 smp=102540 supply=106% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=101ms rxpkt=92 rxbytes=205080 pkt_bytes={2228:66,2232:26} window_end=1789035404.256538 window_seconds=1.066425
+[audio] pkt=89 smp=101424 supply=105% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=91ms rxpkt=89 rxbytes=202848 pkt_bytes={2228:64,2232:23,4460:2} window_end=1789035405.321908 window_seconds=1.065365
+[audio] pkt=91 smp=102540 supply=106% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=93ms rxpkt=91 rxbytes=205080 pkt_bytes={2228:64,2232:26,4456:1} window_end=1789035406.387471 window_seconds=1.065556
+[conn] 幀 #1320 887x1972 bytes=6996656
+[audio] pkt=88 smp=99194 supply=103% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=91ms rxpkt=88 rxbytes=198388 pkt_bytes={2228:64,2232:23,4460:1} window_end=1789035407.421027 window_seconds=1.033551
+[audio] pkt=90 smp=100312 supply=104% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=102ms rxpkt=90 rxbytes=200624 pkt_bytes={2228:64,2232:26} window_end=1789035408.457114 window_seconds=1.036080
+[conn] 幀 #1440 887x1972 bytes=6996656
+[audio] pkt=90 smp=101424 supply=105% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=91ms rxpkt=90 rxbytes=202848 pkt_bytes={2228:65,2232:24,4460:1} window_end=1789035409.519977 window_seconds=1.062856
+[audio] pkt=90 smp=100310 supply=104% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=91ms rxpkt=90 rxbytes=200620 pkt_bytes={2228:65,2232:25} window_end=1789035410.572548 window_seconds=1.052566
+[audio] pkt=84 smp=96966 supply=101% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=88ms rxpkt=84 rxbytes=193932 pkt_bytes={2228:58,2232:23,4456:2,4460:1} window_end=1789035411.576618 window_seconds=1.004066
+[conn] 幀 #1560 887x1972 bytes=6996656
+[audio] pkt=89 smp=99196 supply=103% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=108ms rxpkt=89 rxbytes=198392 pkt_bytes={2228:64,2232:25} window_end=1789035412.599108 window_seconds=1.022485
+[audio] pkt=92 smp=102540 supply=106% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=109ms rxpkt=92 rxbytes=205080 pkt_bytes={2228:66,2232:26} window_end=1789035413.665735 window_seconds=1.066619
+[audio] pkt=87 smp=101424 supply=105% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=99ms rxpkt=87 rxbytes=202848 pkt_bytes={2228:60,2232:23,4456:2,4460:2} window_end=1789035414.732360 window_seconds=1.066619
+[conn] 幀 #1680 887x1972 bytes=6996656
+[audio] pkt=89 smp=101424 supply=105% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=99ms rxpkt=89 rxbytes=202848 pkt_bytes={2228:64,2232:23,4460:2} window_end=1789035415.785791 window_seconds=1.053426
+[audio] pkt=89 smp=100312 supply=104% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=88ms rxpkt=89 rxbytes=200624 pkt_bytes={2228:62,2232:26,4456:1} window_end=1789035416.836037 window_seconds=1.050239
+[audio] pkt=87 smp=99194 supply=103% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=87ms rxpkt=87 rxbytes=198388 pkt_bytes={2228:61,2232:24,4456:2} window_end=1789035417.868393 window_seconds=1.032349
+[conn] 幀 #1800 887x1972 bytes=6996656
+[audio] pkt=89 smp=101426 supply=105% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=98ms rxpkt=89 rxbytes=202852 pkt_bytes={2228:63,2232:24,4460:2} window_end=1789035418.921088 window_seconds=1.052690
+[audio] pkt=91 smp=102538 supply=106% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=100ms rxpkt=91 rxbytes=205076 pkt_bytes={2228:65,2232:25,4456:1} window_end=1789035419.987021 window_seconds=1.065927
+[conn] 幀 #1920 887x1972 bytes=6996656
+[audio] pkt=90 smp=101426 supply=105% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=100ms rxpkt=90 rxbytes=202852 pkt_bytes={2228:63,2232:26,4456:1} window_end=1789035421.043635 window_seconds=1.056606
+[audio] pkt=86 smp=96966 supply=101% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=86ms rxpkt=86 rxbytes=193932 pkt_bytes={2228:62,2232:23,4460:1} window_end=1789035422.060267 window_seconds=1.016627
+[audio] pkt=88 smp=98082 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=105ms rxpkt=88 rxbytes=196164 pkt_bytes={2228:63,2232:25} window_end=1789035423.068138 window_seconds=1.007866
+[conn] 幀 #2040 887x1972 bytes=6996656
+[audio] pkt=87 smp=96966 supply=101% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=102ms rxpkt=87 rxbytes=193932 pkt_bytes={2228:63,2232:24} window_end=1789035424.076856 window_seconds=1.008711
+[audio] pkt=87 smp=96966 supply=101% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=99ms rxpkt=87 rxbytes=193932 pkt_bytes={2228:63,2232:24} window_end=1789035425.095189 window_seconds=1.018328
+[audio] pkt=86 smp=96966 supply=101% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=95ms rxpkt=86 rxbytes=193932 pkt_bytes={2228:61,2232:24,4456:1} window_end=1789035426.110068 window_seconds=1.014872
+[conn] 幀 #2160 887x1972 bytes=6996656
+[audio] pkt=90 smp=102540 supply=106% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=97ms rxpkt=90 rxbytes=205080 pkt_bytes={2228:64,2232:24,4460:2} window_end=1789035427.174181 window_seconds=1.064108
+[audio] pkt=92 smp=102540 supply=106% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=98ms rxpkt=92 rxbytes=205080 pkt_bytes={2228:66,2232:26} window_end=1789035428.238646 window_seconds=1.064458
+[audio] pkt=86 smp=96966 supply=101% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=95ms rxpkt=86 rxbytes=193932 pkt_bytes={2228:62,2232:23,4460:1} window_end=1789035429.257483 window_seconds=1.018832
+[conn] 幀 #2280 887x1972 bytes=6996656
+[audio] pkt=90 smp=101424 supply=105% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=85ms rxpkt=90 rxbytes=202848 pkt_bytes={2228:64,2232:25,4456:1} window_end=1789035430.319831 window_seconds=1.062342
+[audio] pkt=92 smp=102540 supply=106% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=86ms rxpkt=92 rxbytes=205080 pkt_bytes={2228:66,2232:26} window_end=1789035431.383007 window_seconds=1.063172
+[audio] pkt=88 smp=99196 supply=103% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=85ms rxpkt=88 rxbytes=198392 pkt_bytes={2228:63,2232:24,4460:1} window_end=1789035432.421183 window_seconds=1.038170
+[conn] 幀 #2400 887x1972 bytes=6996656
+[audio] pkt=86 smp=98080 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=83ms rxpkt=86 rxbytes=196160 pkt_bytes={2228:61,2232:23,4456:1,4460:1} window_end=1789035433.442358 window_seconds=1.021168
+[audio] pkt=86 smp=96968 supply=101% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=90ms rxpkt=86 rxbytes=193936 pkt_bytes={2228:60,2232:25,4456:1} window_end=1789035434.445969 window_seconds=1.003605
+[conn] 幀 #2520 887x1972 bytes=6996656
+[audio] pkt=85 smp=95852 supply=99% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=86ms rxpkt=85 rxbytes=191704 pkt_bytes={2228:61,2232:23,4460:1} window_end=1789035435.447813 window_seconds=1.001839
+[audio] pkt=89 smp=99196 supply=103% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=84ms rxpkt=89 rxbytes=198392 pkt_bytes={2228:64,2232:25} window_end=1789035436.482470 window_seconds=1.034651
+[audio] pkt=91 smp=102538 supply=106% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=86ms rxpkt=91 rxbytes=205076 pkt_bytes={2228:66,2232:24,4460:1} window_end=1789035437.548503 window_seconds=1.066026
+[conn] 幀 #2640 887x1972 bytes=6996656
+[audio] pkt=92 smp=102540 supply=106% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=98ms rxpkt=92 rxbytes=205080 pkt_bytes={2228:66,2232:26} window_end=1789035438.613762 window_seconds=1.065256
+[audio] pkt=92 smp=102538 supply=106% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=99ms rxpkt=92 rxbytes=205076 pkt_bytes={2228:67,2232:25} window_end=1789035439.680644 window_seconds=1.066872
+[audio] pkt=91 smp=101426 supply=105% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=100ms rxpkt=91 rxbytes=202852 pkt_bytes={2228:65,2232:26} window_end=1789035440.736644 window_seconds=1.055997
+[conn] 幀 #2760 887x1972 bytes=6996656
+[audio] pkt=90 smp=102540 supply=106% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=101ms rxpkt=90 rxbytes=205080 pkt_bytes={2228:63,2232:25,4456:1,4460:1} window_end=1789035441.803250 window_seconds=1.066597
+[audio] pkt=92 smp=103652 supply=107% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=114ms rxpkt=92 rxbytes=207304 pkt_bytes={2228:67,2232:24,4460:1} window_end=1789035442.869243 window_seconds=1.065987
+[audio] pkt=86 smp=99196 supply=103% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=102ms rxpkt=86 rxbytes=198392 pkt_bytes={2228:59,2232:24,4456:2,4460:1} window_end=1789035443.913088 window_seconds=1.043839
+[conn] 幀 #2880 887x1972 bytes=6996656
+[audio] pkt=86 smp=96968 supply=101% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=99ms rxpkt=86 rxbytes=193936 pkt_bytes={2228:61,2232:24,4460:1} window_end=1789035444.921209 window_seconds=1.008114
+[audio] pkt=86 smp=96966 supply=101% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=96ms rxpkt=86 rxbytes=193932 pkt_bytes={2228:62,2232:23,4460:1} window_end=1789035445.933849 window_seconds=1.012635
+[conn] 幀 #3000 887x1972 bytes=6996656
+[audio] pkt=85 smp=96966 supply=101% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=93ms rxpkt=85 rxbytes=193932 pkt_bytes={2228:60,2232:23,4456:1,4460:1} window_end=1789035446.949875 window_seconds=1.016020
+[audio] pkt=82 smp=96966 supply=101% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=89ms rxpkt=82 rxbytes=193932 pkt_bytes={2228:56,2232:21,4456:2,4460:3} window_end=1789035447.961559 window_seconds=1.011677
+[audio] pkt=87 smp=96968 supply=101% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=97ms rxpkt=87 rxbytes=193936 pkt_bytes={2228:62,2232:25} window_end=1789035448.969185 window_seconds=1.007621
+[conn] 幀 #3120 887x1972 bytes=6996656
+[audio] pkt=85 smp=98080 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=94ms rxpkt=85 rxbytes=196160 pkt_bytes={2228:60,2232:22,4456:1,4460:2} window_end=1789035449.986819 window_seconds=1.017628
+[audio] pkt=85 smp=95852 supply=99% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=90ms rxpkt=85 rxbytes=191704 pkt_bytes={2228:61,2232:23,4460:1} window_end=1789035450.992419 window_seconds=1.005594
+[audio] pkt=88 smp=98082 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=99ms rxpkt=88 rxbytes=196164 pkt_bytes={2228:63,2232:25} window_end=1789035452.009016 window_seconds=1.016591
+[conn] 幀 #3240 887x1972 bytes=6996656
+[audio] pkt=83 smp=96966 supply=101% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=95ms rxpkt=83 rxbytes=193932 pkt_bytes={2228:57,2232:22,4456:2,4460:2} window_end=1789035453.021684 window_seconds=1.012663
+[audio] pkt=85 smp=99196 supply=103% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=105ms rxpkt=85 rxbytes=198392 pkt_bytes={2228:58,2232:23,4456:2,4460:2} window_end=1789035454.047630 window_seconds=1.025941
+[audio] pkt=86 smp=96966 supply=101% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=91ms rxpkt=86 rxbytes=193932 pkt_bytes={2228:62,2232:23,4460:1} window_end=1789035455.061371 window_seconds=1.013735
+[conn] 幀 #3360 887x1972 bytes=6996656
+[audio] pkt=86 smp=98082 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=88ms rxpkt=86 rxbytes=196164 pkt_bytes={2228:60,2232:24,4456:1,4460:1} window_end=1789035456.090217 window_seconds=1.028841
+[audio] pkt=85 smp=98080 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=86ms rxpkt=85 rxbytes=196160 pkt_bytes={2228:60,2232:22,4456:1,4460:2} window_end=1789035457.110972 window_seconds=1.020751
+[conn] 幀 #3480 887x1972 bytes=6996656
+[audio] pkt=84 smp=98082 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=94ms rxpkt=84 rxbytes=196164 pkt_bytes={2228:57,2232:23,4456:2,4460:2} window_end=1789035458.129533 window_seconds=1.018554
+[audio] pkt=81 smp=98080 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=92ms rxpkt=81 rxbytes=196160 pkt_bytes={2228:54,2232:20,4456:3,4460:4} window_end=1789035459.150019 window_seconds=1.020480
+[audio] pkt=83 smp=98082 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=100ms rxpkt=83 rxbytes=196164 pkt_bytes={2228:54,2232:24,4456:4,4460:1} window_end=1789035460.169914 window_seconds=1.019889
+[conn] 幀 #3600 887x1972 bytes=6996656
+[audio] pkt=87 smp=96966 supply=101% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=97ms rxpkt=87 rxbytes=193932 pkt_bytes={2228:63,2232:24} window_end=1789035461.183290 window_seconds=1.013372
+[audio] pkt=85 smp=98082 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=84ms rxpkt=85 rxbytes=196164 pkt_bytes={2228:59,2232:23,4456:1,4460:2} window_end=1789035462.208192 window_seconds=1.024895
+[audio] pkt=87 smp=98080 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=92ms rxpkt=87 rxbytes=196160 pkt_bytes={2228:63,2232:23,4460:1} window_end=1789035463.225229 window_seconds=1.017031
+[conn] 幀 #3720 887x1972 bytes=6996656
+[audio] pkt=87 smp=98082 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=101ms rxpkt=87 rxbytes=196164 pkt_bytes={2228:62,2232:24,4460:1} window_end=1789035464.244447 window_seconds=1.019212
+[audio] pkt=84 smp=96966 supply=101% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=87ms rxpkt=84 rxbytes=193932 pkt_bytes={2228:58,2232:23,4456:2,4460:1} window_end=1789035465.263672 window_seconds=1.019221
+[audio] pkt=87 smp=99196 supply=103% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=96ms rxpkt=87 rxbytes=198392 pkt_bytes={2228:60,2232:25,4456:2} window_end=1789035466.285867 window_seconds=1.022188
+[conn] 幀 #3840 887x1972 bytes=6996656
+[audio] pkt=85 smp=96966 supply=101% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=93ms rxpkt=85 rxbytes=193932 pkt_bytes={2228:60,2232:23,4456:1,4460:1} window_end=1789035467.302584 window_seconds=1.016711
+[audio] pkt=83 smp=98082 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=91ms rxpkt=83 rxbytes=196164 pkt_bytes={2228:58,2232:20,4460:5} window_end=1789035468.320730 window_seconds=1.018141
+[conn] 幀 #3960 887x1972 bytes=6996656
+[audio] pkt=86 smp=99194 supply=103% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=79ms rxpkt=86 rxbytes=198388 pkt_bytes={2228:62,2232:21,4460:3} window_end=1789035469.364983 window_seconds=1.044247
+[audio] pkt=90 smp=100310 supply=104% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=99ms rxpkt=90 rxbytes=200620 pkt_bytes={2228:65,2232:25} window_end=1789035470.395855 window_seconds=1.030868
+[audio] pkt=85 smp=98082 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=97ms rxpkt=85 rxbytes=196164 pkt_bytes={2228:59,2232:23,4456:1,4460:2} window_end=1789035471.419174 window_seconds=1.023311
+[conn] 幀 #4080 887x1972 bytes=6996656
+[audio] pkt=86 smp=95852 supply=99% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=93ms rxpkt=86 rxbytes=191704 pkt_bytes={2228:62,2232:24} window_end=1789035472.421375 window_seconds=1.002196
+[audio] pkt=83 smp=96966 supply=101% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=100ms rxpkt=83 rxbytes=193932 pkt_bytes={2228:57,2232:22,4456:2,4460:2} window_end=1789035473.421569 window_seconds=1.000189
+[audio] pkt=83 smp=95852 supply=99% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=96ms rxpkt=83 rxbytes=191704 pkt_bytes={2228:58,2232:22,4456:1,4460:2} window_end=1789035474.422096 window_seconds=1.000519
+[conn] 幀 #4200 887x1972 bytes=6996656
+[audio] pkt=83 smp=96968 supply=101% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=103ms rxpkt=83 rxbytes=193936 pkt_bytes={2228:56,2232:23,4456:2,4460:2} window_end=1789035475.429106 window_seconds=1.007005
+[audio] pkt=86 smp=98080 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=101ms rxpkt=86 rxbytes=196160 pkt_bytes={2228:61,2232:23,4456:1,4460:1} window_end=1789035476.449284 window_seconds=1.020172
+[audio] pkt=85 smp=96966 supply=101% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=98ms rxpkt=85 rxbytes=193932 pkt_bytes={2228:61,2232:22,4460:2} window_end=1789035477.468392 window_seconds=1.019101
+[conn] 幀 #4320 887x1972 bytes=6996656
+[audio] pkt=89 smp=99196 supply=103% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=107ms rxpkt=89 rxbytes=198392 pkt_bytes={2228:64,2232:25} window_end=1789035478.490867 window_seconds=1.022469
+[audio] pkt=90 smp=101426 supply=105% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=97ms rxpkt=90 rxbytes=202852 pkt_bytes={2228:63,2232:26,4456:1} window_end=1789035479.552117 window_seconds=1.061248
+[audio] pkt=89 smp=101424 supply=105% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=87ms rxpkt=89 rxbytes=202848 pkt_bytes={2228:62,2232:25,4456:2} window_end=1789035480.618369 window_seconds=1.066243
+[conn] 幀 #4440 887x1972 bytes=6996656
+[audio] pkt=86 smp=99196 supply=103% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=107ms rxpkt=86 rxbytes=198392 pkt_bytes={4:1,2228:59,2232:22,4456:2,4460:2} window_end=1789035481.640047 window_seconds=1.021672
+[audio] pkt=86 smp=98080 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=104ms rxpkt=86 rxbytes=196160 pkt_bytes={2228:61,2232:23,4456:1,4460:1} window_end=1789035482.662382 window_seconds=1.022329
+[audio] pkt=89 smp=99196 supply=103% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=103ms rxpkt=89 rxbytes=198392 pkt_bytes={2228:64,2232:25} window_end=1789035483.696732 window_seconds=1.034345
+[conn] 幀 #4560 887x1972 bytes=6996656
+[audio] pkt=78 smp=98082 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=101ms rxpkt=78 rxbytes=196164 pkt_bytes={2228:48,2232:20,4456:5,4460:5} window_end=1789035484.717747 window_seconds=1.021008
+[audio] pkt=89 smp=101424 supply=105% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=91ms rxpkt=89 rxbytes=202848 pkt_bytes={2228:64,2232:23,4460:2} window_end=1789035485.785364 window_seconds=1.067611
+[conn] 幀 #4680 887x1972 bytes=6996656
+[audio] pkt=90 smp=102540 supply=106% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=92ms rxpkt=90 rxbytes=205080 pkt_bytes={2228:64,2232:24,4460:2} window_end=1789035486.850226 window_seconds=1.064857
+[audio] pkt=91 smp=101424 supply=105% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=93ms rxpkt=91 rxbytes=202848 pkt_bytes={2228:66,2232:25} window_end=1789035487.904856 window_seconds=1.054626
+[audio] pkt=86 smp=96966 supply=101% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=89ms rxpkt=86 rxbytes=193932 pkt_bytes={2228:62,2232:23,4460:1} window_end=1789035488.922396 window_seconds=1.017531
+[conn] 幀 #4800 887x1972 bytes=6996656
+[audio] pkt=88 smp=101426 supply=105% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=90ms rxpkt=88 rxbytes=202852 pkt_bytes={2228:60,2232:25,4456:2,4460:1} window_end=1789035489.974108 window_seconds=1.051706
+[audio] pkt=83 smp=95852 supply=99% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=86ms rxpkt=83 rxbytes=191704 pkt_bytes={2228:58,2232:22,4456:1,4460:2} window_end=1789035490.980292 window_seconds=1.006180
+[audio] pkt=86 smp=101424 supply=105% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=97ms rxpkt=86 rxbytes=202848 pkt_bytes={2228:58,2232:23,4456:3,4460:2} window_end=1789035492.027570 window_seconds=1.047272
+[conn] 幀 #4920 887x1972 bytes=6996656
+[audio] pkt=89 smp=101424 supply=105% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=97ms rxpkt=89 rxbytes=202848 pkt_bytes={2228:62,2232:25,4456:2} window_end=1789035493.085064 window_seconds=1.057487
+[audio] pkt=86 smp=99196 supply=103% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=85ms rxpkt=86 rxbytes=198392 pkt_bytes={2228:60,2232:23,4456:1,4460:2} window_end=1789035494.124821 window_seconds=1.039750
+[conn] 幀 #5040 887x1972 bytes=6996656
+[audio] pkt=91 smp=102540 supply=106% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=87ms rxpkt=91 rxbytes=205080 pkt_bytes={2228:65,2232:25,4460:1} window_end=1789035495.191491 window_seconds=1.066664
+[audio] pkt=91 smp=103654 supply=107% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=100ms rxpkt=91 rxbytes=207308 pkt_bytes={2228:64,2232:25,4456:1,4460:1} window_end=1789035496.258593 window_seconds=1.067097
+[audio] pkt=88 smp=98080 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=87ms rxpkt=88 rxbytes=196160 pkt_bytes={2228:64,2232:24} window_end=1789035497.291538 window_seconds=1.032938
+[conn] 幀 #5160 887x1972 bytes=6996656
+[audio] pkt=92 smp=102540 supply=106% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=88ms rxpkt=92 rxbytes=205080 pkt_bytes={2228:66,2232:26} window_end=1789035498.358144 window_seconds=1.066600
+[audio] pkt=86 smp=100310 supply=104% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=98ms rxpkt=86 rxbytes=200620 pkt_bytes={2228:60,2232:22,4456:1,4460:3} window_end=1789035499.391304 window_seconds=1.033154
+[audio] pkt=85 smp=96966 supply=101% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=95ms rxpkt=85 rxbytes=193932 pkt_bytes={2228:61,2232:22,4460:2} window_end=1789035500.407867 window_seconds=1.016557
+[conn] 幀 #5280 887x1972 bytes=6996656
+[audio] pkt=86 smp=99196 supply=103% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=94ms rxpkt=86 rxbytes=198392 pkt_bytes={2228:58,2232:25,4456:3} window_end=1789035501.441337 window_seconds=1.033464
+[audio] pkt=86 smp=96968 supply=101% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=91ms rxpkt=86 rxbytes=193936 pkt_bytes={2228:60,2232:25,4456:1} window_end=1789035502.457931 window_seconds=1.016590
+[conn] 幀 #5400 887x1972 bytes=6996656
+[audio] pkt=88 smp=98080 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=99ms rxpkt=88 rxbytes=196160 pkt_bytes={2228:64,2232:24} window_end=1789035503.474426 window_seconds=1.016487
+[audio] pkt=89 smp=99196 supply=103% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=98ms rxpkt=89 rxbytes=198392 pkt_bytes={2228:64,2232:25} window_end=1789035504.507727 window_seconds=1.033295
+[audio] pkt=87 smp=98080 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=95ms rxpkt=87 rxbytes=196160 pkt_bytes={2228:63,2232:23,4460:1} window_end=1789035505.524325 window_seconds=1.016592
+[conn] 幀 #5520 887x1972 bytes=6996656
+[audio] pkt=85 smp=96968 supply=101% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=92ms rxpkt=85 rxbytes=193936 pkt_bytes={2228:60,2232:23,4460:2} window_end=1789035506.540962 window_seconds=1.016631
+[audio] pkt=83 smp=98080 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=100ms rxpkt=83 rxbytes=196160 pkt_bytes={2228:55,2232:23,4456:4,4460:1} window_end=1789035507.557621 window_seconds=1.016654
+[audio] pkt=82 smp=98082 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=98ms rxpkt=82 rxbytes=196164 pkt_bytes={2228:54,2232:22,4456:3,4460:3} window_end=1789035508.574299 window_seconds=1.016671
+[conn] 幀 #5640 887x1972 bytes=6996656
+[audio] pkt=85 smp=98080 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=96ms rxpkt=85 rxbytes=196160 pkt_bytes={2228:59,2232:23,4456:2,4460:1} window_end=1789035509.607493 window_seconds=1.033188
+[audio] pkt=82 smp=98082 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=93ms rxpkt=82 rxbytes=196164 pkt_bytes={2228:54,2232:22,4456:3,4460:3} window_end=1789035510.624095 window_seconds=1.016597
+[audio] pkt=84 smp=96966 supply=101% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=90ms rxpkt=84 rxbytes=193932 pkt_bytes={2228:60,2232:21,4460:3} window_end=1789035511.641063 window_seconds=1.016962
+[conn] 幀 #5760 887x1972 bytes=6996656
+[audio] pkt=85 smp=98082 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=98ms rxpkt=85 rxbytes=196164 pkt_bytes={2228:58,2232:24,4456:2,4460:1} window_end=1789035512.657353 window_seconds=1.016284
+[audio] pkt=84 smp=98080 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=96ms rxpkt=84 rxbytes=196160 pkt_bytes={2228:58,2232:22,4456:2,4460:2} window_end=1789035513.673950 window_seconds=1.016591
+[conn] 幀 #5880 887x1972 bytes=6996656
+[audio] pkt=86 smp=98082 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=83ms rxpkt=86 rxbytes=196164 pkt_bytes={2228:61,2232:23,4460:2} window_end=1789035514.707209 window_seconds=1.033254
+[audio] pkt=82 smp=98080 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=91ms rxpkt=82 rxbytes=196160 pkt_bytes={2228:55,2232:21,4456:3,4460:3} window_end=1789035515.723889 window_seconds=1.016673
+[audio] pkt=87 smp=96968 supply=101% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=88ms rxpkt=87 rxbytes=193936 pkt_bytes={2228:62,2232:25} window_end=1789035516.740537 window_seconds=1.016643
+[conn] 幀 #6000 887x1972 bytes=6996656
+[audio] pkt=84 smp=98080 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=97ms rxpkt=84 rxbytes=196160 pkt_bytes={2228:58,2232:22,4456:2,4460:2} window_end=1789035517.757098 window_seconds=1.016555
+[audio] pkt=84 smp=99196 supply=103% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=95ms rxpkt=84 rxbytes=198392 pkt_bytes={2228:59,2232:20,4460:5} window_end=1789035518.790387 window_seconds=1.033284
+[audio] pkt=85 smp=98082 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=93ms rxpkt=85 rxbytes=196164 pkt_bytes={2228:58,2232:24,4456:2,4460:1} window_end=1789035519.807008 window_seconds=1.016615
+[conn] 幀 #6120 887x1972 bytes=6996656
+[audio] pkt=84 smp=98080 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=101ms rxpkt=84 rxbytes=196160 pkt_bytes={2228:58,2232:22,4456:2,4460:2} window_end=1789035520.823605 window_seconds=1.016591
+[audio] pkt=82 smp=96966 supply=101% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=98ms rxpkt=82 rxbytes=193932 pkt_bytes={2228:56,2232:21,4456:2,4460:3} window_end=1789035521.840412 window_seconds=1.016801
+[audio] pkt=87 smp=98082 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=85ms rxpkt=87 rxbytes=196164 pkt_bytes={2228:61,2232:25,4456:1} window_end=1789035522.873795 window_seconds=1.033377
+[conn] 幀 #6240 887x1972 bytes=6996656
+[audio] pkt=88 smp=99196 supply=103% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=94ms rxpkt=88 rxbytes=198392 pkt_bytes={2228:63,2232:24,4460:1} window_end=1789035523.890332 window_seconds=1.016532
+[audio] pkt=86 smp=96966 supply=101% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=91ms rxpkt=86 rxbytes=193932 pkt_bytes={2228:61,2232:24,4456:1} window_end=1789035524.906754 window_seconds=1.016415
+[conn] 幀 #6360 887x1972 bytes=6996656
+[audio] pkt=88 smp=99196 supply=103% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=90ms rxpkt=88 rxbytes=198392 pkt_bytes={2228:62,2232:25,4456:1} window_end=1789035525.940257 window_seconds=1.033498
+[audio] pkt=83 smp=98080 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=98ms rxpkt=83 rxbytes=196160 pkt_bytes={2228:58,2232:20,4456:1,4460:4} window_end=1789035526.956731 window_seconds=1.016467
+[audio] pkt=87 smp=98082 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=106ms rxpkt=87 rxbytes=196164 pkt_bytes={2228:62,2232:24,4460:1} window_end=1789035527.973629 window_seconds=1.016894
+[conn] 幀 #6480 887x1972 bytes=6996656
+[audio] pkt=84 smp=96966 supply=101% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=92ms rxpkt=84 rxbytes=193932 pkt_bytes={2228:57,2232:24,4456:3} window_end=1789035528.990027 window_seconds=1.016391
+[audio] pkt=86 smp=95852 supply=99% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=77ms rxpkt=86 rxbytes=191704 pkt_bytes={2228:62,2232:24} window_end=1789035530.006611 window_seconds=1.016579
+[audio] pkt=85 smp=98082 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=86ms rxpkt=85 rxbytes=196164 pkt_bytes={2228:58,2232:24,4456:2,4460:1} window_end=1789035531.023220 window_seconds=1.016604
+[conn] 幀 #6600 887x1972 bytes=6996656
+[audio] pkt=85 smp=98080 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=83ms rxpkt=85 rxbytes=196160 pkt_bytes={2228:60,2232:22,4456:1,4460:2} window_end=1789035532.040023 window_seconds=1.016797
+[audio] pkt=86 smp=99196 supply=103% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=93ms rxpkt=86 rxbytes=198392 pkt_bytes={2228:61,2232:22,4460:3} window_end=1789035533.073193 window_seconds=1.033164
+[audio] pkt=84 smp=98082 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=90ms rxpkt=84 rxbytes=196164 pkt_bytes={2228:57,2232:23,4456:2,4460:2} window_end=1789035534.089799 window_seconds=1.016600
+[conn] 幀 #6720 887x1972 bytes=6996656
+[audio] pkt=84 smp=98080 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=77ms rxpkt=84 rxbytes=196160 pkt_bytes={2228:59,2232:21,4456:1,4460:3} window_end=1789035535.123093 window_seconds=1.033288
+[audio] pkt=86 smp=98082 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=86ms rxpkt=86 rxbytes=196164 pkt_bytes={2228:60,2232:24,4456:1,4460:1} window_end=1789035536.139644 window_seconds=1.016545
+[conn] 幀 #6840 887x1972 bytes=6996656
+[audio] pkt=88 smp=98080 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=94ms rxpkt=88 rxbytes=196160 pkt_bytes={2228:64,2232:24} window_end=1789035537.156313 window_seconds=1.016663
+[audio] pkt=84 smp=96968 supply=101% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=80ms rxpkt=84 rxbytes=193936 pkt_bytes={2228:57,2232:24,4456:2,4460:1} window_end=1789035538.173401 window_seconds=1.017083
+[audio] pkt=88 smp=99194 supply=103% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=100ms rxpkt=88 rxbytes=198388 pkt_bytes={2228:63,2232:24,4456:1} window_end=1789035539.189513 window_seconds=1.016106
+[conn] 幀 #6960 887x1972 bytes=6996656
+[audio] pkt=85 smp=98082 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=87ms rxpkt=85 rxbytes=196164 pkt_bytes={2228:59,2232:23,4456:1,4460:2} window_end=1789035540.223004 window_seconds=1.033485
+[audio] pkt=85 smp=96966 supply=101% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=84ms rxpkt=85 rxbytes=193932 pkt_bytes={2228:60,2232:23,4456:1,4460:1} window_end=1789035541.239450 window_seconds=1.016439
+[audio] pkt=88 smp=98082 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=92ms rxpkt=88 rxbytes=196164 pkt_bytes={444:1,1784:1,2228:61,2232:24,4460:1} window_end=1789035542.256120 window_seconds=1.016663
+[conn] 幀 #7080 887x1972 bytes=6996656
+[audio] pkt=86 smp=98080 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=90ms rxpkt=86 rxbytes=196160 pkt_bytes={4:1,2228:60,2232:22,4456:2,4460:1} window_end=1789035543.272874 window_seconds=1.016749
+[audio] pkt=84 smp=98082 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=98ms rxpkt=84 rxbytes=196164 pkt_bytes={2228:59,2232:21,4460:4} window_end=1789035544.289195 window_seconds=1.016314
+[audio] pkt=83 smp=98080 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=107ms rxpkt=83 rxbytes=196160 pkt_bytes={2228:55,2232:23,4456:4,4460:1} window_end=1789035545.305939 window_seconds=1.016737
+[conn] 幀 #7200 887x1972 bytes=6996656
+[audio] pkt=88 smp=99196 supply=103% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=105ms rxpkt=88 rxbytes=198392 pkt_bytes={2228:62,2232:25,4456:1} window_end=1789035546.340108 window_seconds=1.034163
+[audio] pkt=85 smp=96966 supply=101% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=91ms rxpkt=85 rxbytes=193932 pkt_bytes={2228:61,2232:22,4460:2} window_end=1789035547.355863 window_seconds=1.015749
+[audio] pkt=85 smp=98082 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=100ms rxpkt=85 rxbytes=196164 pkt_bytes={2228:58,2232:24,4456:2,4460:1} window_end=1789035548.372499 window_seconds=1.016629
+[conn] 幀 #7320 887x1972 bytes=6996656
+[audio] pkt=83 smp=99196 supply=103% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=98ms rxpkt=83 rxbytes=198392 pkt_bytes={2228:55,2232:22,4456:3,4460:3} window_end=1789035549.405957 window_seconds=1.033453
+[audio] pkt=85 smp=96966 supply=101% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=95ms rxpkt=85 rxbytes=193932 pkt_bytes={2228:61,2232:22,4460:2} window_end=1789035550.422579 window_seconds=1.016616
+[audio] pkt=86 smp=98082 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=103ms rxpkt=86 rxbytes=196164 pkt_bytes={2228:59,2232:25,4456:2} window_end=1789035551.439018 window_seconds=1.016432
+[conn] 幀 #7440 887x1972 bytes=6996656
+[audio] pkt=85 smp=96966 supply=101% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=89ms rxpkt=85 rxbytes=193932 pkt_bytes={2228:61,2232:22,4460:2} window_end=1789035552.455798 window_seconds=1.016774
+[audio] pkt=85 smp=98080 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=98ms rxpkt=85 rxbytes=196160 pkt_bytes={2228:59,2232:23,4456:2,4460:1} window_end=1789035553.472147 window_seconds=1.016343
+[audio] pkt=84 smp=96968 supply=101% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=94ms rxpkt=84 rxbytes=193936 pkt_bytes={2228:57,2232:24,4456:2,4460:1} window_end=1789035554.488982 window_seconds=1.016830
+[conn] 幀 #7560 887x1972 bytes=6996656
+[audio] pkt=88 smp=100310 supply=104% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=105ms rxpkt=88 rxbytes=200620 pkt_bytes={2228:61,2232:25,4456:2} window_end=1789035555.522628 window_seconds=1.033641
+[audio] pkt=83 smp=96966 supply=101% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=101ms rxpkt=83 rxbytes=193932 pkt_bytes={2228:58,2232:21,4456:1,4460:3} window_end=1789035556.539035 window_seconds=1.016399
+[audio] pkt=83 smp=98082 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=99ms rxpkt=83 rxbytes=196164 pkt_bytes={2228:56,2232:22,4456:2,4460:3} window_end=1789035557.555267 window_seconds=1.016225
+[conn] 幀 #7680 887x1972 bytes=6996656
+[audio] pkt=85 smp=96966 supply=101% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=96ms rxpkt=85 rxbytes=193932 pkt_bytes={2228:61,2232:22,4460:2} window_end=1789035558.571925 window_seconds=1.016651
+[audio] pkt=88 smp=98080 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=104ms rxpkt=88 rxbytes=196160 pkt_bytes={2228:64,2232:24} window_end=1789035559.589071 window_seconds=1.017141
+[audio] pkt=88 smp=98082 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=91ms rxpkt=88 rxbytes=196164 pkt_bytes={2228:63,2232:25} window_end=1789035560.621903 window_seconds=1.032825
+[conn] 幀 #7800 887x1972 bytes=6996656
+[audio] pkt=88 smp=99196 supply=103% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=101ms rxpkt=88 rxbytes=198392 pkt_bytes={2228:63,2232:24,4460:1} window_end=1789035561.638431 window_seconds=1.016522
+[audio] pkt=83 smp=96966 supply=101% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=97ms rxpkt=83 rxbytes=193932 pkt_bytes={444:1,1784:1,2228:57,2232:19,4460:5} window_end=1789035562.655205 window_seconds=1.016769
+[conn] 幀 #7920 887x1972 bytes=6996656
+[audio] pkt=84 smp=99196 supply=103% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=96ms rxpkt=84 rxbytes=198392 pkt_bytes={4:1,2228:57,2232:20,4456:2,4460:4} window_end=1789035563.688307 window_seconds=1.033096
+[audio] pkt=85 smp=98080 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=104ms rxpkt=85 rxbytes=196160 pkt_bytes={2228:60,2232:22,4456:1,4460:2} window_end=1789035564.704902 window_seconds=1.016589
+[audio] pkt=86 smp=98082 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=91ms rxpkt=86 rxbytes=196164 pkt_bytes={2228:60,2232:24,4456:1,4460:1} window_end=1789035565.738356 window_seconds=1.033448
+[conn] 幀 #8040 887x1972 bytes=6996656
+[audio] pkt=88 smp=98080 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=100ms rxpkt=88 rxbytes=196160 pkt_bytes={2228:64,2232:24} window_end=1789035566.754960 window_seconds=1.016599
+[audio] pkt=86 smp=96968 supply=101% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=86ms rxpkt=86 rxbytes=193936 pkt_bytes={2228:60,2232:25,4456:1} window_end=1789035567.771615 window_seconds=1.016648
+[audio] pkt=84 smp=98080 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=94ms rxpkt=84 rxbytes=196160 pkt_bytes={2228:56,2232:24,4456:4} window_end=1789035568.788157 window_seconds=1.016536
+[conn] 幀 #8160 887x1972 bytes=6996656
+[audio] pkt=86 smp=98082 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=102ms rxpkt=86 rxbytes=196164 pkt_bytes={2228:61,2232:23,4460:2} window_end=1789035569.804834 window_seconds=1.016672
+[audio] pkt=86 smp=98080 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=89ms rxpkt=86 rxbytes=196160 pkt_bytes={2228:62,2232:22,4460:2} window_end=1789035570.838056 window_seconds=1.033215
+[audio] pkt=88 smp=100310 supply=104% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=100ms rxpkt=88 rxbytes=200620 pkt_bytes={2228:62,2232:24,4456:1,4460:1} window_end=1789035571.871393 window_seconds=1.033331
+[conn] 幀 #8280 887x1972 bytes=6996656
+[audio] pkt=86 smp=96968 supply=101% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=96ms rxpkt=86 rxbytes=193936 pkt_bytes={2228:60,2232:25,4456:1} window_end=1789035572.887955 window_seconds=1.016556
+[audio] pkt=88 smp=98080 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=94ms rxpkt=88 rxbytes=196160 pkt_bytes={2228:64,2232:24} window_end=1789035573.904835 window_seconds=1.016874
+[audio] pkt=86 smp=96968 supply=101% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=91ms rxpkt=86 rxbytes=193936 pkt_bytes={2228:61,2232:24,4460:1} window_end=1789035574.921103 window_seconds=1.016262
+[conn] 幀 #8400 887x1972 bytes=6996656
+[audio] pkt=84 smp=98080 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=99ms rxpkt=84 rxbytes=196160 pkt_bytes={2228:60,2232:20,4460:4} window_end=1789035575.937753 window_seconds=1.016645
+[audio] pkt=79 smp=96966 supply=101% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=85ms rxpkt=79 rxbytes=193932 pkt_bytes={2228:50,2232:21,4456:5,4460:3} window_end=1789035576.955023 window_seconds=1.017265
+[audio] pkt=85 smp=99196 supply=103% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=94ms rxpkt=85 rxbytes=198392 pkt_bytes={2228:58,2232:23,4456:2,4460:2} window_end=1789035577.987820 window_seconds=1.032790
+[conn] 幀 #8520 887x1972 bytes=6996656
+[audio] pkt=89 smp=100310 supply=104% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=105ms rxpkt=89 rxbytes=200620 pkt_bytes={2228:63,2232:25,4456:1} window_end=1789035579.020988 window_seconds=1.033162
+[audio] pkt=84 smp=95852 supply=99% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=79ms rxpkt=84 rxbytes=191704 pkt_bytes={2228:59,2232:23,4456:1,4460:1} window_end=1789035580.037673 window_seconds=1.016680
+[conn] 幀 #8640 887x1972 bytes=6996656
+[audio] pkt=85 smp=100310 supply=104% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=100ms rxpkt=85 rxbytes=200620 pkt_bytes={2228:57,2232:23,4456:3,4460:2} window_end=1789035581.071283 window_seconds=1.033605
+[audio] pkt=88 smp=98082 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=98ms rxpkt=88 rxbytes=196164 pkt_bytes={2228:63,2232:25} window_end=1789035582.087778 window_seconds=1.016488
+[audio] pkt=80 smp=96966 supply=101% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=94ms rxpkt=80 rxbytes=193932 pkt_bytes={2228:53,2232:20,4456:3,4460:4} window_end=1789035583.104532 window_seconds=1.016749
+[conn] 幀 #8760 887x1972 bytes=6996656
+[audio] pkt=83 smp=96966 supply=101% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=91ms rxpkt=83 rxbytes=193932 pkt_bytes={2228:57,2232:22,4456:2,4460:2} window_end=1789035584.120763 window_seconds=1.016225
+[audio] pkt=83 smp=98082 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=89ms rxpkt=83 rxbytes=196164 pkt_bytes={2228:57,2232:21,4456:1,4460:4} window_end=1789035585.141541 window_seconds=1.020774
+[audio] pkt=85 smp=99196 supply=103% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=98ms rxpkt=85 rxbytes=198392 pkt_bytes={2228:59,2232:22,4456:1,4460:3} window_end=1789035586.160815 window_seconds=1.019267
+[conn] 幀 #8880 887x1972 bytes=6996656
+[audio] pkt=82 smp=96966 supply=101% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=84ms rxpkt=82 rxbytes=193932 pkt_bytes={2228:55,2232:22,4456:3,4460:2} window_end=1789035587.187263 window_seconds=1.026441
+[audio] pkt=84 smp=99196 supply=103% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=104ms rxpkt=84 rxbytes=198392 pkt_bytes={2228:57,2232:22,4456:2,4460:3} window_end=1789035588.206525 window_seconds=1.019257
+[audio] pkt=82 smp=98080 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=91ms rxpkt=82 rxbytes=196160 pkt_bytes={2228:56,2232:20,4456:2,4460:4} window_end=1789035589.237223 window_seconds=1.030692
+[conn] 幀 #9000 887x1972 bytes=6996656
+[audio] pkt=79 smp=98082 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=99ms rxpkt=79 rxbytes=196164 pkt_bytes={2228:50,2232:20,4456:4,4460:5} window_end=1789035590.253979 window_seconds=1.016750
+[audio] pkt=85 smp=98082 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=97ms rxpkt=85 rxbytes=196164 pkt_bytes={2228:60,2232:22,4460:3} window_end=1789035591.271628 window_seconds=1.017643
+[audio] pkt=86 smp=98080 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=106ms rxpkt=86 rxbytes=196160 pkt_bytes={2228:61,2232:23,4456:1,4460:1} window_end=1789035592.290196 window_seconds=1.018562
+[conn] 幀 #9120 887x1972 bytes=6996656
+[audio] pkt=85 smp=98082 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=93ms rxpkt=85 rxbytes=196164 pkt_bytes={2228:57,2232:25,4456:3} window_end=1789035593.320485 window_seconds=1.030283
+[audio] pkt=87 smp=98080 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=90ms rxpkt=87 rxbytes=196160 pkt_bytes={2228:62,2232:24,4456:1} window_end=1789035594.343862 window_seconds=1.023372
+[audio] pkt=83 smp=99196 supply=103% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=99ms rxpkt=83 rxbytes=198392 pkt_bytes={2228:55,2232:22,4456:3,4460:3} window_end=1789035595.370668 window_seconds=1.026799
+[conn] 幀 #9240 887x1972 bytes=6996656
+[audio] pkt=82 smp=96966 supply=101% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=86ms rxpkt=82 rxbytes=193932 pkt_bytes={2228:56,2232:21,4456:2,4460:3} window_end=1789035596.390439 window_seconds=1.019766
+[audio] pkt=89 smp=99196 supply=103% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=95ms rxpkt=89 rxbytes=198392 pkt_bytes={2228:64,2232:25} window_end=1789035597.420160 window_seconds=1.029713
+[audio] pkt=86 smp=95852 supply=99% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=91ms rxpkt=86 rxbytes=191704 pkt_bytes={2228:62,2232:24} window_end=1789035598.423115 window_seconds=1.002950
+[conn] 幀 #9360 887x1972 bytes=6996656
+[audio] pkt=89 smp=99196 supply=103% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=89ms rxpkt=89 rxbytes=198392 pkt_bytes={2228:64,2232:25} window_end=1789035599.453379 window_seconds=1.030258
+[audio] pkt=86 smp=98080 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=87ms rxpkt=86 rxbytes=196160 pkt_bytes={2228:62,2232:22,4460:2} window_end=1789035600.473636 window_seconds=1.020252
+[conn] 幀 #9480 887x1972 bytes=6996656
+[audio] pkt=83 smp=98082 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=95ms rxpkt=83 rxbytes=196164 pkt_bytes={2228:56,2232:22,4456:2,4460:3} window_end=1789035601.493489 window_seconds=1.019848
+[audio] pkt=83 smp=95852 supply=99% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=80ms rxpkt=83 rxbytes=191704 pkt_bytes={2228:58,2232:22,4456:1,4460:2} window_end=1789035602.510089 window_seconds=1.016594
+[audio] pkt=88 smp=99196 supply=103% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=79ms rxpkt=88 rxbytes=198392 pkt_bytes={2228:62,2232:25,4456:1} window_end=1789035603.536537 window_seconds=1.026441
+[conn] 幀 #9600 887x1972 bytes=6996656
+[audio] pkt=85 smp=99196 supply=103% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=99ms rxpkt=85 rxbytes=198392 pkt_bytes={2228:59,2232:22,4456:1,4460:3} window_end=1789035604.556063 window_seconds=1.019522
+[audio] pkt=86 smp=99194 supply=103% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=98ms rxpkt=86 rxbytes=198388 pkt_bytes={2228:61,2232:22,4456:1,4460:2} window_end=1789035605.586559 window_seconds=1.030490
+[audio] pkt=85 smp=96968 supply=101% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=94ms rxpkt=85 rxbytes=193936 pkt_bytes={2228:59,2232:24,4456:1,4460:1} window_end=1789035606.602921 window_seconds=1.016355
+[conn] 幀 #9720 887x1972 bytes=6996656
+[audio] pkt=85 smp=98080 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=92ms rxpkt=85 rxbytes=196160 pkt_bytes={448:1,1780:1,2228:58,2232:21,4456:1,4460:3} window_end=1789035607.624382 window_seconds=1.021457
+[audio] pkt=83 smp=99196 supply=103% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=101ms rxpkt=83 rxbytes=198392 pkt_bytes={2228:55,2232:22,4456:3,4460:3} window_end=1789035608.653230 window_seconds=1.028842
+[audio] pkt=84 smp=98082 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=99ms rxpkt=84 rxbytes=196164 pkt_bytes={2228:57,2232:23,4456:2,4460:2} window_end=1789035609.669628 window_seconds=1.016391
+[conn] 幀 #9840 887x1972 bytes=6996656
+[audio] pkt=86 smp=98080 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=97ms rxpkt=86 rxbytes=196160 pkt_bytes={2228:61,2232:23,4456:1,4460:1} window_end=1789035610.693000 window_seconds=1.023368
+[audio] pkt=84 smp=96966 supply=101% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=93ms rxpkt=84 rxbytes=193932 pkt_bytes={2228:59,2232:22,4456:1,4460:2} window_end=1789035611.709220 window_seconds=1.016212
+[audio] pkt=85 smp=100312 supply=104% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=93ms rxpkt=85 rxbytes=200624 pkt_bytes={2228:58,2232:22,4456:1,4460:4} window_end=1789035612.758776 window_seconds=1.049551
+[conn] 幀 #9960 887x1972 bytes=6996656
+[audio] pkt=87 smp=99194 supply=103% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=102ms rxpkt=87 rxbytes=198388 pkt_bytes={2228:61,2232:24,4456:2} window_end=1789035613.776875 window_seconds=1.018093
+[audio] pkt=80 smp=96968 supply=101% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=110ms rxpkt=80 rxbytes=193936 pkt_bytes={2228:54,2232:19,4456:1,4460:6} window_end=1789035614.786200 window_seconds=1.009320
+[audio] pkt=85 smp=99194 supply=103% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=108ms rxpkt=85 rxbytes=198388 pkt_bytes={2228:59,2232:22,4456:2,4460:2} window_end=1789035615.819508 window_seconds=1.033302
+[conn] 幀 #10080 887x1972 bytes=6996656
+[audio] pkt=87 smp=96968 supply=101% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=94ms rxpkt=87 rxbytes=193936 pkt_bytes={2228:62,2232:25} window_end=1789035616.836245 window_seconds=1.016732
+[audio] pkt=86 smp=98080 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=103ms rxpkt=86 rxbytes=196160 pkt_bytes={2228:61,2232:23,4456:1,4460:1} window_end=1789035617.856093 window_seconds=1.019841
+[conn] 幀 #10200 887x1972 bytes=6996656
+[audio] pkt=84 smp=96966 supply=101% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=99ms rxpkt=84 rxbytes=193932 pkt_bytes={2228:58,2232:23,4456:2,4460:1} window_end=1789035618.869309 window_seconds=1.013211
+[audio] pkt=84 smp=98082 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=97ms rxpkt=84 rxbytes=196164 pkt_bytes={2228:59,2232:21,4460:4} window_end=1789035619.892606 window_seconds=1.023292
+[audio] pkt=84 smp=98082 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=105ms rxpkt=84 rxbytes=196164 pkt_bytes={2228:57,2232:23,4456:2,4460:2} window_end=1789035620.907124 window_seconds=1.014512
+[conn] 幀 #10320 887x1972 bytes=6996656
+[audio] pkt=86 smp=96966 supply=101% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=92ms rxpkt=86 rxbytes=193932 pkt_bytes={2228:62,2232:23,4460:1} window_end=1789035621.923009 window_seconds=1.015877
+[audio] pkt=84 smp=95852 supply=99% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=98ms rxpkt=84 rxbytes=191704 pkt_bytes={2228:60,2232:22,4460:2} window_end=1789035622.923625 window_seconds=1.000611
+[audio] pkt=90 smp=101424 supply=105% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=109ms rxpkt=90 rxbytes=202848 pkt_bytes={2228:65,2232:24,4460:1} window_end=1789035623.969023 window_seconds=1.045392
+[conn] 幀 #10440 887x1972 bytes=6996656
+[audio] pkt=85 smp=96966 supply=101% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=95ms rxpkt=85 rxbytes=193932 pkt_bytes={2228:61,2232:22,4460:2} window_end=1789035624.985662 window_seconds=1.016635
+[audio] pkt=82 smp=98082 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=104ms rxpkt=82 rxbytes=196164 pkt_bytes={2228:54,2232:22,4456:3,4460:3} window_end=1789035626.002150 window_seconds=1.016480
+[audio] pkt=88 smp=98082 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=91ms rxpkt=88 rxbytes=196164 pkt_bytes={2228:63,2232:25} window_end=1789035627.035751 window_seconds=1.033595
+[conn] 幀 #10560 887x1972 bytes=6996656
+[audio] pkt=80 smp=96966 supply=101% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=98ms rxpkt=80 rxbytes=193932 pkt_bytes={448:1,1780:1,2228:50,2232:20,4456:4,4460:4} window_end=1789035628.040333 window_seconds=1.004577
+[audio] pkt=88 smp=98080 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=96ms rxpkt=88 rxbytes=196160 pkt_bytes={2228:64,2232:24} window_end=1789035629.058867 window_seconds=1.018529
+[audio] pkt=86 smp=98082 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=93ms rxpkt=86 rxbytes=196164 pkt_bytes={2228:60,2232:24,4456:1,4460:1} window_end=1789035630.085363 window_seconds=1.026489
+[conn] 幀 #10680 887x1972 bytes=6996656
+[audio] pkt=87 smp=96966 supply=101% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=79ms rxpkt=87 rxbytes=193932 pkt_bytes={2228:63,2232:24} window_end=1789035631.106586 window_seconds=1.021217
+[audio] pkt=84 smp=96966 supply=101% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=87ms rxpkt=84 rxbytes=193932 pkt_bytes={2228:59,2232:22,4456:1,4460:2} window_end=1789035632.109627 window_seconds=1.003035
+[audio] pkt=88 smp=99196 supply=103% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=96ms rxpkt=88 rxbytes=198392 pkt_bytes={2228:63,2232:24,4460:1} window_end=1789035633.135315 window_seconds=1.025683
+[conn] 幀 #10800 887x1972 bytes=6996656
+[audio] pkt=85 smp=98082 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=104ms rxpkt=85 rxbytes=196164 pkt_bytes={2228:59,2232:23,4456:1,4460:2} window_end=1789035634.151905 window_seconds=1.016584
+[audio] pkt=86 smp=99196 supply=103% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=103ms rxpkt=86 rxbytes=198392 pkt_bytes={2228:60,2232:23,4456:1,4460:2} window_end=1789035635.185416 window_seconds=1.033507
+[conn] 幀 #10920 887x1972 bytes=6996656
+[audio] pkt=81 smp=96966 supply=101% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=100ms rxpkt=81 rxbytes=193932 pkt_bytes={2228:53,2232:22,4456:4,4460:2} window_end=1789035636.202169 window_seconds=1.016746
+[audio] pkt=85 smp=98080 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=97ms rxpkt=85 rxbytes=196160 pkt_bytes={2228:60,2232:22,4456:1,4460:2} window_end=1789035637.222234 window_seconds=1.020059
+[audio] pkt=85 smp=95852 supply=99% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=93ms rxpkt=85 rxbytes=191704 pkt_bytes={2228:61,2232:23,4460:1} window_end=1789035638.222955 window_seconds=1.000716
+[conn] 幀 #11040 887x1972 bytes=6996656
+[audio] pkt=86 smp=96968 supply=101% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=90ms rxpkt=86 rxbytes=193936 pkt_bytes={2228:60,2232:25,4456:1} window_end=1789035639.236468 window_seconds=1.013507
+[audio] pkt=86 smp=95852 supply=99% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=86ms rxpkt=86 rxbytes=191704 pkt_bytes={2228:62,2232:24} window_end=1789035640.241659 window_seconds=1.005185
+[audio] pkt=89 smp=99196 supply=103% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=95ms rxpkt=89 rxbytes=198392 pkt_bytes={2228:64,2232:25} window_end=1789035641.267926 window_seconds=1.026260
+[conn] 幀 #11160 887x1972 bytes=6996656
+[audio] pkt=82 smp=98080 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=93ms rxpkt=82 rxbytes=196160 pkt_bytes={2228:54,2232:22,4456:4,4460:2} window_end=1789035642.284864 window_seconds=1.016934
+[audio] pkt=87 smp=98082 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=101ms rxpkt=87 rxbytes=196164 pkt_bytes={2228:61,2232:25,4456:1} window_end=1789035643.304311 window_seconds=1.019442
+[audio] pkt=86 smp=96966 supply=101% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=87ms rxpkt=86 rxbytes=193932 pkt_bytes={2228:61,2232:24,4456:1} window_end=1789035644.324791 window_seconds=1.020474
+[conn] 幀 #11280 887x1972 bytes=6996656
+[audio] pkt=87 smp=99196 supply=103% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=96ms rxpkt=87 rxbytes=198392 pkt_bytes={2228:62,2232:23,4460:2} window_end=1789035645.351264 window_seconds=1.026466
+[audio] pkt=86 smp=98080 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=94ms rxpkt=86 rxbytes=196160 pkt_bytes={2228:60,2232:24,4456:2} window_end=1789035646.372121 window_seconds=1.020851
+[audio] pkt=82 smp=98082 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=92ms rxpkt=82 rxbytes=196164 pkt_bytes={2228:54,2232:22,4456:3,4460:3} window_end=1789035647.401414 window_seconds=1.029289
+[conn] 幀 #11400 887x1972 bytes=6996656
+[audio] pkt=88 smp=98080 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=89ms rxpkt=88 rxbytes=196160 pkt_bytes={2228:64,2232:24} window_end=1789035648.417593 window_seconds=1.016171
+[audio] pkt=84 smp=95852 supply=99% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=85ms rxpkt=84 rxbytes=191704 pkt_bytes={2228:59,2232:23,4456:1,4460:1} window_end=1789035649.423426 window_seconds=1.005828
+[audio] pkt=83 smp=98082 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=94ms rxpkt=83 rxbytes=196164 pkt_bytes={2228:57,2232:21,4456:1,4460:4} window_end=1789035650.434692 window_seconds=1.011259
+[conn] 幀 #11520 887x1972 bytes=6996656
+[audio] pkt=81 smp=96966 supply=101% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=90ms rxpkt=81 rxbytes=193932 pkt_bytes={2228:55,2232:20,4456:2,4460:4} window_end=1789035651.452220 window_seconds=1.017525
+[audio] pkt=88 smp=99196 supply=103% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=89ms rxpkt=88 rxbytes=198392 pkt_bytes={4:1,2228:62,2232:23,4456:1,4460:1} window_end=1789035652.484189 window_seconds=1.031962
+[audio] pkt=85 smp=98080 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=97ms rxpkt=85 rxbytes=196160 pkt_bytes={2228:59,2232:23,4456:2,4460:1} window_end=1789035653.500656 window_seconds=1.016460
+[conn] 幀 #11640 887x1972 bytes=6996656
+[audio] pkt=81 smp=98082 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=106ms rxpkt=81 rxbytes=196164 pkt_bytes={2228:53,2232:21,4456:3,4460:4} window_end=1789035654.517466 window_seconds=1.016805
+[audio] pkt=87 smp=98082 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=93ms rxpkt=87 rxbytes=196164 pkt_bytes={2228:62,2232:24,4460:1} window_end=1789035655.550771 window_seconds=1.033299
+[conn] 幀 #11760 887x1972 bytes=6996656
+[audio] pkt=87 smp=98080 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=90ms rxpkt=87 rxbytes=196160 pkt_bytes={2228:63,2232:23,4460:1} window_end=1789035656.567329 window_seconds=1.016554
+[audio] pkt=83 smp=99196 supply=103% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=110ms rxpkt=83 rxbytes=198392 pkt_bytes={2228:54,2232:23,4456:4,4460:2} window_end=1789035657.585860 window_seconds=1.018523
+[audio] pkt=84 smp=96966 supply=101% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=96ms rxpkt=84 rxbytes=193932 pkt_bytes={2228:59,2232:22,4456:1,4460:2} window_end=1789035658.608752 window_seconds=1.022886
+[conn] 幀 #11880 887x1972 bytes=6996656
+[audio] pkt=88 smp=99196 supply=103% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=106ms rxpkt=88 rxbytes=198392 pkt_bytes={2228:62,2232:25,4456:1} window_end=1789035659.634026 window_seconds=1.025269
+[audio] pkt=87 smp=98082 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=103ms rxpkt=87 rxbytes=196164 pkt_bytes={2228:62,2232:24,4460:1} window_end=1789035660.654285 window_seconds=1.020254
+[audio] pkt=87 smp=98080 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=101ms rxpkt=87 rxbytes=196160 pkt_bytes={2228:62,2232:24,4456:1} window_end=1789035661.683702 window_seconds=1.029410
+[conn] 幀 #12000 887x1972 bytes=6996656
+[audio] pkt=84 smp=98082 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=99ms rxpkt=84 rxbytes=196164 pkt_bytes={2228:56,2232:24,4456:3,4460:1} window_end=1789035662.700441 window_seconds=1.016733
+[audio] pkt=86 smp=96966 supply=101% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=95ms rxpkt=86 rxbytes=193932 pkt_bytes={2228:61,2232:24,4456:1} window_end=1789035663.717041 window_seconds=1.016595
+[audio] pkt=85 smp=99196 supply=103% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=105ms rxpkt=85 rxbytes=198392 pkt_bytes={2228:60,2232:21,4460:4} window_end=1789035664.737655 window_seconds=1.020609
+[conn] 幀 #12120 887x1972 bytes=6996656
+[audio] pkt=87 smp=96966 supply=101% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=101ms rxpkt=87 rxbytes=193932 pkt_bytes={2228:63,2232:24} window_end=1789035665.756262 window_seconds=1.018602
+[audio] pkt=84 smp=98082 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=99ms rxpkt=84 rxbytes=196164 pkt_bytes={2228:57,2232:23,4456:2,4460:2} window_end=1789035666.783782 window_seconds=1.027515
+[audio] pkt=87 smp=98080 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=97ms rxpkt=87 rxbytes=196160 pkt_bytes={2228:63,2232:23,4460:1} window_end=1789035667.800239 window_seconds=1.016449
+[conn] 幀 #12240 887x1972 bytes=6996656
+[audio] pkt=86 smp=96966 supply=101% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=94ms rxpkt=86 rxbytes=193932 pkt_bytes={2228:62,2232:23,4460:1} window_end=1789035668.816763 window_seconds=1.016517
+[audio] pkt=82 smp=98082 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=102ms rxpkt=82 rxbytes=196164 pkt_bytes={2228:55,2232:21,4456:2,4460:4} window_end=1789035669.833567 window_seconds=1.016799
+[audio] pkt=84 smp=98080 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=100ms rxpkt=84 rxbytes=196160 pkt_bytes={2228:58,2232:22,4456:2,4460:2} window_end=1789035670.853976 window_seconds=1.020404
+[conn] 幀 #12360 887x1972 bytes=6996656
+[audio] pkt=87 smp=98082 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=108ms rxpkt=87 rxbytes=196164 pkt_bytes={2228:62,2232:24,4460:1} window_end=1789035671.867768 window_seconds=1.013785
+[audio] pkt=83 smp=95852 supply=99% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=104ms rxpkt=83 rxbytes=191704 pkt_bytes={2228:58,2232:22,4456:1,4460:2} window_end=1789035672.873308 window_seconds=1.005535
+[audio] pkt=87 smp=98082 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=91ms rxpkt=87 rxbytes=196164 pkt_bytes={2228:61,2232:25,4456:1} window_end=1789035673.899672 window_seconds=1.026357
+[conn] 幀 #12480 887x1972 bytes=6996656
+[audio] pkt=88 smp=98080 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=99ms rxpkt=88 rxbytes=196160 pkt_bytes={2228:64,2232:24} window_end=1789035674.916980 window_seconds=1.017305
+[audio] pkt=86 smp=96966 supply=101% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=96ms rxpkt=86 rxbytes=193932 pkt_bytes={2228:61,2232:24,4456:1} window_end=1789035675.934932 window_seconds=1.017947
+[audio] pkt=86 smp=98082 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=93ms rxpkt=86 rxbytes=196164 pkt_bytes={2228:60,2232:24,4456:1,4460:1} window_end=1789035676.952524 window_seconds=1.017584
+[conn] 幀 #12600 887x1972 bytes=6996656
+[audio] pkt=87 smp=98080 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=91ms rxpkt=87 rxbytes=196160 pkt_bytes={2228:62,2232:24,4456:1} window_end=1789035677.973132 window_seconds=1.020603
+[audio] pkt=86 smp=98082 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=99ms rxpkt=86 rxbytes=196164 pkt_bytes={2228:61,2232:23,4460:2} window_end=1789035678.989743 window_seconds=1.016605
+[audio] pkt=85 smp=96966 supply=101% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=86ms rxpkt=85 rxbytes=193932 pkt_bytes={2228:60,2232:23,4456:1,4460:1} window_end=1789035680.016450 window_seconds=1.026699
+[conn] 幀 #12720 887x1972 bytes=6996656
+[audio] pkt=85 smp=98082 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=94ms rxpkt=85 rxbytes=196164 pkt_bytes={2228:59,2232:23,4456:1,4460:2} window_end=1789035681.032732 window_seconds=1.016277
+[audio] pkt=86 smp=98080 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=92ms rxpkt=86 rxbytes=196160 pkt_bytes={2228:62,2232:22,4460:2} window_end=1789035682.049355 window_seconds=1.016617
+[audio] pkt=87 smp=98082 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=100ms rxpkt=87 rxbytes=196164 pkt_bytes={2228:62,2232:24,4460:1} window_end=1789035683.067136 window_seconds=1.017777
+[conn] 幀 #12840 887x1972 bytes=6996656
+[audio] pkt=84 smp=96966 supply=101% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=86ms rxpkt=84 rxbytes=193932 pkt_bytes={2228:60,2232:21,4460:3} window_end=1789035684.085678 window_seconds=1.018537
+[audio] pkt=86 smp=99196 supply=103% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=106ms rxpkt=86 rxbytes=198392 pkt_bytes={2228:61,2232:22,4460:3} window_end=1789035685.104827 window_seconds=1.019143
+[audio] pkt=86 smp=98082 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=93ms rxpkt=86 rxbytes=196164 pkt_bytes={444:1,1784:1,2228:58,2232:23,4456:1,4460:2} window_end=1789035686.132781 window_seconds=1.027949
+[conn] 幀 #12960 887x1972 bytes=6996656
+[audio] pkt=85 smp=98080 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=101ms rxpkt=85 rxbytes=196160 pkt_bytes={2228:61,2232:21,4460:3} window_end=1789035687.149084 window_seconds=1.016295
+[audio] pkt=86 smp=98082 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=99ms rxpkt=86 rxbytes=196164 pkt_bytes={2228:60,2232:24,4456:1,4460:1} window_end=1789035688.170124 window_seconds=1.021036
+[audio] pkt=84 smp=96966 supply=101% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=96ms rxpkt=84 rxbytes=193932 pkt_bytes={2228:58,2232:23,4456:2,4460:1} window_end=1789035689.189212 window_seconds=1.019086
+[conn] 幀 #13080 887x1972 bytes=6996656
+[audio] pkt=84 smp=98080 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=93ms rxpkt=84 rxbytes=196160 pkt_bytes={2228:58,2232:22,4456:2,4460:2} window_end=1789035690.215698 window_seconds=1.026476
+[audio] pkt=87 smp=98082 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=91ms rxpkt=87 rxbytes=196164 pkt_bytes={2228:62,2232:24,4460:1} window_end=1789035691.232566 window_seconds=1.016863
+[audio] pkt=86 smp=96966 supply=101% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=88ms rxpkt=86 rxbytes=193932 pkt_bytes={2228:62,2232:23,4460:1} window_end=1789035692.249452 window_seconds=1.016883
+[conn] 幀 #13200 887x1972 bytes=6996656
+[audio] pkt=85 smp=98082 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=96ms rxpkt=85 rxbytes=196164 pkt_bytes={2228:59,2232:23,4456:1,4460:2} window_end=1789035693.267764 window_seconds=1.018303
+[audio] pkt=88 smp=98080 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=94ms rxpkt=88 rxbytes=196160 pkt_bytes={2228:64,2232:24} window_end=1789035694.288906 window_seconds=1.021136
+[audio] pkt=83 smp=96968 supply=101% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=91ms rxpkt=83 rxbytes=193936 pkt_bytes={2228:57,2232:22,4456:1,4460:3} window_end=1789035695.298931 window_seconds=1.010019
+[conn] 幀 #13320 887x1972 bytes=6996656
+[audio] pkt=83 smp=95852 supply=99% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=86ms rxpkt=83 rxbytes=191704 pkt_bytes={2228:57,2232:23,4456:2,4460:1} window_end=1789035696.300087 window_seconds=1.001151
+[audio] pkt=83 smp=98080 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=95ms rxpkt=83 rxbytes=196160 pkt_bytes={2228:57,2232:21,4456:2,4460:3} window_end=1789035697.316815 window_seconds=1.016720
+[audio] pkt=80 smp=98082 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=92ms rxpkt=80 rxbytes=196164 pkt_bytes={2228:50,2232:22,4456:5,4460:3} window_end=1789035698.335372 window_seconds=1.018555
+[conn] 幀 #13440 887x1972 bytes=6996656
+[audio] pkt=86 smp=98080 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=101ms rxpkt=86 rxbytes=196160 pkt_bytes={2228:62,2232:22,4460:2} window_end=1789035699.356814 window_seconds=1.021434
+[audio] pkt=88 smp=99196 supply=103% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=110ms rxpkt=88 rxbytes=198392 pkt_bytes={2228:62,2232:25,4456:1} window_end=1789035700.381804 window_seconds=1.024984
+[audio] pkt=85 smp=98082 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=108ms rxpkt=85 rxbytes=196164 pkt_bytes={2228:60,2232:22,4460:3} window_end=1789035701.401068 window_seconds=1.019259
+[conn] 幀 #13560 887x1972 bytes=6996656
+[audio] pkt=84 smp=96966 supply=101% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=104ms rxpkt=84 rxbytes=193932 pkt_bytes={2228:59,2232:22,4456:1,4460:2} window_end=1789035702.419803 window_seconds=1.018731
+[audio] pkt=85 smp=96966 supply=101% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=112ms rxpkt=85 rxbytes=193932 pkt_bytes={2228:59,2232:24,4456:2} window_end=1789035703.421839 window_seconds=1.002029
+[audio] pkt=84 smp=94738 supply=98% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=96ms rxpkt=84 rxbytes=189476 pkt_bytes={2228:60,2232:23,4460:1} window_end=1789035704.422626 window_seconds=1.000781
+[audio] pkt=85 smp=96966 supply=101% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=93ms rxpkt=85 rxbytes=193932 pkt_bytes={2228:61,2232:22,4460:2} window_end=1789035705.431625 window_seconds=1.008991
+[conn] 幀 #13680 887x1972 bytes=6996656
+[audio] pkt=85 smp=96966 supply=101% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=100ms rxpkt=85 rxbytes=193932 pkt_bytes={2228:60,2232:23,4456:1,4460:1} window_end=1789035706.436546 window_seconds=1.004915
+[audio] pkt=86 smp=99196 supply=103% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=109ms rxpkt=86 rxbytes=198392 pkt_bytes={2228:59,2232:24,4456:2,4460:1} window_end=1789035707.464778 window_seconds=1.028227
+[audio] pkt=80 smp=96966 supply=101% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=95ms rxpkt=80 rxbytes=193932 pkt_bytes={2228:55,2232:18,4456:1,4460:6} window_end=1789035708.481764 window_seconds=1.016983
+[conn] 幀 #13800 887x1972 bytes=6996656
+[audio] pkt=87 smp=98082 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=104ms rxpkt=87 rxbytes=196164 pkt_bytes={2228:62,2232:24,4460:1} window_end=1789035709.498090 window_seconds=1.016318
+[audio] pkt=87 smp=96966 supply=101% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=90ms rxpkt=87 rxbytes=193932 pkt_bytes={2228:63,2232:24} window_end=1789035710.516313 window_seconds=1.018217
+[audio] pkt=84 smp=98082 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=98ms rxpkt=84 rxbytes=196164 pkt_bytes={2228:56,2232:24,4456:3,4460:1} window_end=1789035711.535950 window_seconds=1.019633
+[conn] 幀 #13920 887x1972 bytes=6996656
+[audio] pkt=86 smp=95852 supply=99% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=94ms rxpkt=86 rxbytes=191704 pkt_bytes={2228:62,2232:24} window_end=1789035712.537214 window_seconds=1.001257
+[audio] pkt=83 smp=96966 supply=101% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=101ms rxpkt=83 rxbytes=193932 pkt_bytes={2228:59,2232:20,4460:4} window_end=1789035713.538473 window_seconds=1.001257
+[audio] pkt=87 smp=98082 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=99ms rxpkt=87 rxbytes=196164 pkt_bytes={2228:62,2232:24,4460:1} window_end=1789035714.564489 window_seconds=1.026007
+[conn] 幀 #14040 887x1972 bytes=6996656
+[audio] pkt=85 smp=98080 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=107ms rxpkt=85 rxbytes=196160 pkt_bytes={2228:61,2232:21,4460:3} window_end=1789035715.581008 window_seconds=1.016514
+[audio] pkt=83 smp=94738 supply=98% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=92ms rxpkt=83 rxbytes=189476 pkt_bytes={2228:57,2232:24,4456:2} window_end=1789035716.583034 window_seconds=1.002021
+[audio] pkt=87 smp=98080 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=79ms rxpkt=87 rxbytes=196160 pkt_bytes={2228:63,2232:23,4460:1} window_end=1789035717.614325 window_seconds=1.031285
+[conn] 幀 #14160 887x1972 bytes=6996656
+[audio] pkt=86 smp=99196 supply=103% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=88ms rxpkt=86 rxbytes=198392 pkt_bytes={2228:59,2232:24,4456:2,4460:1} window_end=1789035718.633525 window_seconds=1.019197
+[audio] pkt=85 smp=96966 supply=101% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=85ms rxpkt=85 rxbytes=193932 pkt_bytes={2228:59,2232:24,4456:2} window_end=1789035719.647935 window_seconds=1.014401
+[audio] pkt=85 smp=96968 supply=101% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=92ms rxpkt=85 rxbytes=193936 pkt_bytes={2228:59,2232:24,4456:1,4460:1} window_end=1789035720.651703 window_seconds=1.003765
+[conn] 幀 #14280 887x1972 bytes=6996656
+[audio] pkt=85 smp=99196 supply=103% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=101ms rxpkt=85 rxbytes=198392 pkt_bytes={2228:60,2232:21,4460:4} window_end=1789035721.680859 window_seconds=1.029148
+[audio] pkt=84 smp=96966 supply=101% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=87ms rxpkt=84 rxbytes=193932 pkt_bytes={2228:59,2232:22,4456:1,4460:2} window_end=1789035722.697474 window_seconds=1.016610
+[audio] pkt=83 smp=96966 supply=101% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=84ms rxpkt=83 rxbytes=193932 pkt_bytes={2228:56,2232:23,4456:3,4460:1} window_end=1789035723.714431 window_seconds=1.016952
+[conn] 幀 #14400 887x1972 bytes=6996656
+[audio] pkt=89 smp=99196 supply=103% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=93ms rxpkt=89 rxbytes=198392 pkt_bytes={2228:64,2232:25} window_end=1789035724.735304 window_seconds=1.020867
+[audio] pkt=85 smp=96966 supply=101% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=90ms rxpkt=85 rxbytes=193932 pkt_bytes={4:1,2228:60,2232:21,4456:1,4460:2} window_end=1789035725.753602 window_seconds=1.018294
+[audio] pkt=85 smp=99196 supply=103% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=89ms rxpkt=85 rxbytes=198392 pkt_bytes={2228:59,2232:22,4456:1,4460:3} window_end=1789035726.786253 window_seconds=1.032644
+[conn] 幀 #14520 887x1972 bytes=6996656
+[audio] pkt=86 smp=99196 supply=103% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=98ms rxpkt=86 rxbytes=198392 pkt_bytes={4:1,2228:60,2232:21,4456:1,4460:3} window_end=1789035727.813769 window_seconds=1.027508
+[audio] pkt=85 smp=98080 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=96ms rxpkt=85 rxbytes=196160 pkt_bytes={2228:59,2232:23,4456:2,4460:1} window_end=1789035728.830328 window_seconds=1.016554
+[audio] pkt=84 smp=96968 supply=101% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=93ms rxpkt=84 rxbytes=193936 pkt_bytes={2228:57,2232:24,4456:2,4460:1} window_end=1789035729.849424 window_seconds=1.019092
+[conn] 幀 #14640 887x1972 bytes=6996656
+[audio] pkt=83 smp=98080 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=90ms rxpkt=83 rxbytes=196160 pkt_bytes={2228:56,2232:22,4456:3,4460:2} window_end=1789035730.866525 window_seconds=1.017096
+[audio] pkt=83 smp=98082 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=99ms rxpkt=83 rxbytes=196164 pkt_bytes={2228:57,2232:21,4456:1,4460:4} window_end=1789035731.887071 window_seconds=1.020539
+[audio] pkt=85 smp=99196 supply=103% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=108ms rxpkt=85 rxbytes=198392 pkt_bytes={2228:58,2232:23,4456:2,4460:2} window_end=1789035732.913521 window_seconds=1.026442
+[conn] 幀 #14760 887x1972 bytes=6996656
+[audio] pkt=88 smp=98080 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=106ms rxpkt=88 rxbytes=196160 pkt_bytes={2228:64,2232:24} window_end=1789035733.931542 window_seconds=1.018017
+[audio] pkt=84 smp=95852 supply=99% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=91ms rxpkt=84 rxbytes=191704 pkt_bytes={2228:59,2232:23,4456:1,4460:1} window_end=1789035734.947985 window_seconds=1.016438
+[audio] pkt=88 smp=100310 supply=104% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=112ms rxpkt=88 rxbytes=200620 pkt_bytes={2228:62,2232:24,4456:1,4460:1} window_end=1789035735.969288 window_seconds=1.021296
+[conn] 幀 #14880 887x1972 bytes=6996656
+[audio] pkt=83 smp=94738 supply=98% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=96ms rxpkt=83 rxbytes=189476 pkt_bytes={2228:59,2232:22,4460:2} window_end=1789035736.971023 window_seconds=1.001729
+[audio] pkt=82 smp=96966 supply=101% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=103ms rxpkt=82 rxbytes=193932 pkt_bytes={2228:56,2232:21,4456:2,4460:3} window_end=1789035737.980586 window_seconds=1.009558
+[audio] pkt=85 smp=96966 supply=101% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=100ms rxpkt=85 rxbytes=193932 pkt_bytes={2228:61,2232:22,4460:2} window_end=1789035738.986777 window_seconds=1.006185
+[conn] 幀 #15000 887x1972 bytes=6996656
+[audio] pkt=85 smp=98082 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=98ms rxpkt=85 rxbytes=196164 pkt_bytes={2228:59,2232:23,4456:1,4460:2} window_end=1789035740.013368 window_seconds=1.026583
+[audio] pkt=86 smp=98080 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=106ms rxpkt=86 rxbytes=196160 pkt_bytes={2228:61,2232:23,4456:1,4460:1} window_end=1789035741.030987 window_seconds=1.017615
+[audio] pkt=84 smp=95852 supply=99% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=91ms rxpkt=84 rxbytes=191704 pkt_bytes={2228:59,2232:23,4456:1,4460:1} window_end=1789035742.036582 window_seconds=1.005591
+[conn] 幀 #15120 887x1972 bytes=6996656
+[audio] pkt=87 smp=96968 supply=101% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=88ms rxpkt=87 rxbytes=193936 pkt_bytes={2228:62,2232:25} window_end=1789035743.052869 window_seconds=1.016281
+[audio] pkt=80 smp=98080 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=96ms rxpkt=80 rxbytes=196160 pkt_bytes={2228:52,2232:20,4456:4,4460:4} window_end=1789035744.063033 window_seconds=1.010155
+[audio] pkt=81 smp=96968 supply=101% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=93ms rxpkt=81 rxbytes=193936 pkt_bytes={2228:53,2232:22,4456:3,4460:3} window_end=1789035745.079931 window_seconds=1.016895
+[conn] 幀 #15240 887x1972 bytes=6996656
+[audio] pkt=85 smp=96966 supply=101% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=90ms rxpkt=85 rxbytes=193932 pkt_bytes={2228:60,2232:23,4456:1,4460:1} window_end=1789035746.086951 window_seconds=1.007013
+[audio] pkt=85 smp=98080 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=109ms rxpkt=85 rxbytes=196160 pkt_bytes={2228:60,2232:22,4456:1,4460:2} window_end=1789035747.098718 window_seconds=1.011762
+[audio] pkt=83 smp=94738 supply=98% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=82ms rxpkt=83 rxbytes=189476 pkt_bytes={2228:58,2232:23,4456:1,4460:1} window_end=1789035748.102963 window_seconds=1.004240
+[conn] 幀 #15360 887x1972 bytes=6996656
+[audio] pkt=85 smp=99196 supply=103% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=91ms rxpkt=85 rxbytes=198392 pkt_bytes={2228:60,2232:21,4460:4} window_end=1789035749.129378 window_seconds=1.026408
+[audio] pkt=83 smp=96966 supply=101% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=88ms rxpkt=83 rxbytes=193932 pkt_bytes={2228:58,2232:21,4456:1,4460:3} window_end=1789035750.146095 window_seconds=1.016711
+[audio] pkt=83 smp=98082 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=86ms rxpkt=83 rxbytes=196164 pkt_bytes={2228:56,2232:22,4456:2,4460:3} window_end=1789035751.165323 window_seconds=1.019222
+[conn] 幀 #15480 887x1972 bytes=6996656
+[audio] pkt=88 smp=98080 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=94ms rxpkt=88 rxbytes=196160 pkt_bytes={2228:64,2232:24} window_end=1789035752.181858 window_seconds=1.016531
+[audio] pkt=86 smp=98082 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=102ms rxpkt=86 rxbytes=196164 pkt_bytes={2228:61,2232:23,4460:2} window_end=1789035753.195966 window_seconds=1.014101
+[audio] pkt=85 smp=98080 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=89ms rxpkt=85 rxbytes=196160 pkt_bytes={2228:58,2232:24,4456:3} window_end=1789035754.229301 window_seconds=1.033328
+[conn] 幀 #15600 887x1972 bytes=6996656
+[audio] pkt=83 smp=98082 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=98ms rxpkt=83 rxbytes=196164 pkt_bytes={2228:57,2232:21,4456:1,4460:4} window_end=1789035755.247769 window_seconds=1.018462
+[audio] pkt=85 smp=96966 supply=101% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=84ms rxpkt=85 rxbytes=193932 pkt_bytes={2228:59,2232:24,4456:2} window_end=1789035756.266068 window_seconds=1.018296
+[audio] pkt=87 smp=98082 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=82ms rxpkt=87 rxbytes=196164 pkt_bytes={2228:61,2232:25,4456:1} window_end=1789035757.295765 window_seconds=1.029687
+[conn] 幀 #15720 887x1972 bytes=6996656
+[audio] pkt=80 smp=98080 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=79ms rxpkt=80 rxbytes=196160 pkt_bytes={2228:52,2232:20,4456:4,4460:4} window_end=1789035758.312314 window_seconds=1.016544
+[audio] pkt=89 smp=99196 supply=103% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=99ms rxpkt=89 rxbytes=198392 pkt_bytes={2228:64,2232:25} window_end=1789035759.330648 window_seconds=1.018328
+[audio] pkt=87 smp=98082 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=97ms rxpkt=87 rxbytes=196164 pkt_bytes={2228:61,2232:25,4456:1} window_end=1789035760.352323 window_seconds=1.021670
+[conn] 幀 #15840 887x1972 bytes=6996656
+[audio] pkt=83 smp=98080 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=95ms rxpkt=83 rxbytes=196160 pkt_bytes={2228:56,2232:22,4456:3,4460:2} window_end=1789035761.379184 window_seconds=1.026855
+[audio] pkt=85 smp=98082 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=92ms rxpkt=85 rxbytes=196164 pkt_bytes={2228:59,2232:23,4456:1,4460:2} window_end=1789035762.402223 window_seconds=1.023033
+[audio] pkt=87 smp=99196 supply=103% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=102ms rxpkt=87 rxbytes=198392 pkt_bytes={2228:62,2232:23,4460:2} window_end=1789035763.428961 window_seconds=1.026731
+[conn] 幀 #15960 887x1972 bytes=6996656
+[audio] pkt=82 smp=95850 supply=99% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=76ms rxpkt=82 rxbytes=191700 pkt_bytes={2228:58,2232:20,4456:1,4460:3} window_end=1789035764.445349 window_seconds=1.016383
+[audio] pkt=89 smp=99196 supply=103% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=96ms rxpkt=89 rxbytes=198392 pkt_bytes={2228:64,2232:25} window_end=1789035765.465762 window_seconds=1.020410
+[audio] pkt=87 smp=98082 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=94ms rxpkt=87 rxbytes=196164 pkt_bytes={2228:62,2232:24,4460:1} window_end=1789035766.485361 window_seconds=1.019590
+[conn] 幀 #16080 887x1972 bytes=6996656
+[audio] pkt=86 smp=98080 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=91ms rxpkt=86 rxbytes=196160 pkt_bytes={4:1,2228:60,2232:22,4456:2,4460:1} window_end=1789035767.512025 window_seconds=1.026658
+[audio] pkt=86 smp=98082 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=89ms rxpkt=86 rxbytes=196164 pkt_bytes={2228:60,2232:24,4456:1,4460:1} window_end=1789035768.528754 window_seconds=1.016723
+[conn] 幀 #16200 887x1972 bytes=6996656
+[audio] pkt=86 smp=98080 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=97ms rxpkt=86 rxbytes=196160 pkt_bytes={2228:61,2232:23,4456:1,4460:1} window_end=1789035769.546206 window_seconds=1.017446
+[audio] pkt=85 smp=96968 supply=101% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=94ms rxpkt=85 rxbytes=193936 pkt_bytes={2228:60,2232:23,4460:2} window_end=1789035770.561786 window_seconds=1.015574
+[audio] pkt=86 smp=98080 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=102ms rxpkt=86 rxbytes=196160 pkt_bytes={2228:60,2232:24,4456:2} window_end=1789035771.578441 window_seconds=1.016650
+[conn] 幀 #16320 887x1972 bytes=6996656
+[audio] pkt=82 smp=98082 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=100ms rxpkt=82 rxbytes=196164 pkt_bytes={2228:55,2232:21,4456:2,4460:4} window_end=1789035772.595738 window_seconds=1.017291
+[audio] pkt=81 smp=98080 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=108ms rxpkt=81 rxbytes=196160 pkt_bytes={2228:55,2232:19,4456:2,4460:5} window_end=1789035773.616265 window_seconds=1.020522
+[audio] pkt=85 smp=98082 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=95ms rxpkt=85 rxbytes=196164 pkt_bytes={2228:59,2232:23,4456:1,4460:2} window_end=1789035774.644946 window_seconds=1.028674
+[conn] 幀 #16440 887x1972 bytes=6996656
+[audio] pkt=85 smp=98080 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=104ms rxpkt=85 rxbytes=196160 pkt_bytes={2228:58,2232:24,4456:3} window_end=1789035775.661514 window_seconds=1.016562
+[audio] pkt=87 smp=96968 supply=101% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=90ms rxpkt=87 rxbytes=193936 pkt_bytes={2228:62,2232:25} window_end=1789035776.678143 window_seconds=1.016623
+[audio] pkt=85 smp=98080 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=98ms rxpkt=85 rxbytes=196160 pkt_bytes={2228:61,2232:21,4460:3} window_end=1789035777.694766 window_seconds=1.016617
+[conn] 幀 #16560 887x1972 bytes=6996656
+[audio] pkt=86 smp=95852 supply=99% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=83ms rxpkt=86 rxbytes=191704 pkt_bytes={448:1,1780:1,2228:60,2232:23,4460:1} window_end=1789035778.711928 window_seconds=1.017157
+[audio] pkt=91 smp=100310 supply=104% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=104ms rxpkt=91 rxbytes=200620 pkt_bytes={448:1,1780:1,2228:64,2232:25} window_end=1789035779.728016 window_seconds=1.016082
+[audio] pkt=81 smp=95852 supply=99% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=100ms rxpkt=81 rxbytes=191704 pkt_bytes={2228:55,2232:21,4456:2,4460:3} window_end=1789035780.734048 window_seconds=1.006027
+[conn] 幀 #16680 887x1972 bytes=6996656
+[audio] pkt=83 smp=95852 supply=99% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=96ms rxpkt=83 rxbytes=191704 pkt_bytes={2228:58,2232:22,4456:1,4460:2} window_end=1789035781.734640 window_seconds=1.000586
+[audio] pkt=84 smp=98082 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=93ms rxpkt=84 rxbytes=196164 pkt_bytes={2228:58,2232:22,4456:1,4460:3} window_end=1789035782.761126 window_seconds=1.026480
+[audio] pkt=85 smp=98080 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=102ms rxpkt=85 rxbytes=196160 pkt_bytes={2228:60,2232:22,4456:1,4460:2} window_end=1789035783.779919 window_seconds=1.018787
+[conn] 幀 #16800 887x1972 bytes=6996656
+[audio] pkt=89 smp=99196 supply=103% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=100ms rxpkt=89 rxbytes=198392 pkt_bytes={2228:64,2232:25} window_end=1789035784.810954 window_seconds=1.031028
+[audio] pkt=85 smp=96968 supply=101% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=97ms rxpkt=85 rxbytes=193936 pkt_bytes={2228:58,2232:25,4456:2} window_end=1789035785.827741 window_seconds=1.016783
+[audio] pkt=86 smp=98080 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=95ms rxpkt=86 rxbytes=196160 pkt_bytes={2228:61,2232:23,4456:1,4460:1} window_end=1789035786.844324 window_seconds=1.016577
+[conn] 幀 #16920 887x1972 bytes=6996656
+[audio] pkt=83 smp=96966 supply=101% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=92ms rxpkt=83 rxbytes=193932 pkt_bytes={2228:55,2232:24,4456:4} window_end=1789035787.862467 window_seconds=1.018137
+[audio] pkt=83 smp=99196 supply=103% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=101ms rxpkt=83 rxbytes=198392 pkt_bytes={2228:54,2232:23,4456:4,4460:2} window_end=1789035788.884279 window_seconds=1.021806
+[audio] pkt=85 smp=98082 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=99ms rxpkt=85 rxbytes=196164 pkt_bytes={2228:58,2232:24,4456:2,4460:1} window_end=1789035789.910739 window_seconds=1.026453
+[conn] 幀 #17040 887x1972 bytes=6996656
+[audio] pkt=87 smp=96966 supply=101% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=85ms rxpkt=87 rxbytes=193932 pkt_bytes={2228:63,2232:24} window_end=1789035790.928150 window_seconds=1.017408
+[audio] pkt=86 smp=99196 supply=103% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=94ms rxpkt=86 rxbytes=198392 pkt_bytes={2228:59,2232:24,4456:2,4460:1} window_end=1789035791.960693 window_seconds=1.032537
+[conn] 幀 #17160 887x1972 bytes=6996656
+[audio] pkt=83 smp=99196 supply=103% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=103ms rxpkt=83 rxbytes=198392 pkt_bytes={2228:55,2232:22,4456:3,4460:3} window_end=1789035792.977274 window_seconds=1.016573
+[audio] pkt=84 smp=95852 supply=99% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=88ms rxpkt=84 rxbytes=191704 pkt_bytes={2228:59,2232:23,4456:1,4460:1} window_end=1789035793.994047 window_seconds=1.016768
+[audio] pkt=87 smp=99194 supply=103% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=98ms rxpkt=87 rxbytes=198388 pkt_bytes={2228:63,2232:22,4460:2} window_end=1789035795.017330 window_seconds=1.023278
+[conn] 幀 #17280 887x1972 bytes=6996656
+[audio] pkt=85 smp=98082 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=106ms rxpkt=85 rxbytes=196164 pkt_bytes={2228:58,2232:24,4456:2,4460:1} window_end=1789035796.033897 window_seconds=1.016561
+[audio] pkt=86 smp=96966 supply=101% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=81ms rxpkt=86 rxbytes=193932 pkt_bytes={2228:61,2232:24,4456:1} window_end=1789035797.060470 window_seconds=1.026567
+[audio] pkt=84 smp=96966 supply=101% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=99ms rxpkt=84 rxbytes=193932 pkt_bytes={2228:58,2232:23,4456:2,4460:1} window_end=1789035798.061043 window_seconds=1.000567
+[conn] 幀 #17400 887x1972 bytes=6996656
+[audio] pkt=88 smp=98082 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=86ms rxpkt=88 rxbytes=196164 pkt_bytes={2228:63,2232:25} window_end=1789035799.093957 window_seconds=1.032908
+[audio] pkt=82 smp=98082 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=84ms rxpkt=82 rxbytes=196164 pkt_bytes={2228:54,2232:22,4456:3,4460:3} window_end=1789035800.111454 window_seconds=1.017492
+[audio] pkt=86 smp=98080 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=92ms rxpkt=86 rxbytes=196160 pkt_bytes={2228:61,2232:23,4456:1,4460:1} window_end=1789035801.129564 window_seconds=1.018104
+[conn] 幀 #17520 887x1972 bytes=6996656
+[audio] pkt=89 smp=99196 supply=103% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=91ms rxpkt=89 rxbytes=198392 pkt_bytes={444:1,448:1,1780:1,1784:1,2228:60,2232:23,4460:2} window_end=1789035802.160146 window_seconds=1.030575
+[audio] pkt=87 smp=96966 supply=101% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=88ms rxpkt=87 rxbytes=193932 pkt_bytes={2228:63,2232:24} window_end=1789035803.176874 window_seconds=1.016722
+[audio] pkt=87 smp=98082 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=96ms rxpkt=87 rxbytes=196164 pkt_bytes={2228:61,2232:25,4456:1} window_end=1789035804.193438 window_seconds=1.016558
+[conn] 幀 #17640 887x1972 bytes=6996656
+[audio] pkt=88 smp=98080 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=94ms rxpkt=88 rxbytes=196160 pkt_bytes={2228:64,2232:24} window_end=1789035805.213412 window_seconds=1.019969
+[audio] pkt=88 smp=98082 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=92ms rxpkt=88 rxbytes=196164 pkt_bytes={2228:63,2232:25} window_end=1789035806.233404 window_seconds=1.019991
+[audio] pkt=85 smp=98080 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=89ms rxpkt=85 rxbytes=196160 pkt_bytes={2228:60,2232:22,4456:1,4460:2} window_end=1789035807.260364 window_seconds=1.026948
+[conn] 幀 #17760 887x1972 bytes=6996656
+[audio] pkt=88 smp=99196 supply=103% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=88ms rxpkt=88 rxbytes=198392 pkt_bytes={2228:62,2232:25,4456:1} window_end=1789035808.293425 window_seconds=1.033056
+[audio] pkt=86 smp=98082 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=96ms rxpkt=86 rxbytes=196164 pkt_bytes={2228:60,2232:24,4456:1,4460:1} window_end=1789035809.310570 window_seconds=1.017140
+[audio] pkt=84 smp=98080 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=94ms rxpkt=84 rxbytes=196160 pkt_bytes={2228:57,2232:23,4456:3,4460:1} window_end=1789035810.330555 window_seconds=1.019979
+[conn] 幀 #17880 887x1972 bytes=6996656
+[audio] pkt=82 smp=96968 supply=101% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=91ms rxpkt=82 rxbytes=193936 pkt_bytes={2228:56,2232:21,4456:1,4460:4} window_end=1789035811.346088 window_seconds=1.015529
+[audio] pkt=84 smp=98080 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=88ms rxpkt=84 rxbytes=196160 pkt_bytes={2228:58,2232:22,4456:2,4460:2} window_end=1789035812.367111 window_seconds=1.021015
+[conn] 幀 #18000 887x1972 bytes=6996656
+[audio] pkt=88 smp=99196 supply=103% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=98ms rxpkt=88 rxbytes=198392 pkt_bytes={2228:63,2232:24,4460:1} window_end=1789035813.397651 window_seconds=1.030535
+[audio] pkt=85 smp=98080 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=95ms rxpkt=85 rxbytes=196160 pkt_bytes={2228:59,2232:23,4456:2,4460:1} window_end=1789035814.416488 window_seconds=1.018834
+[audio] pkt=84 smp=95852 supply=99% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=91ms rxpkt=84 rxbytes=191704 pkt_bytes={2228:60,2232:22,4460:2} window_end=1789035815.426616 window_seconds=1.010120
+[conn] 幀 #18120 887x1972 bytes=6996656
+[audio] pkt=86 smp=96968 supply=101% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=98ms rxpkt=86 rxbytes=193936 pkt_bytes={2228:61,2232:24,4460:1} window_end=1789035816.427641 window_seconds=1.001019
+[audio] pkt=85 smp=96966 supply=101% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=95ms rxpkt=85 rxbytes=193932 pkt_bytes={448:1,1780:1,2228:58,2232:22,4456:1,4460:2} window_end=1789035817.433022 window_seconds=1.005377
+[audio] pkt=86 smp=96966 supply=101% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=103ms rxpkt=86 rxbytes=193932 pkt_bytes={2228:62,2232:23,4460:1} window_end=1789035818.442743 window_seconds=1.009712
+[conn] 幀 #18240 887x1972 bytes=6996656
+[audio] pkt=84 smp=96968 supply=101% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=89ms rxpkt=84 rxbytes=193936 pkt_bytes={2228:56,2232:25,4456:3} window_end=1789035819.459782 window_seconds=1.017034
+[audio] pkt=86 smp=98080 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=97ms rxpkt=86 rxbytes=196160 pkt_bytes={2228:61,2232:23,4456:1,4460:1} window_end=1789035820.481036 window_seconds=1.021249
+[audio] pkt=81 smp=98082 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=95ms rxpkt=81 rxbytes=196164 pkt_bytes={2228:55,2232:19,4456:1,4460:6} window_end=1789035821.499507 window_seconds=1.018464
+[conn] 幀 #18360 887x1972 bytes=6996656
+[audio] pkt=86 smp=98080 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=92ms rxpkt=86 rxbytes=196160 pkt_bytes={2228:61,2232:23,4456:1,4460:1} window_end=1789035822.525958 window_seconds=1.026444
+[audio] pkt=88 smp=99196 supply=103% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=102ms rxpkt=88 rxbytes=198392 pkt_bytes={2228:63,2232:24,4460:1} window_end=1789035823.546908 window_seconds=1.020944
+[audio] pkt=85 smp=96966 supply=101% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=98ms rxpkt=85 rxbytes=193932 pkt_bytes={2228:61,2232:22,4460:2} window_end=1789035824.559173 window_seconds=1.012259
+[conn] 幀 #18480 887x1972 bytes=6996656
+[audio] pkt=81 smp=96968 supply=101% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=95ms rxpkt=81 rxbytes=193936 pkt_bytes={2228:54,2232:21,4456:2,4460:4} window_end=1789035825.575782 window_seconds=1.016603
+[audio] pkt=81 smp=98080 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=103ms rxpkt=81 rxbytes=196160 pkt_bytes={2228:53,2232:21,4456:4,4460:3} window_end=1789035826.593695 window_seconds=1.017908
+[audio] pkt=86 smp=98082 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=101ms rxpkt=86 rxbytes=196164 pkt_bytes={2228:60,2232:24,4456:1,4460:1} window_end=1789035827.612348 window_seconds=1.018647
+[conn] 幀 #18600 887x1972 bytes=6996656
+[audio] pkt=88 smp=98080 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=99ms rxpkt=88 rxbytes=196160 pkt_bytes={2228:64,2232:24} window_end=1789035828.642276 window_seconds=1.029921
+[audio] pkt=89 smp=99196 supply=103% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=108ms rxpkt=89 rxbytes=198392 pkt_bytes={2228:64,2232:25} window_end=1789035829.663823 window_seconds=1.021541
+[audio] pkt=87 smp=96966 supply=101% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=83ms rxpkt=87 rxbytes=193932 pkt_bytes={2228:63,2232:24} window_end=1789035830.692167 window_seconds=1.028340
+[conn] 幀 #18720 887x1972 bytes=6996656
+[audio] pkt=88 smp=98082 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=92ms rxpkt=88 rxbytes=196164 pkt_bytes={2228:63,2232:25} window_end=1789035831.708934 window_seconds=1.016762
+[audio] pkt=85 smp=98080 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=100ms rxpkt=85 rxbytes=196160 pkt_bytes={2228:59,2232:23,4456:2,4460:1} window_end=1789035832.727400 window_seconds=1.018459
+[audio] pkt=80 smp=98082 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=98ms rxpkt=80 rxbytes=196164 pkt_bytes={2228:51,2232:21,4456:4,4460:4} window_end=1789035833.745589 window_seconds=1.018182
+[conn] 幀 #18840 887x1972 bytes=6996656
+[audio] pkt=85 smp=98080 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=106ms rxpkt=85 rxbytes=196160 pkt_bytes={2228:60,2232:22,4456:1,4460:2} window_end=1789035834.758712 window_seconds=1.013117
+[audio] pkt=84 smp=95852 supply=99% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=91ms rxpkt=84 rxbytes=191704 pkt_bytes={4:1,2228:58,2232:22,4456:2,4460:1} window_end=1789035835.777670 window_seconds=1.018952
+[audio] pkt=83 smp=98082 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=89ms rxpkt=83 rxbytes=196164 pkt_bytes={2228:57,2232:21,4456:1,4460:4} window_end=1789035836.794550 window_seconds=1.016875
+[conn] 幀 #18960 887x1972 bytes=6996656
+[audio] pkt=86 smp=98080 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=97ms rxpkt=86 rxbytes=196160 pkt_bytes={2228:61,2232:23,4456:1,4460:1} window_end=1789035837.808459 window_seconds=1.013902
+[audio] pkt=85 smp=95852 supply=99% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=82ms rxpkt=85 rxbytes=191704 pkt_bytes={2228:60,2232:24,4456:1} window_end=1789035838.827111 window_seconds=1.018647
+[audio] pkt=85 smp=99196 supply=103% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=92ms rxpkt=85 rxbytes=198392 pkt_bytes={2228:59,2232:22,4456:1,4460:3} window_end=1789035839.848289 window_seconds=1.021172
+[conn] 幀 #19080 887x1972 bytes=6996656
+[audio] pkt=84 smp=98082 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=89ms rxpkt=84 rxbytes=196164 pkt_bytes={2228:57,2232:23,4456:2,4460:2} window_end=1789035840.875437 window_seconds=1.027142
+[audio] pkt=86 smp=98080 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=87ms rxpkt=86 rxbytes=196160 pkt_bytes={2228:61,2232:23,4456:1,4460:1} window_end=1789035841.892053 window_seconds=1.016612
+[audio] pkt=86 smp=98082 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=95ms rxpkt=86 rxbytes=196164 pkt_bytes={2228:61,2232:23,4460:2} window_end=1789035842.912190 window_seconds=1.020133
+[conn] 幀 #19200 887x1972 bytes=6996656
+[audio] pkt=84 smp=96966 supply=101% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=92ms rxpkt=84 rxbytes=193932 pkt_bytes={2228:60,2232:21,4460:3} window_end=1789035843.924891 window_seconds=1.012692
+[audio] pkt=84 smp=95852 supply=99% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=88ms rxpkt=84 rxbytes=191704 pkt_bytes={2228:59,2232:23,4456:1,4460:1} window_end=1789035844.926947 window_seconds=1.002050
+[audio] pkt=88 smp=100310 supply=104% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=88ms rxpkt=88 rxbytes=200620 pkt_bytes={2228:63,2232:23,4460:2} window_end=1789035845.974757 window_seconds=1.047805
+[conn] 幀 #19320 887x1972 bytes=6996656
+[audio] pkt=80 smp=98082 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=85ms rxpkt=80 rxbytes=196164 pkt_bytes={2228:54,2232:18,4456:1,4460:7} window_end=1789035846.992348 window_seconds=1.017584
+[audio] pkt=84 smp=98080 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=94ms rxpkt=84 rxbytes=196160 pkt_bytes={2228:57,2232:23,4456:3,4460:1} window_end=1789035848.008040 window_seconds=1.015686
+[audio] pkt=85 smp=98082 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=91ms rxpkt=85 rxbytes=196164 pkt_bytes={2228:60,2232:22,4460:3} window_end=1789035849.031484 window_seconds=1.023439
+[conn] 幀 #19440 887x1972 bytes=6996656
+[audio] pkt=88 smp=98080 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=89ms rxpkt=88 rxbytes=196160 pkt_bytes={2228:64,2232:24} window_end=1789035850.057864 window_seconds=1.026374
+[audio] pkt=85 smp=98082 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=87ms rxpkt=85 rxbytes=196164 pkt_bytes={2228:58,2232:24,4456:2,4460:1} window_end=1789035851.074580 window_seconds=1.016710
+[conn] 幀 #19560 887x1972 bytes=6996656
+[audio] pkt=85 smp=98082 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=95ms rxpkt=85 rxbytes=196164 pkt_bytes={2228:60,2232:22,4460:3} window_end=1789035852.091214 window_seconds=1.016628
+[audio] pkt=84 smp=98080 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=93ms rxpkt=84 rxbytes=196160 pkt_bytes={2228:60,2232:20,4460:4} window_end=1789035853.114634 window_seconds=1.023414
+[audio] pkt=84 smp=96966 supply=101% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=79ms rxpkt=84 rxbytes=193932 pkt_bytes={2228:59,2232:22,4456:1,4460:2} window_end=1789035854.141005 window_seconds=1.026366
+[conn] 幀 #19680 887x1972 bytes=6996656
+[audio] pkt=85 smp=98082 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=87ms rxpkt=85 rxbytes=196164 pkt_bytes={2228:58,2232:24,4456:2,4460:1} window_end=1789035855.158256 window_seconds=1.017247
+[audio] pkt=85 smp=98080 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=85ms rxpkt=85 rxbytes=196160 pkt_bytes={2228:61,2232:21,4460:3} window_end=1789035856.175362 window_seconds=1.017099
+[audio] pkt=85 smp=98082 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=93ms rxpkt=85 rxbytes=196164 pkt_bytes={2228:59,2232:23,4456:1,4460:2} window_end=1789035857.194341 window_seconds=1.018974
+[conn] 幀 #19800 887x1972 bytes=6996656
+[audio] pkt=87 smp=99196 supply=103% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=92ms rxpkt=87 rxbytes=198392 pkt_bytes={2228:61,2232:24,4456:1,4460:1} window_end=1789035858.224794 window_seconds=1.030448
+[audio] pkt=82 smp=96966 supply=101% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=88ms rxpkt=82 rxbytes=193932 pkt_bytes={2228:55,2232:22,4456:3,4460:2} window_end=1789035859.240741 window_seconds=1.015938
+[audio] pkt=85 smp=99196 supply=103% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=98ms rxpkt=85 rxbytes=198392 pkt_bytes={2228:59,2232:22,4456:1,4460:3} window_end=1789035860.258280 window_seconds=1.017536
+[conn] 幀 #19920 887x1972 bytes=6996656
+[audio] pkt=82 smp=96966 supply=101% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=94ms rxpkt=82 rxbytes=193932 pkt_bytes={2228:57,2232:20,4456:1,4460:4} window_end=1789035861.276790 window_seconds=1.018504
+[audio] pkt=87 smp=99196 supply=103% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=93ms rxpkt=87 rxbytes=198392 pkt_bytes={2228:60,2232:25,4456:2} window_end=1789035862.307287 window_seconds=1.030489
+[audio] pkt=83 smp=98082 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=101ms rxpkt=83 rxbytes=196164 pkt_bytes={2228:56,2232:22,4456:2,4460:3} window_end=1789035863.323985 window_seconds=1.016694
+[conn] 幀 #20040 887x1972 bytes=6996656
+[audio] pkt=85 smp=98080 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=99ms rxpkt=85 rxbytes=196160 pkt_bytes={2228:60,2232:22,4456:1,4460:2} window_end=1789035864.345457 window_seconds=1.021470
+[audio] pkt=86 smp=98082 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=97ms rxpkt=86 rxbytes=196164 pkt_bytes={2228:61,2232:23,4460:2} window_end=1789035865.373753 window_seconds=1.028285
+[audio] pkt=82 smp=95852 supply=99% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=93ms rxpkt=82 rxbytes=191704 pkt_bytes={2228:56,2232:22,4456:2,4460:2} window_end=1789035866.374118 window_seconds=1.000360
+[conn] 幀 #20160 887x1972 bytes=6996656
+[audio] pkt=89 smp=100310 supply=104% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=103ms rxpkt=89 rxbytes=200620 pkt_bytes={2228:63,2232:25,4456:1} window_end=1789035867.409361 window_seconds=1.035237
+[audio] pkt=82 smp=96966 supply=101% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=99ms rxpkt=82 rxbytes=193932 pkt_bytes={2228:56,2232:21,4456:2,4460:3} window_end=1789035868.424512 window_seconds=1.015148
+[audio] pkt=89 smp=100310 supply=104% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=110ms rxpkt=89 rxbytes=200620 pkt_bytes={2228:63,2232:25,4456:1} window_end=1789035869.457069 window_seconds=1.032549
+[conn] 幀 #20280 887x1972 bytes=6996656
+[audio] pkt=81 smp=95852 supply=99% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=95ms rxpkt=81 rxbytes=191704 pkt_bytes={2228:53,2232:23,4456:4,4460:1} window_end=1789035870.473702 window_seconds=1.016627
+[audio] pkt=87 smp=98082 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=93ms rxpkt=87 rxbytes=196164 pkt_bytes={2228:62,2232:24,4460:1} window_end=1789035871.490174 window_seconds=1.016466
+[audio] pkt=87 smp=98080 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=101ms rxpkt=87 rxbytes=196160 pkt_bytes={2228:62,2232:24,4456:1} window_end=1789035872.506845 window_seconds=1.016664
+[conn] 幀 #20400 887x1972 bytes=6996656
+[audio] pkt=88 smp=98082 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=109ms rxpkt=88 rxbytes=196164 pkt_bytes={2228:63,2232:25} window_end=1789035873.523427 window_seconds=1.016576
+[audio] pkt=84 smp=96966 supply=101% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=95ms rxpkt=84 rxbytes=193932 pkt_bytes={2228:59,2232:22,4456:1,4460:2} window_end=1789035874.541489 window_seconds=1.018058
+[audio] pkt=85 smp=96966 supply=101% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=103ms rxpkt=85 rxbytes=193932 pkt_bytes={2228:60,2232:23,4456:1,4460:1} window_end=1789035875.546972 window_seconds=1.005481
+[conn] 幀 #20520 887x1972 bytes=6996656
+[audio] pkt=85 smp=95852 supply=99% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=88ms rxpkt=85 rxbytes=191704 pkt_bytes={2228:60,2232:24,4456:1} window_end=1789035876.557041 window_seconds=1.010059
+[audio] pkt=87 smp=99196 supply=103% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=86ms rxpkt=87 rxbytes=198392 pkt_bytes={2228:62,2232:23,4460:2} window_end=1789035877.592253 window_seconds=1.035209
+[audio] pkt=88 smp=98082 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=95ms rxpkt=88 rxbytes=196164 pkt_bytes={2228:63,2232:25} window_end=1789035878.613501 window_seconds=1.021240
+[conn] 幀 #20640 887x1972 bytes=6996656
+[audio] pkt=88 smp=99194 supply=103% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=93ms rxpkt=88 rxbytes=198388 pkt_bytes={2228:64,2232:23,4460:1} window_end=1789035879.639972 window_seconds=1.026464
+[audio] pkt=86 smp=98082 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=102ms rxpkt=86 rxbytes=196164 pkt_bytes={2228:61,2232:23,4460:2} window_end=1789035880.656547 window_seconds=1.016569
+[audio] pkt=86 smp=98080 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=110ms rxpkt=86 rxbytes=196160 pkt_bytes={2228:61,2232:23,4456:1,4460:1} window_end=1789035881.674775 window_seconds=1.018224
+[conn] 幀 #20760 887x1972 bytes=6996656
+[audio] pkt=85 smp=96968 supply=101% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=96ms rxpkt=85 rxbytes=193936 pkt_bytes={2228:59,2232:24,4456:1,4460:1} window_end=1789035882.694886 window_seconds=1.020104
+[audio] pkt=87 smp=98080 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=83ms rxpkt=87 rxbytes=196160 pkt_bytes={2228:63,2232:23,4460:1} window_end=1789035883.722951 window_seconds=1.028059
+[audio] pkt=87 smp=98082 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=92ms rxpkt=87 rxbytes=196164 pkt_bytes={2228:62,2232:24,4460:1} window_end=1789035884.742811 window_seconds=1.019854
+[conn] 幀 #20880 887x1972 bytes=6996656
+[audio] pkt=86 smp=98080 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=89ms rxpkt=86 rxbytes=196160 pkt_bytes={2228:61,2232:23,4456:1,4460:1} window_end=1789035885.763110 window_seconds=1.020293
+[audio] pkt=83 smp=98082 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=87ms rxpkt=83 rxbytes=196164 pkt_bytes={2228:56,2232:22,4456:2,4460:3} window_end=1789035886.789454 window_seconds=1.026338
+[audio] pkt=87 smp=98080 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=95ms rxpkt=87 rxbytes=196160 pkt_bytes={2228:63,2232:23,4460:1} window_end=1789035887.806176 window_seconds=1.016716
+[conn] 幀 #21000 887x1972 bytes=6996656
+[audio] pkt=87 smp=96968 supply=101% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=81ms rxpkt=87 rxbytes=193936 pkt_bytes={2228:62,2232:25} window_end=1789035888.824938 window_seconds=1.018756
+[audio] pkt=86 smp=98080 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=90ms rxpkt=86 rxbytes=196160 pkt_bytes={2228:62,2232:22,4460:2} window_end=1789035889.843982 window_seconds=1.019039
+[conn] 幀 #21120 887x1972 bytes=6996656
+[audio] pkt=88 smp=99196 supply=103% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=88ms rxpkt=88 rxbytes=198392 pkt_bytes={2228:62,2232:25,4456:1} window_end=1789035890.872706 window_seconds=1.028718
+[audio] pkt=82 smp=98082 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=97ms rxpkt=82 rxbytes=196164 pkt_bytes={2228:55,2232:21,4456:2,4460:4} window_end=1789035891.889796 window_seconds=1.017087
+[audio] pkt=86 smp=96966 supply=101% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=83ms rxpkt=86 rxbytes=193932 pkt_bytes={2228:62,2232:23,4460:1} window_end=1789035892.909669 window_seconds=1.019865
+[conn] 幀 #21240 887x1972 bytes=6996656
+[audio] pkt=86 smp=98080 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=91ms rxpkt=86 rxbytes=196160 pkt_bytes={2228:62,2232:22,4460:2} window_end=1789035893.922979 window_seconds=1.013305
+[audio] pkt=85 smp=95852 supply=99% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=87ms rxpkt=85 rxbytes=191704 pkt_bytes={2228:60,2232:24,4456:1} window_end=1789035894.924835 window_seconds=1.001849
+[audio] pkt=86 smp=95852 supply=99% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=83ms rxpkt=86 rxbytes=191704 pkt_bytes={2228:62,2232:24} window_end=1789035895.925098 window_seconds=1.000256
+[conn] 幀 #21360 887x1972 bytes=6996656
+[audio] pkt=87 smp=98082 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=91ms rxpkt=87 rxbytes=196164 pkt_bytes={2228:62,2232:24,4460:1} window_end=1789035896.945780 window_seconds=1.020678
+[audio] pkt=82 smp=99196 supply=103% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=100ms rxpkt=82 rxbytes=198392 pkt_bytes={2228:53,2232:22,4456:4,4460:3} window_end=1789035897.972406 window_seconds=1.026620
+[audio] pkt=82 smp=96966 supply=101% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=86ms rxpkt=82 rxbytes=193932 pkt_bytes={2228:58,2232:19,4460:5} window_end=1789035898.988760 window_seconds=1.016347
+[conn] 幀 #21480 887x1972 bytes=6996656
+[audio] pkt=83 smp=98082 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=95ms rxpkt=83 rxbytes=196164 pkt_bytes={2228:54,2232:24,4456:4,4460:1} window_end=1789035900.005766 window_seconds=1.017002
+[audio] pkt=84 smp=98080 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=92ms rxpkt=84 rxbytes=196160 pkt_bytes={2228:59,2232:21,4456:1,4460:3} window_end=1789035901.025630 window_seconds=1.019857
+[audio] pkt=84 smp=96966 supply=101% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=89ms rxpkt=84 rxbytes=193932 pkt_bytes={2228:59,2232:22,4456:1,4460:2} window_end=1789035902.038889 window_seconds=1.013253
+[audio] pkt=86 smp=98082 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=97ms rxpkt=86 rxbytes=196164 pkt_bytes={2228:59,2232:25,4456:2} window_end=1789035903.055392 window_seconds=1.016498
+[conn] 幀 #21600 887x1972 bytes=6996656
+[audio] pkt=85 smp=98082 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=106ms rxpkt=85 rxbytes=196164 pkt_bytes={2228:60,2232:22,4460:3} window_end=1789035904.071895 window_seconds=1.016497
+[audio] pkt=82 smp=96966 supply=101% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=92ms rxpkt=82 rxbytes=193932 pkt_bytes={2228:54,2232:23,4456:4,4460:1} window_end=1789035905.088568 window_seconds=1.016667
+[audio] pkt=88 smp=100310 supply=104% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=102ms rxpkt=88 rxbytes=200620 pkt_bytes={2228:62,2232:24,4456:1,4460:1} window_end=1789035906.121767 window_seconds=1.033193
+[conn] 幀 #21720 887x1972 bytes=6996656
+[audio] pkt=84 smp=96966 supply=101% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=99ms rxpkt=84 rxbytes=193932 pkt_bytes={2228:58,2232:23,4456:2,4460:1} window_end=1789035907.138380 window_seconds=1.016607
+[audio] pkt=86 smp=96966 supply=101% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=95ms rxpkt=86 rxbytes=193932 pkt_bytes={2228:62,2232:23,4460:1} window_end=1789035908.155203 window_seconds=1.016817
+[audio] pkt=89 smp=100312 supply=104% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=106ms rxpkt=89 rxbytes=200624 pkt_bytes={2228:63,2232:25,4460:1} window_end=1789035909.188259 window_seconds=1.033050
+[conn] 幀 #21840 887x1972 bytes=6996656
+[audio] pkt=87 smp=96966 supply=101% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=102ms rxpkt=87 rxbytes=193932 pkt_bytes={2228:63,2232:24} window_end=1789035910.204868 window_seconds=1.016603
+[audio] pkt=87 smp=99196 supply=103% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=101ms rxpkt=87 rxbytes=198392 pkt_bytes={2228:61,2232:24,4456:1,4460:1} window_end=1789035911.238464 window_seconds=1.033591
+[audio] pkt=91 smp=101424 supply=105% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=102ms rxpkt=91 rxbytes=202848 pkt_bytes={2228:66,2232:25} window_end=1789035912.293186 window_seconds=1.054716
+[audio] pkt=86 smp=96966 supply=101% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=98ms rxpkt=86 rxbytes=193932 pkt_bytes={2228:62,2232:23,4460:1} window_end=1789035913.304998 window_seconds=1.011807
+[audio] pkt=87 smp=98082 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=107ms rxpkt=87 rxbytes=196164 pkt_bytes={2228:61,2232:25,4456:1} window_end=1789035914.321605 window_seconds=1.016601
+[conn] 幀 #21960 887x1972 bytes=6996656
+[audio] pkt=85 smp=95852 supply=99% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=92ms rxpkt=85 rxbytes=191704 pkt_bytes={2228:60,2232:24,4456:1} window_end=1789035915.328559 window_seconds=1.006947
+[audio] pkt=86 smp=98080 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=111ms rxpkt=86 rxbytes=196160 pkt_bytes={2228:61,2232:23,4456:1,4460:1} window_end=1789035916.337996 window_seconds=1.009430
+[audio] pkt=87 smp=96968 supply=101% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=97ms rxpkt=87 rxbytes=193936 pkt_bytes={2228:62,2232:25} window_end=1789035917.359790 window_seconds=1.021789
+[audio] pkt=84 smp=99194 supply=103% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=95ms rxpkt=84 rxbytes=198388 pkt_bytes={2228:58,2232:21,4456:2,4460:3} window_end=1789035918.388246 window_seconds=1.028450
+[audio] pkt=88 smp=102540 supply=106% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=108ms rxpkt=88 rxbytes=205080 pkt_bytes={892:1,1336:1,2228:55,2232:26,4456:5} window_end=1789035919.454126 window_seconds=1.065874
+[conn] 幀 #22080 887x1972 bytes=6996656
+[audio] pkt=84 smp=96966 supply=101% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=94ms rxpkt=84 rxbytes=193932 pkt_bytes={2228:60,2232:21,4460:3} window_end=1789035920.470849 window_seconds=1.016717
+[audio] pkt=85 smp=95852 supply=99% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=79ms rxpkt=85 rxbytes=191704 pkt_bytes={2228:61,2232:23,4460:1} window_end=1789035921.487526 window_seconds=1.016672
+[audio] pkt=87 smp=99196 supply=103% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=99ms rxpkt=87 rxbytes=198392 pkt_bytes={2228:61,2232:24,4456:1,4460:1} window_end=1789035922.504240 window_seconds=1.016708
+[audio] pkt=87 smp=98082 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=96ms rxpkt=87 rxbytes=196164 pkt_bytes={2228:62,2232:24,4460:1} window_end=1789035923.521606 window_seconds=1.017359
+[audio] pkt=87 smp=98080 supply=102% sr=48000 ch=2 under=0 over=0 primes=1 ptimeouts=0 depth=105ms rxpkt=87 rxbytes=196160 pkt_bytes={2228:63,2232:23,4460:1} window_end=1789035924.536325 window_seconds=1.014714
+[audio] pkt=75 smp=80248 supply=83% sr=48000 ch=2 under=2 over=0 primes=2 ptimeouts=0 depth=87ms rxpkt=75 rxbytes=160496 pkt_bytes={52:2,132:1,136:1,304:1,388:1,1924:1,2172:1,2176:2,2180:2,2228:44,2232:16,3156:1,3964:1,5760:1} window_end=1789035925.588452 window_seconds=1.052122
+[audio] pkt=87 smp=96968 supply=101% sr=48000 ch=2 under=2 over=0 primes=2 ptimeouts=0 depth=84ms rxpkt=87 rxbytes=193936 pkt_bytes={2228:62,2232:25} window_end=1789035926.604979 window_seconds=1.016522
+[conn] 幀 #22200 887x1972 bytes=6996656
+[audio] pkt=88 smp=96966 supply=101% sr=48000 ch=2 under=2 over=0 primes=2 ptimeouts=0 depth=59ms rxpkt=88 rxbytes=193932 pkt_bytes={60:1,136:2,928:1,2064:1,2172:1,2176:2,2228:57,2232:21,4456:1,5760:1} window_end=1789035927.637938 window_seconds=1.032951
+[audio] pkt=83 smp=96966 supply=101% sr=48000 ch=2 under=2 over=0 primes=2 ptimeouts=0 depth=56ms rxpkt=83 rxbytes=193932 pkt_bytes={448:1,1012:1,1780:1,2228:54,2232:20,3448:1,4456:2,4460:3} window_end=1789035928.654166 window_seconds=1.016222
+[audio] pkt=87 smp=96966 supply=101% sr=48000 ch=2 under=2 over=0 primes=2 ptimeouts=0 depth=53ms rxpkt=87 rxbytes=193932 pkt_bytes={2228:63,2232:24} window_end=1789035929.671298 window_seconds=1.017127
+[audio] pkt=85 smp=98082 supply=102% sr=48000 ch=2 under=2 over=0 primes=2 ptimeouts=0 depth=50ms rxpkt=85 rxbytes=196164 pkt_bytes={2228:58,2232:24,4456:2,4460:1} window_end=1789035930.687500 window_seconds=1.016196
+[audio] pkt=86 smp=98080 supply=102% sr=48000 ch=2 under=2 over=0 primes=2 ptimeouts=0 depth=59ms rxpkt=86 rxbytes=196160 pkt_bytes={2228:62,2232:22,4460:2} window_end=1789035931.703972 window_seconds=1.016467
+[audio] pkt=86 smp=98082 supply=102% sr=48000 ch=2 under=2 over=0 primes=2 ptimeouts=0 depth=67ms rxpkt=86 rxbytes=196164 pkt_bytes={2228:60,2232:24,4456:1,4460:1} window_end=1789035932.720587 window_seconds=1.016609
+[conn] 幀 #22320 887x1972 bytes=6996656
+[audio] pkt=86 smp=96966 supply=101% sr=48000 ch=2 under=2 over=0 primes=2 ptimeouts=0 depth=53ms rxpkt=86 rxbytes=193932 pkt_bytes={2228:62,2232:23,4460:1} window_end=1789035933.737169 window_seconds=1.016575
+[audio] pkt=80 smp=90280 supply=94% sr=48000 ch=2 under=5 over=0 primes=2 ptimeouts=0 depth=4ms rxpkt=80 rxbytes=180560 pkt_bytes={72:1,132:1,136:1,2172:1,2176:2,2180:1,2228:50,2232:19,3028:1,4460:2,5760:1} window_end=1789035934.754004 window_seconds=1.016829
+[audio] pkt=87 smp=99196 supply=103% sr=48000 ch=2 under=9 over=0 primes=2 ptimeouts=0 depth=23ms rxpkt=87 rxbytes=198392 pkt_bytes={2228:61,2232:24,4456:1,4460:1} window_end=1789035935.787673 window_seconds=1.033664
+[audio] pkt=91 smp=101424 supply=105% sr=48000 ch=2 under=9 over=0 primes=2 ptimeouts=0 depth=34ms rxpkt=91 rxbytes=202848 pkt_bytes={2228:66,2232:25} window_end=1789035936.837628 window_seconds=1.049949
+[audio] pkt=87 smp=96966 supply=101% sr=48000 ch=2 under=10 over=0 primes=2 ptimeouts=0 depth=22ms rxpkt=87 rxbytes=193932 pkt_bytes={2228:63,2232:24} window_end=1789035937.853616 window_seconds=1.015982
+[audio] pkt=89 smp=99196 supply=103% sr=48000 ch=2 under=10 over=0 primes=2 ptimeouts=0 depth=31ms rxpkt=89 rxbytes=198392 pkt_bytes={2228:64,2232:25} window_end=1789035938.887504 window_seconds=1.033882
+[audio] pkt=85 smp=98082 supply=102% sr=48000 ch=2 under=11 over=0 primes=2 ptimeouts=0 depth=29ms rxpkt=85 rxbytes=196164 pkt_bytes={2228:58,2232:24,4456:2,4460:1} window_end=1789035939.904189 window_seconds=1.016679
+[conn] 幀 #22440 887x1972 bytes=6996656
+[audio] pkt=83 smp=96966 supply=101% sr=48000 ch=2 under=11 over=0 primes=2 ptimeouts=0 depth=26ms rxpkt=83 rxbytes=193932 pkt_bytes={2228:58,2232:21,4456:1,4460:3} window_end=1789035940.920171 window_seconds=1.015977
+[audio] pkt=86 smp=98082 supply=102% sr=48000 ch=2 under=11 over=0 primes=2 ptimeouts=0 depth=34ms rxpkt=86 rxbytes=196164 pkt_bytes={2228:60,2232:24,4456:1,4460:1} window_end=1789035941.937593 window_seconds=1.017417
+[audio] pkt=87 smp=96966 supply=101% sr=48000 ch=2 under=11 over=0 primes=2 ptimeouts=0 depth=21ms rxpkt=87 rxbytes=193932 pkt_bytes={2228:63,2232:24} window_end=1789035942.953729 window_seconds=1.016130
+[audio] pkt=88 smp=98080 supply=102% sr=48000 ch=2 under=11 over=0 primes=2 ptimeouts=0 depth=29ms rxpkt=88 rxbytes=196160 pkt_bytes={2228:64,2232:24} window_end=1789035943.970007 window_seconds=1.016271
+[audio] pkt=84 smp=98082 supply=102% sr=48000 ch=2 under=11 over=0 primes=2 ptimeouts=0 depth=37ms rxpkt=84 rxbytes=196164 pkt_bytes={2228:58,2232:22,4456:1,4460:3} window_end=1789035944.986632 window_seconds=1.016620
+[audio] pkt=88 smp=99196 supply=103% sr=48000 ch=2 under=12 over=0 primes=2 ptimeouts=0 depth=36ms rxpkt=88 rxbytes=198392 pkt_bytes={2228:62,2232:25,4456:1} window_end=1789035946.020019 window_seconds=1.033380
+[conn] 幀 #22560 887x1972 bytes=6996656
+[audio] pkt=89 smp=99196 supply=103% sr=48000 ch=2 under=12 over=0 primes=2 ptimeouts=0 depth=35ms rxpkt=89 rxbytes=198392 pkt_bytes={2228:64,2232:25} window_end=1789035947.053729 window_seconds=1.033706
+[audio] pkt=84 smp=96966 supply=101% sr=48000 ch=2 under=12 over=0 primes=2 ptimeouts=0 depth=32ms rxpkt=84 rxbytes=193932 pkt_bytes={2228:58,2232:23,4456:2,4460:1} window_end=1789035948.069794 window_seconds=1.016057
+[audio] pkt=91 smp=101424 supply=105% sr=48000 ch=2 under=13 over=0 primes=2 ptimeouts=0 depth=22ms rxpkt=91 rxbytes=202848 pkt_bytes={2228:66,2232:25} window_end=1789035949.136185 window_seconds=1.066386
+[audio] pkt=83 smp=98082 supply=102% sr=48000 ch=2 under=13 over=0 primes=2 ptimeouts=0 depth=20ms rxpkt=83 rxbytes=196164 pkt_bytes={2228:53,2232:25,4456:5} window_end=1789035950.152993 window_seconds=1.016801
+[audio] pkt=85 smp=98080 supply=102% sr=48000 ch=2 under=13 over=0 primes=2 ptimeouts=0 depth=28ms rxpkt=85 rxbytes=196160 pkt_bytes={2228:60,2232:22,4456:1,4460:2} window_end=1789035951.169465 window_seconds=1.016468
+[conn] 幀 #22680 887x1972 bytes=6996656
+[audio] pkt=86 smp=96968 supply=101% sr=48000 ch=2 under=13 over=0 primes=2 ptimeouts=0 depth=25ms rxpkt=86 rxbytes=193936 pkt_bytes={2228:61,2232:24,4460:1} window_end=1789035952.186433 window_seconds=1.016961
+[audio] pkt=88 smp=98080 supply=102% sr=48000 ch=2 under=13 over=0 primes=2 ptimeouts=0 depth=23ms rxpkt=88 rxbytes=196160 pkt_bytes={2228:64,2232:24} window_end=1789035953.202631 window_seconds=1.016193
+[audio] pkt=86 smp=96966 supply=101% sr=48000 ch=2 under=14 over=0 primes=2 ptimeouts=0 depth=21ms rxpkt=86 rxbytes=193932 pkt_bytes={2228:61,2232:24,4456:1} window_end=1789035954.219507 window_seconds=1.016869
+[audio] pkt=85 smp=98082 supply=102% sr=48000 ch=2 under=14 over=0 primes=2 ptimeouts=0 depth=29ms rxpkt=85 rxbytes=196164 pkt_bytes={2228:58,2232:24,4456:2,4460:1} window_end=1789035955.235815 window_seconds=1.016302
+[conn] 幀 #22800 887x1972 bytes=6996656
+[audio] pkt=85 smp=99196 supply=103% sr=48000 ch=2 under=14 over=0 primes=2 ptimeouts=0 depth=28ms rxpkt=85 rxbytes=198392 pkt_bytes={2228:58,2232:23,4456:2,4460:2} window_end=1789035956.269160 window_seconds=1.033340
+[audio] pkt=89 smp=99196 supply=103% sr=48000 ch=2 under=14 over=0 primes=2 ptimeouts=0 depth=26ms rxpkt=89 rxbytes=198392 pkt_bytes={2228:64,2232:25} window_end=1789035957.302793 window_seconds=1.033627
+[audio] pkt=87 smp=99194 supply=103% sr=48000 ch=2 under=14 over=0 primes=2 ptimeouts=0 depth=25ms rxpkt=87 rxbytes=198388 pkt_bytes={2228:61,2232:24,4456:2} window_end=1789035958.335714 window_seconds=1.032916
+[audio] pkt=85 smp=98082 supply=102% sr=48000 ch=2 under=14 over=0 primes=2 ptimeouts=0 depth=33ms rxpkt=85 rxbytes=196164 pkt_bytes={2228:59,2232:23,4456:1,4460:2} window_end=1789035959.352514 window_seconds=1.016793
+[audio] pkt=86 smp=98080 supply=102% sr=48000 ch=2 under=14 over=0 primes=2 ptimeouts=0 depth=31ms rxpkt=86 rxbytes=196160 pkt_bytes={2228:61,2232:23,4456:1,4460:1} window_end=1789035960.368841 window_seconds=1.016322
+[audio] pkt=85 smp=95852 supply=99% sr=48000 ch=2 under=14 over=0 primes=2 ptimeouts=0 depth=16ms rxpkt=85 rxbytes=191704 pkt_bytes={2228:61,2232:23,4460:1} window_end=1789035961.385498 window_seconds=1.016651
+[conn] 幀 #22920 887x1972 bytes=6996656
+[audio] pkt=86 smp=98082 supply=102% sr=48000 ch=2 under=14 over=0 primes=2 ptimeouts=0 depth=24ms rxpkt=86 rxbytes=196164 pkt_bytes={2228:61,2232:23,4460:2} window_end=1789035962.402019 window_seconds=1.016515
+[audio] pkt=87 smp=96966 supply=101% sr=48000 ch=2 under=14 over=0 primes=2 ptimeouts=0 depth=21ms rxpkt=87 rxbytes=193932 pkt_bytes={2228:63,2232:24} window_end=1789035963.418870 window_seconds=1.016845
+[audio] pkt=90 smp=100310 supply=104% sr=48000 ch=2 under=14 over=0 primes=2 ptimeouts=0 depth=31ms rxpkt=90 rxbytes=200620 pkt_bytes={2228:65,2232:25} window_end=1789035964.452186 window_seconds=1.033310
+[audio] pkt=90 smp=101426 supply=105% sr=48000 ch=2 under=14 over=0 primes=2 ptimeouts=0 depth=32ms rxpkt=90 rxbytes=202852 pkt_bytes={2228:64,2232:25,4460:1} window_end=1789035965.501752 window_seconds=1.049560
+[conn] 幀 #23040 887x1972 bytes=6996656
+[audio] pkt=85 smp=96966 supply=101% sr=48000 ch=2 under=14 over=0 primes=2 ptimeouts=0 depth=29ms rxpkt=85 rxbytes=193932 pkt_bytes={2228:61,2232:22,4460:2} window_end=1789035966.518463 window_seconds=1.016704
+[audio] pkt=83 smp=96966 supply=101% sr=48000 ch=2 under=15 over=0 primes=2 ptimeouts=0 depth=26ms rxpkt=83 rxbytes=193932 pkt_bytes={2228:56,2232:23,4456:3,4460:1} window_end=1789035967.535168 window_seconds=1.016701
+[audio] pkt=79 smp=95852 supply=99% sr=48000 ch=2 under=15 over=0 primes=2 ptimeouts=0 depth=0ms rxpkt=79 rxbytes=191704 pkt_bytes={2228:50,2232:22,4456:5,4460:2} window_end=1789035968.552283 window_seconds=1.017109
+[audio] pkt=86 smp=100246 supply=104% sr=48000 ch=2 under=17 over=0 primes=3 ptimeouts=0 depth=95ms rxpkt=86 rxbytes=200492 pkt_bytes={136:1,2172:1,2176:3,2180:1,2228:55,2232:21,4456:1,4460:1,5388:1,5760:1} window_end=1789035969.602203 window_seconds=1.049915

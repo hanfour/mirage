@@ -18,8 +18,13 @@ public struct AudioStreamFormat: Equatable, Sendable {
 /// 一包已解碼的音訊：interleaved Float32，範圍 [-1, 1)。
 public struct AudioChunk: Equatable, Sendable {
     public let samples: [Float]
+    /// 原始 S16 payload 大小；保留奇數尾端與空包，不能從解碼後樣本數反推。
+    public let rawByteCount: Int?
 
-    public init(samples: [Float]) { self.samples = samples }
+    public init(samples: [Float], rawByteCount: Int? = nil) {
+        self.samples = samples
+        self.rawByteCount = rawByteCount
+    }
 
     /// S16 little-endian 位元組 → interleaved Float32。
     ///
@@ -27,7 +32,7 @@ public struct AudioChunk: Equatable, Sendable {
     /// 位元組數為奇數時尾端半個 sample 直接丟棄（防禦性，不崩）。
     public static func fromS16LE(_ data: Data) -> AudioChunk {
         let count = data.count / 2
-        guard count > 0 else { return AudioChunk(samples: []) }
+        guard count > 0 else { return AudioChunk(samples: [], rawByteCount: data.count) }
         var out = [Float](repeating: 0, count: count)
         data.withUnsafeBytes { raw in
             for i in 0..<count {
@@ -37,7 +42,7 @@ public struct AudioChunk: Equatable, Sendable {
                 out[i] = Float(s) / 32_768.0
             }
         }
-        return AudioChunk(samples: out)
+        return AudioChunk(samples: out, rawByteCount: data.count)
     }
 }
 

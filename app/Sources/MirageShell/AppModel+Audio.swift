@@ -36,10 +36,16 @@ extension AppModel {
             var monitor = AudioSupplyMonitor()
             var lastWrites = 0
             var lastSamples = 0
+            var lastWindowUptime = ProcessInfo.processInfo.systemUptime
             while !Task.isCancelled {
                 do { try await Task.sleep(for: .seconds(1)) } catch { return }
                 guard let self else { return }
-                let s = audioRing.stats
+                let window = audioRing.takePacketWindow()
+                let windowEnd = Date().timeIntervalSince1970
+                let windowUptime = ProcessInfo.processInfo.systemUptime
+                let windowSeconds = windowUptime - lastWindowUptime
+                lastWindowUptime = windowUptime
+                let s = window.stats
                 let depthMs = s.depthSamples * 1000 / (48_000 * 2)
                 // `supply` 是這一秒實際供應量佔即時需求的百分比。
                 //
@@ -71,7 +77,9 @@ extension AppModel {
                 if logRequested {
                     print("[audio] pkt=\(s.writes - lastWrites) smp=\(supplied) supply=\(supplyPct)% " +
                           "sr=48000 ch=2 under=\(s.underruns) over=\(s.overruns) " +
-                          "primes=\(s.primes) ptimeouts=\(s.primeTimeouts) depth=\(depthMs)ms")
+                          "primes=\(s.primes) ptimeouts=\(s.primeTimeouts) depth=\(depthMs)ms " +
+                          window.logFields +
+                          String(format: " window_end=%.6f window_seconds=%.6f", windowEnd, windowSeconds))
                 }
                 lastWrites = s.writes
                 lastSamples = s.writtenSamples

@@ -228,6 +228,14 @@ check_case "D46：缺 ptimeouts 的舊日誌" "$WORK/no_ptimeouts.log" \
 cat "$WORK/ptimeouts.log" "$WORK/no_ptimeouts.log" > "$WORK/mixed_ptimeouts.log"
 check_case "D46：後續缺欄位保留累積值" "$WORK/mixed_ptimeouts.log" PTIMEOUTS:3 MALFORMED:0 EVENTS:4
 
+# 接收端直方圖是額外欄位，不得改變既有 pkt/smp/supply 的解析。
+cat > "$WORK/packet_histogram.log" <<'EOF'
+[audio] pkt=4 smp=2056 supply=2% sr=48000 ch=2 under=0 over=0 primes=0 ptimeouts=0 depth=42ms rxpkt=6 rxbytes=4114 pkt_bytes={0:1,1:1,136:1,137:1,1920:2}
+[audio] pkt=0 smp=0 supply=0% sr=48000 ch=2 under=0 over=0 primes=0 ptimeouts=0 depth=0ms rxpkt=0 rxbytes=0 pkt_bytes={}
+EOF
+check_case "封包直方圖相容" "$WORK/packet_histogram.log" \
+    AUDIO_LINES:2 SOUND_SECS:1 MALFORMED:0 EVENTS:0 SUPPLY_MEAN:1
+
 # 診斷檔須保留原文且最多五行，不把任意日誌塞進可 eval 的輸出。
 for n in 1 2 3 4 5 6; do
     printf '[audio] unknown-%s pkt=3\n' "$n"

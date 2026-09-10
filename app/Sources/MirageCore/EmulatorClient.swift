@@ -385,7 +385,7 @@ public actor EmulatorClient {
             do {
                 for try await chunk in stream {
                     if Task.isCancelled { return }
-                    audioRing.write(chunk.samples)
+                    audioRing.write(chunk.samples, rawByteCount: chunk.rawByteCount)
                 }
             } catch {
                 // 終審 Important 2：診斷訊號——若音訊 RPC 單獨失敗而連線本身仍健康

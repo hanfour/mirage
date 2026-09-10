@@ -1,0 +1,10 @@
+{
+  "/private/tmp/mirage-audio-pikmin-run/Mirage.app/Contents/MacOS/MirageApp": "16f3cfca5593e666f90edd8698779f0bf7733c24af0942ecef09bcee3e522fe5",
+  "app/scripts/lib/audio_packet_capture.py": "a6cb70f59debea87f684cbfb8a0558f57de9cfc20a342ca3f096f446ab4080bf",
+  "app/scripts/lib/audio_packet_analyze.py": "e0eb7b9ac97fb5688a75ed4831b56741c118748342bd9b77135f4c9db2abc38d",
+  "app/Sources/MirageShell/AppModel+Audio.swift": "05b1d0bc800f24a39a130f8916413c737df375afdfdd61fa3adbb9ba8a8d4c83",
+  "app/Sources/MirageCore/Audio/AudioRingBuffer.swift": "83f73343991016034ee3a04589a9f12f16bd5543fc023930f258cc64e7837bca",
+  "app/Sources/MirageCore/Audio/AudioPacketWindow.swift": "54851bb595262a5f70e6c9e8822d175e3973094f256d125ce8149cb69603ebcc",
+  "app/measurements/audio-pikmin-20260910/app.log": "aa62f46dd01c65760a90bfdfaa43d16b8505a50f40ccfcb365ff3cfa2719cee0",
+  "app/measurements/audio-pikmin-20260910/guards.jsonl.gz": "66e1c5c5b8b747a36d7df3f9dde67583aa8e3e3d2a8d4c961e4f95f23f7be57a"
+}

@@ -1,4 +1,5 @@
 import Atomics
+import Foundation
 
 /// 環形緩衝的可觀測快照（不可變）。`MIRAGE_AUDIO_LOG=1` 每秒印它。
 public struct AudioStats: Equatable, Sendable {
@@ -46,7 +47,7 @@ public struct AudioStats: Equatable, Sendable {
     }
 }
 
-/// 單生產者單消費者（SPSC）無鎖環形緩衝。
+/// 單生產者單消費者（SPSC）環形緩衝；render callback 無鎖。
 ///
 /// **本專案唯一允許 mutate 的資料結構**——全域約束是「不可變優先」，此處明文破例：
 /// CoreAudio 的 render callback 跑在即時執行緒，不得配置記憶體、不得加鎖、不得 log。
@@ -57,6 +58,20 @@ public struct AudioStats: Equatable, Sendable {
 /// 讀寫位置才用 `% capacity` 算——這樣 `write - read` 直接就是可用量，不需要「滿 vs 空」
 /// 的歧義判斷，消除一個經典的環形緩衝特殊情況。
 public final class AudioRingBuffer: @unchecked Sendable {
+    // 診斷鎖只由生產者與每秒監測 task 使用；render callback 永不取得它。
+    private let packetStatsLock: NSLock?
+    private var packetBytes: [Int: Int] = [:]
+
+    /// 與成功寫入計數在同一個邊界取樣。直方圖每次取出後清空，stats 仍為累計。
+    /// 原始包包含空包與溢位丟包，所以桶數總和不一定等於 writes 差。
+    public func takePacketWindow() -> AudioPacketWindow {
+        packetStatsLock?.lock()
+        defer { packetStatsLock?.unlock() }
+        let window = AudioPacketWindow(stats: stats, byteCounts: packetBytes)
+        packetBytes.removeAll(keepingCapacity: true)
+        return window
+    }
+
     private let storage: UnsafeMutableBufferPointer<Float>
     private let capacity: Int
     private let writeIndex = ManagedAtomic<Int>(0)
@@ -86,7 +101,9 @@ public final class AudioRingBuffer: @unchecked Sendable {
     /// 並非已驗證的聽感保證。開放注入供測試與日後校準使用。
     /// 逾時以有資料等待期間的累計請求樣本數計算，不讀時鐘。
     public init(capacitySamples: Int = 19_200, primeThresholdSamples: Int = 9_600,
-                primeTimeoutSamples: Int = 19_200) {
+                primeTimeoutSamples: Int = 19_200,
+                collectPacketSizes: Bool = false) {
+        packetStatsLock = collectPacketSizes ? NSLock() : nil
         capacity = max(capacitySamples, 1)
         // 門檻不得超過容量的一半：超過的話蓄水期會先撞到 overrun，永遠 prime 不起來
         //（前提：封包大小均勻；`write` 是整包丟棄語意——若封包大小不均勻，例如先來一包
@@ -120,7 +137,12 @@ public final class AudioRingBuffer: @unchecked Sendable {
     }
 
     /// 生產者執行緒（gRPC 消費 task）呼叫。空間不足 → **整包丟棄** + overruns += 1。
-    public func write(_ samples: [Float]) {
+    public func write(_ samples: [Float], rawByteCount: Int? = nil) {
+        packetStatsLock?.lock()
+        defer { packetStatsLock?.unlock() }
+        if packetStatsLock != nil, let rawByteCount {
+            packetBytes[rawByteCount, default: 0] += 1
+        }
         guard !samples.isEmpty else { return }
         let w = writeIndex.load(ordering: .relaxed)
         let r = readIndex.load(ordering: .acquiring)

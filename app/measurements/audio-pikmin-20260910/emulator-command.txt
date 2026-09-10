@@ -1,0 +1,1 @@
+34146 /Users/hanfourhuang/Library/Android/sdk/emulator/qemu/darwin-aarch64/qemu-system-aarch64 -avd mirage-game -no-snapshot -port 5554 -grpc 8554

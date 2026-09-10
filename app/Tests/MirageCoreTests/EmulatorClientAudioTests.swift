@@ -20,7 +20,7 @@ final class MockAudioTransport: AudioTransport, @unchecked Sendable {
         lock.lock(); _subscribeCount += 1; lock.unlock()
         let samples = samplesPerPacket
         return AsyncThrowingStream { cont in
-            cont.yield(AudioChunk(samples: samples))
+            cont.yield(AudioChunk(samples: samples, rawByteCount: samples.count * 2))
             // 不 finish：模擬持續中的健康串流（也正是 proto 描述的「可能無限阻塞」）。
         }
     }
@@ -61,7 +61,7 @@ final class SlowFirstProbe: HealthProbe, @unchecked Sendable {
     /// 連上後音訊封包必須流進 sink。用既有 MockTransport 讓連線走到 .connected。
     @Test func connectedClientWritesAudioIntoSink() async throws {
         let audio = MockAudioTransport()
-        let ring = AudioRingBuffer(capacitySamples: 64)
+        let ring = AudioRingBuffer(capacitySamples: 64, collectPacketSizes: true)
         let client = EmulatorClient(
             makeTransport: { _ in MockTransport([.yieldThenHang(1)]) },
             makeHealthProbe: { _ in ScriptedProbe([]) },
@@ -74,6 +74,8 @@ final class SlowFirstProbe: HealthProbe, @unchecked Sendable {
         #expect(audio.subscribeCount >= 1)
         #expect(ring.stats.writes >= 1)
         #expect(ring.stats.depthSamples >= 2)
+        let window = ring.takePacketWindow()
+        #expect(window.byteCounts == [4: audio.subscribeCount])
     }
 
     /// stop() 必須顯式 cancel 底層 RPC——否則 guest 靜音時串流永不結束。

@@ -77,7 +77,8 @@ final class AppModel {
     /// 資料流是 `Renderer.onFrameSize` → `MirrorView` →（這裡）＋ `MirrorContainerView`，
     /// 同一個回呼餵兩個出口，既有那條不動。
     var frameSize: (w: Int, h: Int) = (0, 0)
-    let audioRing = AudioRingBuffer()
+    let audioRing = AudioRingBuffer(
+        collectPacketSizes: ProcessInfo.processInfo.environment["MIRAGE_AUDIO_LOG"] == "1")
     var audioPlayer: AudioPlayer?
     // P1-d: 遊戲偵測→啟用接線。detector 輪詢前景 package（無 adb 時保持 nil，
     // 靜默不偵測）；currentPackage/override 一起餵給 ActivationDecider 決定要不要
