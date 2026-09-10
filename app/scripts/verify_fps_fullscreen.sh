@@ -78,6 +78,15 @@ LOAD_RETRY_WAIT=5
 # 2026-09-09 在真模擬器上實跑才發現：`foreign_cpu_gate` 的純函式自我測試驗的是函式
 # 本身，驗不到腳本裡的重試迴圈。搬到設定區讓兩個區塊共用同一份定義。
 
+# D51：同一次校準的邏輯螢幕尺寸與串流寬度，改門檻時須一起重驗。
+FULLSCREEN_CALIBRATED_SCREEN_WIDTH=1680
+FULLSCREEN_CALIBRATED_SCREEN_HEIGHT=1050
+FULLSCREEN_CALIBRATED_WINDOW_MAX_WIDTH=888
+FULLSCREEN_CALIBRATED_MIN_WIDTH=896
+FULLSCREEN_CALIBRATED_MAX_WIDTH=898
+FULLSCREEN_MIN_WIDTH="${FULLSCREEN_MIN_WIDTH:-$FULLSCREEN_CALIBRATED_MIN_WIDTH}"
+FULLSCREEN_CALIBRATED_MARGIN=$((FULLSCREEN_CALIBRATED_MAX_WIDTH - FULLSCREEN_CALIBRATED_WINDOW_MAX_WIDTH))
+
 QUEUE_DEPTH=""
 AB_MODE=0
 
@@ -113,6 +122,36 @@ fi
   echo "❌ -A 已固定比較 latest 與 queue2，不可同時指定 -q。" >&2
   exit 2
 }
+
+# D51：必須在 getopts 之後，查看 -h 不應查詢桌面或觸發環境警告。
+# 與磁碟／CPU 閘門不同：換機器本身不是錯誤，硬擋會讓 CI 無法執行。
+# 因此幾何不同或無法量測時，每次都顯眼警告但不中止；知情者可用
+# FULLSCREEN_GEOMETRY_ACK=1 靜音。ACK 只略過警告，不代表重新校準完成。
+if [ "${FULLSCREEN_GEOMETRY_ACK:-0}" != 1 ]; then
+    fullscreen_bounds=$(osascript -e 'tell application "Finder" to get bounds of window of desktop' 2>/dev/null) || fullscreen_bounds=""
+    fullscreen_geometry=$(printf '%s\n' "$fullscreen_bounds" | awk -F ',' '
+        NF == 4 {
+            for (i = 1; i <= 4; i++) {
+                gsub(/^[[:space:]]+|[[:space:]]+$/, "", $i)
+                if ($i !~ /^-?[0-9]+$/) exit
+            }
+            w = $3 - $1; h = $4 - $2
+            if (w > 0 && h > 0) printf "%dx%d", w, h
+        }')
+    if [ "$fullscreen_geometry" != "${FULLSCREEN_CALIBRATED_SCREEN_WIDTH}x${FULLSCREEN_CALIBRATED_SCREEN_HEIGHT}" ]; then
+        {
+            echo "================================================================"
+            echo "⚠️ D51：螢幕幾何與校準不同或無法量測（目前：${fullscreen_geometry:-未知}）。"
+            echo "   全螢幕門檻是在 ${FULLSCREEN_CALIBRATED_SCREEN_WIDTH}×${FULLSCREEN_CALIBRATED_SCREEN_HEIGHT} 上校準的。"
+            echo "   視窗天花板 ${FULLSCREEN_CALIBRATED_WINDOW_MAX_WIDTH}／校準門檻 ${FULLSCREEN_CALIBRATED_MIN_WIDTH}／全螢幕天花板 ${FULLSCREEN_CALIBRATED_MAX_WIDTH}，邊界只有 ${FULLSCREEN_CALIBRATED_MARGIN} 這麼窄。"
+            echo "   目前門檻 ${FULLSCREEN_MIN_WIDTH} 可能把「沒進全螢幕、只是視窗夠寬」誤判成「串流尺寸已收斂」。"
+            echo "   重新校準：用檔頭的 osascript 指令確認邏輯解析度，分別量最大視窗與真正全螢幕的串流寬度。"
+            echo "   確認兩者有間距後，把門檻設在兩者之間，更新 FULLSCREEN_CALIBRATED_* 常數與 FULLSCREEN_MIN_WIDTH。"
+            echo "   本次繼續執行；知情者可設 FULLSCREEN_GEOMETRY_ACK=1 靜音警告。"
+            echo "================================================================"
+        } >&2
+    fi
+fi
 
 # D60(a)：磁碟與下方 D67 外來 CPU 都是開跑前的主機環境閘門。
 # 磁碟不會像 CPU 在幾秒內自己好轉，因此失敗直接中止，不重取樣。
@@ -258,7 +297,8 @@ esac
 # 會把「根本沒進全螢幕、只是視窗剛好夠寬」誤判成「已收斂」——方向與本機發現的「全螢幕
 # 到不了 900」相反，是這個數值門檻本身可能失準的情境，換機器跑之前應該重新用本檔前置
 # 說明那段 osascript 量一次邏輯解析度、核對視窗模式天花板與這個門檻的間距是否還夠。
-# 門檻以第三參數傳給 `gui_session_fullscreen`；呼叫端用 `${FULLSCREEN_MIN_WIDTH:-896}`。
+# D51 已在環境前置區自動比對幾何並警告；校準常數集中在設定區。
+# 門檻以第三參數傳給 `gui_session_fullscreen`；呼叫端用 `${FULLSCREEN_MIN_WIDTH}`。
 
 # AXFullScreen 比鍵送可靠得多，但實測仍偶爾整次啟動都沒吃到（懷疑跟這台共用機器上其他
 # Space 切換動畫互相卡到有關，機制未查清）。**擋下不等於放棄**——跟 load_gate 同一個
@@ -384,7 +424,7 @@ run_ab_sink() {
             fi
         fi
 
-        if gui_session_fullscreen "$log" "$bundle" "${FULLSCREEN_MIN_WIDTH:-896}"; then
+        if gui_session_fullscreen "$log" "$bundle" "${FULLSCREEN_MIN_WIDTH}"; then
             round_converged=1
             break
         fi
@@ -402,7 +442,7 @@ run_ab_sink() {
         ab_print_result "$round" "$sink"
         return 0
     fi
-    echo "✅ [sink=${sink}] 串流尺寸已收斂到解析度上限附近（$(printf '%s' "$LATEST_ATTACH" | sed 's/.*請求 //')，寬度 ≥ ${FULLSCREEN_MIN_WIDTH:-896}）"
+    echo "✅ [sink=${sink}] 串流尺寸已收斂到解析度上限附近（$(printf '%s' "$LATEST_ATTACH" | sed 's/.*請求 //')，寬度 ≥ ${FULLSCREEN_MIN_WIDTH}）"
 
     sink_line=$(grep '^\[app\] frame sink=' "$log" | tail -1)
     if [ -n "$sink_line" ]; then
@@ -663,7 +703,7 @@ for round in $(seq 1 "$ROUNDS"); do
             fi
         fi
 
-        if gui_session_fullscreen "$LOG" "$BUNDLE" "${FULLSCREEN_MIN_WIDTH:-896}"; then
+        if gui_session_fullscreen "$LOG" "$BUNDLE" "${FULLSCREEN_MIN_WIDTH}"; then
             ROUND_CONVERGED=1
             break
         fi
@@ -679,7 +719,7 @@ for round in $(seq 1 "$ROUNDS"); do
         SIZE_OK=0
         continue
     fi
-    echo "✅ 串流尺寸已收斂到解析度上限附近（$(printf '%s' "$LATEST_ATTACH" | sed 's/.*請求 //')，寬度 ≥ ${FULLSCREEN_MIN_WIDTH:-896}）"
+    echo "✅ 串流尺寸已收斂到解析度上限附近（$(printf '%s' "$LATEST_ATTACH" | sed 's/.*請求 //')，寬度 ≥ ${FULLSCREEN_MIN_WIDTH}）"
     if [ -n "$QUEUE_DEPTH" ]; then
         SINK_LINE=$(grep '^\[app\] frame sink=' "$LOG" | tail -1)
         if [ -n "$SINK_LINE" ]; then
