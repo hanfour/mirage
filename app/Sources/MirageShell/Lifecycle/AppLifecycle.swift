@@ -35,17 +35,10 @@ final class AppLifecycle: NSObject, NSWindowDelegate {
         guard ProcessInfo.processInfo.environment["MIRAGE_CONN_LOG"] == "1" else { return }
         let app = NSApp as NSApplication?
         let appDelegate = app?.delegate
-        let appDelegateType = typeName(appDelegate)
+        let appDelegateType = LifecycleDiagnostics.typeName(appDelegate)
         let hasClosePolicy = appDelegate?.responds(to: NSSelectorFromString("applicationShouldTerminateAfterLastWindowClosed:")) ?? false
         func containsMirror(_ view: NSView) -> Bool {
             view is MirrorMTKView || view.subviews.contains { containsMirror($0) }
-        }
-        func typeName(_ object: AnyObject?) -> String {
-            guard let object, let runtimeClass = object_getClass(object) else { return "nil" }
-            return NSStringFromClass(runtimeClass)
-        }
-        func token(_ value: String) -> String {
-            value.addingPercentEncoding(withAllowedCharacters: .alphanumerics.union(CharacterSet(charactersIn: "-_.:"))) ?? "nil"
         }
         let fields: [(String, String)] = [
             ("event", event), ("appDelegate", appDelegateType),
@@ -57,19 +50,19 @@ final class AppLifecycle: NSObject, NSWindowDelegate {
             ("receiver", receiver), ("return", result), ("action", action),
             ("windowCount", String((NSApp as NSApplication?)?.windows.count ?? 0)),
             ("window", window.map { String(describing: ObjectIdentifier($0)) } ?? "nil"),
-            ("windowClass", typeName(window)), ("number", window.map { String($0.windowNumber) } ?? "nil"),
+            ("windowClass", LifecycleDiagnostics.typeName(window)), ("number", window.map { String($0.windowNumber) } ?? "nil"),
             ("identifier", window?.identifier?.rawValue ?? "nil"),
             ("mirror", String(window?.contentView.map { containsMirror($0) } ?? false)),
             ("key", String(window?.isKeyWindow ?? false)), ("visible", String(window?.isVisible ?? false)),
-            ("delegate", typeName(window?.delegate)), ("lifecycle", String(window?.delegate is AppLifecycle)),
-            ("contentView", typeName(window?.contentView)), ("controller", typeName(window?.windowController)),
+            ("delegate", LifecycleDiagnostics.typeName(window?.delegate)), ("lifecycle", String(window?.delegate is AppLifecycle)),
+            ("contentView", LifecycleDiagnostics.typeName(window?.contentView)), ("controller", LifecycleDiagnostics.typeName(window?.windowController)),
             ("level", window.map { String($0.level.rawValue) } ?? "nil"),
             ("styleMask", window.map { String($0.styleMask.rawValue) } ?? "nil"),
             ("width", window.map { String(format: "%.0f", $0.frame.width) } ?? "nil"),
             ("height", window.map { String(format: "%.0f", $0.frame.height) } ?? "nil"),
             ("excludedFromWindowsMenu", String(window?.isExcludedFromWindowsMenu ?? false))
         ]
-        print("[wake-diag] " + fields.map { "\($0.0)=\(token($0.1))" }.joined(separator: " "))
+        print("[wake-diag] " + fields.map { "\($0.0)=\(LifecycleDiagnostics.token($0.1))" }.joined(separator: " "))
     }
 
     /// 視窗即將關閉 → 觸發休眠而非退出（回傳 false 阻止關閉，改為隱藏）。
@@ -91,5 +84,19 @@ final class AppLifecycle: NSObject, NSWindowDelegate {
         Self.diagnose("wake-after-activate", window: window)
         guard shouldResume else { return }
         Task { await client.wake() }
+    }
+}
+
+/// 診斷欄位的純轉換，不讀取應用程式或視窗狀態。
+enum LifecycleDiagnostics {
+    static func typeName(_ object: AnyObject?) -> String {
+        guard let object, let runtimeClass = object_getClass(object) else { return "nil" }
+        return NSStringFromClass(runtimeClass)
+    }
+
+    static func token(_ value: String) -> String {
+        value.addingPercentEncoding(
+            withAllowedCharacters: .alphanumerics.union(CharacterSet(charactersIn: "-_.:"))
+        ) ?? "nil"
     }
 }

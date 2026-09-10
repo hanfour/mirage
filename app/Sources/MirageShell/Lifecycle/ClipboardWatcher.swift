@@ -1,14 +1,25 @@
 import AppKit
 
+@MainActor
+protocol ClipboardReading {
+    var changeCount: Int { get }
+    func plainText() -> String?
+}
+
+extension NSPasteboard: ClipboardReading {
+    func plainText() -> String? { string(forType: .string) }
+}
+
 /// 輪詢 NSPasteboard.changeCount，變更且為純文字時回呼。非文字略過（spec §4.3）。
 @MainActor
 final class ClipboardWatcher {
-    private let pasteboard = NSPasteboard.general
+    private let pasteboard: any ClipboardReading
     private var lastCount: Int
     private var timer: Timer?
     private let onChange: (String) -> Void
 
-    init(onChange: @escaping (String) -> Void) {
+    init(pasteboard: any ClipboardReading = NSPasteboard.general, onChange: @escaping (String) -> Void) {
+        self.pasteboard = pasteboard
         self.onChange = onChange
         self.lastCount = pasteboard.changeCount
     }
@@ -31,11 +42,12 @@ final class ClipboardWatcher {
     /// 供本地寫入後同步 changeCount，避免把自己剛寫入的值當成 host 變更回吐（App 層第一道防線）。
     func syncBaseline() { lastCount = pasteboard.changeCount }
 
-    private func poll() {
+    /// Timer 只負責排程；測試直接 poll，驗證 spec §4.3 的變更與純文字過濾。
+    func poll() {
         let c = pasteboard.changeCount
         guard c != lastCount else { return }
         lastCount = c
-        guard let s = pasteboard.string(forType: .string) else { return }  // 非文字略過
+        guard let s = pasteboard.plainText() else { return }  // 非文字略過
         onChange(s)
     }
 }

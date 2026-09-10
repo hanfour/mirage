@@ -2,26 +2,37 @@ import Foundation
 import MirageCore
 
 /// adb 子行程薄封裝：抽出共用 `run`（並發排空 pipe 避免大輸出死鎖、逾時砍行程），
-/// dumpsys 前景偵測與 APK 安裝各自轉換結果。非 @MainActor——純執行。
+/// dumpsys 前景偵測與 APK 安裝各自轉換結果。非 @MainActor（純執行）。
 struct AdbClient: Sendable {
     let adbPath: URL
     let serial: String
+    typealias Runner = @Sendable (URL, [String], Duration, Bool) async -> (exit: Int32, stdout: String)?
+    private let runner: Runner
+
+    init(adbPath: URL, serial: String, runner: @escaping Runner = AdbClient.runProcess) {
+        self.adbPath = adbPath
+        self.serial = serial
+        self.runner = runner
+    }
 
     /// 由 ANDROID_SDK_ROOT/ANDROID_HOME 推導 adb；serial 預設 emulator-5554。
-    static func standard(serial: String = "emulator-5554") -> AdbClient? {
-        let env = ProcessInfo.processInfo.environment
+    static func standard(
+        serial: String = "emulator-5554",
+        environment env: [String: String] = ProcessInfo.processInfo.environment,
+        isExecutable: (String) -> Bool = { FileManager.default.isExecutableFile(atPath: $0) }
+    ) -> AdbClient? {
         let sdk = env["ANDROID_SDK_ROOT"] ?? env["ANDROID_HOME"]
             ?? (NSHomeDirectory() + "/Library/Android/sdk")
         let adb = URL(fileURLWithPath: sdk).appendingPathComponent("platform-tools/adb")
-        guard FileManager.default.isExecutableFile(atPath: adb.path) else { return nil }
+        guard isExecutable(adb.path) else { return nil }
         return AdbClient(adbPath: adb, serial: serial)
     }
 
     /// 回前景 package 或 nil（降級）。逾時內未完成 → 殺行程回 nil。
     /// 語意/輸出與重構前位元等價（mergeStderr:false → stderr→nullDevice）。
     func dumpsysForegroundPackage(timeout: Duration = .seconds(2)) async -> String? {
-        guard let r = await run(
-            ["-s", serial, "shell", "dumpsys", "activity", "activities"], timeout: timeout
+        guard let r = await runner(
+            adbPath, ["-s", serial, "shell", "dumpsys", "activity", "activities"], timeout, false
         ) else { return nil }
         return AdbOutcome.packageOrNil(exitCode: r.exit, stdout: r.stdout)
     }
@@ -29,16 +40,16 @@ struct AdbClient: Sendable {
     /// 安裝 APK：`adb -s <serial> install -r <path>`。失敗原因在 stderr，故合流。
     /// run 回 nil（adb 無法啟動/逾時砍）→ 降級為明確 failure，不崩。
     func install(apkURL: URL, timeout: Duration = .seconds(120)) async -> InstallResult {
-        guard let r = await run(
-            ["-s", serial, "install", "-r", apkURL.path], timeout: timeout, mergeStderr: true
+        guard let r = await runner(
+            adbPath, ["-s", serial, "install", "-r", apkURL.path], timeout, true
         ) else { return .failure("adb 執行失敗或逾時") }
         return InstallResult.parse(r.stdout)
     }
 
     /// 跑 adb，背景並發排空 stdout（避免大輸出塞爆 pipe buffer 死鎖），逾時砍行程。
     /// launch 失敗/逾時 → nil。mergeStderr:true 時 stderr 併入同一 pipe（等同 2>&1）。
-    private func run(
-        _ args: [String], timeout: Duration, mergeStderr: Bool = false
+    private static func runProcess(
+        _ adbPath: URL, _ args: [String], _ timeout: Duration, _ mergeStderr: Bool
     ) async -> (exit: Int32, stdout: String)? {
         let proc = Process()
         proc.executableURL = adbPath
