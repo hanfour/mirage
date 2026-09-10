@@ -23,11 +23,8 @@ final class Renderer: NSObject, MTKViewDelegate {
     private(set) var lastFrameSize: (w: Int, h: Int)?
     /// P1-e：幀尺寸變動時通知容器重算 letterbox（含遊戲轉向時的長寬比翻轉）。
     var onFrameSize: ((Int, Int) -> Void)?
-    private var fpsCount = 0
-    private var fpsWindowStart = CFAbsoluteTimeGetCurrent()
-    private var frameCounterWindowStart: FrameCounterSnapshot
+    private var fpsWindow: FpsWindow
     private let fpsLog = ProcessInfo.processInfo.environment["MIRAGE_FPS_LOG"] == "1"
-    private var drawTiming = DrawTimingWindow()
     private var lastDrawStart: CFAbsoluteTime?
     private let latencyLog = ProcessInfo.processInfo.environment["MIRAGE_LATENCY_LOG"] == "1"
     private var latency = LatencyWindow()
@@ -35,11 +32,12 @@ final class Renderer: NSObject, MTKViewDelegate {
     private var latencyWindowStart = CFAbsoluteTimeGetCurrent()
 
     init?(device: MTLDevice, box: any FrameSink) {
+        let fpsStartedAt = CFAbsoluteTimeGetCurrent()
         guard let blitter = MirrorBlitter(device: device) else { return nil }
         self.device = device
         self.blitter = blitter
         self.box = box
-        self.frameCounterWindowStart = box.stats()
+        self.fpsWindow = FpsWindow(startedAt: fpsStartedAt, counters: box.stats())
         super.init()
     }
 
@@ -110,7 +108,7 @@ final class Renderer: NSObject, MTKViewDelegate {
                                   durationMs: Double?,
                                   outcome: DrawTimingWindow.Outcome) {
         guard fpsLog else { return }
-        drawTiming.record(interval: intervalMs, duration: durationMs, outcome: outcome)
+        fpsWindow.recordDraw(interval: intervalMs, duration: durationMs, outcome: outcome)
     }
 
     /// `MIRAGE_LATENCY_LOG=1`：每秒印一行「幀抵達 Mirage → present」的 p50/p95。
@@ -153,22 +151,16 @@ final class Renderer: NSObject, MTKViewDelegate {
     /// 螢幕更新率，看起來永遠達標。驗收線要的是「使用者看到的畫面多久換一次」。
     private func countPresentedFrame() {
         guard fpsLog else { return }
-        fpsCount += 1
-        let now = CFAbsoluteTimeGetCurrent()
-        let elapsed = now - fpsWindowStart
-        if elapsed >= 1.0 {
-            let frameCounterWindowEnd = box.stats()
-            let frameWindow = FrameCounterWindow(
-                before: frameCounterWindowStart,
-                after: frameCounterWindowEnd,
-                presented: fpsCount)
-            let drawWindow = drawTiming
+        if let report = fpsWindow.record(presented: true, at: CFAbsoluteTimeGetCurrent(),
+                                         counters: { box.stats() }) {
+            let frameWindow = report.frames
+            let drawWindow = report.draw
             // `[app] fps=` 與 `[app] frames` 必須在同一個分支背靠背印出，且一對一。
             // `verify_fps_fullscreen.sh` 以 `fps_samples` 的數量作為 `frames_median`
             // 的跳過數，兩者不能分開或改變輸出次數。draw 統計也在這個同一秒窗口
             // 輸出，但累加是在每次 draw，故包含沒有新幀的 vsync；窗口邊界仍只在
             // present 時檢查，維持既有 fps／frames 的行為。
-            print("[app] fps=\(Int((Double(fpsCount) / elapsed).rounded()))")
+            print("[app] fps=\(report.fps)")
             print("[app] frames arrived=\(frameWindow.arrived) dropped=\(frameWindow.dropped) presented=\(frameWindow.presented)")
             print(String(format: "[app] draw calls=%d gap20=%d maxgap=%dms in_p95=%.1fms nodrawable=%d noframe=%d",
                          drawWindow.calls,
@@ -177,10 +169,6 @@ final class Renderer: NSObject, MTKViewDelegate {
                          drawWindow.inP95Ms,
                          drawWindow.noDrawable,
                          drawWindow.noFrame))
-            drawTiming.reset()
-            fpsCount = 0
-            fpsWindowStart = now
-            frameCounterWindowStart = frameCounterWindowEnd
         }
     }
 

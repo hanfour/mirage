@@ -18,10 +18,10 @@ struct EditorOverlay: View {
     let onRadius: (Double) -> Void
 
     /// 這一段拖曳手勢的「握把偏移」＝按下點與標記中心的差，`onChanged` 全程沿用。
-    /// nil 代表「目前沒有進行中的拖曳」，由 `onEnded` 歸零。
+    /// 由 `onEnded` 結束手勢並清除偏移。
     ///
     /// **一份就夠**：macOS 上同時只會有一個滑鼠拖曳在進行，標記之間不會有兩段手勢重疊。
-    @State private var grabOffset: CGSize?
+    @State private var dragState = EditorDragState()
 
     var body: some View {
         GeometryReader { geo in
@@ -141,28 +141,15 @@ struct EditorOverlay: View {
         DragGesture(minimumDistance: 0, coordinateSpace: .named(Self.coordinateSpaceName))
             .onChanged { value in
                 if session.selectedID != item.id { onSelect(item.id) }
-                // 握把偏移（C2，D5 階段 B 終審）：記下「按下點與標記中心的差」，整段手勢
-                // 沿用。少了它，中心會直接跳到游標處——使用者按在 44×44 圈的邊緣就等於
-                // 重新定位（最多瞬移 22pt），搖桿更慘，按在圈緣最多瞬移一整個半徑
-                // （半徑 0.5、寬 270pt 時約 135pt）。
-                let offset = grabOffset ?? CGSize(width: value.startLocation.x - p.x,
-                                                  height: value.startLocation.y - p.y)
-                if grabOffset == nil { grabOffset = offset }
-                // 按下瞬間 `translation` 為 0：那是「點一下選取」，**不是拖曳，不得改資料**。
-                // `EditorSession` 用一整條規則保證「選取不算變更」（`selecting` 不動
-                // `isDirty`），這裡若不擋，一次點擊就會把浮點座標寫回去——那個值幾乎不可能
-                // 剛好等於原值，所以 `mutatingSelected` 的同值守門攔不住，`isDirty` 被設起來，
-                // 離開時跳出根本不存在的「有未存的鍵位變更」。
-                guard value.translation != .zero else { return }
-                if let np = EditorGeometry.normPoint(x: value.location.x - offset.width,
-                                                     y: value.location.y - offset.height,
-                                                     in: rect) {
+                dragState.begin(at: value.startLocation, center: CGPoint(x: p.x, y: p.y))
+                if let np = dragState.update(location: value.location,
+                                             translation: value.translation, in: rect) {
                     onMove(np)
                 }
             }
             // 手勢結束才歸零。放在 `onChanged` 裡判斷「是不是第一次」是行不通的——
             // `DragGesture` 不會告訴你這件事，偏移必須跨整段手勢活著。
-            .onEnded { _ in grabOffset = nil }
+            .onEnded { _ in dragState.end() }
     }
 
     private static let coordinateSpaceName = "editorOverlay"
