@@ -53,6 +53,7 @@ final class KeymapController {
     /// 補送的位置刻意選在「切換的當下」而不是「keyUp 到達時才判斷」——因為使用者可能
     /// 根本不會在鏡像視窗裡放開（切走視窗、關掉 App），keyUp 未必還會來。
     func setEditing(_ on: Bool) {
+        if editing != on { queue.invalidateTextSession() }
         editing = on
         guard on else { return }
         for code in passthroughDown { sendKeyToGuest(code, down: false) }
@@ -68,12 +69,14 @@ final class KeymapController {
     /// 直通鍵補送 up。即使後續 keyUp 沒有投遞，guest 也不會留下按住狀態（D23）。
     /// 編輯期間則略過釋放，避免每次拖動 binding 觸發 reload 都送出多餘快照。
     func reload(_ profile: KeymapProfile?) {
+        queue.invalidateTextSession()
         releaseEverything()
         engine = profile.map(KeymapEngine.init(profile:))
     }
 
     /// 失焦後 keyUp 未必會投遞，立即釋放 guest 端的觸點與直通鍵（D11）。
     func loseFocus() {
+        queue.invalidateTextSession()
         releaseEverything()
     }
 

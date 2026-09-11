@@ -1,6 +1,6 @@
 # macOS IME 與 guest 文字提交 實作計畫
 
-**狀態：已核准執行 Task 1–4；Task 1–2 完成，Task 3–4 進行中；Task 5–8 本輪不做。**
+**狀態：已核准執行 Task 1–4；Task 1–3 完成，Task 4 進行中；Task 5–8 本輪不做。**
 
 **Goal:** 使用 Mac 注音／拼音在 Mirage 裡組字、選字，確定文字經剪貼簿＋一次貼上進入 LINE
 草稿；組字按鍵不漏到 guest，連續提交有可調節流、可見失敗狀態且不自動重送。
@@ -147,23 +147,23 @@ Test `TextCommitQueueTests.swift`、`TextClipboardCoordinatorTests.swift` 及既
 **Interfaces:** `queue.commitText` 有結果／狀態通知；一個 consumer 管理文字交易與一般輸入。
 所有 host→guest clipboard 寫入進同一協調邊界，禁止保留 AppModel 另開 Task 的旁路。
 
-- [ ] **Step 1 — RED：** 先接 Task 1 的延遲消費假件，讓 clipboard／RPC 全 OK 卻讀到 B/B。
+- [x] **Step 1 — RED：** 先接 Task 1 的延遲消費假件，讓 clipboard／RPC 全 OK 卻讀到 B/B。
   測 A settling 時 watcher 要寫 C、一般同步要還原舊值、切 focus 到 B、兩筆同值 echo、
   delayed echo、外部複製與佇列超限。把目前非同步 watcher 旁路保留時測試必須失敗。
-- [ ] **Step 2 — 確認紅：** `(cd app && swift test --filter 'TextCommitQueueTests|TextClipboardCoordinatorTests')`；
+- [x] **Step 2 — 確認紅：** `(cd app && swift test --filter 'TextCommitQueueTests|TextClipboardCoordinatorTests')`；
   至少觀察異字錯貼與 watcher 提前覆寫兩種行為紅，不只驗「呼叫順序看起來對」。
-- [ ] **Step 3 — GREEN：** 將 clipboard 所有權保留到 settle 結束，所有後續寫入／restore／
+- [x] **Step 3 — GREEN：** 將 clipboard 所有權保留到 settle 結束，所有後續寫入／restore／
   watcher 都等待同一 gate。去重按 commit ID；own echo 不寫 Mac clipboard。
   proto 只有 clipboard 文字、沒有來源 ID：對同值外部複製的歧義要保存限制，不捏造可辨識來源。
-- [ ] **Step 4 — 取消與失敗：** generation 更新在 MainActor 輸入事件當下立即可見，不能排在
+- [x] **Step 4 — 取消與失敗：** generation 更新在 MainActor 輸入事件當下立即可見，不能排在
   長交易後才失效。Paste 前取消可停送；Paste 後／settle 中失焦則保守標未知，不因取消 sleep
   就解除 clipboard 保護。未知狀態暫停後續文字／clipboard，仍能在原隊列執行鍵／觸點釋放；
   不能等待使用者對話框而把 consumer 永久鎖住。RPC 與排隊都有有限期限。
-- [ ] **Step 5 — 驗成立：** 確定性時鐘＋消費 trace 得到 A/B，而非 B/B；watcher 在 gate 前
+- [x] **Step 5 — 驗成立：** 確定性時鐘＋消費 trace 得到 A/B，而非 B/B；watcher 在 gate 前
   寫入次數 0；失焦不在新欄位送舊 commit；外部新值不被舊 restore 蓋掉；重複 ID 不重播。
   fake 故意把真正消費延到 policy 之後時仍能產生 mismatch，證明節流不是全能 ACK；
   不能把 fake 改成一定在 250 ms 內消費來製造通用正確性的錯覺。
-- [ ] **Step 6 — 全測與提交：** `(cd app && swift test)`，包含既有 D6／D11／D23、clipboard 回歸；
+- [x] **Step 6 — 全測與提交：** `(cd app && swift test)`，包含既有 D6／D11／D23、clipboard 回歸；
   全綠後 commit。此時只表示協調合約成立，尚不能宣布 LINE 完成。
 
 ### Task 4：補齊中間插入／選取替換，驗 Swift 真提交路徑（UI 前置門檻）

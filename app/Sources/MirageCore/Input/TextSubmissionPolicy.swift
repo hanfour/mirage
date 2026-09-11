@@ -25,6 +25,11 @@ public struct TextSubmissionPolicy: Sendable, Equatable {
         self.maxPending = maxPending
     }
 
+    public static func configured(environment: [String: String]) -> Result<Self, TextCommitIssue> {
+        do { return .success(try from(environment: environment)) }
+        catch { return .failure((error as? TextCommitIssue) ?? .invalidPolicy("configuration")) }
+    }
+
     public static func from(environment: [String: String]) throws -> Self {
         guard let raw = environment["MIRAGE_TEXT_SETTLE_MS"] else { return try Self() }
         guard !raw.isEmpty, raw.utf8.allSatisfy({ (48...57).contains($0) }), let value = Int(raw) else {

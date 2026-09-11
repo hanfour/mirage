@@ -1,0 +1,17 @@
+✘ Test staleAfterReadNeverPastesIntoNewSession() recorded an issue at TextCommitQueueTests.swift:154:9: Expectation failed: try await receipt(a).outcome == .cancelledBeforeDispatch(.staleSession)
+✘ Test staleAfterReadNeverPastesIntoNewSession() recorded an issue at TextCommitQueueTests.swift:155:9: Expectation failed: await fake.keys.isEmpty
+✘ Test hostWriteIsUnavailableWhileTransactionOwnsClipboard() recorded an issue at TextClipboardCoordinatorTests.swift:24:9: Expectation failed: (c.hostValue(for: revision) → "C") == nil
+✘ Test externalConflictPausesWritesButStillReleasesKeysAndNeverReplaysUnknown() recorded an issue at TextCommitQueueTests.swift:162:9: Expectation failed: try await receipt(a).outcome == .indeterminateAfterDispatch(.clipboardConflict)
+✘ Test hostWriteIsUnavailableWhileTransactionOwnsClipboard() recorded an issue at TextClipboardCoordinatorTests.swift:26:9: Expectation failed: (c.hostValue(for: revision) → nil) == "C"
+✘ Test externalConflictPausesWritesButStillReleasesKeysAndNeverReplaysUnknown() recorded an issue at TextCommitQueueTests.swift:167:9: Expectation failed: await fake.clipboard == "guest-new"
+✘ Test ownAndLateEchoesDoNotWriteHostClipboard() recorded an issue at TextClipboardCoordinatorTests.swift:8:9: Expectation failed: !((c → MirageCore.TextClipboardCoordinator).observeGuestClipboard("A") → true)
+✘ Test ownAndLateEchoesDoNotWriteHostClipboard() recorded an issue at TextClipboardCoordinatorTests.swift:9:9: Expectation failed: !((c → MirageCore.TextClipboardCoordinator).observeGuestClipboard("A") → true)
+✘ Test ownAndLateEchoesDoNotWriteHostClipboard() recorded an issue at TextClipboardCoordinatorTests.swift:10:9: Expectation failed: !((c → MirageCore.TextClipboardCoordinator).observeGuestClipboard("B") → true)
+✘ Test externalConflictPausesWritesButStillReleasesKeysAndNeverReplaysUnknown() recorded an issue at TextCommitQueueTests.swift:169:9: Expectation failed: !((queue → MirageCore.InputQueue).resumeTextSubmissions() → true)
+✘ Test externalConflictPausesWritesButStillReleasesKeysAndNeverReplaysUnknown() recorded an issue at TextCommitQueueTests.swift:173:9: Expectation failed: await fake.keys.filter { $0 == "v:true" }.count == 1
+✘ Test twoDifferentCommitsUseConsumptionGate() recorded an issue at TextCommitQueueTests.swift:91:9: Expectation failed: (heldWrites → ["A", "B"]) == ["A"]
+✘ Test watcherCannotOverwriteAnInFlightPaste() recorded an issue at TextCommitQueueTests.swift:108:9: Expectation failed: (heldWrites → ["A", "watcher-C", "B"]) == ["A"]
+✘ Test twoDifferentCommitsUseConsumptionGate() recorded an issue at TextCommitQueueTests.swift:97:9: Expectation failed: (inserted → ["B", "B"]) == ["A", "B"]
+✘ Test watcherCannotOverwriteAnInFlightPaste() recorded an issue at TextCommitQueueTests.swift:113:9: Expectation failed: (inserted → ["B", "B"]) == ["A", "B"]
+✘ Test watcherCannotOverwriteAnInFlightPaste() recorded an issue at TextCommitQueueTests.swift:114:9: Expectation failed: (writes → ["A", "watcher-C", "B"]) == ["A", "B", "watcher-C"]
+✘ Test run with 10 tests failed after 0.028 seconds with 16 issues.

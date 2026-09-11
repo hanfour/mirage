@@ -40,7 +40,8 @@ extension AppModel {
             // 與上方相同，主佇列通知可同步處理，避免延後釋放 guest 輸入。
             // MouseCapture 的 resign 觀察者仍只負責游標，這裡負責鍵盤與觸點。
             MainActor.assumeIsolated {
-                self?.keymap?.loseFocus()
+                if let keymap = self?.keymap { keymap.loseFocus() }
+                else { self?.inputQueue.invalidateTextSession() }
             }
         }
     }

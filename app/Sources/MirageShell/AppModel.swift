@@ -139,6 +139,7 @@ final class AppModel {
         Task { [client] in
             for await s in client.states {
                 await MainActor.run {
+                    if self.connState != s { self.inputQueue.invalidateTextSession() }
                     self.connState = s
                     self.menuBar?.updateStatus(Self.label(s))
                 }
@@ -463,7 +464,7 @@ final class AppModel {
                 await MainActor.run { self?.applyGuestClipboard(text) }
             }
         }
-        // host→guest：watcher 輪詢 → 經 bridge → setGuestClipboard
+        // host→guest：watcher 輪詢 → bridge → 共用 InputQueue 的 clipboard gate
         watcher = ClipboardWatcher { [weak self] text in self?.applyHostClipboard(text) }
         watcher?.start()
         // 視窗關閉→休眠、喚醒→load 交由 AppLifecycle 當 NSWindowDelegate；
@@ -484,6 +485,7 @@ final class AppModel {
     }
 
     private func applyGuestClipboard(_ text: String) {
+        guard inputQueue.observeGuestClipboard(text) else { return }
         let (ok, next) = bridge.shouldPropagate(value: text, direction: .guestToHost)
         bridge = next
         guard ok else { return }
@@ -496,7 +498,7 @@ final class AppModel {
         let (ok, next) = bridge.shouldPropagate(value: text, direction: .hostToGuest)
         bridge = next
         guard ok else { return }
-        Task { await client.setGuestClipboard(text) }
+        inputQueue.hostClipboardChanged(text)
     }
 
     private func wake() {

@@ -24,7 +24,8 @@ private final class InputLatencyRecorder: @unchecked Sendable {
     }
 }
 
-/// 輸入事件送往 `InputInjecting` 的唯一入口，**保證送出順序即到達順序**（債務 D6）。
+/// 輸入事件的唯一排序入口（D6）：同一 consumer 依入列順序發起與等待傳輸呼叫。
+/// RPC 回覆不等於 guest 消費；文字交易另有可調保留期，完成仍為 submittedUnverified。
 ///
 /// **為什麼是這個形狀**：原本每個輸入事件各開一個 unstructured Task，於是「有幾個
 /// 事件就有幾種可能的順序」。路上沒有任何一層擋得住——MainActor 排隊 → `EmulatorClient`
@@ -39,6 +40,9 @@ private final class InputLatencyRecorder: @unchecked Sendable {
 ///   是「遊戲沒反應」——又一個看起來像遊戲問題的靜默錯誤。
 public final class InputQueue: Sendable {
     private enum Command: Sendable {
+        case text(TextCommit, TextAdmission, AsyncStream<TextCommitResult>.Continuation)
+        case clipboard(UInt64)
+        case barrier(AsyncStream<Void>.Continuation)
         case key(KeyCode, down: Bool, queuedAt: ContinuousClock.Instant?)
         case touches([TouchSpec], queuedAt: ContinuousClock.Instant?)
         case tap(nx: Double, ny: Double, down: Bool, queuedAt: ContinuousClock.Instant?)
@@ -46,6 +50,8 @@ public final class InputQueue: Sendable {
 
     private let cont: AsyncStream<Command>.Continuation
     private let latencyEnabled: Bool
+    public let textCoordinator: TextClipboardCoordinator
+    private let textTransport: (any TextCommitTransport)?
 
     public convenience init(injector: any InputInjecting) {
         self.init(injector: injector,
@@ -54,7 +60,18 @@ public final class InputQueue: Sendable {
 
     /// 量測入列到 RPC 完成，包含佇列與 actor 等待。
     /// 不包含 MirrorView 在入列前處理 AppKit 事件的時間。
-    init(injector: any InputInjecting, latencyEnabled: Bool) {
+    convenience init(injector: any InputInjecting, latencyEnabled: Bool) {
+        self.init(injector: injector, textTransport: injector as? any TextCommitTransport,
+                  textPolicy: TextSubmissionPolicy.configured(environment: ProcessInfo.processInfo.environment),
+                  latencyEnabled: latencyEnabled)
+    }
+
+    public init(injector: any InputInjecting, textTransport: (any TextCommitTransport)?,
+                textPolicy: Result<TextSubmissionPolicy, TextCommitIssue>,
+                textClock: TextCommitClock = .continuous, latencyEnabled: Bool = false) {
+        let coordinator = TextClipboardCoordinator(policy: textPolicy, clock: textClock)
+        self.textCoordinator = coordinator
+        self.textTransport = textTransport
         self.latencyEnabled = latencyEnabled
         let (stream, cont) = AsyncStream.makeStream(of: Command.self)
         self.cont = cont
@@ -78,6 +95,30 @@ public final class InputQueue: Sendable {
             for await command in stream {
                 let queuedAt: ContinuousClock.Instant?
                 switch command {
+                case .text(let commit, let admission, let receipt):
+                    // 同一 consumer 等到 settle 或具名失敗才繼續，禁止另開傳輸 Task。
+                    do {
+                        let result: TextCommitResult
+                        if let stopped = coordinator.begin(commit, admission: admission) { result = stopped }
+                        else if let textTransport {
+                            result = await TextCommitExecutor(transport: textTransport, clock: textClock)
+                                .execute(commit, policy: admission.policy,
+                                         validity: { coordinator.validity(commit) },
+                                         willWrite: { coordinator.rememberOwnWrite($0) },
+                                         phaseChanged: { coordinator.phase($0, for: commit) })
+                        } else { result = TextCommitResult(commit: commit, outcome: .failedBeforePaste(.transport("unsupported"))) }
+                        receipt.yield(coordinator.finish(result)); receipt.finish()
+                    }
+                    continue
+                case .clipboard(let revision):
+                    if let value = coordinator.hostValue(for: revision), let textTransport {
+                        coordinator.rememberOwnWrite(value)
+                        do { try await textTransport.writeTextClipboard(value, timeout: .seconds(2)) }
+                        catch { coordinator.clipboardWriteFailed(.transport(String(describing: error)), revision: revision, value: value) }
+                    }
+                    continue
+                case .barrier(let receipt):
+                    receipt.yield(()); receipt.finish(); continue
                 case .key(let code, let down, let time):
                     queuedAt = time
                     await injector.sendKey(code, down: down)
@@ -97,7 +138,35 @@ public final class InputQueue: Sendable {
 
     /// 佇列擁有者消失時收掉幫浦，否則那個 Task 會連同 `injector` 一起永遠活著。
     /// 消費者 Task 只捕捉 `injector` 與 `stream`、不捕捉 `self`，所以 deinit 真的會到。
-    deinit { cont.finish() }
+    deinit { textCoordinator.invalidateSession(); cont.finish() }
+
+    /// 同步入列，回傳單一結果 stream；觀察結果的 Task 不決定入列順序。
+    public func commitText(_ commit: TextCommit) -> AsyncStream<TextCommitResult> {
+        let (stream, receipt) = AsyncStream.makeStream(of: TextCommitResult.self, bufferingPolicy: .bufferingNewest(1))
+        switch textCoordinator.reserve(commit) {
+        case .accepted(let admission): cont.yield(.text(commit, admission, receipt))
+        case .rejected(let result): receipt.yield(result); receipt.finish()
+        }
+        return stream
+    }
+
+    public func hostClipboardChanged(_ text: String) {
+        cont.yield(.clipboard(textCoordinator.hostClipboardChanged(text)))
+    }
+    public func observeGuestClipboard(_ text: String) -> Bool { textCoordinator.observeGuestClipboard(text) }
+    public func invalidateTextSession() { textCoordinator.invalidateSession() }
+    public func pauseTextSubmissions() { textCoordinator.pause() }
+    @discardableResult public func resumeTextSubmissions(acknowledgingUncertainty: Bool = false) -> Bool {
+        let result = textCoordinator.resume(acknowledgingUncertainty: acknowledgingUncertainty)
+        if let revision = result.hostRevision { cont.yield(.clipboard(revision)) }
+        return result.resumed
+    }
+    /// 同一 consumer 的 barrier，供驗收與有序 shutdown 使用，不另開傳輸路徑。
+    public func drained() async {
+        let (stream, receipt) = AsyncStream.makeStream(of: Void.self)
+        cont.yield(.barrier(receipt))
+        for await _ in stream { break }
+    }
 
     /// 送出不阻塞、不等待——`yield` 只是把命令排進串流。呼叫端（MainActor 上的輸入
     /// 事件處理）維持原本的「射後不理」語意，改變的只有到達順序的保證。

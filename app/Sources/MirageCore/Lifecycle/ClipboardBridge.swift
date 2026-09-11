@@ -13,7 +13,7 @@ public struct ClipboardBridge: Equatable, Sendable {
     public func shouldPropagate(value: String, direction: ClipDirection)
         -> (propagate: Bool, next: ClipboardBridge)
     {
-        if value == lastValue {
+        if let lastValue, TextContent.exactlyEqual(value, lastValue) {
             return (false, self)                 // 回音或重複 → 不傳播
         }
         return (true, ClipboardBridge(lastValue: value))

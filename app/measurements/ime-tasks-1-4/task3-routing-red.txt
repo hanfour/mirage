@@ -1,0 +1,5 @@
+✘ Test modeReloadAndFocusInvalidateTextBeforeRelease() recorded an issue at TextSessionRoutingTests.swift:18:9: Expectation failed: (editing → 0) > (first → 0)
+✘ Test modeReloadAndFocusInvalidateTextBeforeRelease() recorded an issue at TextSessionRoutingTests.swift:21:9: Expectation failed: (reload → 0) > (editing → 0)
+✘ Test modeReloadAndFocusInvalidateTextBeforeRelease() recorded an issue at TextSessionRoutingTests.swift:23:9: Expectation failed: (queue.textCoordinator.status.generation → 0) > (reload → 0)
+✘ Test repeatedOwnValueRefreshesBoundedEchoHistory() recorded an issue at TextClipboardCoordinatorTests.swift:52:9: Expectation failed: !((c → MirageCore.TextClipboardCoordinator).observeGuestClipboard("A") → true)
+✘ Test run with 2 tests failed after 0.005 seconds with 4 issues.
