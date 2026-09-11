@@ -24,16 +24,21 @@
 
 ## 2. 開啟診斷與背景觀察（不要組字時切去 Terminal）
 
-在 repo 根目錄建置後，從 Terminal 啟動一個新的 Mirage 行程。先退出舊 Mirage。
+先退出舊 Mirage，再打包成 `.app`、用 `open` 啟動一個新的 Mirage 行程。
 以下路徑只是本輪例子；**每輪換新名稱**，trace／snapshots／report 都拒絕覆寫。
 
 ```sh
 cd app
-swift build
 mkdir -p /private/tmp/mirage-ime-human-01
-MIRAGE_IME_DIAGNOSTICS=/private/tmp/mirage-ime-human-01/trace.jsonl \
-MIRAGE_TEXT_SETTLE_MS=250 .build/debug/MirageApp
+APP=$(./scripts/package_app.sh /private/tmp/mirage-ime-human-01 debug | tail -1)
+open -n --env MIRAGE_IME_DIAGNOSTICS=/private/tmp/mirage-ime-human-01/trace.jsonl \
+  --env MIRAGE_TEXT_SETTLE_MS=250 "$APP"
 ```
+
+⚠️ 不要從 Terminal 直接執行 `.build/debug/MirageApp`。沒有 bundle 的執行檔會被系統登記成
+`ApplicationType = BackgroundOnly`、沒有 bundle ID，也不會變成前景 app（2026-09-11 實測，
+`lsappinfo` 可查），鍵盤與輸入法的輸入會送到 Terminal 或其他程式。上面的 `open` 啟動方式實測
+是 `Foreground`、`com.mirage.app`，而且兩個環境變數都有傳進行程。
 
 另一個 Terminal 在你回到 Mirage 前啟動 180 秒背景觀察。腳本會列出 sample 編號與
 valid／INVALID，保存 fresh XML 解析的精確文字與欄位裁切圖。查詢失敗、未聚焦都無效，
