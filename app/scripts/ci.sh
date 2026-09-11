@@ -51,6 +51,19 @@ else
 fi
 
 echo ""
+# D74：跨模組 weak async Tu 副本的 context 大小不一致，是否發作取決於連結時
+# 選到哪一份本體與大小描述，平常測試通過也看不到。上游 #92017、#86204 仍 open：
+# https://github.com/swiftlang/swift/issues/92017
+# https://github.com/swiftlang/swift/issues/86204
+# 閘門 9 直接稽核閘門 1 的產物，不重新建置；缺目錄或零 .o 也必須失敗。
+echo "=== 閘門 9：跨模組 async Tu context 大小稽核 ==="
+if python3 scripts/lib/async_tu_audit.py .build/arm64-apple-macosx/debug; then
+    ok "閘門 9：async Tu context 大小無不一致"
+else
+    fail "閘門 9：async Tu context 大小不一致或產物無法稽核（見上方輸出）"
+fi
+
+echo ""
 echo "=== 閘門 2：連跑 $RUNS 次完整測試套件 ==="
 LOGDIR=$(mktemp -d)
 # **只在全過時清掉 log**。原本是無條件 `trap 'rm -rf "$LOGDIR"' EXIT`，於是失敗那一刻
@@ -421,7 +434,7 @@ fi
 echo ""
 echo "======================================"
 if [ "$FAILURES" -eq 0 ]; then
-    echo "全部通過（$RUNS 次跑次、0 行 NIO ERROR、無假 skip、無全形標點陷阱、無永不紅的 #expect、provision 測試綠、九支共用函式庫自我測試（verify_common／audio_stats／load_sentinel／guest_fps／gui_session／backpressure／input_latency／wake／getevent_touch）皆綠、phase0/harness 與 tools/probe pytest 綠）"
+    echo "全部通過（$RUNS 次跑次、0 行 NIO ERROR、無假 skip、無全形標點陷阱、無永不紅的 #expect、provision 測試綠、九支共用函式庫自我測試（verify_common／audio_stats／load_sentinel／guest_fps／gui_session／backpressure／input_latency／wake／getevent_touch）皆綠、phase0/harness 與 tools/probe pytest 綠、閘門 9 async Tu context 大小一致）"
     exit 0
 fi
 echo "$FAILURES 項失敗"
