@@ -110,11 +110,12 @@ public actor EmulatorClient {
         self.makeMmapTransport = makeMmapTransport
         self.backoff = backoff
         // D74：把預設 async 閉包留在非 inlinable 的 init 本體，避免跨模組複製。
-        // Swift #92017 報告 public 預設引數的 async 閉包副本有不同 context 大小，
+        // 已確認為 Swift #92017：public 預設引數的 async 閉包在定義與呼叫端模組各編一份，
+        // async context 大小分別為 MirageCore 144 bytes、呼叫端 128 bytes。
         // linker 混用本體與 Tu 大小描述會寫壞 task allocator metadata，直到呼叫者
         // swift_task_dealloc 才 abort：https://github.com/swiftlang/swift/issues/92017
-        // 本案 Swift 6.2.3 測試在首次 backoffDelay 崩潰、同 runtime 的 app 不崩、
-        // 注入假 sleeper/probe 則通過，與此機制吻合；尚待外部編譯驗證，非已證實根因。
+        // 外部驗證修正前測試 3/3 失敗、修正後 3/3 通過；測試執行檔連到不一致的一對。
+        // app 目前不發作只是連結時剛好選到一致的一對，換連結順序也可能發作。
         // nil 只代表採用預設 sleeper；實際儲存與呼叫的型別、sleep 與取消語意不變。
         if let sleeper {
             self.sleeper = sleeper
