@@ -12,6 +12,8 @@ final class MirrorMTKView: MTKView {
     var eventGeneration: UInt64?
     var currentTextEvent: NSEvent?
     var eventWasComposing = false
+    var diagnosticEventID: UUID?
+    var compositionID = UUID()
     nonisolated(unsafe) var textWindowObservers: [NSObjectProtocol] = []
     deinit { for observer in textWindowObservers { NotificationCenter.default.removeObserver(observer) } }
 
@@ -82,6 +84,7 @@ final class MirrorMTKView: MTKView {
     override func mouseDown(with event: NSEvent) {
         window?.makeFirstResponder(self)
         if textMode {
+            textInput?.queue.invalidateTextSession()
             cancelComposition()
             let point = convert(event.locationInWindow, from: nil)
             if bounds.contains(point), bounds.width > 0, bounds.height > 0 {
@@ -94,6 +97,7 @@ final class MirrorMTKView: MTKView {
     override func mouseDragged(with event: NSEvent) {
         window?.makeFirstResponder(self)
         if textMode {
+            textInput?.queue.invalidateTextSession()
             cancelComposition()
             let point = convert(event.locationInWindow, from: nil)
             if bounds.contains(point), bounds.width > 0, bounds.height > 0 {
@@ -113,6 +117,10 @@ final class MirrorMTKView: MTKView {
 
     override func keyDown(with event: NSEvent) {
         synchronizeTextSession()
+        diagnosticEventID = UUID()
+        textInput?.queue.textDiagnostics.record("key-down", ["eventID": diagnosticEventID!.uuidString,
+            "route": event.modifierFlags.contains(.command) ? "appkit-shortcut" : (textMode ? "text" : "keymap"), "virtualKey": String(event.keyCode),
+            "repeat": String(event.isARepeat), "window": String(event.windowNumber)])
         if textMode {
             guard !event.modifierFlags.contains(.command) else { super.keyDown(with: event); return }
             acceptsTextCallbacks = true
@@ -120,6 +128,7 @@ final class MirrorMTKView: MTKView {
             currentTextEvent = event
             eventWasComposing = hasMarkedText()
             defer { currentTextEvent = nil }
+            textInput?.queue.textDiagnostics.record("interpret", ["eventID": diagnosticEventID!.uuidString])
             if let interpretInput { interpretInput([event]) }
             else { interpretKeyEvents([event]) }
         } else if let c = keyCode(from: event) {
@@ -128,10 +137,14 @@ final class MirrorMTKView: MTKView {
         }
     }
     override func keyUp(with event: NSEvent) {
+        textInput?.queue.textDiagnostics.record("key-up", ["virtualKey": String(event.keyCode), "guestOwned": String(ownedKeys[event.keyCode] != nil)])
         for code in (ownedKeys.removeValue(forKey: event.keyCode) ?? []).reversed() { onKey?(code, false) }
     }
     override func flagsChanged(with event: NSEvent) {
-        if !textMode { onFlagsChanged?(event) }
+        if textMode {
+            // Modifier events have their own IME path; keyDown is still interpreted exactly once.
+            if event.type == .flagsChanged { _ = inputContext?.handleEvent(event) }
+        } else { onFlagsChanged?(event) }
     }
 
     /// 換算邏輯本身在 `MirageCore.KeyTranslate`（純函式、逐行單元測試）——這裡只負責

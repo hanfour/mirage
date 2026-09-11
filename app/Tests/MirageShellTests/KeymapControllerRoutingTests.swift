@@ -317,3 +317,30 @@ private func profileWithWAndJ() -> KeymapProfile {
         #expect(probe.arrivals == ["touch [1]", "touch []"])
     }
 }
+
+@MainActor @Suite struct IMEKeymapSuspensionTests {
+    @Test func textModeReleasesThenSuspendsEntireMapping() async throws {
+        let spy = SpyInjector()
+        let queue = InputQueue(injector: spy)
+        let controller = KeymapController(queue: queue, profile: profileWithWAndJ())
+        controller.handleKeyDown(.key("w"))
+        controller.handleKeyDown(.key("q"))
+        controller.setTextMode(true)
+        await queue.drained()
+        let count = spy.touchCalls
+        let keys = spy.keyCalls.count
+        let last = try #require(spy.keyCalls.last)
+        #expect(last.0 == .key("q") && !last.1)
+        controller.handleKeyDown(.key("w"))
+        controller.handleKeyDown(.key("q"))
+        controller.handleMouseMoved(dx: 1, dy: 2)
+        controller.handleFlagsChanged(try flagsChangedEvent(.shift))
+        await queue.drained()
+        #expect(spy.touchCalls == count)
+        #expect(spy.keyCalls.count == keys)
+        controller.setTextMode(false)
+        controller.handleKeyDown(.key("q"))
+        await queue.drained()
+        #expect(spy.keyCalls.count == keys + 1)
+    }
+}

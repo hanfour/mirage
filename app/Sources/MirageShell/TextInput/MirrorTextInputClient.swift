@@ -8,6 +8,7 @@ extension MirrorMTKView: NSTextInputClient {
         observedGeneration = next
     }
     func cancelComposition() {
+        textInput?.queue.textDiagnostics.record("composition-cancel", ["compositionID": compositionID.uuidString])
         acceptsTextCallbacks = false
         eventGeneration = nil
         if !session.composition.text.isEmpty { textInput?.localDraft = session.composition.text }
@@ -32,20 +33,29 @@ extension MirrorMTKView: NSTextInputClient {
     }
     func setMarkedText(_ string: Any, selectedRange: NSRange, replacementRange: NSRange) {
         guard callbackAllowed(), let value = plain(string) else { return }
+        if !hasMarkedText() { compositionID = UUID() }
         eventWasComposing = true
+        textInput?.queue.textDiagnostics.record("marked", ["compositionID": compositionID.uuidString,
+            "eventID": diagnosticEventID?.uuidString ?? "none", "textSHA256": TextInputDiagnostics.hash(value),
+            "utf16Length": String(value.utf16.count)])
         _ = session.mark(value, selection: selectedRange, replacement: replacementRange)
         publishComposition()
     }
     func insertText(_ string: Any, replacementRange: NSRange) {
-        guard callbackAllowed(), let value = plain(string) else { return }
+        guard let value = plain(string) else { return }
+        guard callbackAllowed() else {
+            textInput?.localDraft = value
+            textInput?.localIssue = "輸入工作階段已取消；保留文字但未自動送出"
+            return
+        }
         if let commit = session.insert(value, replacement: replacementRange, token: session.generation) {
-            textInput?.submit(commit.text)
+            textInput?.submit(commit.text, compositionID: compositionID, eventID: diagnosticEventID)
         } else if session.composition.text.isEmpty { textInput?.localDraft = value }
         publishComposition()
     }
     func unmarkText() {
         guard callbackAllowed() else { return }
-        if let commit = session.unmark(token: session.generation) { textInput?.submit(commit.text) }
+        if let commit = session.unmark(token: session.generation) { textInput?.submit(commit.text, compositionID: compositionID, eventID: diagnosticEventID) }
         publishComposition()
     }
     private func publishComposition() {
@@ -66,7 +76,12 @@ extension MirrorMTKView: NSTextInputClient {
     }
     func characterIndex(for point: NSPoint) -> Int { NSNotFound }
     func firstRect(forCharacterRange range: NSRange, actualRange: NSRangePointer?) -> NSRect {
-        if let (rect, actual) = coordinateRect?(range) { actualRange?.pointee = actual; return rect }
+        if let (rect, actual) = coordinateRect?(range) {
+            textInput?.queue.textDiagnostics.record("candidate-rect", ["rect": NSStringFromRect(rect),
+                "range": NSStringFromRange(actual), "compositionID": compositionID.uuidString,
+                "backingScale": String(describing: window?.backingScaleFactor ?? 1)])
+            actualRange?.pointee = actual; return rect
+        }
         actualRange?.pointee = NSRange(location: 0, length: 0)
         let local = NSRect(x: 8, y: 8, width: 1, height: 20)
         return window?.convertToScreen(convert(local, to: nil)) ?? convert(local, to: nil)
@@ -88,7 +103,7 @@ extension MirrorMTKView: NSTextInputClient {
     @objc func paste(_ sender: Any?) {
         guard textMode, !hasMarkedText(), let text = NSPasteboard.general.string(forType: .string) else { return }
         synchronizeTextSession()
-        textInput?.submit(text)
+        textInput?.submit(text, origin: "appkit-paste")
     }
     override func performKeyEquivalent(with event: NSEvent) -> Bool {
         if textMode, event.modifierFlags.intersection(.deviceIndependentFlagsMask) == .command,

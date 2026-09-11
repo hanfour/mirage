@@ -411,3 +411,18 @@ extension）、`AppDelegate`、`KeymapController`、`AdbClient`、`GameDetector`
 完整驗收線裁決、R1 spike 驗證方式、公開介面 grep 佐證、覆蓋率兩段數字與更正說明見
 `RESULTS-shell-target.md`；架構設計見
 `../docs/specs/2026-07-27-app-layer-library-target-design.md`。
+
+
+## Mac 輸入法（待人工端到端驗收）
+
+無 profile 預設用 Mac 本機組字；有 profile 預設映射，左下「文字輸入」可切換。
+文字確定後走剪貼簿＋一次 Paste，`text` 不是中文通道。文字模式 Return 不直送 guest。
+面板可調後續提交的候選間隔、暫停、核對不確定結果後恢復、複製保留稿；恢復不重送。
+`MIRAGE_TEXT_SETTLE_MS` 可設初值（預設候選250ms），不是安全下限或欄位消費 ACK。
+
+`MIRAGE_IME_DIAGNOSTICS=/全新路徑/trace.jsonl` 開啟不含明文的事件診斷；路徑不能已存在。
+`./scripts/verify_host_ime.sh watch --help` 是只讀欄位觀察，`verify --help` 是逐碼位驗收。
+完整實體按鍵與 LINE 草稿操作見
+[人工清單](../docs/testing/2026-09-11-host-ime-human-checklist.md)，
+實作／故障／未驗項見 [Task 5–8 結果](RESULTS-ime-tasks-5-8.md)。
+尚不能以離線測試或 Task 4 通道結果宣稱真 Mac IME 問題已驗收修復。

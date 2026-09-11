@@ -48,6 +48,9 @@ public final class TextClipboardCoordinator: @unchecked Sendable {
         return TextSubmissionStatus(generation: generation, pending: pending, paused: paused,
                                     lastResult: lastResult, unresolvedUncertainty: unresolvedUncertainty, latestExternalClipboard: externalClipboard)
     }
+    public var configuredPolicy: Result<TextSubmissionPolicy, TextCommitIssue> {
+        lock.lock(); defer { lock.unlock() }; return policy
+    }
     public func setPolicy(_ value: Result<TextSubmissionPolicy, TextCommitIssue>) {
         lock.lock(); defer { lock.unlock() }; policy = value
     }

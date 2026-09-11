@@ -50,6 +50,7 @@ public final class InputQueue: Sendable {
 
     private let cont: AsyncStream<Command>.Continuation
     private let latencyEnabled: Bool
+    public let textDiagnostics: TextInputDiagnostics
     public let textCoordinator: TextClipboardCoordinator
     private let textTransport: (any TextCommitTransport)?
 
@@ -68,8 +69,10 @@ public final class InputQueue: Sendable {
 
     public init(injector: any InputInjecting, textTransport: (any TextCommitTransport)?,
                 textPolicy: Result<TextSubmissionPolicy, TextCommitIssue>,
-                textClock: TextCommitClock = .continuous, latencyEnabled: Bool = false) {
+                textClock: TextCommitClock = .continuous, latencyEnabled: Bool = false,
+                textDiagnostics: TextInputDiagnostics = TextInputDiagnostics()) {
         let coordinator = TextClipboardCoordinator(policy: textPolicy, clock: textClock)
+        self.textDiagnostics = textDiagnostics
         self.textCoordinator = coordinator
         self.textTransport = textTransport
         self.latencyEnabled = latencyEnabled
@@ -105,8 +108,12 @@ public final class InputQueue: Sendable {
                                 .execute(commit, policy: admission.policy,
                                          validity: { coordinator.validity(commit) },
                                          willWrite: { coordinator.rememberOwnWrite($0) },
-                                         phaseChanged: { coordinator.phase($0, for: commit) })
+                                         phaseChanged: {
+                                             coordinator.phase($0, for: commit)
+                                             textDiagnostics.record("phase", ["commitID": commit.id.uuidString, "phase": String(describing: $0)])
+                                         })
                         } else { result = TextCommitResult(commit: commit, outcome: .failedBeforePaste(.transport("unsupported"))) }
+                        textDiagnostics.record("result", ["commitID": commit.id.uuidString, "outcome": String(describing: result.outcome)])
                         receipt.yield(coordinator.finish(result)); receipt.finish()
                     }
                     continue
@@ -121,6 +128,7 @@ public final class InputQueue: Sendable {
                     receipt.yield(()); receipt.finish(); continue
                 case .key(let code, let down, let time):
                     queuedAt = time
+                    textDiagnostics.record("guest-key-dispatch", ["key": Self.diagnosticKey(code), "down": String(down)])
                     await injector.sendKey(code, down: down)
                 case .touches(let specs, let time):
                     queuedAt = time
@@ -144,10 +152,25 @@ public final class InputQueue: Sendable {
     public func commitText(_ commit: TextCommit) -> AsyncStream<TextCommitResult> {
         let (stream, receipt) = AsyncStream.makeStream(of: TextCommitResult.self, bufferingPolicy: .bufferingNewest(1))
         switch textCoordinator.reserve(commit) {
-        case .accepted(let admission): cont.yield(.text(commit, admission, receipt))
-        case .rejected(let result): receipt.yield(result); receipt.finish()
+        case .accepted(let admission):
+            let duration = admission.policy.settleDelay.components
+            textDiagnostics.record("commit-enqueued", ["commitID": commit.id.uuidString,
+                "textSHA256": TextInputDiagnostics.hash(commit.text), "utf16Length": String(commit.text.utf16.count),
+                "generation": String(commit.generation), "route": "clipboard-w3c-paste",
+                "settleMS": String(duration.seconds * 1000 + duration.attoseconds / 1_000_000_000_000_000)])
+            cont.yield(.text(commit, admission, receipt))
+        case .rejected(let result):
+            textDiagnostics.record("result", ["commitID": commit.id.uuidString, "outcome": String(describing: result.outcome)])
+            receipt.yield(result); receipt.finish()
         }
         return stream
+    }
+
+    private static func diagnosticKey(_ code: KeyCode) -> String {
+        if case .key(let key) = code {
+            return key.count > 1 ? key : "<printable>"
+        }
+        return "<mapped>"
     }
 
     public func hostClipboardChanged(_ text: String) {

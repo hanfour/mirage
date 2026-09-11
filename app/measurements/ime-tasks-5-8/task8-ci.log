@@ -1,0 +1,141 @@
+=== 閘門 0：確認 45999 真的沒人監聽 ===
+✅ 45999 無人監聽，端點將指向它（等同 runner 上沒有模擬器）
+
+=== 閘門 1：建置（含測試 target）===
+Building for debugging...
+[2/8] Write swift-version--1AB21518FC5DEDBE.txt
+Build complete! (11.35s)
+✅ 建置通過
+
+=== 閘門 2：連跑 3 次完整測試套件 ===
+✅ 第 1 次：通過，13s，0 行 NIO ERROR（462 tests passed）
+✅ 第 2 次：通過，2s，0 行 NIO ERROR（462 tests passed）
+✅ 第 3 次：通過，1s，0 行 NIO ERROR（462 tests passed）
+
+=== 閘門 3：不得再出現「假 skip」 ===
+✅ 無單行形式的假 skip（env 形式與 guard…else { return } 皆無命中）
+✅ 無跨行形式的假 skip
+
+=== 閘門 4：shell 腳本裡不得有「裸變數緊接全形標點」 ===
+✅ 無裸變數緊接全形標點
+✅ 無 cd 之後才解析 $0 的 source
+
+=== 閘門 5：#expect 不得拿 Bool 跟 true/false 比 ===
+✅ 無 Bool 對 true/false 的 #expect（字面值形式；非字面值的同型問題見上方盲區說明）
+
+=== 閘門 6：tools/provision 的 Python 測試 ===
+✅ tools/provision 測試通過（Ran 107 tests）
+
+=== 閘門 7：九支共用函式庫的自我測試 ===
+...........
+----------------------------------------------------------------------
+Ran 11 tests in 1.737s
+
+OK
+PASS injection=exit exit=1 reason=FAIL: 關視窗退出了，A 沒修好
+PASS injection=fps exit=1 reason=FAIL: 休眠後 fps 仍增加，suspend 沒生效
+PASS injection=frame exit=1 reason=FAIL: 10 秒內沒有新的 [conn] 幀 #1
+PASS injection=median exit=1 reason=FAIL: 喚醒中位數必須低於 5 秒：{"wake": {"median": 5, "min": 4, "max": 6}, "wake_applescript": {"median": 12.0, "min": 12.0, "max": 12.0}, "startup": {"median": 4.0, "min": 4.0, "max": 4.0}}
+PASS injection=cpu exit=1 reason=FAIL: 外來 CPU floor 10 必須低於 50%
+PASS screen=locked exit=1 probes=0
+PASS screen=unlocked exit=0 probes=3
+PASS screen=unknown exit=0 probes=3
+PASS: cgkey.js 自我測試通過
+FAIL: foreign CPU must be <50%, got 50
+PASS: shell CPU gate rejects 50%
+✅ wake 輪詢與五條故障注入通過
+cgclick selftest passed (mock CGEvent, no GUI events)
+   load_gate 攔下（第 1/6 次），等 5 秒後重試本輪
+   load_gate 攔下（第 2/6 次），等 5 秒後重試本輪
+   load_gate 攔下（第 3/6 次），等 5 秒後重試本輪
+   load_gate 攔下（第 4/6 次），等 5 秒後重試本輪
+   load_gate 攔下（第 5/6 次），等 5 秒後重試本輪
+[round 1] INVALID; continuing
+   load_gate 攔下（第 1/6 次），等 5 秒後重試本輪
+   load_gate 攔下（第 2/6 次），等 5 秒後重試本輪
+   load_gate 攔下（第 3/6 次），等 5 秒後重試本輪
+   load_gate 攔下（第 4/6 次），等 5 秒後重試本輪
+   load_gate 攔下（第 5/6 次），等 5 秒後重試本輪
+   load_gate 攔下（第 6/6 次），等 5 秒後重試本輪
+   重試 6 次仍被 load_gate 擋下，放棄本輪（如實記錄，不湊數）
+[round 1] inject_p50=2 transit_p50=12 render_p50=15.0 sum_p50=29.0 inject_n=80 transit_n=800 invalid=0 unavailable=0
+INJECT_MEDIAN=2.0
+TRANSIT_MEDIAN=12.0
+RENDER_MEDIAN=15.0
+SUM_MEDIAN=29.0
+SUM_RANGE=29.0..29.0
+PASS: acceptance 2 controllable segments <80ms
+FAULT inject rc=1
+FAIL: inject_n=20 must be >=30
+FAULT transit rc=1
+FAIL: transit_n=580 must be >=600
+FAULT invalid rc=1
+FAIL: invalid=20; clock assumption failed
+FAULT unavailable rc=1
+FAIL: unavailable=20; MMAP cannot measure transit
+FAULT cpu rc=1
+FAIL: foreign CPU must be <50%, got 50
+FAULT sum rc=1
+[round 1] inject_p50=2 transit_p50=80 render_p50=15.0 sum_p50=97.0 inject_n=80 transit_n=800 invalid=0 unavailable=0
+INJECT_MEDIAN=2.0
+TRANSIT_MEDIAN=80.0
+RENDER_MEDIAN=15.0
+SUM_MEDIAN=97.0
+SUM_RANGE=97.0..97.0
+FAIL: SUM_MEDIAN must be <80ms; largest segment=transit
+[round 1] foreign_cpu_floor10=0% foreign_cpu_floor0=54%
+[round 1] inject_p50=2 transit_p50=12 render_p50=15.0 sum_p50=29.0 inject_n=80 transit_n=800 invalid=0 unavailable=0
+[round 2] INVALID; continuing
+FAIL: invalid=20; clock assumption failed
+[round 3] inject_p50=2 transit_p50=12 render_p50=15.0 sum_p50=29.0 inject_n=80 transit_n=800 invalid=0 unavailable=0
+VALID_ROUNDS=2 REQUIRED_ROUNDS=3
+INJECT_MEDIAN=2.0
+TRANSIT_MEDIAN=12.0
+RENDER_MEDIAN=15.0
+SUM_MEDIAN=29.0
+SUM_RANGE=29.0..29.0
+FAIL: insufficient valid rounds
+[round 2] INVALID
+FAIL: invalid=20; clock assumption failed
+input_latency selftest failures=0
+✅ input_latency.sh 解析與六條故障注入通過
+✅ verify_common.sh 自我測試通過
+✅ audio_stats.sh 自我測試通過
+✅ load_sentinel.sh 自我測試通過
+✅ guest_fps.sh 自我測試通過
+✅ gui_session.sh 幀計數自我測試通過
+✅ backpressure.sh 純函式自我測試通過
+
+✅ 單 slot 放開不卡住（無時間戳）
+✅ 單 slot 最終 up
+✅ 正常按放計數
+✅ 只有 down 卡住，slot 十六進位轉十進位
+✅ 首幀未指定 slot（有時間戳）
+✅ 交錯時只剩 slot 1 卡住
+✅ 交錯最終狀態
+✅ 交錯計數
+✅ 空輸入不卡住
+✅ 空輸入沒有 slot
+✅ 空輸入零轉移
+✅ 大寫放開值與尾隨空白
+全部通過
+✅ getevent_touch.sh 純函式自我測試通過
+
+=== 閘門 8：Python 測試（phase0/harness 與 tools/probe）===
+....0001 valid
+.
+----------------------------------------------------------------------
+Ran 5 tests in 0.154s
+
+OK
+✅ host IME 精確欄位驗收器負對照通過
+..................................................                       [100%]
+50 passed in 0.16s
+✅ phase0/harness pytest 通過
+........................................................................ [ 67%]
+...................................                                      [100%]
+107 passed in 0.56s
+✅ tools/probe pytest 通過
+
+======================================
+全部通過（3 次跑次、0 行 NIO ERROR、無假 skip、無全形標點陷阱、無永不紅的 #expect、provision 測試綠、九支共用函式庫自我測試（verify_common／audio_stats／load_sentinel／guest_fps／gui_session／backpressure／input_latency／wake／getevent_touch）皆綠、phase0/harness 與 tools/probe pytest 綠）

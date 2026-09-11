@@ -385,6 +385,11 @@ fi
 
 echo ""
 echo "=== 閘門 8：Python 測試（phase0/harness 與 tools/probe）==="
+if python3 ./scripts/lib/host_ime_acceptance_test.py; then
+    ok "host IME 精確欄位驗收器負對照通過"
+else
+    fail "host IME 精確欄位驗收器負對照失敗"
+fi
 HARNESS_PY="../phase0/harness/.venv-d45/bin/python"
 if [ ! -x "${HARNESS_PY}" ]; then
     fail "找不到 phase0/harness/.venv-d45/bin/python，不能 skip 閘門 8"

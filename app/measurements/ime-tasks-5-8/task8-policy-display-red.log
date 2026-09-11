@@ -1,0 +1,2149 @@
+[0/1] Planning build
+[1/1] Compiling plugin GRPCSwiftPlugin
+[2/2] Compiling plugin SwiftProtobufPlugin
+Building for debugging...
+[2/10] Write sources
+[3/10] Write swift-version--1AB21518FC5DEDBE.txt
+[5/94] Compiling SwiftProtobuf BytecodeInterpreter.swift
+[6/94] Compiling SwiftProtobuf BytecodeReader.swift
+[7/94] Compiling SwiftProtobuf CustomJSONCodable.swift
+[8/94] Compiling SwiftProtobuf Decoder.swift
+[9/94] Compiling SwiftProtobuf DoubleParser.swift
+[10/94] Compiling SwiftProtobuf Enum.swift
+[11/94] Compiling SwiftProtobuf ExtensibleMessage.swift
+[12/94] Compiling SwiftProtobuf ExtensionFieldValueSet.swift
+[13/94] Compiling SwiftProtobuf ExtensionFields.swift
+[14/94] Compiling SwiftProtobuf ExtensionMap.swift
+[15/94] Compiling SwiftProtobuf FieldTag.swift
+[16/94] Compiling SwiftProtobuf FieldTypes.swift
+[17/105] Emitting module SwiftProtobuf
+[18/105] Compiling SwiftProtobuf Message+BinaryAdditions_Data.swift
+[19/105] Compiling SwiftProtobuf Message+FieldMask.swift
+[20/105] Compiling SwiftProtobuf Message+JSONAdditions.swift
+[21/105] Compiling SwiftProtobuf Message+JSONAdditions_Data.swift
+[22/105] Compiling SwiftProtobuf Message+JSONArrayAdditions.swift
+[23/105] Compiling SwiftProtobuf Message+JSONArrayAdditions_Data.swift
+[24/105] Compiling SwiftProtobuf Message+TextFormatAdditions.swift
+[25/105] Compiling SwiftProtobuf Message.swift
+[26/105] Compiling SwiftProtobuf MessageExtension.swift
+[27/105] Compiling SwiftProtobuf NameMap.swift
+[28/105] Compiling SwiftProtobuf PathDecoder.swift
+[29/105] Compiling SwiftProtobuf PathVisitor.swift
+[30/105] Compiling SwiftProtobuf Google_Protobuf_Any+Extensions.swift
+[31/105] Compiling SwiftProtobuf Google_Protobuf_Any+Registry.swift
+[32/105] Compiling SwiftProtobuf Google_Protobuf_Duration+Extensions.swift
+[33/105] Compiling SwiftProtobuf Google_Protobuf_FieldMask+Extensions.swift
+[34/105] Compiling SwiftProtobuf Google_Protobuf_ListValue+Extensions.swift
+[35/105] Compiling SwiftProtobuf Google_Protobuf_NullValue+Extensions.swift
+[36/105] Compiling SwiftProtobuf Google_Protobuf_Struct+Extensions.swift
+[37/105] Compiling SwiftProtobuf Google_Protobuf_Timestamp+Extensions.swift
+[38/105] Compiling SwiftProtobuf Google_Protobuf_Value+Extensions.swift
+[39/105] Compiling SwiftProtobuf Google_Protobuf_Wrappers+Extensions.swift
+[40/105] Compiling SwiftProtobuf HashVisitor.swift
+[41/105] Compiling SwiftProtobuf Internal.swift
+[42/105] Compiling SwiftProtobuf TextFormatEncodingOptions.swift
+[43/105] Compiling SwiftProtobuf TextFormatEncodingVisitor.swift
+[44/105] Compiling SwiftProtobuf TextFormatScanner.swift
+[45/105] Compiling SwiftProtobuf TimeUtils.swift
+[46/105] Compiling SwiftProtobuf UnknownStorage.swift
+[47/105] Compiling SwiftProtobuf UnsafeRawPointer+Shims.swift
+[48/105] Compiling SwiftProtobuf Varint.swift
+[49/105] Compiling SwiftProtobuf Version.swift
+[50/105] Compiling SwiftProtobuf Visitor.swift
+[51/105] Compiling SwiftProtobuf WireFormat.swift
+[52/105] Compiling SwiftProtobuf ZigZag.swift
+[53/105] Compiling SwiftProtobuf any.pb.swift
+[54/105] Compiling SwiftProtobuf ProtoNameProviding.swift
+[55/105] Compiling SwiftProtobuf ProtobufAPIVersionCheck.swift
+[56/105] Compiling SwiftProtobuf ProtobufMap.swift
+[57/105] Compiling SwiftProtobuf SelectiveVisitor.swift
+[58/105] Compiling SwiftProtobuf SimpleExtensionMap.swift
+[59/105] Compiling SwiftProtobuf StringUtils.swift
+[60/105] Compiling SwiftProtobuf SwiftProtobufContiguousBytes.swift
+[61/105] Compiling SwiftProtobuf SwiftProtobufError.swift
+[62/105] Compiling SwiftProtobuf TextFormatDecoder.swift
+[63/105] Compiling SwiftProtobuf TextFormatDecodingError.swift
+[64/105] Compiling SwiftProtobuf TextFormatDecodingOptions.swift
+[65/105] Compiling SwiftProtobuf TextFormatEncoder.swift
+[66/105] Compiling SwiftProtobuf JSONDecoder.swift
+[67/105] Compiling SwiftProtobuf JSONDecodingError.swift
+[68/105] Compiling SwiftProtobuf JSONDecodingOptions.swift
+[69/105] Compiling SwiftProtobuf JSONEncoder.swift
+[70/105] Compiling SwiftProtobuf JSONEncodingError.swift
+[71/105] Compiling SwiftProtobuf JSONEncodingOptions.swift
+[72/105] Compiling SwiftProtobuf JSONEncodingVisitor.swift
+[73/105] Compiling SwiftProtobuf JSONMapEncodingVisitor.swift
+[74/105] Compiling SwiftProtobuf JSONScanner.swift
+[75/105] Compiling SwiftProtobuf MathUtils.swift
+[76/105] Compiling SwiftProtobuf Message+AnyAdditions.swift
+[77/105] Compiling SwiftProtobuf Message+BinaryAdditions.swift
+[78/105] Compiling SwiftProtobuf AnyMessageStorage.swift
+[79/105] Compiling SwiftProtobuf AnyUnpackError.swift
+[80/105] Compiling SwiftProtobuf AsyncMessageSequence.swift
+[81/105] Compiling SwiftProtobuf BinaryDecoder.swift
+[82/105] Compiling SwiftProtobuf BinaryDecodingError.swift
+[83/105] Compiling SwiftProtobuf BinaryDecodingOptions.swift
+[84/105] Compiling SwiftProtobuf BinaryDelimited.swift
+[85/105] Compiling SwiftProtobuf BinaryEncoder.swift
+[86/105] Compiling SwiftProtobuf BinaryEncodingError.swift
+[87/105] Compiling SwiftProtobuf BinaryEncodingOptions.swift
+[88/105] Compiling SwiftProtobuf BinaryEncodingSizeVisitor.swift
+[89/105] Compiling SwiftProtobuf BinaryEncodingVisitor.swift
+[90/105] Compiling SwiftProtobuf api.pb.swift
+[91/105] Compiling SwiftProtobuf descriptor.pb.swift
+[92/105] Compiling SwiftProtobuf duration.pb.swift
+[93/105] Compiling SwiftProtobuf empty.pb.swift
+[94/105] Compiling SwiftProtobuf field_mask.pb.swift
+[95/105] Compiling SwiftProtobuf source_context.pb.swift
+[96/105] Compiling SwiftProtobuf struct.pb.swift
+[97/105] Compiling SwiftProtobuf timestamp.pb.swift
+[98/105] Compiling SwiftProtobuf type.pb.swift
+[99/105] Compiling SwiftProtobuf wrappers.pb.swift
+[100/105] Compiling SwiftProtobuf resource_bundle_accessor.swift
+[101/103] Compiling MirageShellTests HostIMEAcceptanceTests.swift
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/HostIMEAcceptanceTests.swift:30:13: warning: 'Suite' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+ 28 | }
+ 29 | 
+ 30 | @MainActor @Suite struct HostIMEAcceptanceTests {
+    |             `- warning: 'Suite' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+ 31 |     @Test(arguments: IMEFailureTransport.Fault.allCases)
+ 32 |     fileprivate func actualViewFailureRetainsDraftPausesAndNeverRetries(_ fault: IMEFailureTransport.Fault) async throws {
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/HostIMEAcceptanceTests.swift:31:6: warning: 'Test(_:arguments:)' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+ 29 | 
+ 30 | @MainActor @Suite struct HostIMEAcceptanceTests {
+ 31 |     @Test(arguments: IMEFailureTransport.Fault.allCases)
+    |      `- warning: 'Test(_:arguments:)' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+ 32 |     fileprivate func actualViewFailureRetainsDraftPausesAndNeverRetries(_ fault: IMEFailureTransport.Fault) async throws {
+ 33 |         let transport = IMEFailureTransport(fault)
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/HostIMEAcceptanceTests.swift:95:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+ 93 |     }
+ 94 | 
+ 95 |     @Test func focusCancelsMarkedAndLateUnmarkCannotSubmit() throws {
+    |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+ 96 |         let queue = InputQueue(injector: IMEFailureTransport(.timeout))
+ 97 |         let state = TextInputPresentation(queue: queue)
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/HostIMEAcceptanceTests.swift:112:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+110 |     }
+111 | 
+112 |     @Test func settingsDisplayActualQueuePolicy() throws {
+    |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+113 |         let transport = IMEFailureTransport(.mismatch)
+114 |         let queue = InputQueue(injector: transport, textTransport: transport,
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/HostIMEAcceptanceTests.swift:120:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+118 |     }
+119 | 
+120 |     @Test func diagnosticsAreExactPrivateAndRefuseOverwrite() throws {
+    |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+121 |         let path = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".jsonl")
+122 |         defer { try? FileManager.default.removeItem(at: path) }
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/HostIMEAcceptanceTests.swift:31:6: warning: 'Test(_:arguments:)' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+ 29 | 
+ 30 | @MainActor @Suite struct HostIMEAcceptanceTests {
+ 31 |     @Test(arguments: IMEFailureTransport.Fault.allCases)
+    |      `- warning: 'Test(_:arguments:)' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+ 32 |     fileprivate func actualViewFailureRetainsDraftPausesAndNeverRetries(_ fault: IMEFailureTransport.Fault) async throws {
+ 33 |         let transport = IMEFailureTransport(fault)
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/HostIMEAcceptanceTests.swift:95:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+ 93 |     }
+ 94 | 
+ 95 |     @Test func focusCancelsMarkedAndLateUnmarkCannotSubmit() throws {
+    |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+ 96 |         let queue = InputQueue(injector: IMEFailureTransport(.timeout))
+ 97 |         let state = TextInputPresentation(queue: queue)
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/HostIMEAcceptanceTests.swift:112:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+110 |     }
+111 | 
+112 |     @Test func settingsDisplayActualQueuePolicy() throws {
+    |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+113 |         let transport = IMEFailureTransport(.mismatch)
+114 |         let queue = InputQueue(injector: transport, textTransport: transport,
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/HostIMEAcceptanceTests.swift:120:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+118 |     }
+119 | 
+120 |     @Test func diagnosticsAreExactPrivateAndRefuseOverwrite() throws {
+    |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+121 |         let path = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".jsonl")
+122 |         defer { try? FileManager.default.removeItem(at: path) }
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/HostIMEAcceptanceTests.swift:30:13: warning: 'Suite' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+ 28 | }
+ 29 | 
+ 30 | @MainActor @Suite struct HostIMEAcceptanceTests {
+    |             `- warning: 'Suite' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+ 31 |     @Test(arguments: IMEFailureTransport.Fault.allCases)
+ 32 |     fileprivate func actualViewFailureRetainsDraftPausesAndNeverRetries(_ fault: IMEFailureTransport.Fault) async throws {
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/AppModelEditingTests.swift:7:2: warning: 'Suite' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+  5 | 
+  6 | @MainActor
+  7 | @Suite struct AppModelEditingTests {
+    |  `- warning: 'Suite' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+  8 |     /// 測試用的暫存 store——**不得碰使用者真實的 Application Support 目錄**。
+  9 |     static func tempStore(_ tag: String) -> (ProfileStore, URL) {
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/EditorDragStateTests.swift:8:2: warning: 'Suite' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+ 6 | @testable import MirageShell
+ 7 | 
+ 8 | @Suite struct EditorDragStateTests {
+   |  `- warning: 'Suite' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+ 9 |     private let rect = FitRect(x: 10, y: 20, width: 200, height: 400)
+10 | 
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/FpsWindowTests.swift:7:2: warning: 'Suite' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+  5 | @testable import MirageShell
+  6 | 
+  7 | @Suite struct FpsWindowTests {
+    |  `- warning: 'Suite' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+  8 |     private func counters(_ arrived: Int = 0, _ dropped: Int = 0) -> FrameCounterSnapshot {
+  9 |         FrameCounterSnapshot(arrived: arrived, dropped: dropped, rejected: 0)
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/KeymapControllerRoutingTests.swift:65:2: warning: 'Suite' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+ 63 | 
+ 64 | @MainActor
+ 65 | @Suite(.timeLimit(.minutes(1))) struct KeymapControllerRoutingTests {
+    |  `- warning: 'Suite' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+ 66 |     /// 綁到的鍵走觸控路徑，**不**產生 sendKey——否則遊戲會同時收到觸控與鍵盤事件。
+ 67 |     @Test func boundKeyGoesToTouchesNotKeyboard() async throws {
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/KeymapControllerRoutingTests.swift:321:13: warning: 'Suite' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+319 | }
+320 | 
+321 | @MainActor @Suite struct IMEKeymapSuspensionTests {
+    |             `- warning: 'Suite' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+322 |     @Test func textModeReleasesThenSuspendsEntireMapping() async throws {
+323 |         let spy = SpyInjector()
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/KeymapReleaseLiveTests.swift:40:2: warning: 'Suite' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+38 | // 判定。單獨執行本測試並顯示綠色，不代表已驗證 guest 釋放。
+39 | @MainActor
+40 | @Suite(.serialized) struct KeymapReleaseLiveTests {
+   |  `- warning: 'Suite' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+41 |     @Test(.enabled(if: KeymapReleaseLiveGate.live, "需 MIRAGE_LIVE=1，請跑 scripts/verify_keymap_release.sh"))
+42 |     func releasesJoystickTouchOnFocusLossAndReload() async throws {
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/MirrorCoordinatorTests.swift:11:2: warning: 'Suite' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+ 9 | /// 補完那道縫之後才有辦法對它寫斷言。
+10 | @MainActor
+11 | @Suite struct MirrorCoordinatorTests {
+   |  `- warning: 'Suite' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+12 |     /// D6：無 profile 時滑鼠退回直接 tap（spec §7 驗收 4，P1-a 不回歸的核心保證），
+13 |     /// 而那條路徑的 down/up 同樣不得對調——對調就是 guest 的手指永遠按著。
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/MirrorMouseReleaseTests.swift:16:2: warning: 'Suite' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+14 | /// 後果與 D6 同一族：guest 端留著一根永遠按著的手指，而且不會自癒。
+15 | @MainActor
+16 | @Suite struct MirrorMouseReleaseTests {
+   |  `- warning: 'Suite' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+17 |     /// 把 view 裝進真視窗——`convert(_:from: nil)` 是「從視窗座標換算」，沒有視窗就沒有
+18 |     /// 可信的換算基準。視窗用 `.borderless` 且不 `makeKeyAndOrderFront`，headless 下不顯示。
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/MirrorTextInputRoutingTests.swift:6:13: warning: 'Suite' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+  4 | @testable import MirageShell
+  5 | 
+  6 | @MainActor @Suite struct MirrorTextInputRoutingTests {
+    |             `- warning: 'Suite' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+  7 |     func event(_ type: NSEvent.EventType, code: UInt16 = 0, chars: String = "a") throws -> NSEvent {
+  8 |         try #require(NSEvent.keyEvent(with: type, location: .zero, modifierFlags: [], timestamp: 0,
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/MirrorTextInputRoutingTests.swift:45:13: warning: 'Suite' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+ 43 | }
+ 44 | 
+ 45 | @MainActor @Suite struct TextInputModeTests {
+    |             `- warning: 'Suite' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+ 46 |     @Test func defaultsAndExplicitMode() {
+ 47 |         let state = TextInputPresentation(queue: InputQueue(injector: IMEShellTransport()))
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/MirrorTextInputRoutingTests.swift:103:13: warning: 'Suite' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+101 | }
+102 | 
+103 | @MainActor @Suite struct TextSubmissionStatusTests {
+    |             `- warning: 'Suite' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+104 |     @Test func unknownIsNotSuccessAndResumeDoesNotReplay() async {
+105 |         let transport = IMEShellTransport()
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/ShellSmokeTests.swift:11:2: warning: 'Suite' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+  9 | /// 不是補齊測試覆蓋（那是另一輪）。三個測項刻意挑不同性質的目標：AppKit view 佈局、
+ 10 | /// 碰 AVFoundation 的型別、純值型別。
+ 11 | @Suite struct ShellSmokeTests {
+    |  `- warning: 'Suite' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+ 12 |     /// 最有價值的一條：直接驗證 P1-e 全螢幕的核心前提——容器確實把 `MirrorMTKView`
+ 13 |     /// 擺在 `ViewportFit` 算出的內容矩形上。這條先前只能靠讀碼相信。
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/TextInputGeometryTests.swift:6:13: warning: 'Suite' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+ 4 | @testable import MirageShell
+ 5 | 
+ 6 | @MainActor @Suite(.serialized) struct TextInputGeometryTests {
+   |             `- warning: 'Suite' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+ 7 |     @Test func negativeScreenOriginAndInsertionRange() throws {
+ 8 |         _ = NSApplication.shared
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/TextSessionRoutingTests.swift:11:13: warning: 'Suite' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+ 9 | }
+10 | 
+11 | @MainActor @Suite struct TextSessionRoutingTests {
+   |             `- warning: 'Suite' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+12 |     @Test func modeReloadAndFocusInvalidateTextBeforeRelease() {
+13 |         let queue = InputQueue(injector: TextSessionNoopInjector())
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/MirrorTextInputRoutingTests.swift:12:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+ 10 |                                      charactersIgnoringModifiers: chars, isARepeat: false, keyCode: code))
+ 11 |     }
+ 12 |     @Test func textEventsAreInterpretedOnceWithoutGuestKeys() throws {
+    |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+ 13 |         let view = MirrorMTKView(frame: NSRect(x: 0, y: 0, width: 300, height: 500))
+ 14 |         var interpreted = 0
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/MirrorTextInputRoutingTests.swift:23:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+ 21 |         #expect(keys.isEmpty)
+ 22 |     }
+ 23 |     @Test func keyUpUsesOriginalCodeDespiteLayoutChange() throws {
+    |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+ 24 |         let view = MirrorMTKView(frame: .zero)
+ 25 |         view.textMode = false
+
+[#DeprecatedDeclaration]: <https://docs.swift.org/compiler/documentation/diagnostics/deprecated-declaration>
+[102/103] Emitting module MirageShellTests
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/AdbClientTests.swift:10:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+ 8 |     static let foreground = "      topResumedActivity=ActivityRecord{39cc710 u0 com.android.launcher3/.uioverrides.QuickstepLauncher t16}"
+ 9 | 
+10 |     @Test func foregroundAndCommand() async {
+   |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+11 |         let client = AdbClient(adbPath: URL(fileURLWithPath: "/sdk/adb"), serial: "device-7") { path, args, timeout, merge in
+12 |             #expect(path.path == "/sdk/adb")
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/AdbClientTests.swift:21:6: warning: 'Test(_:arguments:)' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+19 |     }
+20 | 
+21 |     @Test(arguments: ["", String(foreground.prefix(60))])
+   |      `- warning: 'Test(_:arguments:)' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+22 |     func missingOrTruncatedForeground(output: String) async {
+23 |         let client = AdbClient(adbPath: URL(fileURLWithPath: "/adb"), serial: "s") { _, _, _, _ in (0, output) }
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/AdbClientTests.swift:27:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+25 |     }
+26 | 
+27 |     @Test func foregroundNonzeroExit() async {
+   |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+28 |         let client = AdbClient(adbPath: URL(fileURLWithPath: "/adb"), serial: "s") { _, _, _, _ in (1, Self.foreground) }
+29 |         #expect(await client.dumpsysForegroundPackage() == nil)
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/AdbClientTests.swift:32:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+30 |     }
+31 | 
+32 |     @Test func foregroundTimeout() async {
+   |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+33 |         let client = AdbClient(adbPath: URL(fileURLWithPath: "/adb"), serial: "s") { _, _, _, _ in nil }
+34 |         #expect(await client.dumpsysForegroundPackage() == nil)
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/AdbClientTests.swift:38:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+36 | 
+37 |     // 成功輸出同樣抄自 app/RESULTS-apk-install.md「補測」的活體輸出。
+38 |     @Test func installSuccessAndCommand() async {
+   |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+39 |         let client = AdbClient(adbPath: URL(fileURLWithPath: "/sdk/adb"), serial: "device-7") { path, args, timeout, merge in
+40 |             #expect(path.path == "/sdk/adb")
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/AdbClientTests.swift:50:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+48 | 
+49 |     // 沿用既有 InstallResultTests 的失敗樣本格式，這是結果注入，非本輪活體紀錄。
+50 |     @Test func installFailure() async {
+   |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+51 |         let client = AdbClient(adbPath: URL(fileURLWithPath: "/adb"), serial: "s") { _, _, _, _ in
+52 |             (1, "Failure [INSTALL_FAILED_ALREADY_EXISTS]")
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/AdbClientTests.swift:57:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+55 |     }
+56 | 
+57 |     @Test func installTimeout() async {
+   |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+58 |         let client = AdbClient(adbPath: URL(fileURLWithPath: "/adb"), serial: "s") { _, _, _, _ in nil }
+59 |         #expect(await client.install(apkURL: URL(fileURLWithPath: "/game.apk")) == .failure("adb 執行失敗或逾時"))
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/AdbClientTests.swift:63:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+61 | 
+62 |     // 保留原行為：install 依輸出判讀，即使 exit 非零也不新增判斷。
+63 |     @Test func installNonzeroExitUsesOutput() async {
+   |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+64 |         let client = AdbClient(adbPath: URL(fileURLWithPath: "/adb"), serial: "s") { _, _, _, _ in (1, "Success\n") }
+65 |         #expect(await client.install(apkURL: URL(fileURLWithPath: "/game.apk")) == .success)
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/AdbClientTests.swift:68:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+66 |     }
+67 | 
+68 |     @Test func standardMissingExecutable() {
+   |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+69 |         let client = AdbClient.standard(serial: "s", environment: ["ANDROID_SDK_ROOT": "/missing-sdk"]) { path in
+70 |             #expect(path == "/missing-sdk/platform-tools/adb")
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/AdbClientTests.swift:10:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+ 8 |     static let foreground = "      topResumedActivity=ActivityRecord{39cc710 u0 com.android.launcher3/.uioverrides.QuickstepLauncher t16}"
+ 9 | 
+10 |     @Test func foregroundAndCommand() async {
+   |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+11 |         let client = AdbClient(adbPath: URL(fileURLWithPath: "/sdk/adb"), serial: "device-7") { path, args, timeout, merge in
+12 |             #expect(path.path == "/sdk/adb")
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/AdbClientTests.swift:21:6: warning: 'Test(_:arguments:)' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+19 |     }
+20 | 
+21 |     @Test(arguments: ["", String(foreground.prefix(60))])
+   |      `- warning: 'Test(_:arguments:)' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+22 |     func missingOrTruncatedForeground(output: String) async {
+23 |         let client = AdbClient(adbPath: URL(fileURLWithPath: "/adb"), serial: "s") { _, _, _, _ in (0, output) }
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/AdbClientTests.swift:27:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+25 |     }
+26 | 
+27 |     @Test func foregroundNonzeroExit() async {
+   |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+28 |         let client = AdbClient(adbPath: URL(fileURLWithPath: "/adb"), serial: "s") { _, _, _, _ in (1, Self.foreground) }
+29 |         #expect(await client.dumpsysForegroundPackage() == nil)
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/AdbClientTests.swift:32:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+30 |     }
+31 | 
+32 |     @Test func foregroundTimeout() async {
+   |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+33 |         let client = AdbClient(adbPath: URL(fileURLWithPath: "/adb"), serial: "s") { _, _, _, _ in nil }
+34 |         #expect(await client.dumpsysForegroundPackage() == nil)
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/AdbClientTests.swift:38:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+36 | 
+37 |     // 成功輸出同樣抄自 app/RESULTS-apk-install.md「補測」的活體輸出。
+38 |     @Test func installSuccessAndCommand() async {
+   |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+39 |         let client = AdbClient(adbPath: URL(fileURLWithPath: "/sdk/adb"), serial: "device-7") { path, args, timeout, merge in
+40 |             #expect(path.path == "/sdk/adb")
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/AdbClientTests.swift:50:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+48 | 
+49 |     // 沿用既有 InstallResultTests 的失敗樣本格式，這是結果注入，非本輪活體紀錄。
+50 |     @Test func installFailure() async {
+   |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+51 |         let client = AdbClient(adbPath: URL(fileURLWithPath: "/adb"), serial: "s") { _, _, _, _ in
+52 |             (1, "Failure [INSTALL_FAILED_ALREADY_EXISTS]")
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/AdbClientTests.swift:57:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+55 |     }
+56 | 
+57 |     @Test func installTimeout() async {
+   |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+58 |         let client = AdbClient(adbPath: URL(fileURLWithPath: "/adb"), serial: "s") { _, _, _, _ in nil }
+59 |         #expect(await client.install(apkURL: URL(fileURLWithPath: "/game.apk")) == .failure("adb 執行失敗或逾時"))
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/AdbClientTests.swift:63:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+61 | 
+62 |     // 保留原行為：install 依輸出判讀，即使 exit 非零也不新增判斷。
+63 |     @Test func installNonzeroExitUsesOutput() async {
+   |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+64 |         let client = AdbClient(adbPath: URL(fileURLWithPath: "/adb"), serial: "s") { _, _, _, _ in (1, "Success\n") }
+65 |         #expect(await client.install(apkURL: URL(fileURLWithPath: "/game.apk")) == .success)
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/AdbClientTests.swift:68:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+66 |     }
+67 | 
+68 |     @Test func standardMissingExecutable() {
+   |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+69 |         let client = AdbClient.standard(serial: "s", environment: ["ANDROID_SDK_ROOT": "/missing-sdk"]) { path in
+70 |             #expect(path == "/missing-sdk/platform-tools/adb")
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/AppModelEditingTests.swift:7:2: warning: 'Suite' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+  5 | 
+  6 | @MainActor
+  7 | @Suite struct AppModelEditingTests {
+    |  `- warning: 'Suite' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+  8 |     /// 測試用的暫存 store——**不得碰使用者真實的 Application Support 目錄**。
+  9 |     static func tempStore(_ tag: String) -> (ProfileStore, URL) {
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/AppModelEditingTests.swift:28:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+ 26 | 
+ 27 |     /// currentPackage 初始為 nil，且允許寫入偵測到的 package。
+ 28 |     @Test func currentPackageStartsNilAndIsWritable() {
+    |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+ 29 |         let (store, dir) = Self.tempStore("construct")
+ 30 |         defer { try? FileManager.default.removeItem(at: dir) }
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/AppModelEditingTests.swift:41:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+ 39 | 
+ 40 |     /// 產品呼叫端也必須保留延後求值，不能先讀好再傳給決策器。
+ 41 |     @Test func toggleEditingDoesNotReadUnusedStarter() {
+    |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+ 42 |         let (store, dir) = Self.tempStore("lazy")
+ 43 |         defer { try? FileManager.default.removeItem(at: dir) }
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/AppModelEditingTests.swift:62:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+ 60 |     /// 呼叫 `loadKeymap()`——沒有它 `model.keymap` 恆為 nil，`toggleEditing()` 裡的
+ 61 |     /// `keymap?.reload(p)` 從未真的執行過，測試會因為錯誤的理由而綠（I1）。
+ 62 |     @Test func editingOpensWithStarterWhenNoProfileExists() throws {
+    |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+ 63 |         let (store, dir) = Self.tempStore("starter")
+ 64 |         defer { try? FileManager.default.removeItem(at: dir) }
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/AppModelEditingTests.swift:81:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+ 79 |     /// **未存檔不落檔**：⌘E 只在記憶體裡建 starter，磁碟上不得出現任何檔案。
+ 80 |     /// 不小心按到 ⌘E 就憑空生出一個檔案，是「明確存檔」語意不能接受的。
+ 81 |     @Test func openingEditorWritesNothingToDisk() throws {
+    |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+ 82 |         let (store, dir) = Self.tempStore("nodisk")
+ 83 |         defer { try? FileManager.default.removeItem(at: dir) }
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/AppModelEditingTests.swift:100:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+ 98 | 
+ 99 |     /// 不知道在玩什麼就沒有 gameId 可以掛——維持現行的「不動作」。
+100 |     @Test func editingStaysClosedWithoutPackageOrProfile() {
+    |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+101 |         let (store, dir) = Self.tempStore("nopkg")
+102 |         defer { try? FileManager.default.removeItem(at: dir) }
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/AppModelEditingTests.swift:113:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+111 | 
+112 |     /// 已在編輯模式時一定出得來——即使途中 profile 被收成 nil。
+113 |     @Test func editingAlwaysCloses() {
+    |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+114 |         let (store, dir) = Self.tempStore("close")
+115 |         defer { try? FileManager.default.removeItem(at: dir) }
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/AppModelEditingTests.swift:138:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+136 |     /// 這條測試會在把 `toggleEditing()` 的 `.leave` 分支裡 `applyActivation()` 那行拿掉時
+137 |     /// 變紅——已手動驗證過（見 final-fix-report.md）。
+138 |     @Test func leavingUnsavedEditDoesNotLeakStarterIntoSession() throws {
+    |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+139 |         let (store, dir) = Self.tempStore("leak")
+140 |         defer { try? FileManager.default.removeItem(at: dir) }
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/AppModelEditingTests.swift:163:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+161 |     /// 整個消失，但 App 仍在編輯模式（滑鼠被擋、鍵盤直通被擋），畫面上沒有任何提示、
+162 |     /// 也沒有可見出口。
+163 |     @Test func detectionDuringEditingDoesNotClearInMemoryProfile() throws {
+    |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+164 |         let (store, dir) = Self.tempStore("i3")
+165 |         defer { try? FileManager.default.removeItem(at: dir) }
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/AppModelEditingTests.swift:183:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+181 |     /// 幀尺寸要流得到 `AppModel`——Scene 層的 overlay 靠它算 letterbox 內容矩形。
+182 |     /// 預設 (0, 0) 代表「還沒收到任何幀」，此時 `ViewportFit.fit` 回 `.zero`，overlay 不畫。
+183 |     @Test func frameSizeStartsUnknownAndIsSettable() {
+    |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+184 |         let (store, dir) = Self.tempStore("framesize")
+185 |         defer { try? FileManager.default.removeItem(at: dir) }
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/AppModelEditingTests.swift:199:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+197 | 
+198 |     /// 進編輯 → 建立 session；離開 → 清掉。session 的內容要對應當下的 profile。
+199 |     @Test func editorSessionLifecycleFollowsEditingMode() throws {
+    |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+200 |         let (store, dir) = Self.tempStore("session")
+201 |         defer { try? FileManager.default.removeItem(at: dir) }
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/AppModelEditingTests.swift:224:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+222 |     /// 標成 `throws` 而不是 `try!`（M4，D5 階段 B 終審）：`try!` 讓一條斷言失敗從「一條紅」
+223 |     /// 升級成整個 test run 帶著 SIGILL 死掉，而錯誤訊息完全不指向成因。
+224 |     @Test func selectBindingUpdatesTheSession() throws {
+    |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+225 |         let (store, dir) = Self.tempStore("select")
+226 |         defer { try? FileManager.default.removeItem(at: dir) }
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/AppModelEditingTests.swift:242:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+240 | 
+241 |     /// 存檔：寫進注入的 store、version+1、引擎立即套用，且 session 重置為不髒。
+242 |     @Test func savingEditorSessionWritesAndReloads() throws {
+    |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+243 |         let (store, dir) = Self.tempStore("save")
+244 |         defer { try? FileManager.default.removeItem(at: dir) }
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/AppModelEditingTests.swift:262:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+260 | 
+261 |     /// 拖曳落點寫回 session，並**即時套用到引擎**——使用者要看到圈跟著手走。
+262 |     @Test func movingSelectedBindingUpdatesSessionAndEngine() throws {
+    |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+263 |         let (store, dir) = Self.tempStore("move")
+264 |         defer { try? FileManager.default.removeItem(at: dir) }
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/AppModelEditingTests.swift:290:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+288 | 
+289 |     /// 沒有選取時拖曳是 no-op，不得憑空改到別的 binding。
+290 |     @Test func movingWithoutSelectionChangesNothing() throws {
+    |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+291 |         let (store, dir) = Self.tempStore("move-none")
+292 |         defer { try? FileManager.default.removeItem(at: dir) }
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/AppModelEditingTests.swift:306:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+304 | 
+305 |     /// 半徑寫回 session 並即時套用；作用在非搖桿上是 no-op。
+306 |     @Test func settingRadiusUpdatesJoystickOnly() throws {
+    |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+307 |         let (store, dir) = Self.tempStore("radius")
+308 |         defer { try? FileManager.default.removeItem(at: dir) }
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/AppModelEditingTests.swift:340:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+338 | 
+339 |     /// 靈敏度寫回 session 並即時套用；作用在非 look 上是 no-op。
+340 |     @Test func settingSensitivityUpdatesLookOnly() throws {
+    |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+341 |         let (store, dir) = Self.tempStore("sens")
+342 |         defer { try? FileManager.default.removeItem(at: dir) }
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/AppModelEditingTests.swift:368:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+366 | 
+367 |     /// 沒有未存變更時，⌘E 直接離開——不要為了「一致」而多跳一個沒必要的對話框。
+368 |     @Test func leavingCleanSessionDoesNotPrompt() throws {
+    |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+369 |         let (store, dir) = Self.tempStore("clean-leave")
+370 |         defer { try? FileManager.default.removeItem(at: dir) }
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/AppModelEditingTests.swift:384:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+382 | 
+383 |     /// 有未存變更時，⌘E **不得**離開——先問。這是資料遺失的唯一防線。
+384 |     @Test func leavingDirtySessionPromptsInsteadOfDiscarding() throws {
+    |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+385 |         let (store, dir) = Self.tempStore("dirty-leave")
+386 |         defer { try? FileManager.default.removeItem(at: dir) }
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/AppModelEditingTests.swift:404:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+402 | 
+403 |     /// 「存檔」：寫檔、離開、清提示。
+404 |     @Test func confirmLeaveSavingWritesThenLeaves() throws {
+    |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+405 |         let (store, dir) = Self.tempStore("leave-save")
+406 |         defer { try? FileManager.default.removeItem(at: dir) }
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/AppModelEditingTests.swift:435:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+433 |     /// 編輯，全部變更當場蒸發，只有 console 一行 `[keymap] profile save failed:`。
+434 |     /// 這是本階段唯一「不需要 GUI 就測得到、卻沒人測」的資料遺失路徑。
+435 |     @Test func failedSaveOnLeaveKeepsEditingAndChanges() throws {
+    |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+436 |         let model = AppModel(store: Self.unwritableStore(),
+437 |                              starterBindings: { [.tap(key: .key("j"), at: NormPoint(x: 0.8, y: 0.8))] })
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/AppModelEditingTests.swift:463:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+461 |     /// `isDirty` 一旦被清掉，`.disabled(!session.isDirty)` 會把存檔鍵變灰，等於告訴
+462 |     /// 使用者「已存好」，而他再也按不下去。
+463 |     @Test func failedSaveKeepsSessionDirty() throws {
+    |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+464 |         let model = AppModel(store: Self.unwritableStore(),
+465 |                              starterBindings: { [.tap(key: .key("j"), at: NormPoint(x: 0.8, y: 0.8))] })
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/AppModelEditingTests.swift:494:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+492 | 
+493 |     /// `saveProfile` 的回傳值本身：成功 true、失敗 false。上面兩條靠它做決策。
+494 |     @Test func saveProfileReportsOutcome() throws {
+    |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+495 |         let (store, dir) = Self.tempStore("outcome")
+496 |         defer { try? FileManager.default.removeItem(at: dir) }
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/AppModelEditingTests.swift:513:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+511 |     /// （`confirmLeaveSavingWritesThenLeaves` 已涵蓋，這裡補的是「提示確實被清掉」的
+512 |     /// 那一半，因為現在清除的時機從函式開頭移到了 guard 之後。）
+513 |     @Test func successfulSaveOnLeaveClearsPromptAfterWriting() throws {
+    |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+514 |         let (store, dir) = Self.tempStore("leave-save-order")
+515 |         defer { try? FileManager.default.removeItem(at: dir) }
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/AppModelEditingTests.swift:535:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+533 | 
+534 |     /// 「捨棄」：不寫檔、離開、磁碟保持空的。
+535 |     @Test func confirmLeaveDiscardingWritesNothing() throws {
+    |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+536 |         let (store, dir) = Self.tempStore("leave-discard")
+537 |         defer { try? FileManager.default.removeItem(at: dir) }
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/AppModelEditingTests.swift:564:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+562 | 
+563 |     /// 「繼續編輯」：留在編輯模式，變更原封不動。
+564 |     @Test func cancelLeaveKeepsEditingAndChanges() throws {
+    |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+565 |         let (store, dir) = Self.tempStore("leave-cancel")
+566 |         defer { try? FileManager.default.removeItem(at: dir) }
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/AppModelEditingTests.swift:28:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+ 26 | 
+ 27 |     /// currentPackage 初始為 nil，且允許寫入偵測到的 package。
+ 28 |     @Test func currentPackageStartsNilAndIsWritable() {
+    |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+ 29 |         let (store, dir) = Self.tempStore("construct")
+ 30 |         defer { try? FileManager.default.removeItem(at: dir) }
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/AppModelEditingTests.swift:41:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+ 39 | 
+ 40 |     /// 產品呼叫端也必須保留延後求值，不能先讀好再傳給決策器。
+ 41 |     @Test func toggleEditingDoesNotReadUnusedStarter() {
+    |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+ 42 |         let (store, dir) = Self.tempStore("lazy")
+ 43 |         defer { try? FileManager.default.removeItem(at: dir) }
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/AppModelEditingTests.swift:62:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+ 60 |     /// 呼叫 `loadKeymap()`——沒有它 `model.keymap` 恆為 nil，`toggleEditing()` 裡的
+ 61 |     /// `keymap?.reload(p)` 從未真的執行過，測試會因為錯誤的理由而綠（I1）。
+ 62 |     @Test func editingOpensWithStarterWhenNoProfileExists() throws {
+    |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+ 63 |         let (store, dir) = Self.tempStore("starter")
+ 64 |         defer { try? FileManager.default.removeItem(at: dir) }
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/AppModelEditingTests.swift:81:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+ 79 |     /// **未存檔不落檔**：⌘E 只在記憶體裡建 starter，磁碟上不得出現任何檔案。
+ 80 |     /// 不小心按到 ⌘E 就憑空生出一個檔案，是「明確存檔」語意不能接受的。
+ 81 |     @Test func openingEditorWritesNothingToDisk() throws {
+    |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+ 82 |         let (store, dir) = Self.tempStore("nodisk")
+ 83 |         defer { try? FileManager.default.removeItem(at: dir) }
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/AppModelEditingTests.swift:100:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+ 98 | 
+ 99 |     /// 不知道在玩什麼就沒有 gameId 可以掛——維持現行的「不動作」。
+100 |     @Test func editingStaysClosedWithoutPackageOrProfile() {
+    |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+101 |         let (store, dir) = Self.tempStore("nopkg")
+102 |         defer { try? FileManager.default.removeItem(at: dir) }
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/AppModelEditingTests.swift:113:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+111 | 
+112 |     /// 已在編輯模式時一定出得來——即使途中 profile 被收成 nil。
+113 |     @Test func editingAlwaysCloses() {
+    |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+114 |         let (store, dir) = Self.tempStore("close")
+115 |         defer { try? FileManager.default.removeItem(at: dir) }
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/AppModelEditingTests.swift:138:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+136 |     /// 這條測試會在把 `toggleEditing()` 的 `.leave` 分支裡 `applyActivation()` 那行拿掉時
+137 |     /// 變紅——已手動驗證過（見 final-fix-report.md）。
+138 |     @Test func leavingUnsavedEditDoesNotLeakStarterIntoSession() throws {
+    |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+139 |         let (store, dir) = Self.tempStore("leak")
+140 |         defer { try? FileManager.default.removeItem(at: dir) }
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/AppModelEditingTests.swift:163:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+161 |     /// 整個消失，但 App 仍在編輯模式（滑鼠被擋、鍵盤直通被擋），畫面上沒有任何提示、
+162 |     /// 也沒有可見出口。
+163 |     @Test func detectionDuringEditingDoesNotClearInMemoryProfile() throws {
+    |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+164 |         let (store, dir) = Self.tempStore("i3")
+165 |         defer { try? FileManager.default.removeItem(at: dir) }
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/AppModelEditingTests.swift:183:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+181 |     /// 幀尺寸要流得到 `AppModel`——Scene 層的 overlay 靠它算 letterbox 內容矩形。
+182 |     /// 預設 (0, 0) 代表「還沒收到任何幀」，此時 `ViewportFit.fit` 回 `.zero`，overlay 不畫。
+183 |     @Test func frameSizeStartsUnknownAndIsSettable() {
+    |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+184 |         let (store, dir) = Self.tempStore("framesize")
+185 |         defer { try? FileManager.default.removeItem(at: dir) }
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/AppModelEditingTests.swift:199:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+197 | 
+198 |     /// 進編輯 → 建立 session；離開 → 清掉。session 的內容要對應當下的 profile。
+199 |     @Test func editorSessionLifecycleFollowsEditingMode() throws {
+    |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+200 |         let (store, dir) = Self.tempStore("session")
+201 |         defer { try? FileManager.default.removeItem(at: dir) }
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/AppModelEditingTests.swift:224:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+222 |     /// 標成 `throws` 而不是 `try!`（M4，D5 階段 B 終審）：`try!` 讓一條斷言失敗從「一條紅」
+223 |     /// 升級成整個 test run 帶著 SIGILL 死掉，而錯誤訊息完全不指向成因。
+224 |     @Test func selectBindingUpdatesTheSession() throws {
+    |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+225 |         let (store, dir) = Self.tempStore("select")
+226 |         defer { try? FileManager.default.removeItem(at: dir) }
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/AppModelEditingTests.swift:242:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+240 | 
+241 |     /// 存檔：寫進注入的 store、version+1、引擎立即套用，且 session 重置為不髒。
+242 |     @Test func savingEditorSessionWritesAndReloads() throws {
+    |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+243 |         let (store, dir) = Self.tempStore("save")
+244 |         defer { try? FileManager.default.removeItem(at: dir) }
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/AppModelEditingTests.swift:262:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+260 | 
+261 |     /// 拖曳落點寫回 session，並**即時套用到引擎**——使用者要看到圈跟著手走。
+262 |     @Test func movingSelectedBindingUpdatesSessionAndEngine() throws {
+    |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+263 |         let (store, dir) = Self.tempStore("move")
+264 |         defer { try? FileManager.default.removeItem(at: dir) }
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/AppModelEditingTests.swift:290:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+288 | 
+289 |     /// 沒有選取時拖曳是 no-op，不得憑空改到別的 binding。
+290 |     @Test func movingWithoutSelectionChangesNothing() throws {
+    |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+291 |         let (store, dir) = Self.tempStore("move-none")
+292 |         defer { try? FileManager.default.removeItem(at: dir) }
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/AppModelEditingTests.swift:306:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+304 | 
+305 |     /// 半徑寫回 session 並即時套用；作用在非搖桿上是 no-op。
+306 |     @Test func settingRadiusUpdatesJoystickOnly() throws {
+    |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+307 |         let (store, dir) = Self.tempStore("radius")
+308 |         defer { try? FileManager.default.removeItem(at: dir) }
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/AppModelEditingTests.swift:340:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+338 | 
+339 |     /// 靈敏度寫回 session 並即時套用；作用在非 look 上是 no-op。
+340 |     @Test func settingSensitivityUpdatesLookOnly() throws {
+    |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+341 |         let (store, dir) = Self.tempStore("sens")
+342 |         defer { try? FileManager.default.removeItem(at: dir) }
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/AppModelEditingTests.swift:368:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+366 | 
+367 |     /// 沒有未存變更時，⌘E 直接離開——不要為了「一致」而多跳一個沒必要的對話框。
+368 |     @Test func leavingCleanSessionDoesNotPrompt() throws {
+    |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+369 |         let (store, dir) = Self.tempStore("clean-leave")
+370 |         defer { try? FileManager.default.removeItem(at: dir) }
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/AppModelEditingTests.swift:384:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+382 | 
+383 |     /// 有未存變更時，⌘E **不得**離開——先問。這是資料遺失的唯一防線。
+384 |     @Test func leavingDirtySessionPromptsInsteadOfDiscarding() throws {
+    |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+385 |         let (store, dir) = Self.tempStore("dirty-leave")
+386 |         defer { try? FileManager.default.removeItem(at: dir) }
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/AppModelEditingTests.swift:404:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+402 | 
+403 |     /// 「存檔」：寫檔、離開、清提示。
+404 |     @Test func confirmLeaveSavingWritesThenLeaves() throws {
+    |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+405 |         let (store, dir) = Self.tempStore("leave-save")
+406 |         defer { try? FileManager.default.removeItem(at: dir) }
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/AppModelEditingTests.swift:435:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+433 |     /// 編輯，全部變更當場蒸發，只有 console 一行 `[keymap] profile save failed:`。
+434 |     /// 這是本階段唯一「不需要 GUI 就測得到、卻沒人測」的資料遺失路徑。
+435 |     @Test func failedSaveOnLeaveKeepsEditingAndChanges() throws {
+    |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+436 |         let model = AppModel(store: Self.unwritableStore(),
+437 |                              starterBindings: { [.tap(key: .key("j"), at: NormPoint(x: 0.8, y: 0.8))] })
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/AppModelEditingTests.swift:463:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+461 |     /// `isDirty` 一旦被清掉，`.disabled(!session.isDirty)` 會把存檔鍵變灰，等於告訴
+462 |     /// 使用者「已存好」，而他再也按不下去。
+463 |     @Test func failedSaveKeepsSessionDirty() throws {
+    |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+464 |         let model = AppModel(store: Self.unwritableStore(),
+465 |                              starterBindings: { [.tap(key: .key("j"), at: NormPoint(x: 0.8, y: 0.8))] })
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/AppModelEditingTests.swift:494:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+492 | 
+493 |     /// `saveProfile` 的回傳值本身：成功 true、失敗 false。上面兩條靠它做決策。
+494 |     @Test func saveProfileReportsOutcome() throws {
+    |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+495 |         let (store, dir) = Self.tempStore("outcome")
+496 |         defer { try? FileManager.default.removeItem(at: dir) }
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/AppModelEditingTests.swift:513:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+511 |     /// （`confirmLeaveSavingWritesThenLeaves` 已涵蓋，這裡補的是「提示確實被清掉」的
+512 |     /// 那一半，因為現在清除的時機從函式開頭移到了 guard 之後。）
+513 |     @Test func successfulSaveOnLeaveClearsPromptAfterWriting() throws {
+    |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+514 |         let (store, dir) = Self.tempStore("leave-save-order")
+515 |         defer { try? FileManager.default.removeItem(at: dir) }
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/AppModelEditingTests.swift:535:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+533 | 
+534 |     /// 「捨棄」：不寫檔、離開、磁碟保持空的。
+535 |     @Test func confirmLeaveDiscardingWritesNothing() throws {
+    |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+536 |         let (store, dir) = Self.tempStore("leave-discard")
+537 |         defer { try? FileManager.default.removeItem(at: dir) }
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/AppModelEditingTests.swift:564:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+562 | 
+563 |     /// 「繼續編輯」：留在編輯模式，變更原封不動。
+564 |     @Test func cancelLeaveKeepsEditingAndChanges() throws {
+    |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+565 |         let (store, dir) = Self.tempStore("leave-cancel")
+566 |         defer { try? FileManager.default.removeItem(at: dir) }
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/AppModelEditingTests.swift:7:2: warning: 'Suite' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+  5 | 
+  6 | @MainActor
+  7 | @Suite struct AppModelEditingTests {
+    |  `- warning: 'Suite' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+  8 |     /// 測試用的暫存 store——**不得碰使用者真實的 Application Support 目錄**。
+  9 |     static func tempStore(_ tag: String) -> (ProfileStore, URL) {
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/ClipboardWatcherTests.swift:14:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+12 | @MainActor
+13 | struct ClipboardWatcherTests {
+14 |     @Test func changedTextNotifies() {
+   |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+15 |         let board = FakeClipboard()
+16 |         var changes: [String] = []
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/ClipboardWatcherTests.swift:24:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+22 |     }
+23 | 
+24 |     @Test func nonTextAdvancesBaselineWithoutCallback() {
+   |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+25 |         let board = FakeClipboard()
+26 |         var changes: [String] = []
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/ClipboardWatcherTests.swift:36:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+34 |     }
+35 | 
+36 |     @Test func unchangedCountDoesNotReadOrNotify() {
+   |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+37 |         let board = FakeClipboard()
+38 |         var changes: [String] = []
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/ClipboardWatcherTests.swift:46:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+44 | 
+45 |     // spec §4.3 依 changeCount 判定變更，相同文字重新複製仍應回呼。
+46 |     @Test func repeatedContentWithNewCountNotifies() {
+   |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+47 |         let board = FakeClipboard()
+48 |         var changes: [String] = []
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/ClipboardWatcherTests.swift:58:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+56 |     }
+57 | 
+58 |     @Test func syncBaselineSkipsLocalWrite() {
+   |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+59 |         let board = FakeClipboard()
+60 |         var changes: [String] = []
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/ClipboardWatcherTests.swift:14:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+12 | @MainActor
+13 | struct ClipboardWatcherTests {
+14 |     @Test func changedTextNotifies() {
+   |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+15 |         let board = FakeClipboard()
+16 |         var changes: [String] = []
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/ClipboardWatcherTests.swift:24:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+22 |     }
+23 | 
+24 |     @Test func nonTextAdvancesBaselineWithoutCallback() {
+   |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+25 |         let board = FakeClipboard()
+26 |         var changes: [String] = []
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/ClipboardWatcherTests.swift:36:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+34 |     }
+35 | 
+36 |     @Test func unchangedCountDoesNotReadOrNotify() {
+   |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+37 |         let board = FakeClipboard()
+38 |         var changes: [String] = []
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/ClipboardWatcherTests.swift:46:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+44 | 
+45 |     // spec §4.3 依 changeCount 判定變更，相同文字重新複製仍應回呼。
+46 |     @Test func repeatedContentWithNewCountNotifies() {
+   |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+47 |         let board = FakeClipboard()
+48 |         var changes: [String] = []
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/ClipboardWatcherTests.swift:58:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+56 |     }
+57 | 
+58 |     @Test func syncBaselineSkipsLocalWrite() {
+   |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+59 |         let board = FakeClipboard()
+60 |         var changes: [String] = []
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/EditorDragStateTests.swift:8:2: warning: 'Suite' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+ 6 | @testable import MirageShell
+ 7 | 
+ 8 | @Suite struct EditorDragStateTests {
+   |  `- warning: 'Suite' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+ 9 |     private let rect = FitRect(x: 10, y: 20, width: 200, height: 400)
+10 | 
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/EditorDragStateTests.swift:11:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+ 9 |     private let rect = FitRect(x: 10, y: 20, width: 200, height: 400)
+10 | 
+11 |     @Test func offsetIsReusedWhenMarkerCenterChanges() throws {
+   |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+12 |         var state = EditorDragState()
+13 |         state.begin(at: CGPoint(x: 130, y: 190), center: CGPoint(x: 110, y: 220))
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/EditorDragStateTests.swift:27:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+25 |     }
+26 | 
+27 |     @Test func clickStoresOffsetButNeverReportsMovement() throws {
+   |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+28 |         var state = EditorDragState()
+29 |         state.begin(at: CGPoint(x: 132.125, y: 219.75), center: CGPoint(x: 110, y: 220))
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/EditorDragStateTests.swift:43:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+41 |     }
+42 | 
+43 |     @Test func endClearsOffsetAndNextGestureRecomputesIt() throws {
+   |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+44 |         var state = EditorDragState()
+45 |         state.begin(at: CGPoint(x: 130, y: 190), center: CGPoint(x: 110, y: 220))
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/EditorDragStateTests.swift:11:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+ 9 |     private let rect = FitRect(x: 10, y: 20, width: 200, height: 400)
+10 | 
+11 |     @Test func offsetIsReusedWhenMarkerCenterChanges() throws {
+   |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+12 |         var state = EditorDragState()
+13 |         state.begin(at: CGPoint(x: 130, y: 190), center: CGPoint(x: 110, y: 220))
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/EditorDragStateTests.swift:27:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+25 |     }
+26 | 
+27 |     @Test func clickStoresOffsetButNeverReportsMovement() throws {
+   |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+28 |         var state = EditorDragState()
+29 |         state.begin(at: CGPoint(x: 132.125, y: 219.75), center: CGPoint(x: 110, y: 220))
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/EditorDragStateTests.swift:43:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+41 |     }
+42 | 
+43 |     @Test func endClearsOffsetAndNextGestureRecomputesIt() throws {
+   |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+44 |         var state = EditorDragState()
+45 |         state.begin(at: CGPoint(x: 130, y: 190), center: CGPoint(x: 110, y: 220))
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/EditorDragStateTests.swift:8:2: warning: 'Suite' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+ 6 | @testable import MirageShell
+ 7 | 
+ 8 | @Suite struct EditorDragStateTests {
+   |  `- warning: 'Suite' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+ 9 |     private let rect = FitRect(x: 10, y: 20, width: 200, height: 400)
+10 | 
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/FpsWindowTests.swift:7:2: warning: 'Suite' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+  5 | @testable import MirageShell
+  6 | 
+  7 | @Suite struct FpsWindowTests {
+    |  `- warning: 'Suite' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+  8 |     private func counters(_ arrived: Int = 0, _ dropped: Int = 0) -> FrameCounterSnapshot {
+  9 |         FrameCounterSnapshot(arrived: arrived, dropped: dropped, rejected: 0)
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/FpsWindowTests.swift:12:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+ 10 |     }
+ 11 | 
+ 12 |     @Test func beforeBoundaryDoesNotReportOrReadCounters() {
+    |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+ 13 |         var window = FpsWindow(startedAt: 10, counters: counters())
+ 14 |         var reads = 0
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/FpsWindowTests.swift:23:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+ 21 |     }
+ 22 | 
+ 23 |     @Test func exactBoundaryReportsOnceAndResets() throws {
+    |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+ 24 |         var window = FpsWindow(startedAt: 10, counters: counters())
+ 25 |         let earlyReport = window.record(presented: true, at: 10.5, counters: { counters(1) })
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/FpsWindowTests.swift:40:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+ 38 |     }
+ 39 | 
+ 40 |     @Test func overshootStartsFreshAtEventTime() throws {
+    |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+ 41 |         var window = FpsWindow(startedAt: 10, counters: counters())
+ 42 |         let firstOptional = window.record(presented: true, at: 11.5, counters: { counters(1) })
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/FpsWindowTests.swift:53:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+ 51 |     }
+ 52 | 
+ 53 |     @Test func consecutiveWindowsKeepFramesAndDrawsSeparate() throws {
+    |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+ 54 |         var window = FpsWindow(startedAt: 0, counters: counters(10, 2))
+ 55 |         window.recordDraw(interval: 30, duration: nil, outcome: [.noFrame, .noDrawable])
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/FpsWindowTests.swift:88:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+ 86 |     }
+ 87 | 
+ 88 |     @Test func noPresentDoesNotReportEvenAfterDeadline() throws {
+    |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+ 89 |         var window = FpsWindow(startedAt: 0, counters: counters())
+ 90 |         var reads = 0
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/FpsWindowTests.swift:108:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+106 |     }
+107 | 
+108 |     @Test func stalledWindowReportsActualElapsedAndRoundedRate() throws {
+    |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+109 |         var window = FpsWindow(startedAt: 10, counters: counters())
+110 |         let earlyReport = window.record(presented: true, at: 10.25, counters: { counters(1) })
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/FpsWindowTests.swift:12:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+ 10 |     }
+ 11 | 
+ 12 |     @Test func beforeBoundaryDoesNotReportOrReadCounters() {
+    |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+ 13 |         var window = FpsWindow(startedAt: 10, counters: counters())
+ 14 |         var reads = 0
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/FpsWindowTests.swift:23:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+ 21 |     }
+ 22 | 
+ 23 |     @Test func exactBoundaryReportsOnceAndResets() throws {
+    |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+ 24 |         var window = FpsWindow(startedAt: 10, counters: counters())
+ 25 |         let earlyReport = window.record(presented: true, at: 10.5, counters: { counters(1) })
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/FpsWindowTests.swift:40:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+ 38 |     }
+ 39 | 
+ 40 |     @Test func overshootStartsFreshAtEventTime() throws {
+    |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+ 41 |         var window = FpsWindow(startedAt: 10, counters: counters())
+ 42 |         let firstOptional = window.record(presented: true, at: 11.5, counters: { counters(1) })
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/FpsWindowTests.swift:53:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+ 51 |     }
+ 52 | 
+ 53 |     @Test func consecutiveWindowsKeepFramesAndDrawsSeparate() throws {
+    |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+ 54 |         var window = FpsWindow(startedAt: 0, counters: counters(10, 2))
+ 55 |         window.recordDraw(interval: 30, duration: nil, outcome: [.noFrame, .noDrawable])
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/FpsWindowTests.swift:88:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+ 86 |     }
+ 87 | 
+ 88 |     @Test func noPresentDoesNotReportEvenAfterDeadline() throws {
+    |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+ 89 |         var window = FpsWindow(startedAt: 0, counters: counters())
+ 90 |         var reads = 0
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/FpsWindowTests.swift:108:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+106 |     }
+107 | 
+108 |     @Test func stalledWindowReportsActualElapsedAndRoundedRate() throws {
+    |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+109 |         var window = FpsWindow(startedAt: 10, counters: counters())
+110 |         let earlyReport = window.record(presented: true, at: 10.25, counters: { counters(1) })
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/FpsWindowTests.swift:7:2: warning: 'Suite' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+  5 | @testable import MirageShell
+  6 | 
+  7 | @Suite struct FpsWindowTests {
+    |  `- warning: 'Suite' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+  8 |     private func counters(_ arrived: Int = 0, _ dropped: Int = 0) -> FrameCounterSnapshot {
+  9 |         FrameCounterSnapshot(arrived: arrived, dropped: dropped, rejected: 0)
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/GameDetectorTests.swift:14:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+12 | @MainActor
+13 | struct GameDetectorTests {
+14 |     @Test func overlappingTickIsSkipped() async {
+   |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+15 |         var changes: [String?] = []
+16 |         let detector = GameDetector(adb: ForegroundSequence(["game.a", "game.b"])) { changes.append($0) }
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/GameDetectorTests.swift:26:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+24 |     }
+25 | 
+26 |     @Test func unchangedDoesNotNotifyAgain() async {
+   |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+27 |         var changes: [String?] = []
+28 |         let detector = GameDetector(adb: ForegroundSequence(["game.a", "game.a", "game.a"])) { changes.append($0) }
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/GameDetectorTests.swift:36:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+34 |     }
+35 | 
+36 |     @Test func changedPackageNotifiesOnce() async {
+   |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+37 |         var changes: [String?] = []
+38 |         let detector = GameDetector(adb: ForegroundSequence(["game.a", "game.b", "game.b"])) { changes.append($0) }
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/GameDetectorTests.swift:45:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+43 |     }
+44 | 
+45 |     @Test func packageBecomesNil() async {
+   |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+46 |         var changes: [String?] = []
+47 |         let detector = GameDetector(adb: ForegroundSequence(["game.a", nil, nil])) { changes.append($0) }
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/GameDetectorTests.swift:52:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+50 |     }
+51 | 
+52 |     @Test func initialNilThenPackage() async {
+   |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+53 |         var changes: [String?] = []
+54 |         let detector = GameDetector(adb: ForegroundSequence([nil, nil, "game.a"])) { changes.append($0) }
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/GameDetectorTests.swift:14:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+12 | @MainActor
+13 | struct GameDetectorTests {
+14 |     @Test func overlappingTickIsSkipped() async {
+   |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+15 |         var changes: [String?] = []
+16 |         let detector = GameDetector(adb: ForegroundSequence(["game.a", "game.b"])) { changes.append($0) }
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/GameDetectorTests.swift:26:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+24 |     }
+25 | 
+26 |     @Test func unchangedDoesNotNotifyAgain() async {
+   |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+27 |         var changes: [String?] = []
+28 |         let detector = GameDetector(adb: ForegroundSequence(["game.a", "game.a", "game.a"])) { changes.append($0) }
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/GameDetectorTests.swift:36:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+34 |     }
+35 | 
+36 |     @Test func changedPackageNotifiesOnce() async {
+   |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+37 |         var changes: [String?] = []
+38 |         let detector = GameDetector(adb: ForegroundSequence(["game.a", "game.b", "game.b"])) { changes.append($0) }
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/GameDetectorTests.swift:45:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+43 |     }
+44 | 
+45 |     @Test func packageBecomesNil() async {
+   |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+46 |         var changes: [String?] = []
+47 |         let detector = GameDetector(adb: ForegroundSequence(["game.a", nil, nil])) { changes.append($0) }
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/GameDetectorTests.swift:52:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+50 |     }
+51 | 
+52 |     @Test func initialNilThenPackage() async {
+   |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+53 |         var changes: [String?] = []
+54 |         let detector = GameDetector(adb: ForegroundSequence([nil, nil, "game.a"])) { changes.append($0) }
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/HostIMEAcceptanceTests.swift:30:13: warning: 'Suite' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+ 28 | }
+ 29 | 
+ 30 | @MainActor @Suite struct HostIMEAcceptanceTests {
+    |             `- warning: 'Suite' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+ 31 |     @Test(arguments: IMEFailureTransport.Fault.allCases)
+ 32 |     fileprivate func actualViewFailureRetainsDraftPausesAndNeverRetries(_ fault: IMEFailureTransport.Fault) async throws {
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/HostIMEAcceptanceTests.swift:31:6: warning: 'Test(_:arguments:)' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+ 29 | 
+ 30 | @MainActor @Suite struct HostIMEAcceptanceTests {
+ 31 |     @Test(arguments: IMEFailureTransport.Fault.allCases)
+    |      `- warning: 'Test(_:arguments:)' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+ 32 |     fileprivate func actualViewFailureRetainsDraftPausesAndNeverRetries(_ fault: IMEFailureTransport.Fault) async throws {
+ 33 |         let transport = IMEFailureTransport(fault)
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/HostIMEAcceptanceTests.swift:95:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+ 93 |     }
+ 94 | 
+ 95 |     @Test func focusCancelsMarkedAndLateUnmarkCannotSubmit() throws {
+    |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+ 96 |         let queue = InputQueue(injector: IMEFailureTransport(.timeout))
+ 97 |         let state = TextInputPresentation(queue: queue)
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/HostIMEAcceptanceTests.swift:112:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+110 |     }
+111 | 
+112 |     @Test func settingsDisplayActualQueuePolicy() throws {
+    |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+113 |         let transport = IMEFailureTransport(.mismatch)
+114 |         let queue = InputQueue(injector: transport, textTransport: transport,
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/HostIMEAcceptanceTests.swift:120:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+118 |     }
+119 | 
+120 |     @Test func diagnosticsAreExactPrivateAndRefuseOverwrite() throws {
+    |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+121 |         let path = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".jsonl")
+122 |         defer { try? FileManager.default.removeItem(at: path) }
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/HostIMEAcceptanceTests.swift:31:6: warning: 'Test(_:arguments:)' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+ 29 | 
+ 30 | @MainActor @Suite struct HostIMEAcceptanceTests {
+ 31 |     @Test(arguments: IMEFailureTransport.Fault.allCases)
+    |      `- warning: 'Test(_:arguments:)' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+ 32 |     fileprivate func actualViewFailureRetainsDraftPausesAndNeverRetries(_ fault: IMEFailureTransport.Fault) async throws {
+ 33 |         let transport = IMEFailureTransport(fault)
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/HostIMEAcceptanceTests.swift:95:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+ 93 |     }
+ 94 | 
+ 95 |     @Test func focusCancelsMarkedAndLateUnmarkCannotSubmit() throws {
+    |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+ 96 |         let queue = InputQueue(injector: IMEFailureTransport(.timeout))
+ 97 |         let state = TextInputPresentation(queue: queue)
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/HostIMEAcceptanceTests.swift:112:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+110 |     }
+111 | 
+112 |     @Test func settingsDisplayActualQueuePolicy() throws {
+    |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+113 |         let transport = IMEFailureTransport(.mismatch)
+114 |         let queue = InputQueue(injector: transport, textTransport: transport,
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/HostIMEAcceptanceTests.swift:120:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+118 |     }
+119 | 
+120 |     @Test func diagnosticsAreExactPrivateAndRefuseOverwrite() throws {
+    |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+121 |         let path = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".jsonl")
+122 |         defer { try? FileManager.default.removeItem(at: path) }
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/HostIMEAcceptanceTests.swift:30:13: warning: 'Suite' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+ 28 | }
+ 29 | 
+ 30 | @MainActor @Suite struct HostIMEAcceptanceTests {
+    |             `- warning: 'Suite' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+ 31 |     @Test(arguments: IMEFailureTransport.Fault.allCases)
+ 32 |     fileprivate func actualViewFailureRetainsDraftPausesAndNeverRetries(_ fault: IMEFailureTransport.Fault) async throws {
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/KeymapControllerRoutingTests.swift:65:2: warning: 'Suite' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+ 63 | 
+ 64 | @MainActor
+ 65 | @Suite(.timeLimit(.minutes(1))) struct KeymapControllerRoutingTests {
+    |  `- warning: 'Suite' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+ 66 |     /// 綁到的鍵走觸控路徑，**不**產生 sendKey——否則遊戲會同時收到觸控與鍵盤事件。
+ 67 |     @Test func boundKeyGoesToTouchesNotKeyboard() async throws {
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/KeymapControllerRoutingTests.swift:67:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+ 65 | @Suite(.timeLimit(.minutes(1))) struct KeymapControllerRoutingTests {
+ 66 |     /// 綁到的鍵走觸控路徑，**不**產生 sendKey——否則遊戲會同時收到觸控與鍵盤事件。
+ 67 |     @Test func boundKeyGoesToTouchesNotKeyboard() async throws {
+    |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+ 68 |         let spy = SpyInjector()
+ 69 |         let c = KeymapController(queue: InputQueue(injector: spy), profile: profileWithWAndJ())
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/KeymapControllerRoutingTests.swift:81:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+ 79 | 
+ 80 |     /// 沒綁到的鍵直通鍵盤，**不**產生觸控。
+ 81 |     @Test func unboundKeyGoesToKeyboard() async throws {
+    |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+ 82 |         let spy = SpyInjector()
+ 83 |         let c = KeymapController(queue: InputQueue(injector: spy), profile: profileWithWAndJ())
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/KeymapControllerRoutingTests.swift:97:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+ 95 | 
+ 96 |     /// 完全沒有 profile 時每顆鍵都直通——這是 D2 最初被回報的情境。
+ 97 |     @Test func withoutProfileEveryKeyPassesThrough() async throws {
+    |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+ 98 |         let spy = SpyInjector()
+ 99 |         let c = KeymapController(queue: InputQueue(injector: spy), profile: nil)
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/KeymapControllerRoutingTests.swift:123:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+121 |     /// 不夠強，而是這條要驗的是「`k` 在**編輯模式期間**沒被送出」，時序上必須讓它有
+122 |     /// 機會在 `setEditing(false)` 之前現形。這是斷言的語意需求，不是對排程的不信任。
+123 |     @Test func editingModeSuppressesPassthrough() async throws {
+    |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+124 |         let spy = SpyInjector()
+125 |         let c = KeymapController(queue: InputQueue(injector: spy), profile: profileWithWAndJ())
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/KeymapControllerRoutingTests.swift:144:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+142 |     /// Android 的 Meta 是搜尋鍵、長按叫出快速鍵浮層，按 ⌘Tab／⌘Q 都會被 guest 吃到。
+143 |     /// `KeyTranslate` 只擋得住字元那半邊，⌘ 鍵本身只有這裡能擋。
+144 |     @Test func modifierKeysNeverPassThroughToGuest() async throws {
+    |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+145 |         let spy = SpyInjector()
+146 |         let c = KeymapController(queue: InputQueue(injector: spy), profile: profileWithWAndJ())
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/KeymapControllerRoutingTests.swift:163:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+161 |     /// 一律不送，guest 的 `k` 就永遠按著。多了同樣是 bug：進編輯模式已經補送過 up，
+162 |     /// 使用者實際放開時不該再送第二個。
+163 |     @Test func editingReleasesInFlightKeysExactlyOnce() async throws {
+    |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+164 |         let spy = SpyInjector()
+165 |         let c = KeymapController(queue: InputQueue(injector: spy), profile: profileWithWAndJ())
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/KeymapControllerRoutingTests.swift:180:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+178 |     /// 同一條不變式的另一個觸發路徑：按住期間換 profile（編輯器存檔／偵測到別款遊戲），
+179 |     /// 那顆鍵從「沒綁」翻成「已綁」。up 仍然要走直通送出去，不能被引擎吃掉。
+180 |     @Test func profileReloadWhileKeyHeldStillReleasesGuestKey() async throws {
+    |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+181 |         let spy = SpyInjector()
+182 |         let c = KeymapController(queue: InputQueue(injector: spy), profile: nil)   // 起初全部直通
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/KeymapControllerRoutingTests.swift:193:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+191 | 
+192 |     /// D23：移除 profile 之前必須送出舊搖桿的 up。
+193 |     @Test func removingProfileReleasesHeldJoystick() async throws {
+    |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+194 |         let spy = SpyInjector()
+195 |         let c = KeymapController(queue: InputQueue(injector: spy), profile: profileWithWAndJ())
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/KeymapControllerRoutingTests.swift:209:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+207 | 
+208 |     /// D23：先釋放舊 profile，再從乾淨狀態開始使用新 profile。
+209 |     @Test func replacingProfileReleasesHeldJoystickAndStartsClean() async throws {
+    |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+210 |         let spy = SpyInjector()
+211 |         let c = KeymapController(queue: InputQueue(injector: spy), profile: profileWithWAndJ())
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/KeymapControllerRoutingTests.swift:236:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+234 | 
+235 |     /// D11：沒有後續 keyUp，失焦也必須同時放開綁定觸點與直通鍵。
+236 |     @Test func losingFocusReleasesTouchesAndPassthroughKeys() async throws {
+    |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+237 |         let spy = SpyInjector()
+238 |         let queue = InputQueue(injector: spy)
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/KeymapControllerRoutingTests.swift:259:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+257 | 
+258 |     /// 編輯器拖動造成 reload 時，不得多送釋放快照到 guest。
+259 |     @Test func editingReloadDoesNotSendTouchFrames() async {
+    |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+260 |         let spy = SpyInjector()
+261 |         let queue = InputQueue(injector: spy)
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/KeymapControllerRoutingTests.swift:276:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+274 |     /// 後者的症狀是幽靈搖桿：按住 `w` → ⌘E → 放開 `w` → 離開編輯模式，引擎裡 `w`
+275 |     /// 還按著，之後按 `s` 會與 `w` 相消成「沒有方向」，使用者看到搖桿不動。
+276 |     @Test func editingDoesNotDesyncEngineState() async throws {
+    |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+277 |         let spy = SpyInjector()
+278 |         let c = KeymapController(queue: InputQueue(injector: spy), profile: profileWithWAndJ())
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/KeymapControllerRoutingTests.swift:296:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+294 |     /// 對調就是**永久卡鍵**——guest 那顆鍵從此一直按著，而且汙染的是整個 guest 鍵盤
+295 |     /// 輸入，不只當下那款遊戲。快照有下一幀可以自癒，邊緣事件沒有。
+296 |     @Test(.timeLimit(.minutes(1)))
+    |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+297 |     func passthroughKeysReachGuestInPressOrder() async {
+298 |         let probe = OrderProbe { $0.hasSuffix("down") ? .milliseconds(60) : .milliseconds(10) }
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/KeymapControllerRoutingTests.swift:310:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+308 |     /// 按下 `w` 產生「搖桿 down」的快照、放開產生「搖桿 up」的快照。兩者對調，guest
+309 |     /// 端就停在按著的狀態。
+310 |     @Test(.timeLimit(.minutes(1)))
+    |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+311 |     func touchSnapshotsReachGuestInEventOrder() async {
+312 |         let probe = OrderProbe { $0 == "touch [1]" ? .milliseconds(60) : .milliseconds(10) }
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/KeymapControllerRoutingTests.swift:67:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+ 65 | @Suite(.timeLimit(.minutes(1))) struct KeymapControllerRoutingTests {
+ 66 |     /// 綁到的鍵走觸控路徑，**不**產生 sendKey——否則遊戲會同時收到觸控與鍵盤事件。
+ 67 |     @Test func boundKeyGoesToTouchesNotKeyboard() async throws {
+    |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+ 68 |         let spy = SpyInjector()
+ 69 |         let c = KeymapController(queue: InputQueue(injector: spy), profile: profileWithWAndJ())
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/KeymapControllerRoutingTests.swift:81:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+ 79 | 
+ 80 |     /// 沒綁到的鍵直通鍵盤，**不**產生觸控。
+ 81 |     @Test func unboundKeyGoesToKeyboard() async throws {
+    |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+ 82 |         let spy = SpyInjector()
+ 83 |         let c = KeymapController(queue: InputQueue(injector: spy), profile: profileWithWAndJ())
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/KeymapControllerRoutingTests.swift:97:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+ 95 | 
+ 96 |     /// 完全沒有 profile 時每顆鍵都直通——這是 D2 最初被回報的情境。
+ 97 |     @Test func withoutProfileEveryKeyPassesThrough() async throws {
+    |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+ 98 |         let spy = SpyInjector()
+ 99 |         let c = KeymapController(queue: InputQueue(injector: spy), profile: nil)
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/KeymapControllerRoutingTests.swift:123:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+121 |     /// 不夠強，而是這條要驗的是「`k` 在**編輯模式期間**沒被送出」，時序上必須讓它有
+122 |     /// 機會在 `setEditing(false)` 之前現形。這是斷言的語意需求，不是對排程的不信任。
+123 |     @Test func editingModeSuppressesPassthrough() async throws {
+    |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+124 |         let spy = SpyInjector()
+125 |         let c = KeymapController(queue: InputQueue(injector: spy), profile: profileWithWAndJ())
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/KeymapControllerRoutingTests.swift:144:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+142 |     /// Android 的 Meta 是搜尋鍵、長按叫出快速鍵浮層，按 ⌘Tab／⌘Q 都會被 guest 吃到。
+143 |     /// `KeyTranslate` 只擋得住字元那半邊，⌘ 鍵本身只有這裡能擋。
+144 |     @Test func modifierKeysNeverPassThroughToGuest() async throws {
+    |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+145 |         let spy = SpyInjector()
+146 |         let c = KeymapController(queue: InputQueue(injector: spy), profile: profileWithWAndJ())
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/KeymapControllerRoutingTests.swift:163:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+161 |     /// 一律不送，guest 的 `k` 就永遠按著。多了同樣是 bug：進編輯模式已經補送過 up，
+162 |     /// 使用者實際放開時不該再送第二個。
+163 |     @Test func editingReleasesInFlightKeysExactlyOnce() async throws {
+    |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+164 |         let spy = SpyInjector()
+165 |         let c = KeymapController(queue: InputQueue(injector: spy), profile: profileWithWAndJ())
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/KeymapControllerRoutingTests.swift:180:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+178 |     /// 同一條不變式的另一個觸發路徑：按住期間換 profile（編輯器存檔／偵測到別款遊戲），
+179 |     /// 那顆鍵從「沒綁」翻成「已綁」。up 仍然要走直通送出去，不能被引擎吃掉。
+180 |     @Test func profileReloadWhileKeyHeldStillReleasesGuestKey() async throws {
+    |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+181 |         let spy = SpyInjector()
+182 |         let c = KeymapController(queue: InputQueue(injector: spy), profile: nil)   // 起初全部直通
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/KeymapControllerRoutingTests.swift:193:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+191 | 
+192 |     /// D23：移除 profile 之前必須送出舊搖桿的 up。
+193 |     @Test func removingProfileReleasesHeldJoystick() async throws {
+    |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+194 |         let spy = SpyInjector()
+195 |         let c = KeymapController(queue: InputQueue(injector: spy), profile: profileWithWAndJ())
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/KeymapControllerRoutingTests.swift:209:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+207 | 
+208 |     /// D23：先釋放舊 profile，再從乾淨狀態開始使用新 profile。
+209 |     @Test func replacingProfileReleasesHeldJoystickAndStartsClean() async throws {
+    |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+210 |         let spy = SpyInjector()
+211 |         let c = KeymapController(queue: InputQueue(injector: spy), profile: profileWithWAndJ())
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/KeymapControllerRoutingTests.swift:236:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+234 | 
+235 |     /// D11：沒有後續 keyUp，失焦也必須同時放開綁定觸點與直通鍵。
+236 |     @Test func losingFocusReleasesTouchesAndPassthroughKeys() async throws {
+    |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+237 |         let spy = SpyInjector()
+238 |         let queue = InputQueue(injector: spy)
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/KeymapControllerRoutingTests.swift:259:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+257 | 
+258 |     /// 編輯器拖動造成 reload 時，不得多送釋放快照到 guest。
+259 |     @Test func editingReloadDoesNotSendTouchFrames() async {
+    |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+260 |         let spy = SpyInjector()
+261 |         let queue = InputQueue(injector: spy)
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/KeymapControllerRoutingTests.swift:276:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+274 |     /// 後者的症狀是幽靈搖桿：按住 `w` → ⌘E → 放開 `w` → 離開編輯模式，引擎裡 `w`
+275 |     /// 還按著，之後按 `s` 會與 `w` 相消成「沒有方向」，使用者看到搖桿不動。
+276 |     @Test func editingDoesNotDesyncEngineState() async throws {
+    |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+277 |         let spy = SpyInjector()
+278 |         let c = KeymapController(queue: InputQueue(injector: spy), profile: profileWithWAndJ())
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/KeymapControllerRoutingTests.swift:296:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+294 |     /// 對調就是**永久卡鍵**——guest 那顆鍵從此一直按著，而且汙染的是整個 guest 鍵盤
+295 |     /// 輸入，不只當下那款遊戲。快照有下一幀可以自癒，邊緣事件沒有。
+296 |     @Test(.timeLimit(.minutes(1)))
+    |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+297 |     func passthroughKeysReachGuestInPressOrder() async {
+298 |         let probe = OrderProbe { $0.hasSuffix("down") ? .milliseconds(60) : .milliseconds(10) }
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/KeymapControllerRoutingTests.swift:310:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+308 |     /// 按下 `w` 產生「搖桿 down」的快照、放開產生「搖桿 up」的快照。兩者對調，guest
+309 |     /// 端就停在按著的狀態。
+310 |     @Test(.timeLimit(.minutes(1)))
+    |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+311 |     func touchSnapshotsReachGuestInEventOrder() async {
+312 |         let probe = OrderProbe { $0 == "touch [1]" ? .milliseconds(60) : .milliseconds(10) }
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/KeymapControllerRoutingTests.swift:65:2: warning: 'Suite' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+ 63 | 
+ 64 | @MainActor
+ 65 | @Suite(.timeLimit(.minutes(1))) struct KeymapControllerRoutingTests {
+    |  `- warning: 'Suite' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+ 66 |     /// 綁到的鍵走觸控路徑，**不**產生 sendKey——否則遊戲會同時收到觸控與鍵盤事件。
+ 67 |     @Test func boundKeyGoesToTouchesNotKeyboard() async throws {
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/KeymapControllerRoutingTests.swift:321:13: warning: 'Suite' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+319 | }
+320 | 
+321 | @MainActor @Suite struct IMEKeymapSuspensionTests {
+    |             `- warning: 'Suite' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+322 |     @Test func textModeReleasesThenSuspendsEntireMapping() async throws {
+323 |         let spy = SpyInjector()
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/KeymapControllerRoutingTests.swift:322:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+320 | 
+321 | @MainActor @Suite struct IMEKeymapSuspensionTests {
+322 |     @Test func textModeReleasesThenSuspendsEntireMapping() async throws {
+    |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+323 |         let spy = SpyInjector()
+324 |         let queue = InputQueue(injector: spy)
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/KeymapControllerRoutingTests.swift:322:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+320 | 
+321 | @MainActor @Suite struct IMEKeymapSuspensionTests {
+322 |     @Test func textModeReleasesThenSuspendsEntireMapping() async throws {
+    |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+323 |         let spy = SpyInjector()
+324 |         let queue = InputQueue(injector: spy)
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/KeymapControllerRoutingTests.swift:321:13: warning: 'Suite' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+319 | }
+320 | 
+321 | @MainActor @Suite struct IMEKeymapSuspensionTests {
+    |             `- warning: 'Suite' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+322 |     @Test func textModeReleasesThenSuspendsEntireMapping() async throws {
+323 |         let spy = SpyInjector()
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/KeymapReleaseLiveTests.swift:40:2: warning: 'Suite' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+38 | // 判定。單獨執行本測試並顯示綠色，不代表已驗證 guest 釋放。
+39 | @MainActor
+40 | @Suite(.serialized) struct KeymapReleaseLiveTests {
+   |  `- warning: 'Suite' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+41 |     @Test(.enabled(if: KeymapReleaseLiveGate.live, "需 MIRAGE_LIVE=1，請跑 scripts/verify_keymap_release.sh"))
+42 |     func releasesJoystickTouchOnFocusLossAndReload() async throws {
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/KeymapReleaseLiveTests.swift:41:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+39 | @MainActor
+40 | @Suite(.serialized) struct KeymapReleaseLiveTests {
+41 |     @Test(.enabled(if: KeymapReleaseLiveGate.live, "需 MIRAGE_LIVE=1，請跑 scripts/verify_keymap_release.sh"))
+   |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+42 |     func releasesJoystickTouchOnFocusLossAndReload() async throws {
+43 |         let client = EmulatorClient()
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/KeymapReleaseLiveTests.swift:69:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+67 |     }
+68 | 
+69 |     @Test(.enabled(if: KeymapReleaseLiveGate.live, "需 MIRAGE_LIVE=1，請跑 scripts/verify_keymap_release.sh"))
+   |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+70 |     func resignKeyNotificationReleasesTouch() async throws {
+71 |         let dir = FileManager.default.temporaryDirectory
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/KeymapReleaseLiveTests.swift:41:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+39 | @MainActor
+40 | @Suite(.serialized) struct KeymapReleaseLiveTests {
+41 |     @Test(.enabled(if: KeymapReleaseLiveGate.live, "需 MIRAGE_LIVE=1，請跑 scripts/verify_keymap_release.sh"))
+   |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+42 |     func releasesJoystickTouchOnFocusLossAndReload() async throws {
+43 |         let client = EmulatorClient()
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/KeymapReleaseLiveTests.swift:69:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+67 |     }
+68 | 
+69 |     @Test(.enabled(if: KeymapReleaseLiveGate.live, "需 MIRAGE_LIVE=1，請跑 scripts/verify_keymap_release.sh"))
+   |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+70 |     func resignKeyNotificationReleasesTouch() async throws {
+71 |         let dir = FileManager.default.temporaryDirectory
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/KeymapReleaseLiveTests.swift:40:2: warning: 'Suite' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+38 | // 判定。單獨執行本測試並顯示綠色，不代表已驗證 guest 釋放。
+39 | @MainActor
+40 | @Suite(.serialized) struct KeymapReleaseLiveTests {
+   |  `- warning: 'Suite' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+41 |     @Test(.enabled(if: KeymapReleaseLiveGate.live, "需 MIRAGE_LIVE=1，請跑 scripts/verify_keymap_release.sh"))
+42 |     func releasesJoystickTouchOnFocusLossAndReload() async throws {
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/LifecycleDiagnosticsTests.swift:6:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+ 4 | 
+ 5 | struct LifecycleDiagnosticsTests {
+ 6 |     @Test func tokenEscapesFieldSeparators() {
+   |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+ 7 |         #expect(LifecycleDiagnostics.token("wake key=值\n") == "wake%20key%3D%E5%80%BC%0A")
+ 8 |         #expect(LifecycleDiagnostics.token("AZ09-_.:") == "AZ09-_.:")
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/LifecycleDiagnosticsTests.swift:11:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+ 9 |     }
+10 | 
+11 |     @Test func missingObjectType() {
+   |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+12 |         #expect(LifecycleDiagnostics.typeName(nil) == "nil")
+13 |     }
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/LifecycleDiagnosticsTests.swift:15:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+13 |     }
+14 | 
+15 |     @Test func runtimeObjectType() {
+   |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+16 |         #expect(LifecycleDiagnostics.typeName(NSObject()) == "NSObject")
+17 |     }
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/LifecycleDiagnosticsTests.swift:6:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+ 4 | 
+ 5 | struct LifecycleDiagnosticsTests {
+ 6 |     @Test func tokenEscapesFieldSeparators() {
+   |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+ 7 |         #expect(LifecycleDiagnostics.token("wake key=值\n") == "wake%20key%3D%E5%80%BC%0A")
+ 8 |         #expect(LifecycleDiagnostics.token("AZ09-_.:") == "AZ09-_.:")
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/LifecycleDiagnosticsTests.swift:11:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+ 9 |     }
+10 | 
+11 |     @Test func missingObjectType() {
+   |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+12 |         #expect(LifecycleDiagnostics.typeName(nil) == "nil")
+13 |     }
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/LifecycleDiagnosticsTests.swift:15:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+13 |     }
+14 | 
+15 |     @Test func runtimeObjectType() {
+   |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+16 |         #expect(LifecycleDiagnostics.typeName(NSObject()) == "NSObject")
+17 |     }
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/LifecyclePolicyTests.swift:5:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+ 3 | 
+ 4 | struct LifecyclePolicyTests {
+ 5 |     @Test func closingLastWindowKeepsApplicationRunning() {
+   |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+ 6 |         #expect(!LifecyclePolicy.terminateAfterLastWindowClosed)
+ 7 |     }
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/LifecyclePolicyTests.swift:12:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+10 |     /// 會把值捕捉進一個 `$0` 不可變的閉包，編譯錯誤是
+11 |     /// 「cannot use mutating member on immutable value」。先呼叫、再斷言回傳值。
+12 |     @Test func onlySuspendedSessionResumes() {
+   |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+13 |         var policy = LifecyclePolicy()
+14 |         var resumed = policy.consumeResume()
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/LifecyclePolicyTests.swift:5:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+ 3 | 
+ 4 | struct LifecyclePolicyTests {
+ 5 |     @Test func closingLastWindowKeepsApplicationRunning() {
+   |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+ 6 |         #expect(!LifecyclePolicy.terminateAfterLastWindowClosed)
+ 7 |     }
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/LifecyclePolicyTests.swift:12:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+10 |     /// 會把值捕捉進一個 `$0` 不可變的閉包，編譯錯誤是
+11 |     /// 「cannot use mutating member on immutable value」。先呼叫、再斷言回傳值。
+12 |     @Test func onlySuspendedSessionResumes() {
+   |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+13 |         var policy = LifecyclePolicy()
+14 |         var resumed = policy.consumeResume()
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/MirrorCoordinatorTests.swift:11:2: warning: 'Suite' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+ 9 | /// 補完那道縫之後才有辦法對它寫斷言。
+10 | @MainActor
+11 | @Suite struct MirrorCoordinatorTests {
+   |  `- warning: 'Suite' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+12 |     /// D6：無 profile 時滑鼠退回直接 tap（spec §7 驗收 4，P1-a 不回歸的核心保證），
+13 |     /// 而那條路徑的 down/up 同樣不得對調——對調就是 guest 的手指永遠按著。
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/MirrorCoordinatorTests.swift:14:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+12 |     /// D6：無 profile 時滑鼠退回直接 tap（spec §7 驗收 4，P1-a 不回歸的核心保證），
+13 |     /// 而那條路徑的 down/up 同樣不得對調——對調就是 guest 的手指永遠按著。
+14 |     @Test(.timeLimit(.minutes(1)))
+   |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+15 |     func tapsReachGuestInPressOrder() async {
+16 |         let probe = OrderProbe { $0.hasSuffix("down") ? .milliseconds(60) : .milliseconds(10) }
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/MirrorCoordinatorTests.swift:29:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+27 |     /// 使用者在編輯器裡拖鍵位，等於在遊戲畫面上亂點。這是階段 B 拖曳功能的前置條件：
+28 |     /// 不先修掉，拖曳一上線就是在髒環境上開發。
+29 |     @Test(.timeLimit(.minutes(1)))
+   |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+30 |     func editingModeSendsNoTapEvenWithoutProfile() async {
+31 |         let probe = OrderProbe { _ in .zero }
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/MirrorCoordinatorTests.swift:51:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+49 |     /// `app/Tests` 裡零涵蓋的不變式——`isEditing` guard 的正確性正好建立在它之上，
+50 |     /// 補的位置也緊挨著它，一起補齊才算把 D22 這個函式的兩道 guard 都驗過。
+51 |     @Test(.timeLimit(.minutes(1)))
+   |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+52 |     func hasProfileSendsNoTapWhenNotEditing() async {
+53 |         let probe = OrderProbe { _ in .zero }
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/MirrorCoordinatorTests.swift:14:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+12 |     /// D6：無 profile 時滑鼠退回直接 tap（spec §7 驗收 4，P1-a 不回歸的核心保證），
+13 |     /// 而那條路徑的 down/up 同樣不得對調——對調就是 guest 的手指永遠按著。
+14 |     @Test(.timeLimit(.minutes(1)))
+   |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+15 |     func tapsReachGuestInPressOrder() async {
+16 |         let probe = OrderProbe { $0.hasSuffix("down") ? .milliseconds(60) : .milliseconds(10) }
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/MirrorCoordinatorTests.swift:29:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+27 |     /// 使用者在編輯器裡拖鍵位，等於在遊戲畫面上亂點。這是階段 B 拖曳功能的前置條件：
+28 |     /// 不先修掉，拖曳一上線就是在髒環境上開發。
+29 |     @Test(.timeLimit(.minutes(1)))
+   |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+30 |     func editingModeSendsNoTapEvenWithoutProfile() async {
+31 |         let probe = OrderProbe { _ in .zero }
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/MirrorCoordinatorTests.swift:51:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+49 |     /// `app/Tests` 裡零涵蓋的不變式——`isEditing` guard 的正確性正好建立在它之上，
+50 |     /// 補的位置也緊挨著它，一起補齊才算把 D22 這個函式的兩道 guard 都驗過。
+51 |     @Test(.timeLimit(.minutes(1)))
+   |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+52 |     func hasProfileSendsNoTapWhenNotEditing() async {
+53 |         let probe = OrderProbe { _ in .zero }
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/MirrorCoordinatorTests.swift:11:2: warning: 'Suite' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+ 9 | /// 補完那道縫之後才有辦法對它寫斷言。
+10 | @MainActor
+11 | @Suite struct MirrorCoordinatorTests {
+   |  `- warning: 'Suite' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+12 |     /// D6：無 profile 時滑鼠退回直接 tap（spec §7 驗收 4，P1-a 不回歸的核心保證），
+13 |     /// 而那條路徑的 down/up 同樣不得對調——對調就是 guest 的手指永遠按著。
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/MirrorMouseReleaseTests.swift:16:2: warning: 'Suite' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+14 | /// 後果與 D6 同一族：guest 端留著一根永遠按著的手指，而且不會自癒。
+15 | @MainActor
+16 | @Suite struct MirrorMouseReleaseTests {
+   |  `- warning: 'Suite' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+17 |     /// 把 view 裝進真視窗——`convert(_:from: nil)` 是「從視窗座標換算」，沒有視窗就沒有
+18 |     /// 可信的換算基準。視窗用 `.borderless` 且不 `makeKeyAndOrderFront`，headless 下不顯示。
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/MirrorMouseReleaseTests.swift:37:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+35 | 
+36 |     /// 界內按下、**界外**放開：up 一定要送出去。
+37 |     @Test func releaseOutsideBoundsStillSendsMouseUp() throws {
+   |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+38 |         let (view, window) = makeView(width: 100, height: 200)
+39 |         var events: [(Double, Double, Bool)] = []
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/MirrorMouseReleaseTests.swift:51:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+49 |     /// 界外的座標要**夾住**而不是丟棄：夾出來的點必須仍是合法的正規化座標，
+50 |     /// 否則送出去的是越界座標，比不送更糟（畫面有反應但點在錯的地方）。
+51 |     @Test func releaseOutsideBoundsIsClampedIntoRange() throws {
+   |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+52 |         let (view, window) = makeView(width: 100, height: 200)
+53 |         var events: [(Double, Double, Bool)] = []
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/MirrorMouseReleaseTests.swift:67:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+65 |     /// 拖曳途中離開界外不該讓觸點「消失」——真實觸控螢幕上手指不會離開螢幕，
+66 |     /// 夾在邊緣是最接近的類比。丟棄的話 guest 端會停在最後一個界內位置。
+67 |     @Test func dragOutsideBoundsKeepsTrackingAtTheEdge() throws {
+   |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+68 |         let (view, window) = makeView(width: 100, height: 200)
+69 |         var events: [(Double, Double, Bool)] = []
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/MirrorMouseReleaseTests.swift:37:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+35 | 
+36 |     /// 界內按下、**界外**放開：up 一定要送出去。
+37 |     @Test func releaseOutsideBoundsStillSendsMouseUp() throws {
+   |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+38 |         let (view, window) = makeView(width: 100, height: 200)
+39 |         var events: [(Double, Double, Bool)] = []
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/MirrorMouseReleaseTests.swift:51:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+49 |     /// 界外的座標要**夾住**而不是丟棄：夾出來的點必須仍是合法的正規化座標，
+50 |     /// 否則送出去的是越界座標，比不送更糟（畫面有反應但點在錯的地方）。
+51 |     @Test func releaseOutsideBoundsIsClampedIntoRange() throws {
+   |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+52 |         let (view, window) = makeView(width: 100, height: 200)
+53 |         var events: [(Double, Double, Bool)] = []
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/MirrorMouseReleaseTests.swift:67:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+65 |     /// 拖曳途中離開界外不該讓觸點「消失」——真實觸控螢幕上手指不會離開螢幕，
+66 |     /// 夾在邊緣是最接近的類比。丟棄的話 guest 端會停在最後一個界內位置。
+67 |     @Test func dragOutsideBoundsKeepsTrackingAtTheEdge() throws {
+   |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+68 |         let (view, window) = makeView(width: 100, height: 200)
+69 |         var events: [(Double, Double, Bool)] = []
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/MirrorMouseReleaseTests.swift:16:2: warning: 'Suite' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+14 | /// 後果與 D6 同一族：guest 端留著一根永遠按著的手指，而且不會自癒。
+15 | @MainActor
+16 | @Suite struct MirrorMouseReleaseTests {
+   |  `- warning: 'Suite' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+17 |     /// 把 view 裝進真視窗——`convert(_:from: nil)` 是「從視窗座標換算」，沒有視窗就沒有
+18 |     /// 可信的換算基準。視窗用 `.borderless` 且不 `makeKeyAndOrderFront`，headless 下不顯示。
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/MirrorTextInputRoutingTests.swift:6:13: warning: 'Suite' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+  4 | @testable import MirageShell
+  5 | 
+  6 | @MainActor @Suite struct MirrorTextInputRoutingTests {
+    |             `- warning: 'Suite' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+  7 |     func event(_ type: NSEvent.EventType, code: UInt16 = 0, chars: String = "a") throws -> NSEvent {
+  8 |         try #require(NSEvent.keyEvent(with: type, location: .zero, modifierFlags: [], timestamp: 0,
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/MirrorTextInputRoutingTests.swift:12:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+ 10 |                                      charactersIgnoringModifiers: chars, isARepeat: false, keyCode: code))
+ 11 |     }
+ 12 |     @Test func textEventsAreInterpretedOnceWithoutGuestKeys() throws {
+    |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+ 13 |         let view = MirrorMTKView(frame: NSRect(x: 0, y: 0, width: 300, height: 500))
+ 14 |         var interpreted = 0
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/MirrorTextInputRoutingTests.swift:23:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+ 21 |         #expect(keys.isEmpty)
+ 22 |     }
+ 23 |     @Test func keyUpUsesOriginalCodeDespiteLayoutChange() throws {
+    |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+ 24 |         let view = MirrorMTKView(frame: .zero)
+ 25 |         view.textMode = false
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/MirrorTextInputRoutingTests.swift:12:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+ 10 |                                      charactersIgnoringModifiers: chars, isARepeat: false, keyCode: code))
+ 11 |     }
+ 12 |     @Test func textEventsAreInterpretedOnceWithoutGuestKeys() throws {
+    |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+ 13 |         let view = MirrorMTKView(frame: NSRect(x: 0, y: 0, width: 300, height: 500))
+ 14 |         var interpreted = 0
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/MirrorTextInputRoutingTests.swift:23:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+ 21 |         #expect(keys.isEmpty)
+ 22 |     }
+ 23 |     @Test func keyUpUsesOriginalCodeDespiteLayoutChange() throws {
+    |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+ 24 |         let view = MirrorMTKView(frame: .zero)
+ 25 |         view.textMode = false
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/MirrorTextInputRoutingTests.swift:6:13: warning: 'Suite' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+  4 | @testable import MirageShell
+  5 | 
+  6 | @MainActor @Suite struct MirrorTextInputRoutingTests {
+    |             `- warning: 'Suite' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+  7 |     func event(_ type: NSEvent.EventType, code: UInt16 = 0, chars: String = "a") throws -> NSEvent {
+  8 |         try #require(NSEvent.keyEvent(with: type, location: .zero, modifierFlags: [], timestamp: 0,
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/MirrorTextInputRoutingTests.swift:45:13: warning: 'Suite' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+ 43 | }
+ 44 | 
+ 45 | @MainActor @Suite struct TextInputModeTests {
+    |             `- warning: 'Suite' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+ 46 |     @Test func defaultsAndExplicitMode() {
+ 47 |         let state = TextInputPresentation(queue: InputQueue(injector: IMEShellTransport()))
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/MirrorTextInputRoutingTests.swift:46:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+ 44 | 
+ 45 | @MainActor @Suite struct TextInputModeTests {
+ 46 |     @Test func defaultsAndExplicitMode() {
+    |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+ 47 |         let state = TextInputPresentation(queue: InputQueue(injector: IMEShellTransport()))
+ 48 |         #expect(state.usesText(hasProfile: false))
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/MirrorTextInputRoutingTests.swift:55:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+ 53 |         #expect(!state.usesText(hasProfile: false))
+ 54 |     }
+ 55 |     @Test func markedReturnEscapeFlagsAndLateCallbacksDoNotLeak() throws {
+    |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+ 56 |         let view = MirrorMTKView(frame: .zero)
+ 57 |         var keys = 0
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/MirrorTextInputRoutingTests.swift:76:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+ 74 |         #expect(flags == 0)
+ 75 |     }
+ 76 |     @Test func viewCommitGoesThroughOnePasteAndPolicyRejectRetainsDraft() async throws {
+    |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+ 77 |         let transport = IMEShellTransport()
+ 78 |         let queue = InputQueue(injector: transport)
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/MirrorTextInputRoutingTests.swift:46:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+ 44 | 
+ 45 | @MainActor @Suite struct TextInputModeTests {
+ 46 |     @Test func defaultsAndExplicitMode() {
+    |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+ 47 |         let state = TextInputPresentation(queue: InputQueue(injector: IMEShellTransport()))
+ 48 |         #expect(state.usesText(hasProfile: false))
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/MirrorTextInputRoutingTests.swift:55:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+ 53 |         #expect(!state.usesText(hasProfile: false))
+ 54 |     }
+ 55 |     @Test func markedReturnEscapeFlagsAndLateCallbacksDoNotLeak() throws {
+    |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+ 56 |         let view = MirrorMTKView(frame: .zero)
+ 57 |         var keys = 0
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/MirrorTextInputRoutingTests.swift:76:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+ 74 |         #expect(flags == 0)
+ 75 |     }
+ 76 |     @Test func viewCommitGoesThroughOnePasteAndPolicyRejectRetainsDraft() async throws {
+    |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+ 77 |         let transport = IMEShellTransport()
+ 78 |         let queue = InputQueue(injector: transport)
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/MirrorTextInputRoutingTests.swift:45:13: warning: 'Suite' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+ 43 | }
+ 44 | 
+ 45 | @MainActor @Suite struct TextInputModeTests {
+    |             `- warning: 'Suite' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+ 46 |     @Test func defaultsAndExplicitMode() {
+ 47 |         let state = TextInputPresentation(queue: InputQueue(injector: IMEShellTransport()))
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/MirrorTextInputRoutingTests.swift:103:13: warning: 'Suite' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+101 | }
+102 | 
+103 | @MainActor @Suite struct TextSubmissionStatusTests {
+    |             `- warning: 'Suite' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+104 |     @Test func unknownIsNotSuccessAndResumeDoesNotReplay() async {
+105 |         let transport = IMEShellTransport()
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/MirrorTextInputRoutingTests.swift:104:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+102 | 
+103 | @MainActor @Suite struct TextSubmissionStatusTests {
+104 |     @Test func unknownIsNotSuccessAndResumeDoesNotReplay() async {
+    |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+105 |         let transport = IMEShellTransport()
+106 |         let state = TextInputPresentation(queue: InputQueue(injector: transport))
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/MirrorTextInputRoutingTests.swift:104:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+102 | 
+103 | @MainActor @Suite struct TextSubmissionStatusTests {
+104 |     @Test func unknownIsNotSuccessAndResumeDoesNotReplay() async {
+    |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+105 |         let transport = IMEShellTransport()
+106 |         let state = TextInputPresentation(queue: InputQueue(injector: transport))
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/MirrorTextInputRoutingTests.swift:103:13: warning: 'Suite' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+101 | }
+102 | 
+103 | @MainActor @Suite struct TextSubmissionStatusTests {
+    |             `- warning: 'Suite' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+104 |     @Test func unknownIsNotSuccessAndResumeDoesNotReplay() async {
+105 |         let transport = IMEShellTransport()
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/ShellSmokeTests.swift:11:2: warning: 'Suite' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+  9 | /// 不是補齊測試覆蓋（那是另一輪）。三個測項刻意挑不同性質的目標：AppKit view 佈局、
+ 10 | /// 碰 AVFoundation 的型別、純值型別。
+ 11 | @Suite struct ShellSmokeTests {
+    |  `- warning: 'Suite' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+ 12 |     /// 最有價值的一條：直接驗證 P1-e 全螢幕的核心前提——容器確實把 `MirrorMTKView`
+ 13 |     /// 擺在 `ViewportFit` 算出的內容矩形上。這條先前只能靠讀碼相信。
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/ShellSmokeTests.swift:16:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+ 14 |     /// `NSView.layout()` 不需要視窗，headless 可跑。
+ 15 |     @MainActor
+ 16 |     @Test func containerLetterboxesMirrorIntoFitRect() {
+    |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+ 17 |         let container = MirrorContainerView(frame: NSRect(x: 0, y: 0, width: 1000, height: 1000))
+ 18 |         container.frameSize = (w: 1920, h: 1080)      // 橫向幀塞進正方形 bounds → 上下黑邊
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/ShellSmokeTests.swift:31:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+ 29 |     /// 證明碰 AVFoundation 的型別也在可測範圍內（不啟動 engine，只驗狀態切換）。
+ 30 |     @MainActor
+ 31 |     @Test func audioPlayerMuteTogglesState() {
+    |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+ 32 |         let player = AudioPlayer(ring: AudioRingBuffer(capacitySamples: 64))
+ 33 |         #expect(!player.isMuted)
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/ShellSmokeTests.swift:56:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+ 54 |     /// 那是既有且刻意的降級路徑，不該讓這條測試變成環境相依。
+ 55 |     @MainActor
+ 56 |     @Test func audioPlayerStartReturnsWithoutTrapping() {
+    |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+ 57 |         let player = AudioPlayer(ring: AudioRingBuffer(capacitySamples: 4_096))
+ 58 |         player.start()
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/ShellSmokeTests.swift:88:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+ 86 |     /// 單獨跑：`MIRAGE_LIVE_METAL=1 swift test --filter rendersAnySource`。
+ 87 |     @MainActor
+ 88 |     @Test(.enabled(if: ProcessInfo.processInfo.environment["MIRAGE_LIVE_METAL"] == "1",
+    |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+ 89 |                    "需 MIRAGE_LIVE_METAL=1——見上方說明"))
+ 90 |     func rendersAnySourceSizeIntoAnyTargetSize() async throws {
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/ShellSmokeTests.swift:132:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+130 |     /// 純值型別，證明最基本的 import 路徑通（`InstallItem` 內含 MirageCore 的 `InstallResult`，
+131 |     /// 順帶驗證兩個 module 的型別可以在測試裡一起用）。
+132 |     @Test func installStateFinishedCarriesItems() {
+    |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+133 |         let state = InstallState.finished([
+134 |             InstallItem(name: "ok.apk", result: .success),
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/ShellSmokeTests.swift:16:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+ 14 |     /// `NSView.layout()` 不需要視窗，headless 可跑。
+ 15 |     @MainActor
+ 16 |     @Test func containerLetterboxesMirrorIntoFitRect() {
+    |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+ 17 |         let container = MirrorContainerView(frame: NSRect(x: 0, y: 0, width: 1000, height: 1000))
+ 18 |         container.frameSize = (w: 1920, h: 1080)      // 橫向幀塞進正方形 bounds → 上下黑邊
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/ShellSmokeTests.swift:31:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+ 29 |     /// 證明碰 AVFoundation 的型別也在可測範圍內（不啟動 engine，只驗狀態切換）。
+ 30 |     @MainActor
+ 31 |     @Test func audioPlayerMuteTogglesState() {
+    |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+ 32 |         let player = AudioPlayer(ring: AudioRingBuffer(capacitySamples: 64))
+ 33 |         #expect(!player.isMuted)
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/ShellSmokeTests.swift:56:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+ 54 |     /// 那是既有且刻意的降級路徑，不該讓這條測試變成環境相依。
+ 55 |     @MainActor
+ 56 |     @Test func audioPlayerStartReturnsWithoutTrapping() {
+    |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+ 57 |         let player = AudioPlayer(ring: AudioRingBuffer(capacitySamples: 4_096))
+ 58 |         player.start()
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/ShellSmokeTests.swift:88:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+ 86 |     /// 單獨跑：`MIRAGE_LIVE_METAL=1 swift test --filter rendersAnySource`。
+ 87 |     @MainActor
+ 88 |     @Test(.enabled(if: ProcessInfo.processInfo.environment["MIRAGE_LIVE_METAL"] == "1",
+    |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+ 89 |                    "需 MIRAGE_LIVE_METAL=1——見上方說明"))
+ 90 |     func rendersAnySourceSizeIntoAnyTargetSize() async throws {
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/ShellSmokeTests.swift:132:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+130 |     /// 純值型別，證明最基本的 import 路徑通（`InstallItem` 內含 MirageCore 的 `InstallResult`，
+131 |     /// 順帶驗證兩個 module 的型別可以在測試裡一起用）。
+132 |     @Test func installStateFinishedCarriesItems() {
+    |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+133 |         let state = InstallState.finished([
+134 |             InstallItem(name: "ok.apk", result: .success),
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/ShellSmokeTests.swift:11:2: warning: 'Suite' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+  9 | /// 不是補齊測試覆蓋（那是另一輪）。三個測項刻意挑不同性質的目標：AppKit view 佈局、
+ 10 | /// 碰 AVFoundation 的型別、純值型別。
+ 11 | @Suite struct ShellSmokeTests {
+    |  `- warning: 'Suite' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+ 12 |     /// 最有價值的一條：直接驗證 P1-e 全螢幕的核心前提——容器確實把 `MirrorMTKView`
+ 13 |     /// 擺在 `ViewportFit` 算出的內容矩形上。這條先前只能靠讀碼相信。
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/TextInputGeometryTests.swift:6:13: warning: 'Suite' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+ 4 | @testable import MirageShell
+ 5 | 
+ 6 | @MainActor @Suite(.serialized) struct TextInputGeometryTests {
+   |             `- warning: 'Suite' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+ 7 |     @Test func negativeScreenOriginAndInsertionRange() throws {
+ 8 |         _ = NSApplication.shared
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/TextInputGeometryTests.swift:7:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+ 5 | 
+ 6 | @MainActor @Suite(.serialized) struct TextInputGeometryTests {
+ 7 |     @Test func negativeScreenOriginAndInsertionRange() throws {
+   |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+ 8 |         _ = NSApplication.shared
+ 9 |         let window = NSWindow(contentRect: NSRect(x: -700, y: -250, width: 240, height: 400), styleMask: [.borderless], backing: .buffered, defer: false)
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/TextInputGeometryTests.swift:23:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+21 |         #expect(mirror.markedOverlay.superview === mirror)
+22 |     }
+23 |     @Test func realWindowConversionsAfterMoveAndResize() throws {
+   |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+24 |         _ = NSApplication.shared
+25 |         let window = NSWindow(contentRect: NSRect(x: 100, y: 120, width: 360, height: 600), styleMask: [.titled, .resizable], backing: .buffered, defer: false)
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/TextInputGeometryTests.swift:7:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+ 5 | 
+ 6 | @MainActor @Suite(.serialized) struct TextInputGeometryTests {
+ 7 |     @Test func negativeScreenOriginAndInsertionRange() throws {
+   |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+ 8 |         _ = NSApplication.shared
+ 9 |         let window = NSWindow(contentRect: NSRect(x: -700, y: -250, width: 240, height: 400), styleMask: [.borderless], backing: .buffered, defer: false)
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/TextInputGeometryTests.swift:23:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+21 |         #expect(mirror.markedOverlay.superview === mirror)
+22 |     }
+23 |     @Test func realWindowConversionsAfterMoveAndResize() throws {
+   |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+24 |         _ = NSApplication.shared
+25 |         let window = NSWindow(contentRect: NSRect(x: 100, y: 120, width: 360, height: 600), styleMask: [.titled, .resizable], backing: .buffered, defer: false)
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/TextInputGeometryTests.swift:6:13: warning: 'Suite' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+ 4 | @testable import MirageShell
+ 5 | 
+ 6 | @MainActor @Suite(.serialized) struct TextInputGeometryTests {
+   |             `- warning: 'Suite' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+ 7 |     @Test func negativeScreenOriginAndInsertionRange() throws {
+ 8 |         _ = NSApplication.shared
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/TextSessionRoutingTests.swift:11:13: warning: 'Suite' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+ 9 | }
+10 | 
+11 | @MainActor @Suite struct TextSessionRoutingTests {
+   |             `- warning: 'Suite' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+12 |     @Test func modeReloadAndFocusInvalidateTextBeforeRelease() {
+13 |         let queue = InputQueue(injector: TextSessionNoopInjector())
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/TextSessionRoutingTests.swift:12:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+10 | 
+11 | @MainActor @Suite struct TextSessionRoutingTests {
+12 |     @Test func modeReloadAndFocusInvalidateTextBeforeRelease() {
+   |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+13 |         let queue = InputQueue(injector: TextSessionNoopInjector())
+14 |         let controller = KeymapController(queue: queue, profile: nil)
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/TextSessionRoutingTests.swift:12:6: warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+10 | 
+11 | @MainActor @Suite struct TextSessionRoutingTests {
+12 |     @Test func modeReloadAndFocusInvalidateTextBeforeRelease() {
+   |      `- warning: 'Test' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+13 |         let queue = InputQueue(injector: TextSessionNoopInjector())
+14 |         let controller = KeymapController(queue: queue, profile: nil)
+
+/Users/hanfourhuang/Projects/mirage/app/Tests/MirageShellTests/TextSessionRoutingTests.swift:11:13: warning: 'Suite' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+ 9 | }
+10 | 
+11 | @MainActor @Suite struct TextSessionRoutingTests {
+   |             `- warning: 'Suite' is deprecated: Swift Testing is now included in the Swift 6 toolchain. Remove your 'swift-testing' package dependency to silence this warning. [#DeprecatedDeclaration]
+12 |     @Test func modeReloadAndFocusInvalidateTextBeforeRelease() {
+13 |         let queue = InputQueue(injector: TextSessionNoopInjector())
+
+[#DeprecatedDeclaration]: <https://docs.swift.org/compiler/documentation/diagnostics/deprecated-declaration>
+[102/104] Write Objects.LinkFileList
+[103/104] Linking MiragePackageTests
+Build complete! (18.13s)
+◇ Test run started.
+↳ Testing Library Version: 0.99.0
+◇ Suite HostIMEAcceptanceTests started.
+◇ Test settingsDisplayActualQueuePolicy() started.
+✘ Test settingsDisplayActualQueuePolicy() recorded an issue at HostIMEAcceptanceTests.swift:117:9: Expectation failed: (state.settle → "250") == "137"
+✘ Test settingsDisplayActualQueuePolicy() failed after 0.001 seconds with 1 issue.
+✘ Suite HostIMEAcceptanceTests failed after 0.003 seconds with 1 issue.
+✘ Test run with 1 test failed after 0.003 seconds with 1 issue.

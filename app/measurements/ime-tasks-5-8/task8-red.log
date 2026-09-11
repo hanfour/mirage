@@ -1,0 +1,149 @@
+FFFFFFFFFFFFFFFFFF.
+======================================================================
+FAIL: test_false_positives_rejected (__main__.AcceptanceTests.test_false_positives_rejected) (mutation=0)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/hanfourhuang/Projects/mirage/app/scripts/lib/host_ime_acceptance_test.py", line 54, in test_false_positives_rejected
+    self.assertNotEqual(evaluate(c, s, e)["status"], "PASS")
+AssertionError: 'PASS' == 'PASS'
+
+======================================================================
+FAIL: test_false_positives_rejected (__main__.AcceptanceTests.test_false_positives_rejected) (mutation=1)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/hanfourhuang/Projects/mirage/app/scripts/lib/host_ime_acceptance_test.py", line 54, in test_false_positives_rejected
+    self.assertNotEqual(evaluate(c, s, e)["status"], "PASS")
+AssertionError: 'PASS' == 'PASS'
+
+======================================================================
+FAIL: test_false_positives_rejected (__main__.AcceptanceTests.test_false_positives_rejected) (mutation=2)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/hanfourhuang/Projects/mirage/app/scripts/lib/host_ime_acceptance_test.py", line 54, in test_false_positives_rejected
+    self.assertNotEqual(evaluate(c, s, e)["status"], "PASS")
+AssertionError: 'PASS' == 'PASS'
+
+======================================================================
+FAIL: test_false_positives_rejected (__main__.AcceptanceTests.test_false_positives_rejected) (mutation=3)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/hanfourhuang/Projects/mirage/app/scripts/lib/host_ime_acceptance_test.py", line 54, in test_false_positives_rejected
+    self.assertNotEqual(evaluate(c, s, e)["status"], "PASS")
+AssertionError: 'PASS' == 'PASS'
+
+======================================================================
+FAIL: test_false_positives_rejected (__main__.AcceptanceTests.test_false_positives_rejected) (mutation=4)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/hanfourhuang/Projects/mirage/app/scripts/lib/host_ime_acceptance_test.py", line 54, in test_false_positives_rejected
+    self.assertNotEqual(evaluate(c, s, e)["status"], "PASS")
+AssertionError: 'PASS' == 'PASS'
+
+======================================================================
+FAIL: test_false_positives_rejected (__main__.AcceptanceTests.test_false_positives_rejected) (mutation=5)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/hanfourhuang/Projects/mirage/app/scripts/lib/host_ime_acceptance_test.py", line 54, in test_false_positives_rejected
+    self.assertNotEqual(evaluate(c, s, e)["status"], "PASS")
+AssertionError: 'PASS' == 'PASS'
+
+======================================================================
+FAIL: test_false_positives_rejected (__main__.AcceptanceTests.test_false_positives_rejected) (mutation=6)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/hanfourhuang/Projects/mirage/app/scripts/lib/host_ime_acceptance_test.py", line 54, in test_false_positives_rejected
+    self.assertNotEqual(evaluate(c, s, e)["status"], "PASS")
+AssertionError: 'PASS' == 'PASS'
+
+======================================================================
+FAIL: test_false_positives_rejected (__main__.AcceptanceTests.test_false_positives_rejected) (mutation=7)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/hanfourhuang/Projects/mirage/app/scripts/lib/host_ime_acceptance_test.py", line 54, in test_false_positives_rejected
+    self.assertNotEqual(evaluate(c, s, e)["status"], "PASS")
+AssertionError: 'PASS' == 'PASS'
+
+======================================================================
+FAIL: test_false_positives_rejected (__main__.AcceptanceTests.test_false_positives_rejected) (mutation=8)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/hanfourhuang/Projects/mirage/app/scripts/lib/host_ime_acceptance_test.py", line 54, in test_false_positives_rejected
+    self.assertNotEqual(evaluate(c, s, e)["status"], "PASS")
+AssertionError: 'PASS' == 'PASS'
+
+======================================================================
+FAIL: test_false_positives_rejected (__main__.AcceptanceTests.test_false_positives_rejected) (mutation=9)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/hanfourhuang/Projects/mirage/app/scripts/lib/host_ime_acceptance_test.py", line 54, in test_false_positives_rejected
+    self.assertNotEqual(evaluate(c, s, e)["status"], "PASS")
+AssertionError: 'PASS' == 'PASS'
+
+======================================================================
+FAIL: test_false_positives_rejected (__main__.AcceptanceTests.test_false_positives_rejected) (mutation=10)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/hanfourhuang/Projects/mirage/app/scripts/lib/host_ime_acceptance_test.py", line 54, in test_false_positives_rejected
+    self.assertNotEqual(evaluate(c, s, e)["status"], "PASS")
+AssertionError: 'PASS' == 'PASS'
+
+======================================================================
+FAIL: test_false_positives_rejected (__main__.AcceptanceTests.test_false_positives_rejected) (mutation=11)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/hanfourhuang/Projects/mirage/app/scripts/lib/host_ime_acceptance_test.py", line 54, in test_false_positives_rejected
+    self.assertNotEqual(evaluate(c, s, e)["status"], "PASS")
+AssertionError: 'PASS' == 'PASS'
+
+======================================================================
+FAIL: test_false_positives_rejected (__main__.AcceptanceTests.test_false_positives_rejected) (mutation=12)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/hanfourhuang/Projects/mirage/app/scripts/lib/host_ime_acceptance_test.py", line 54, in test_false_positives_rejected
+    self.assertNotEqual(evaluate(c, s, e)["status"], "PASS")
+AssertionError: 'PASS' == 'PASS'
+
+======================================================================
+FAIL: test_false_positives_rejected (__main__.AcceptanceTests.test_false_positives_rejected) (mutation=13)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/hanfourhuang/Projects/mirage/app/scripts/lib/host_ime_acceptance_test.py", line 54, in test_false_positives_rejected
+    self.assertNotEqual(evaluate(c, s, e)["status"], "PASS")
+AssertionError: 'PASS' == 'PASS'
+
+======================================================================
+FAIL: test_false_positives_rejected (__main__.AcceptanceTests.test_false_positives_rejected) (mutation=14)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/hanfourhuang/Projects/mirage/app/scripts/lib/host_ime_acceptance_test.py", line 54, in test_false_positives_rejected
+    self.assertNotEqual(evaluate(c, s, e)["status"], "PASS")
+AssertionError: 'PASS' == 'PASS'
+
+======================================================================
+FAIL: test_false_positives_rejected (__main__.AcceptanceTests.test_false_positives_rejected) (mutation=15)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/hanfourhuang/Projects/mirage/app/scripts/lib/host_ime_acceptance_test.py", line 54, in test_false_positives_rejected
+    self.assertNotEqual(evaluate(c, s, e)["status"], "PASS")
+AssertionError: 'PASS' == 'PASS'
+
+======================================================================
+FAIL: test_false_positives_rejected (__main__.AcceptanceTests.test_false_positives_rejected) (mutation=16)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/hanfourhuang/Projects/mirage/app/scripts/lib/host_ime_acceptance_test.py", line 54, in test_false_positives_rejected
+    self.assertNotEqual(evaluate(c, s, e)["status"], "PASS")
+AssertionError: 'PASS' == 'PASS'
+
+======================================================================
+FAIL: test_nfc_nfd_and_order_are_not_equivalent (__main__.AcceptanceTests.test_nfc_nfd_and_order_are_not_equivalent)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/hanfourhuang/Projects/mirage/app/scripts/lib/host_ime_acceptance_test.py", line 59, in test_nfc_nfd_and_order_are_not_equivalent
+    self.assertNotEqual(evaluate(c, s, e)["status"], "PASS")
+AssertionError: 'PASS' == 'PASS'
+
+----------------------------------------------------------------------
+Ran 3 tests in 0.015s
+
+FAILED (failures=18)

@@ -259,14 +259,17 @@ Modify `MirrorContainerView.swift`／client firstRect；Test `CompositionAnchorT
 
 ### Task 8：真 Mac IME→LINE、失敗行為、文件與最終 CI
 
+**依使用者最新指示拆分：自動化半部完成；Step 3、4、6 及 Task 7 系統候選窗由人按實體鍵驗收。**
+人工操作與精確欄位命令見 `../testing/2026-09-11-host-ime-human-checklist.md`。
+
 **Files:** Create `verify_host_ime.sh`／證據解析測試 `HostIMEAcceptanceTests.swift`；
 擴充 opt-in Shell/GUI 測試，更新 app README、設計狀態、RESULTS 與 measurements。
 
-- [ ] **Step 1 — RED：** 先做驗收器失敗 fixture：clipboard 正確但欄位錯、同值掩蓋異字錯序、
+- [x] **Step 1 — RED：** 先做驗收器失敗 fixture：clipboard 正確但欄位錯、同值掩蓋異字錯序、
   組字鍵漏入、commit 兩次、候選選字 Enter 變送出、原草稿被清空、只有 RPC OK 沒欄位證據，
   均應回 FAIL／invalid。拿舊版缺 IME 的真 view 作基準或撤掉 interpret 的隔離變體，
   必須能被測到；不在真聊天裡注入會發送訊息的負對照。
-- [ ] **Step 2 — 確認紅：** `(cd app && swift test --filter HostIMEAcceptanceTests)`；
+- [x] **Step 2 — 確認紅：** `(cd app && swift test --filter HostIMEAcceptanceTests)`；
   驗收腳本對以上 fixture 非零退出，不能用沒有記錄／沒有測試直接成功。
 - [ ] **Step 3 — 真 IME 正向：** 使用 Apple 注音與拼音的實際實體鍵序列，先普通 EditText、
   再 LINE 授權草稿。組字／候選更改期間 guest 原文不變；確定後整串恰好一次。
@@ -277,7 +280,7 @@ Modify `MirrorContainerView.swift`／client firstRect；Test `CompositionAnchorT
 - [ ] **Step 4 — 位置與 burst 回歸：** 重跑 Task 4 中間插入與選取替換，這次文字從真 IME
   確定進 Task 3；確認前後綴保留。六種字串、異字 20 筆、同字計次、Mac 中英切換、
   Android IME 配置分列；採用的 settle 值與實際間距必須保存，值變了便不沿用舊驗收章。
-- [ ] **Step 5 — 已知失敗：** 在隔離測試 transport 注入回讀錯誤／Paste timeout／斷線，
+- [x] **Step 5 — 已知失敗：** 在隔離測試 transport 注入回讀錯誤／Paste timeout／斷線，
   從真 UI 確認字串保留、狀態非成功、後續文字暫停、無自動重送。另驗失焦、外部 clipboard、
   調整配置與使用者「暫停」入口。普通／LINE 欄位出現靜默 mismatch 就停止該配置驗收，
   不以 RPC 全綠覆蓋；不宣稱 runtime 能偵測所有內容錯誤。
@@ -285,11 +288,11 @@ Modify `MirrorContainerView.swift`／client firstRect；Test `CompositionAnchorT
   未發送、原草稿／測試前 clipboard 已清理還原；遊戲 keymap 與 Unity 既有數字案例不回歸。
   讀不到欄位可用 sentinel→guest Copy 的獨立證據，不可直接讀原提交 clipboard；
   無法觀察的案例如實 blocked／人工驗證，不得用一張候選窗照片代表端到端成功。
-- [ ] **Step 7 — task 完整測試：** `(cd app && swift test)` 全綠，完成 RESULTS（含失敗／
+- [x] **Step 7 — task 完整測試：** `(cd app && swift test)` 全綠，完成 RESULTS（含失敗／
   配置／未驗清單），不把 Task 4 或任一 live blocked 項藏在測試 skip 裡。
-- [ ] **Step 8 — 全部交付閘門：** `(cd app && ./scripts/ci.sh)`，依現行腳本確認離線端點、
+- [x] **Step 8 — 自動化交付閘門（人工部分仍未放行）：** `(cd app && ./scripts/ci.sh)`，依現行腳本確認離線端點、
   build-tests、預設三次完整 suite、NIO 與 fake-skip 等檢查全過。保留失敗 log，不降低
-  CI_RUNS 或刪測試換綠燈。全部 task 所需證據成立後，才作最終提交／交付說明。
+  CI_RUNS 或刪測試換綠燈。本輪提交僅涵蓋已完成自動化與待人工清單；不得把 Step 3、4、6 勾成完成。
 
 ## 完成紀錄格式
 

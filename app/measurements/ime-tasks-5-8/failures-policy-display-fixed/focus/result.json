@@ -1,0 +1,13 @@
+{
+  "autoReplay" : false,
+  "downsAfterFailure" : 2,
+  "downsAfterResume" : 2,
+  "fault" : "focus",
+  "humanIMEVerified" : false,
+  "kind" : "synthetic-view-and-transport-failure",
+  "label" : "可能已送出，結果不確定；請先核對欄位",
+  "note" : "1ms is a fake-transport test value, not a live policy",
+  "outcome" : "indeterminateAfterDispatch(MirageCore.TextCommitIssue.staleSession)",
+  "retainedText" : "保留é",
+  "settleMS" : 1
+}

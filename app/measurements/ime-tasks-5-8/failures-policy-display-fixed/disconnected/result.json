@@ -1,0 +1,13 @@
+{
+  "autoReplay" : false,
+  "downsAfterFailure" : 0,
+  "downsAfterResume" : 0,
+  "fault" : "disconnected",
+  "humanIMEVerified" : false,
+  "kind" : "synthetic-view-and-transport-failure",
+  "label" : "貼上前失敗（未送）",
+  "note" : "1ms is a fake-transport test value, not a live policy",
+  "outcome" : "failedBeforePaste(MirageCore.TextCommitIssue.transport(\"disconnected\"))",
+  "retainedText" : "保留é",
+  "settleMS" : 1
+}

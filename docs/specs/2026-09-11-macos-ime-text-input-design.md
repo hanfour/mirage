@@ -1,7 +1,7 @@
 # macOS 輸入法：本機組字與 guest 文字提交設計
 
 - 日期：2026-09-11
-- 狀態：**設計已核准；§7.1 通道與 burst 已有實測，位置／選取未驗，Mac IME UI 尚未實作**
+- 狀態：**Task 1–7 與 Task 8 自動化半部已實作；Swift 通道／位置有 Task 4 證據，真 Mac IME 與系統候選窗仍待人工**
 - 觸發：LINE 訊息框在 Mac 中文輸入法下打不出字；切成英文，反而可由 Android IME 組中文。
 - 相關：D2 鍵盤直通設計、D6 單一 InputQueue、D11／D23 失焦釋放、P1-b 剪貼簿橋接。
 
@@ -11,12 +11,12 @@
 只進入 guest 一次。組字中的字母、注音、選字用空白／方向／Enter／Escape，不應變成 Android
 的按鍵、返回動作或 LINE 的發送動作。英文、標點、刪除和遊戲鍵位操作不能因此壞掉。
 
-`MirrorMTKView` 現在直接在 `keyDown/keyUp` 呼叫 `KeyTranslate`，再經 `KeymapController`
+初稿時 `MirrorMTKView` 直接在 `keyDown/keyUp` 呼叫 `KeyTranslate`，再經 `KeymapController`
 送出 W3C key；沒有 `NSTextInputClient`、本機組字儲存或 `interpretKeyEvents`。
 這足以確認**本機 IME 接線缺失**，但使用者描述的各層吞鍵順序與 LINE 的實際接收能力，
 仍要用事件追蹤與欄位證據確認，不能把原因假設寫成已量到的事實。
 
-初稿只新增本設計文件；以下產品 API、開關與 IME UI 均為擬議項目。
+初稿只新增設計文件；以下保留設計脈絡。實作進度見 `../../app/RESULTS-ime-tasks-5-8.md`。
 2026-09-11 的通道實測與設計修正見 §10，不把通道測試當成 Mac IME 端到端已完成。
 
 ## 2. 文字要走哪條路
@@ -328,3 +328,16 @@ clipboard echo／外部變更競態。這些不是用單元測試綠燈就能消
   也未決定 runtime 是否引入 adb。UI 原生長按 Paste 選單未取得，手動退路仍未驗成。
 - 中間插入／選取替換的執行請求遭拒，未跑；完整 §7.1 不標全綠。
   逾時不自動重送、最終要讀欄位而非 clipboard 的兩條規則均保持。
+
+
+## 11. Task 5–8 實作回填（人工驗收尚未放行）
+
+NSTextInputClient、本機 UTF-16 組字、共享 clipboard Paste、可調政策／暫停／保留稿 UI 與
+marked 浮層已接入。文字模式 Return 一律不直送 Android；Cmd-V 可走同一交易，但不能
+用它取代 IME 驗收。候選錨點仍是點擊近似值，不是 Android caret API。
+
+Task 7 在實際 2× NSWindow 移動／縮放的 glyph 座標偏差為 0 point，只有本機浮層圖，
+**未驗真正系統候選窗**。Task 8 五種故障以合成 view 事件與隔離 transport 驗證，
+真 Apple 注音／拼音／字元檢視器及 LINE 端到端仍 pending-human。
+精確欄位工具不輸入、拒絕 clipboard 假通過及覆寫舊 FAIL；完整人工操作清單見
+`../testing/2026-09-11-host-ime-human-checklist.md`。

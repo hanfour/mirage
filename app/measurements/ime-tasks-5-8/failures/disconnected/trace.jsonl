@@ -1,0 +1,15 @@
+{"event":"diagnostics-start","physicalInputAuthenticated":"false","schema":"1","seq":1,"time":1789105010.9969101,"uptimeNS":963954942986375}
+{"event":"key-down","eventID":"046264F5-F202-4A29-876B-34A8A2E871D8","repeat":"false","route":"text","seq":2,"time":1789105010.998419,"uptimeNS":963954944494750,"virtualKey":"0","window":"0"}
+{"event":"interpret","eventID":"046264F5-F202-4A29-876B-34A8A2E871D8","seq":3,"time":1789105010.9984469,"uptimeNS":963954944523708}
+{"compositionID":"5CC8442A-FDC2-4A67-A538-E2CBF3A91E9A","event":"marked","eventID":"046264F5-F202-4A29-876B-34A8A2E871D8","seq":4,"textSHA256":"3b4a26f483ce722f4cce66335c605332042343247d080261b6ac0ff3974129ef","time":1789105010.998522,"uptimeNS":963954944598291,"utf16Length":"3"}
+{"commitID":"BFC84241-DC5F-431B-A3AD-DA8A09628611","compositionID":"5CC8442A-FDC2-4A67-A538-E2CBF3A91E9A","event":"commit-request","eventID":"046264F5-F202-4A29-876B-34A8A2E871D8","origin":"input-client","seq":5,"time":1789105010.998919,"uptimeNS":963954944995041}
+{"commitID":"BFC84241-DC5F-431B-A3AD-DA8A09628611","event":"commit-enqueued","generation":"0","route":"clipboard-w3c-paste","seq":6,"settleMS":"1","textSHA256":"3b4a26f483ce722f4cce66335c605332042343247d080261b6ac0ff3974129ef","time":1789105010.998991,"uptimeNS":963954945067166,"utf16Length":"3"}
+{"commitID":"BFC84241-DC5F-431B-A3AD-DA8A09628611","event":"phase","phase":"preparingClipboard","seq":7,"time":1789105010.9990392,"uptimeNS":963954945115583}
+{"commitID":"BFC84241-DC5F-431B-A3AD-DA8A09628611","event":"phase","phase":"finished","seq":8,"time":1789105010.9990768,"uptimeNS":963954945153541}
+{"commitID":"BFC84241-DC5F-431B-A3AD-DA8A09628611","event":"result","outcome":"failedBeforePaste(MirageCore.TextCommitIssue.transport(\"disconnected\"))","seq":9,"time":1789105010.999109,"uptimeNS":963954945185208}
+{"compositionID":"5CC8442A-FDC2-4A67-A538-E2CBF3A91E9A","event":"composition-cancel","seq":10,"time":1789105012.192158,"uptimeNS":963956138254083}
+{"event":"key-down","eventID":"0A3F52C0-8B47-43C3-BC33-84D5ECAD4470","repeat":"false","route":"text","seq":11,"time":1789105012.192276,"uptimeNS":963956138372291,"virtualKey":"0","window":"0"}
+{"event":"interpret","eventID":"0A3F52C0-8B47-43C3-BC33-84D5ECAD4470","seq":12,"time":1789105012.192302,"uptimeNS":963956138398375}
+{"compositionID":"305B0B12-BAEE-4600-9286-FEEE601FBBD2","event":"marked","eventID":"0A3F52C0-8B47-43C3-BC33-84D5ECAD4470","seq":13,"textSHA256":"3b4a26f483ce722f4cce66335c605332042343247d080261b6ac0ff3974129ef","time":1789105012.192385,"uptimeNS":963956138481041,"utf16Length":"3"}
+{"commitID":"F2F093A7-E96D-4C8D-876B-B9794EABE407","compositionID":"305B0B12-BAEE-4600-9286-FEEE601FBBD2","event":"commit-request","eventID":"0A3F52C0-8B47-43C3-BC33-84D5ECAD4470","origin":"input-client","seq":14,"time":1789105012.192615,"uptimeNS":963956138711583}
+{"commitID":"F2F093A7-E96D-4C8D-876B-B9794EABE407","event":"result","outcome":"rejected(MirageCore.TextCommitIssue.paused)","seq":15,"time":1789105012.1926541,"uptimeNS":963956138750250}

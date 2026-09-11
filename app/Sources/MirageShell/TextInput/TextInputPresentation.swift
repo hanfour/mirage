@@ -7,6 +7,7 @@ final class TextInputPresentation {
     var mode: Mode = .automatic
     var settle: String
     private(set) var policyError: String?
+    private(set) var appliedSettle = "拒絕提交"
     private(set) var results: [TextCommitResult] = []
     private(set) var paused = false
     var localDraft = ""
@@ -14,17 +15,33 @@ final class TextInputPresentation {
     let queue: InputQueue
     init(queue: InputQueue) {
         self.queue = queue
-        settle = ProcessInfo.processInfo.environment["MIRAGE_TEXT_SETTLE_MS"] ?? String(TextSubmissionPolicy.candidateSettleMilliseconds)
+        switch queue.textCoordinator.configuredPolicy {
+        case .success(let policy):
+            settle = Self.milliseconds(policy.settleDelay)
+            appliedSettle = settle
+        case .failure(let error):
+            settle = ProcessInfo.processInfo.environment["MIRAGE_TEXT_SETTLE_MS"] ?? ""
+            policyError = String(describing: error)
+        }
+    }
+    private static func milliseconds(_ value: Duration) -> String {
+        let parts = value.components
+        return String(parts.seconds * 1000 + parts.attoseconds / 1_000_000_000_000_000)
     }
     func usesText(hasProfile: Bool) -> Bool { mode == .text || (mode == .automatic && !hasProfile) }
     func applyPolicy() {
         let policy = TextSubmissionPolicy.configured(environment: ["MIRAGE_TEXT_SETTLE_MS": settle])
         queue.textCoordinator.setPolicy(policy)
-        if case .failure(let error) = policy { policyError = String(describing: error) }
-        else { policyError = nil }
+        switch policy {
+        case .failure(let error): policyError = String(describing: error); appliedSettle = "拒絕提交"
+        case .success(let policy): policyError = nil; appliedSettle = Self.milliseconds(policy.settleDelay)
+        }
     }
-    func submit(_ text: String) {
+    func submit(_ text: String, compositionID: UUID? = nil, eventID: UUID? = nil, origin: String = "input-client") {
+        localDraft = ""
         let commit = TextCommit(text: text, generation: queue.textCoordinator.status.generation)
+        queue.textDiagnostics.record("commit-request", ["commitID": commit.id.uuidString,
+            "compositionID": compositionID?.uuidString ?? "none", "eventID": eventID?.uuidString ?? "none", "origin": origin])
         let stream = queue.commitText(commit)
         Task { [weak self] in
             for await result in stream { self?.record(result) }
@@ -37,7 +54,10 @@ final class TextInputPresentation {
         if normal.count > 32 { results.remove(at: normal[0]) }
         refresh()
     }
-    func refresh() { paused = queue.textCoordinator.status.paused != nil }
+    func refresh() {
+        paused = queue.textCoordinator.status.paused != nil
+        if let error = queue.textDiagnostics.error { localIssue = error }
+    }
     func pause() { queue.pauseTextSubmissions(); refresh() }
     func resume(acknowledgingUncertainty: Bool) {
         _ = queue.resumeTextSubmissions(acknowledgingUncertainty: acknowledgingUncertainty)
