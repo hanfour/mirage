@@ -1,0 +1,16 @@
+{
+  "backingScale" : 2,
+  "before" : "{{216.6578808426857, 254}, {24, 21}}",
+  "humanIMEVerified" : false,
+  "inverseErrorPoints" : [
+    0,
+    0
+  ],
+  "kind" : "synthetic-preedit-real-AppKit-window",
+  "moved" : "{{313.6578808426857, 307}, {24, 21}}",
+  "moveErrorPoints" : [
+    0,
+    0
+  ],
+  "resized" : "{{301.1578808426857, 291}, {24, 21}}"
+}

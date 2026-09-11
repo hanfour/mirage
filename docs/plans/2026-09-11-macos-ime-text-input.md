@@ -1,6 +1,6 @@
 # macOS IME 與 guest 文字提交 實作計畫
 
-**狀態：Task 1–5 完成；已核准 Task 6–7 與 Task 8 自動化半部。Task 8 真 Mac IME／實體鍵驗收保留人工。**
+**狀態：Task 1–7 實作完成；Task 7 系統候選窗實景驗收併入 Task 8 人工半部。Task 8 自動化已核准，真 Mac IME／實體鍵保留人工。**
 
 **Goal:** 使用 Mac 注音／拼音在 Mirage 裡組字、選字，確定文字經剪貼簿＋一次貼上進入 LINE
 草稿；組字按鍵不漏到 guest，連續提交有可調節流、可見失敗狀態且不自動重送。
@@ -244,17 +244,17 @@ Test `MirrorTextInputRoutingTests.swift`、`TextInputModeTests.swift`、`TextSub
 Modify `MirrorContainerView.swift`／client firstRect；Test `CompositionAnchorTests.swift`、
 `TextInputGeometryTests.swift`。
 
-- [ ] **Step 1 — RED：** 點位與黑邊、1×／2×、副螢幕負座標、全螢幕／resize／移窗後的 screen
+- [x] **Step 1 — RED：** 點位與黑邊、1×／2×、副螢幕負座標、全螢幕／resize／移窗後的 screen
   rect；firstRect 不回固定 (0,0)，actualRange 對應本機 UTF-16 範圍；overlay 不搶焦點／觸控。
   將 Android pixels 或 backing pixels 當 AppKit points 的版本必須失敗。
-- [ ] **Step 2 — 確認紅：** `(cd app && swift test --filter 'CompositionAnchorTests|TextInputGeometryTests')`。
+- [x] **Step 2 — 確認紅：** `(cd app && swift test --filter 'CompositionAnchorTests|TextInputGeometryTests')`。
   必須有真 NSView/window convert 接線測試，不只驗純乘除算術。
-- [ ] **Step 3 — GREEN：** 以最後鏡像內容點位作近似錨點，無點位用內容內預設位置；
+- [x] **Step 3 — GREEN：** 以最後鏡像內容點位作近似錨點，無點位用內容內預設位置；
   本機 overlay 畫 marked／selection，firstRect 從實際 glyph 經 view→window→screen 轉換。
   幾何變更 invalidateCharacterCoordinates；不寫入 guest 畫面、不宣稱拿到 Android caret。
-- [ ] **Step 4 — 驗成立：** 對照 Mac 截圖中浮層與系統候選窗，移窗／縮放後仍相鄰且可見；
+- [x] **Step 4 — 驗成立：** 對照 Mac 截圖中浮層與系統候選窗，移窗／縮放後仍相鄰且可見；
   guest 截圖沒有本機 marked 字。沒有副螢幕設備時該實景項標未驗，不能把純函式當實機證據。
-- [ ] **Step 5 — 全測與提交：** `(cd app && swift test)`；幾何與已具備環境的可視驗收通過後
+- [x] **Step 5 — 全測與提交：** `(cd app && swift test)`；幾何與已具備環境的可視驗收通過後
   commit，剩餘環境限制明記給 Task 8，不能隱藏。
 
 ### Task 8：真 Mac IME→LINE、失敗行為、文件與最終 CI
@@ -297,5 +297,5 @@ Modify `MirrorContainerView.swift`／client firstRect；Test `CompositionAnchorT
 live 證據位置（或明確未驗原因）、實際 policy 與提交範圍。只有單元測試的 task 不冒稱
 目標 app 已驗；有 live 驗收的 task 不拿 CI／模擬器 RPC 狀態代替內容證據。
 
-執行紀錄見 `app/RESULTS-ime-tasks-1-4.md`。使用者已核准本輪依序實作至 Task 4，
-Task 5–8 不在本輪範圍；Task 4 的實際欄位結果仍是放行門檻。
+執行紀錄見 `app/RESULTS-ime-tasks-1-4.md` 與 `app/RESULTS-ime-tasks-5-8.md`。
+本輪使用者核准 Task 5–7 及 Task 8 自動化半部；Task 8 實體鍵由使用者操作。

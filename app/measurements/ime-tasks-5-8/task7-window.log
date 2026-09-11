@@ -1,0 +1,8 @@
+[0/1] Planning build
+◇ Test run started.
+↳ Testing Library Version: 0.99.0
+◇ Suite TextInputGeometryTests started.
+◇ Test realWindowConversionsAfterMoveAndResize() started.
+✔ Test realWindowConversionsAfterMoveAndResize() passed after 0.414 seconds.
+✔ Suite TextInputGeometryTests passed after 0.416 seconds.
+✔ Test run with 1 test passed after 0.417 seconds.

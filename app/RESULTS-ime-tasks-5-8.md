@@ -28,3 +28,21 @@ NSTextInputClient 接本機狀態及共享 queue；真正 view 入口的合成�
 計畫具體化：文字模式 Return 一律不直送 guest（包括未組字時），需用畫面送出鈕。
 這保守擋住 insertText 清掉 marked 後同一 Return 再被當 Send 的風險。
 Cmd-V 明確走同一提交路；其他 Cmd 快捷鍵仍留 AppKit，不新增 guest Meta。
+
+## Task 7 — 本機浮層與候選座標
+
+RED：2 tests／6 issues，範圍／尺寸／焦點及 anchor 的空實作失敗。
+GREEN：完整 457 tests passed（`task7-green.log`）。
+真 NSWindow 測試直接呼叫產品 firstRect，並在移窗／縮放後逆轉換回 glyph。
+負座標視窗與 ZWJ UTF-16 insertion range 亦通過；負座標測試不等於有副螢幕實景。
+浮層是鏡像 view 的本機子 view，不參與 guest framebuffer，也不接收點擊或 first responder。
+
+另開可見測試視窗，在本機 2× 螢幕移動 (97,53) points、鏡像內容由 300×500
+縮為 250×420；移窗兩軸偏差與縮放後反轉換偏差都是 0 point。
+`geometry-window/geometry.json` 保存 rect／scale／誤差，`window.png` 是實際視窗擷取，
+已看圖確認 A🙂中文 的浮層與「中」選取高亮可見。此圖的 preedit 是**合成 component fixture**，
+不是 Mac 輸入法產生，`humanIMEVerified:false`。
+
+**不能下的結論：**尚不能宣稱系統候選窗在實際 IME、全螢幕、1× 或副螢幕均準確。
+錨點是最後一次內容內點擊；沒有 Android caret API，guest 自己移 caret 不會精確追蹤。
+實作完成、已有設備的 AppKit 幾何驗證通過；系統候選窗相鄰／可見驗收轉交 Task 8 人工半部。

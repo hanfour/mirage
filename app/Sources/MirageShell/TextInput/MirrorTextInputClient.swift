@@ -15,6 +15,7 @@ extension MirrorMTKView: NSTextInputClient {
         inputContext?.discardMarkedText()
         for codes in ownedKeys.values { for code in codes.reversed() { onKey?(code, false) } }
         ownedKeys.removeAll()
+        updateMarkedOverlay()
         compositionChanged?()
     }
     override func resignFirstResponder() -> Bool {
@@ -50,6 +51,7 @@ extension MirrorMTKView: NSTextInputClient {
     private func publishComposition() {
         if !session.composition.text.isEmpty { textInput?.localDraft = session.composition.text }
         textInput?.localIssue = session.composition.issue
+        updateMarkedOverlay()
         compositionChanged?()
         inputContext?.invalidateCharacterCoordinates()
     }

@@ -18,6 +18,8 @@ final class MirrorMTKView: MTKView {
     var ownedKeys: [UInt16: [KeyCode]] = [:]
     var observedGeneration: UInt64?
     var compositionChanged: (() -> Void)?
+    let markedOverlay = MarkedTextOverlay(frame: .zero)
+    var compositionAnchor: CGPoint?
     var coordinateRect: ((NSRange) -> (NSRect, NSRange))?
 
     var interpretInput: (([NSEvent]) -> Void)?
@@ -35,6 +37,7 @@ final class MirrorMTKView: MTKView {
     override func layout() {
         super.layout()
         onResize?(convertToBacking(bounds).size)
+        updateMarkedOverlay()
     }
 
     /// 長寬比鎖定已移交 MirrorContainerView（P1-e：全螢幕下 macOS 忽略 contentAspectRatio，
@@ -48,6 +51,14 @@ final class MirrorMTKView: MTKView {
         textWindowObservers.append(NotificationCenter.default.addObserver(forName: NSWindow.didResignKeyNotification, object: window, queue: .main) { [weak self] _ in
             MainActor.assumeIsolated { self?.cancelComposition() }
         })
+        for name in [NSWindow.didMoveNotification, NSWindow.didResizeNotification, NSWindow.didChangeScreenNotification,
+                     NSWindow.didChangeBackingPropertiesNotification, NSWindow.didEnterFullScreenNotification,
+                     NSWindow.didExitFullScreenNotification] {
+            textWindowObservers.append(NotificationCenter.default.addObserver(forName: name, object: window, queue: .main) { [weak self] _ in
+                MainActor.assumeIsolated { self?.updateMarkedOverlay() }
+            })
+        }
+        updateMarkedOverlay()
         // P1-c：keyDown/keyUp 需要 first responder；mouseMoved（look）需要視窗開啟
         // acceptsMouseMovedEvents——AppKit 預設不投遞 mouseMoved，兩者缺一都會讓
         // KeymapController 完全收不到輸入。
@@ -70,12 +81,26 @@ final class MirrorMTKView: MTKView {
 
     override func mouseDown(with event: NSEvent) {
         window?.makeFirstResponder(self)
-        if textMode { cancelComposition() }
+        if textMode {
+            cancelComposition()
+            let point = convert(event.locationInWindow, from: nil)
+            if bounds.contains(point), bounds.width > 0, bounds.height > 0 {
+                compositionAnchor = CGPoint(x: point.x / bounds.width, y: point.y / bounds.height)
+                updateMarkedOverlay()
+            }
+        }
         if let (nx, ny) = normalized(event) { onMouse?(nx, ny, true) }
     }
     override func mouseDragged(with event: NSEvent) {
         window?.makeFirstResponder(self)
-        if textMode { cancelComposition() }
+        if textMode {
+            cancelComposition()
+            let point = convert(event.locationInWindow, from: nil)
+            if bounds.contains(point), bounds.width > 0, bounds.height > 0 {
+                compositionAnchor = CGPoint(x: point.x / bounds.width, y: point.y / bounds.height)
+                updateMarkedOverlay()
+            }
+        }
         if let (nx, ny) = normalized(event) { onMouse?(nx, ny, true) }
     }
     override func mouseUp(with event: NSEvent) {
