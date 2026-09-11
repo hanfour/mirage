@@ -120,7 +120,8 @@ final class AppModel {
         // 「連不上」長得完全不一樣，沒有這行就只能靠猜。壞掉的覆寫更要印——靜默退回
         // 預設會讓人盯著錯的畫面卻毫無線索。
         let endpoint = EmulatorClient.defaultEndpoint
-        print("[app] endpoint=\(endpoint.host):\(endpoint.port)")
+        let auth = EmulatorDiscovery.token(port: endpoint.port) == nil ? "none" : "token"
+        print("[app] endpoint=\(endpoint.host):\(endpoint.port) auth=\(auth)")
         if let problem = endpoint.overrideProblem {
             print("[app] 環境變數覆寫無效：\(problem)")
         }

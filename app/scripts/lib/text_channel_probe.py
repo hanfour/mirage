@@ -20,6 +20,7 @@ import emulator_controller_pb2 as pb
 import emulator_controller_pb2_grpc as pbg
 from lib.framebuffer import parse_screencap_raw
 from lib.png import encode_rgba
+from lib.grpc_auth import open_channel
 
 CORPUS = [
     ('mixed', 'Mirage IME 中文測試 42！'),
@@ -40,7 +41,7 @@ class Probe:
     def __init__(self, args):
         self.args = args
         self.adb = str(Path.home()/'Library/Android/sdk/platform-tools/adb')
-        self.channel = grpc.insecure_channel('localhost:8554')
+        self.channel = open_channel(8554)
         self.stub = pbg.EmulatorControllerStub(self.channel)
         self.log = []
 

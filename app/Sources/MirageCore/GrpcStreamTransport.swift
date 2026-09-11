@@ -40,7 +40,17 @@ public final class GrpcChannelBox: @unchecked Sendable {
         ) {
             $0.maximumReceiveMessageLength = 16 * 1024 * 1024
         }
-        client = Android_Emulation_Control_EmulatorControllerAsyncClient(channel: channel)
+        client = Android_Emulation_Control_EmulatorControllerAsyncClient(
+            channel: channel,
+            defaultCallOptions: Self.authenticatedOptions(token: EmulatorDiscovery.token(port: port)))
+    }
+
+    static func authenticatedOptions(token: String?, options: CallOptions = CallOptions()) -> CallOptions {
+        var options = options
+        if let token, !token.isEmpty {
+            options.customMetadata.add(name: "authorization", value: "Bearer \(token)")
+        }
+        return options
     }
 
     /// 拆除這條連線。**不阻塞呼叫端執行緒**，可重複呼叫（第二次起是 no-op）。

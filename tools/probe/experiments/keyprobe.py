@@ -16,16 +16,17 @@ proto 對三條路徑的說明（emulator_controller.proto）：
 輸出只講量到的東西：每個 (鍵, 路徑) 組合有沒有在 getevent 裡看到對應的 EV_KEY。
 """
 import os
+from pathlib import Path
 import subprocess
 import sys
 import time
 
-sys.path.insert(0, "/Users/hanfourhuang/Projects/mirage/tools/probe")
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import _bootstrap  # noqa: F401
 
 import emulator_controller_pb2 as pb
 import emulator_controller_pb2_grpc as pbg
-import grpc
+from lib.grpc_auth import open_channel
 
 ADB = os.path.expanduser("~/Library/Android/sdk/platform-tools/adb")
 SERIAL = "emulator-5558"      # bench：三台裡最不寶貴的，poc 是共享實例不碰
@@ -81,7 +82,7 @@ def main() -> int:
         return 1
 
     rows = []
-    with grpc.insecure_channel(f"localhost:{PORT}") as ch:
+    with open_channel(PORT) as ch:
         stub = pbg.EmulatorControllerStub(ch)
         for label, w3c, mac, expect in CASES:
             got_key = expect in capture(lambda: send_via_key(stub, w3c))

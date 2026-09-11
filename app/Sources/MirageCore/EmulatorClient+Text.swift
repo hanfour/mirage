@@ -13,23 +13,25 @@ extension EmulatorClient: TextCommitTransport {
         request.eventType = down ? .keydown : .keyup
         return request
     }
-    private func textOptions(_ timeout: Duration) -> CallOptions {
+    private func textOptions(
+        _ timeout: Duration, client: Android_Emulation_Control_EmulatorControllerAsyncClient
+    ) -> CallOptions {
         let c = timeout.components
         let ms = c.seconds * 1_000 + c.attoseconds / 1_000_000_000_000_000
-        var options = CallOptions()
+        var options = client.defaultCallOptions
         options.timeLimit = .timeout(.milliseconds(max(1, ms)))
         return options
     }
     public func writeTextClipboard(_ text: String, timeout: Duration) async throws {
         guard let client = channelBox?.client else { throw TextCommitIssue.transport("not-connected") }
-        _ = try await client.setClipboard(Self.buildTextClipboard(text), callOptions: textOptions(timeout))
+        _ = try await client.setClipboard(Self.buildTextClipboard(text), callOptions: textOptions(timeout, client: client))
     }
     public func readTextClipboard(timeout: Duration) async throws -> String {
         guard let client = channelBox?.client else { throw TextCommitIssue.transport("not-connected") }
-        return try await client.getClipboard(.init(), callOptions: textOptions(timeout)).text
+        return try await client.getClipboard(.init(), callOptions: textOptions(timeout, client: client)).text
     }
     public func sendTextKey(_ key: String, down: Bool, timeout: Duration) async throws {
         guard let client = channelBox?.client else { throw TextCommitIssue.transport("not-connected") }
-        _ = try await client.sendKey(Self.buildTextPasteKey(key, down: down), callOptions: textOptions(timeout))
+        _ = try await client.sendKey(Self.buildTextPasteKey(key, down: down), callOptions: textOptions(timeout, client: client))
     }
 }

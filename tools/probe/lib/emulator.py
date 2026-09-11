@@ -4,6 +4,8 @@ import time
 
 import grpc
 
+from .grpc_auth import open_channel
+
 import emulator_controller_pb2 as pb
 import emulator_controller_pb2_grpc as pbg
 from google.protobuf import empty_pb2
@@ -125,5 +127,5 @@ class Emulator:
 @contextlib.contextmanager
 def connect(port: int):
     options = [("grpc.max_receive_message_length", _MAX_MESSAGE)]
-    with grpc.insecure_channel(f"localhost:{port}", options=options) as channel:
+    with open_channel(port, options=options) as channel:
         yield Emulator(pbg.EmulatorControllerStub(channel), port)
