@@ -1,0 +1,2 @@
+    versionCode=1000230943 minSdk=28 targetSdk=35
+    versionName=1.1.0.638941663.sr

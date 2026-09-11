@@ -1,0 +1,5 @@
+{
+  "edittext_probe_sha256": "d118de12c8947ae7d07f0761f9a69914d424917ab9187504c5a521dd040938a5",
+  "change_before_line": "Require a newly successful UI dump; reject null root instead of accepting a potentially stale file.",
+  "line_probe_sha256": "4a6cc0e9c750dfaaac8ac89edf0f51aeddf3db69ba899b4bedbeea413ca10f13"
+}

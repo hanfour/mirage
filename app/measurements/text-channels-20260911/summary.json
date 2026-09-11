@@ -1,0 +1,828 @@
+{
+  "edittext": {
+    "counts": {
+      "mismatch": 6,
+      "pass": 12,
+      "blocked": 6
+    },
+    "cases": [
+      {
+        "route": "text",
+        "label": "mixed",
+        "verdict": "mismatch",
+        "requested_gap_ms": 250.0,
+        "commit_start_gap_min_ms": null,
+        "commit_start_gap_median_ms": null,
+        "commit_start_gap_max_ms": null,
+        "rpc_errors": [],
+        "clipboard_readbacks": 0
+      },
+      {
+        "route": "text",
+        "label": "repeated",
+        "verdict": "mismatch",
+        "requested_gap_ms": 250.0,
+        "commit_start_gap_min_ms": null,
+        "commit_start_gap_median_ms": null,
+        "commit_start_gap_max_ms": null,
+        "rpc_errors": [],
+        "clipboard_readbacks": 0
+      },
+      {
+        "route": "text",
+        "label": "emoji",
+        "verdict": "mismatch",
+        "requested_gap_ms": 250.0,
+        "commit_start_gap_min_ms": null,
+        "commit_start_gap_median_ms": null,
+        "commit_start_gap_max_ms": null,
+        "rpc_errors": [],
+        "clipboard_readbacks": 0
+      },
+      {
+        "route": "text",
+        "label": "accent",
+        "verdict": "mismatch",
+        "requested_gap_ms": 250.0,
+        "commit_start_gap_min_ms": null,
+        "commit_start_gap_median_ms": null,
+        "commit_start_gap_max_ms": null,
+        "rpc_errors": [],
+        "clipboard_readbacks": 0
+      },
+      {
+        "route": "text",
+        "label": "zwj",
+        "verdict": "mismatch",
+        "requested_gap_ms": 250.0,
+        "commit_start_gap_min_ms": null,
+        "commit_start_gap_median_ms": null,
+        "commit_start_gap_max_ms": null,
+        "rpc_errors": [],
+        "clipboard_readbacks": 0
+      },
+      {
+        "route": "text",
+        "label": "ascii",
+        "verdict": "mismatch",
+        "requested_gap_ms": 250.0,
+        "commit_start_gap_min_ms": null,
+        "commit_start_gap_median_ms": null,
+        "commit_start_gap_max_ms": null,
+        "rpc_errors": [],
+        "clipboard_readbacks": 0
+      },
+      {
+        "route": "ctrl_v",
+        "label": "mixed",
+        "verdict": "pass",
+        "requested_gap_ms": 250.0,
+        "commit_start_gap_min_ms": null,
+        "commit_start_gap_median_ms": null,
+        "commit_start_gap_max_ms": null,
+        "rpc_errors": [],
+        "clipboard_readbacks": 1
+      },
+      {
+        "route": "ctrl_v",
+        "label": "repeated",
+        "verdict": "pass",
+        "requested_gap_ms": 250.0,
+        "commit_start_gap_min_ms": null,
+        "commit_start_gap_median_ms": null,
+        "commit_start_gap_max_ms": null,
+        "rpc_errors": [],
+        "clipboard_readbacks": 1
+      },
+      {
+        "route": "ctrl_v",
+        "label": "emoji",
+        "verdict": "pass",
+        "requested_gap_ms": 250.0,
+        "commit_start_gap_min_ms": null,
+        "commit_start_gap_median_ms": null,
+        "commit_start_gap_max_ms": null,
+        "rpc_errors": [],
+        "clipboard_readbacks": 1
+      },
+      {
+        "route": "ctrl_v",
+        "label": "accent",
+        "verdict": "pass",
+        "requested_gap_ms": 250.0,
+        "commit_start_gap_min_ms": null,
+        "commit_start_gap_median_ms": null,
+        "commit_start_gap_max_ms": null,
+        "rpc_errors": [],
+        "clipboard_readbacks": 1
+      },
+      {
+        "route": "ctrl_v",
+        "label": "zwj",
+        "verdict": "pass",
+        "requested_gap_ms": 250.0,
+        "commit_start_gap_min_ms": null,
+        "commit_start_gap_median_ms": null,
+        "commit_start_gap_max_ms": null,
+        "rpc_errors": [],
+        "clipboard_readbacks": 1
+      },
+      {
+        "route": "ctrl_v",
+        "label": "ascii",
+        "verdict": "pass",
+        "requested_gap_ms": 250.0,
+        "commit_start_gap_min_ms": null,
+        "commit_start_gap_median_ms": null,
+        "commit_start_gap_max_ms": null,
+        "rpc_errors": [],
+        "clipboard_readbacks": 1
+      },
+      {
+        "route": "android_paste",
+        "label": "mixed",
+        "verdict": "pass",
+        "requested_gap_ms": 250.0,
+        "commit_start_gap_min_ms": null,
+        "commit_start_gap_median_ms": null,
+        "commit_start_gap_max_ms": null,
+        "rpc_errors": [],
+        "clipboard_readbacks": 1
+      },
+      {
+        "route": "android_paste",
+        "label": "repeated",
+        "verdict": "pass",
+        "requested_gap_ms": 250.0,
+        "commit_start_gap_min_ms": null,
+        "commit_start_gap_median_ms": null,
+        "commit_start_gap_max_ms": null,
+        "rpc_errors": [],
+        "clipboard_readbacks": 1
+      },
+      {
+        "route": "android_paste",
+        "label": "emoji",
+        "verdict": "pass",
+        "requested_gap_ms": 250.0,
+        "commit_start_gap_min_ms": null,
+        "commit_start_gap_median_ms": null,
+        "commit_start_gap_max_ms": null,
+        "rpc_errors": [],
+        "clipboard_readbacks": 1
+      },
+      {
+        "route": "android_paste",
+        "label": "accent",
+        "verdict": "pass",
+        "requested_gap_ms": 250.0,
+        "commit_start_gap_min_ms": null,
+        "commit_start_gap_median_ms": null,
+        "commit_start_gap_max_ms": null,
+        "rpc_errors": [],
+        "clipboard_readbacks": 1
+      },
+      {
+        "route": "android_paste",
+        "label": "zwj",
+        "verdict": "pass",
+        "requested_gap_ms": 250.0,
+        "commit_start_gap_min_ms": null,
+        "commit_start_gap_median_ms": null,
+        "commit_start_gap_max_ms": null,
+        "rpc_errors": [],
+        "clipboard_readbacks": 1
+      },
+      {
+        "route": "android_paste",
+        "label": "ascii",
+        "verdict": "pass",
+        "requested_gap_ms": 250.0,
+        "commit_start_gap_min_ms": null,
+        "commit_start_gap_median_ms": null,
+        "commit_start_gap_max_ms": null,
+        "rpc_errors": [],
+        "clipboard_readbacks": 1
+      },
+      {
+        "route": "ui_paste",
+        "label": "mixed",
+        "verdict": "blocked",
+        "requested_gap_ms": 250.0,
+        "commit_start_gap_min_ms": null,
+        "commit_start_gap_median_ms": null,
+        "commit_start_gap_max_ms": null,
+        "rpc_errors": [],
+        "clipboard_readbacks": 1
+      },
+      {
+        "route": "ui_paste",
+        "label": "repeated",
+        "verdict": "blocked",
+        "requested_gap_ms": 250.0,
+        "commit_start_gap_min_ms": null,
+        "commit_start_gap_median_ms": null,
+        "commit_start_gap_max_ms": null,
+        "rpc_errors": [],
+        "clipboard_readbacks": 1
+      },
+      {
+        "route": "ui_paste",
+        "label": "emoji",
+        "verdict": "blocked",
+        "requested_gap_ms": 250.0,
+        "commit_start_gap_min_ms": null,
+        "commit_start_gap_median_ms": null,
+        "commit_start_gap_max_ms": null,
+        "rpc_errors": [],
+        "clipboard_readbacks": 1
+      },
+      {
+        "route": "ui_paste",
+        "label": "accent",
+        "verdict": "blocked",
+        "requested_gap_ms": 250.0,
+        "commit_start_gap_min_ms": null,
+        "commit_start_gap_median_ms": null,
+        "commit_start_gap_max_ms": null,
+        "rpc_errors": [],
+        "clipboard_readbacks": 1
+      },
+      {
+        "route": "ui_paste",
+        "label": "zwj",
+        "verdict": "blocked",
+        "requested_gap_ms": 250.0,
+        "commit_start_gap_min_ms": null,
+        "commit_start_gap_median_ms": null,
+        "commit_start_gap_max_ms": null,
+        "rpc_errors": [],
+        "clipboard_readbacks": 1
+      },
+      {
+        "route": "ui_paste",
+        "label": "ascii",
+        "verdict": "blocked",
+        "requested_gap_ms": 250.0,
+        "commit_start_gap_min_ms": null,
+        "commit_start_gap_median_ms": null,
+        "commit_start_gap_max_ms": null,
+        "rpc_errors": [],
+        "clipboard_readbacks": 1
+      }
+    ]
+  },
+  "edittext-stress": {
+    "counts": {
+      "pass": 11,
+      "mismatch": 1
+    },
+    "cases": [
+      {
+        "route": "ctrl_v",
+        "label": "stress-same-0",
+        "verdict": "pass",
+        "requested_gap_ms": 0,
+        "commit_start_gap_min_ms": 1.8820762634277344,
+        "commit_start_gap_median_ms": 2.3069381713867188,
+        "commit_start_gap_max_ms": 18.842220306396484,
+        "rpc_errors": [],
+        "clipboard_readbacks": 20
+      },
+      {
+        "route": "ctrl_v",
+        "label": "stress-distinct-0",
+        "verdict": "mismatch",
+        "requested_gap_ms": 0,
+        "commit_start_gap_min_ms": 2.0401477813720703,
+        "commit_start_gap_median_ms": 3.046751022338867,
+        "commit_start_gap_max_ms": 6.40106201171875,
+        "rpc_errors": [],
+        "clipboard_readbacks": 20
+      },
+      {
+        "route": "ctrl_v",
+        "label": "stress-same-0.1",
+        "verdict": "pass",
+        "requested_gap_ms": 100.0,
+        "commit_start_gap_min_ms": 103.44195365905762,
+        "commit_start_gap_median_ms": 105.97395896911621,
+        "commit_start_gap_max_ms": 109.23600196838379,
+        "rpc_errors": [],
+        "clipboard_readbacks": 20
+      },
+      {
+        "route": "ctrl_v",
+        "label": "stress-distinct-0.1",
+        "verdict": "pass",
+        "requested_gap_ms": 100.0,
+        "commit_start_gap_min_ms": 103.55901718139648,
+        "commit_start_gap_median_ms": 106.11605644226074,
+        "commit_start_gap_max_ms": 109.28988456726074,
+        "rpc_errors": [],
+        "clipboard_readbacks": 20
+      },
+      {
+        "route": "ctrl_v",
+        "label": "stress-same-0.25",
+        "verdict": "pass",
+        "requested_gap_ms": 250.0,
+        "commit_start_gap_min_ms": 253.6790370941162,
+        "commit_start_gap_median_ms": 257.39598274230957,
+        "commit_start_gap_max_ms": 259.60326194763184,
+        "rpc_errors": [],
+        "clipboard_readbacks": 20
+      },
+      {
+        "route": "ctrl_v",
+        "label": "stress-distinct-0.25",
+        "verdict": "pass",
+        "requested_gap_ms": 250.0,
+        "commit_start_gap_min_ms": 254.58884239196777,
+        "commit_start_gap_median_ms": 259.74202156066895,
+        "commit_start_gap_max_ms": 279.6061038970947,
+        "rpc_errors": [],
+        "clipboard_readbacks": 20
+      },
+      {
+        "route": "android_paste",
+        "label": "stress-same-0",
+        "verdict": "pass",
+        "requested_gap_ms": 0,
+        "commit_start_gap_min_ms": 65.9170150756836,
+        "commit_start_gap_median_ms": 89.50924873352051,
+        "commit_start_gap_max_ms": 197.27826118469238,
+        "rpc_errors": [],
+        "clipboard_readbacks": 20
+      },
+      {
+        "route": "android_paste",
+        "label": "stress-distinct-0",
+        "verdict": "pass",
+        "requested_gap_ms": 0,
+        "commit_start_gap_min_ms": 61.469316482543945,
+        "commit_start_gap_median_ms": 75.48904418945312,
+        "commit_start_gap_max_ms": 184.50021743774414,
+        "rpc_errors": [],
+        "clipboard_readbacks": 20
+      },
+      {
+        "route": "android_paste",
+        "label": "stress-same-0.1",
+        "verdict": "pass",
+        "requested_gap_ms": 100.0,
+        "commit_start_gap_min_ms": 154.0060043334961,
+        "commit_start_gap_median_ms": 166.6262149810791,
+        "commit_start_gap_max_ms": 285.0520610809326,
+        "rpc_errors": [],
+        "clipboard_readbacks": 20
+      },
+      {
+        "route": "android_paste",
+        "label": "stress-distinct-0.1",
+        "verdict": "pass",
+        "requested_gap_ms": 100.0,
+        "commit_start_gap_min_ms": 185.06312370300293,
+        "commit_start_gap_median_ms": 222.98765182495117,
+        "commit_start_gap_max_ms": 391.5138244628906,
+        "rpc_errors": [],
+        "clipboard_readbacks": 20
+      },
+      {
+        "route": "android_paste",
+        "label": "stress-same-0.25",
+        "verdict": "pass",
+        "requested_gap_ms": 250.0,
+        "commit_start_gap_min_ms": 372.83873558044434,
+        "commit_start_gap_median_ms": 398.37002754211426,
+        "commit_start_gap_max_ms": 561.1388683319092,
+        "rpc_errors": [],
+        "clipboard_readbacks": 20
+      },
+      {
+        "route": "android_paste",
+        "label": "stress-distinct-0.25",
+        "verdict": "pass",
+        "requested_gap_ms": 250.0,
+        "commit_start_gap_min_ms": 366.8982982635498,
+        "commit_start_gap_median_ms": 405.2119255065918,
+        "commit_start_gap_max_ms": 533.7281227111816,
+        "rpc_errors": [],
+        "clipboard_readbacks": 20
+      }
+    ]
+  },
+  "line": {
+    "counts": {
+      "mismatch": 6,
+      "pass": 12,
+      "blocked": 6
+    },
+    "cases": [
+      {
+        "route": "text",
+        "label": "mixed",
+        "verdict": "mismatch",
+        "requested_gap_ms": 250.0,
+        "commit_start_gap_min_ms": null,
+        "commit_start_gap_median_ms": null,
+        "commit_start_gap_max_ms": null,
+        "rpc_errors": [],
+        "clipboard_readbacks": 0
+      },
+      {
+        "route": "text",
+        "label": "repeated",
+        "verdict": "mismatch",
+        "requested_gap_ms": 250.0,
+        "commit_start_gap_min_ms": null,
+        "commit_start_gap_median_ms": null,
+        "commit_start_gap_max_ms": null,
+        "rpc_errors": [],
+        "clipboard_readbacks": 0
+      },
+      {
+        "route": "text",
+        "label": "emoji",
+        "verdict": "mismatch",
+        "requested_gap_ms": 250.0,
+        "commit_start_gap_min_ms": null,
+        "commit_start_gap_median_ms": null,
+        "commit_start_gap_max_ms": null,
+        "rpc_errors": [],
+        "clipboard_readbacks": 0
+      },
+      {
+        "route": "text",
+        "label": "accent",
+        "verdict": "mismatch",
+        "requested_gap_ms": 250.0,
+        "commit_start_gap_min_ms": null,
+        "commit_start_gap_median_ms": null,
+        "commit_start_gap_max_ms": null,
+        "rpc_errors": [],
+        "clipboard_readbacks": 0
+      },
+      {
+        "route": "text",
+        "label": "zwj",
+        "verdict": "mismatch",
+        "requested_gap_ms": 250.0,
+        "commit_start_gap_min_ms": null,
+        "commit_start_gap_median_ms": null,
+        "commit_start_gap_max_ms": null,
+        "rpc_errors": [],
+        "clipboard_readbacks": 0
+      },
+      {
+        "route": "text",
+        "label": "ascii",
+        "verdict": "mismatch",
+        "requested_gap_ms": 250.0,
+        "commit_start_gap_min_ms": null,
+        "commit_start_gap_median_ms": null,
+        "commit_start_gap_max_ms": null,
+        "rpc_errors": [],
+        "clipboard_readbacks": 0
+      },
+      {
+        "route": "ctrl_v",
+        "label": "mixed",
+        "verdict": "pass",
+        "requested_gap_ms": 250.0,
+        "commit_start_gap_min_ms": null,
+        "commit_start_gap_median_ms": null,
+        "commit_start_gap_max_ms": null,
+        "rpc_errors": [],
+        "clipboard_readbacks": 1
+      },
+      {
+        "route": "ctrl_v",
+        "label": "repeated",
+        "verdict": "pass",
+        "requested_gap_ms": 250.0,
+        "commit_start_gap_min_ms": null,
+        "commit_start_gap_median_ms": null,
+        "commit_start_gap_max_ms": null,
+        "rpc_errors": [],
+        "clipboard_readbacks": 1
+      },
+      {
+        "route": "ctrl_v",
+        "label": "emoji",
+        "verdict": "pass",
+        "requested_gap_ms": 250.0,
+        "commit_start_gap_min_ms": null,
+        "commit_start_gap_median_ms": null,
+        "commit_start_gap_max_ms": null,
+        "rpc_errors": [],
+        "clipboard_readbacks": 1
+      },
+      {
+        "route": "ctrl_v",
+        "label": "accent",
+        "verdict": "pass",
+        "requested_gap_ms": 250.0,
+        "commit_start_gap_min_ms": null,
+        "commit_start_gap_median_ms": null,
+        "commit_start_gap_max_ms": null,
+        "rpc_errors": [],
+        "clipboard_readbacks": 1
+      },
+      {
+        "route": "ctrl_v",
+        "label": "zwj",
+        "verdict": "pass",
+        "requested_gap_ms": 250.0,
+        "commit_start_gap_min_ms": null,
+        "commit_start_gap_median_ms": null,
+        "commit_start_gap_max_ms": null,
+        "rpc_errors": [],
+        "clipboard_readbacks": 1
+      },
+      {
+        "route": "ctrl_v",
+        "label": "ascii",
+        "verdict": "pass",
+        "requested_gap_ms": 250.0,
+        "commit_start_gap_min_ms": null,
+        "commit_start_gap_median_ms": null,
+        "commit_start_gap_max_ms": null,
+        "rpc_errors": [],
+        "clipboard_readbacks": 1
+      },
+      {
+        "route": "android_paste",
+        "label": "mixed",
+        "verdict": "pass",
+        "requested_gap_ms": 250.0,
+        "commit_start_gap_min_ms": null,
+        "commit_start_gap_median_ms": null,
+        "commit_start_gap_max_ms": null,
+        "rpc_errors": [],
+        "clipboard_readbacks": 1
+      },
+      {
+        "route": "android_paste",
+        "label": "repeated",
+        "verdict": "pass",
+        "requested_gap_ms": 250.0,
+        "commit_start_gap_min_ms": null,
+        "commit_start_gap_median_ms": null,
+        "commit_start_gap_max_ms": null,
+        "rpc_errors": [],
+        "clipboard_readbacks": 1
+      },
+      {
+        "route": "android_paste",
+        "label": "emoji",
+        "verdict": "pass",
+        "requested_gap_ms": 250.0,
+        "commit_start_gap_min_ms": null,
+        "commit_start_gap_median_ms": null,
+        "commit_start_gap_max_ms": null,
+        "rpc_errors": [],
+        "clipboard_readbacks": 1
+      },
+      {
+        "route": "android_paste",
+        "label": "accent",
+        "verdict": "pass",
+        "requested_gap_ms": 250.0,
+        "commit_start_gap_min_ms": null,
+        "commit_start_gap_median_ms": null,
+        "commit_start_gap_max_ms": null,
+        "rpc_errors": [],
+        "clipboard_readbacks": 1
+      },
+      {
+        "route": "android_paste",
+        "label": "zwj",
+        "verdict": "pass",
+        "requested_gap_ms": 250.0,
+        "commit_start_gap_min_ms": null,
+        "commit_start_gap_median_ms": null,
+        "commit_start_gap_max_ms": null,
+        "rpc_errors": [],
+        "clipboard_readbacks": 1
+      },
+      {
+        "route": "android_paste",
+        "label": "ascii",
+        "verdict": "pass",
+        "requested_gap_ms": 250.0,
+        "commit_start_gap_min_ms": null,
+        "commit_start_gap_median_ms": null,
+        "commit_start_gap_max_ms": null,
+        "rpc_errors": [],
+        "clipboard_readbacks": 1
+      },
+      {
+        "route": "ui_paste",
+        "label": "mixed",
+        "verdict": "blocked",
+        "requested_gap_ms": 250.0,
+        "commit_start_gap_min_ms": null,
+        "commit_start_gap_median_ms": null,
+        "commit_start_gap_max_ms": null,
+        "rpc_errors": [],
+        "clipboard_readbacks": 1
+      },
+      {
+        "route": "ui_paste",
+        "label": "repeated",
+        "verdict": "blocked",
+        "requested_gap_ms": 250.0,
+        "commit_start_gap_min_ms": null,
+        "commit_start_gap_median_ms": null,
+        "commit_start_gap_max_ms": null,
+        "rpc_errors": [],
+        "clipboard_readbacks": 1
+      },
+      {
+        "route": "ui_paste",
+        "label": "emoji",
+        "verdict": "blocked",
+        "requested_gap_ms": 250.0,
+        "commit_start_gap_min_ms": null,
+        "commit_start_gap_median_ms": null,
+        "commit_start_gap_max_ms": null,
+        "rpc_errors": [],
+        "clipboard_readbacks": 1
+      },
+      {
+        "route": "ui_paste",
+        "label": "accent",
+        "verdict": "blocked",
+        "requested_gap_ms": 250.0,
+        "commit_start_gap_min_ms": null,
+        "commit_start_gap_median_ms": null,
+        "commit_start_gap_max_ms": null,
+        "rpc_errors": [],
+        "clipboard_readbacks": 1
+      },
+      {
+        "route": "ui_paste",
+        "label": "zwj",
+        "verdict": "blocked",
+        "requested_gap_ms": 250.0,
+        "commit_start_gap_min_ms": null,
+        "commit_start_gap_median_ms": null,
+        "commit_start_gap_max_ms": null,
+        "rpc_errors": [],
+        "clipboard_readbacks": 1
+      },
+      {
+        "route": "ui_paste",
+        "label": "ascii",
+        "verdict": "blocked",
+        "requested_gap_ms": 250.0,
+        "commit_start_gap_min_ms": null,
+        "commit_start_gap_median_ms": null,
+        "commit_start_gap_max_ms": null,
+        "rpc_errors": [],
+        "clipboard_readbacks": 1
+      }
+    ]
+  },
+  "line-stress": {
+    "counts": {
+      "pass": 11,
+      "mismatch": 1
+    },
+    "cases": [
+      {
+        "route": "ctrl_v",
+        "label": "stress-same-0",
+        "verdict": "pass",
+        "requested_gap_ms": 0,
+        "commit_start_gap_min_ms": 1.9080638885498047,
+        "commit_start_gap_median_ms": 3.080129623413086,
+        "commit_start_gap_max_ms": 10.212182998657227,
+        "rpc_errors": [],
+        "clipboard_readbacks": 20
+      },
+      {
+        "route": "ctrl_v",
+        "label": "stress-distinct-0",
+        "verdict": "mismatch",
+        "requested_gap_ms": 0,
+        "commit_start_gap_min_ms": 1.8169879913330078,
+        "commit_start_gap_median_ms": 2.4461746215820312,
+        "commit_start_gap_max_ms": 4.992008209228516,
+        "rpc_errors": [],
+        "clipboard_readbacks": 20
+      },
+      {
+        "route": "ctrl_v",
+        "label": "stress-same-0.1",
+        "verdict": "pass",
+        "requested_gap_ms": 100.0,
+        "commit_start_gap_min_ms": 103.03306579589844,
+        "commit_start_gap_median_ms": 105.82208633422852,
+        "commit_start_gap_max_ms": 107.93590545654297,
+        "rpc_errors": [],
+        "clipboard_readbacks": 20
+      },
+      {
+        "route": "ctrl_v",
+        "label": "stress-distinct-0.1",
+        "verdict": "pass",
+        "requested_gap_ms": 100.0,
+        "commit_start_gap_min_ms": 103.53398323059082,
+        "commit_start_gap_median_ms": 105.41892051696777,
+        "commit_start_gap_max_ms": 108.95800590515137,
+        "rpc_errors": [],
+        "clipboard_readbacks": 20
+      },
+      {
+        "route": "ctrl_v",
+        "label": "stress-same-0.25",
+        "verdict": "pass",
+        "requested_gap_ms": 250.0,
+        "commit_start_gap_min_ms": 253.48305702209473,
+        "commit_start_gap_median_ms": 257.4901580810547,
+        "commit_start_gap_max_ms": 269.4129943847656,
+        "rpc_errors": [],
+        "clipboard_readbacks": 20
+      },
+      {
+        "route": "ctrl_v",
+        "label": "stress-distinct-0.25",
+        "verdict": "pass",
+        "requested_gap_ms": 250.0,
+        "commit_start_gap_min_ms": 254.2567253112793,
+        "commit_start_gap_median_ms": 258.7089538574219,
+        "commit_start_gap_max_ms": 280.6210517883301,
+        "rpc_errors": [],
+        "clipboard_readbacks": 20
+      },
+      {
+        "route": "android_paste",
+        "label": "stress-same-0",
+        "verdict": "pass",
+        "requested_gap_ms": 0,
+        "commit_start_gap_min_ms": 35.89200973510742,
+        "commit_start_gap_median_ms": 49.82113838195801,
+        "commit_start_gap_max_ms": 53.24196815490723,
+        "rpc_errors": [],
+        "clipboard_readbacks": 20
+      },
+      {
+        "route": "android_paste",
+        "label": "stress-distinct-0",
+        "verdict": "pass",
+        "requested_gap_ms": 0,
+        "commit_start_gap_min_ms": 40.35210609436035,
+        "commit_start_gap_median_ms": 50.203800201416016,
+        "commit_start_gap_max_ms": 59.29875373840332,
+        "rpc_errors": [],
+        "clipboard_readbacks": 20
+      },
+      {
+        "route": "android_paste",
+        "label": "stress-same-0.1",
+        "verdict": "pass",
+        "requested_gap_ms": 100.0,
+        "commit_start_gap_min_ms": 143.48411560058594,
+        "commit_start_gap_median_ms": 150.6049633026123,
+        "commit_start_gap_max_ms": 259.5031261444092,
+        "rpc_errors": [],
+        "clipboard_readbacks": 20
+      },
+      {
+        "route": "android_paste",
+        "label": "stress-distinct-0.1",
+        "verdict": "pass",
+        "requested_gap_ms": 100.0,
+        "commit_start_gap_min_ms": 145.8141803741455,
+        "commit_start_gap_median_ms": 158.92791748046875,
+        "commit_start_gap_max_ms": 245.18108367919922,
+        "rpc_errors": [],
+        "clipboard_readbacks": 20
+      },
+      {
+        "route": "android_paste",
+        "label": "stress-same-0.25",
+        "verdict": "pass",
+        "requested_gap_ms": 250.0,
+        "commit_start_gap_min_ms": 298.0189323425293,
+        "commit_start_gap_median_ms": 344.61474418640137,
+        "commit_start_gap_max_ms": 576.7111778259277,
+        "rpc_errors": [],
+        "clipboard_readbacks": 20
+      },
+      {
+        "route": "android_paste",
+        "label": "stress-distinct-0.25",
+        "verdict": "pass",
+        "requested_gap_ms": 250.0,
+        "commit_start_gap_min_ms": 291.31078720092773,
+        "commit_start_gap_median_ms": 321.96497917175293,
+        "commit_start_gap_max_ms": 408.6878299713135,
+        "rpc_errors": [],
+        "clipboard_readbacks": 20
+      }
+    ]
+  }
+}

@@ -1,0 +1,1 @@
+  mCurId=com.google.android.inputmethod.latin/com.android.inputmethod.latin.LatinIME mHaveConnection=true mBoundToMethod=true mVisibleBound=true

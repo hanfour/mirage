@@ -1,0 +1,50 @@
+{
+  "final_field": {
+    "index": "1",
+    "text": "",
+    "resource-id": "jp.naver.line.android:id/chat_ui_message_edit",
+    "class": "android.widget.EditText",
+    "package": "jp.naver.line.android",
+    "content-desc": "輸入您的訊息",
+    "checkable": "false",
+    "checked": "false",
+    "clickable": "true",
+    "enabled": "true",
+    "focusable": "true",
+    "focused": "true",
+    "scrollable": "false",
+    "long-clickable": "true",
+    "password": "false",
+    "selected": "false",
+    "bounds": "[158,2040][829,2141]",
+    "actual_text": ""
+  },
+  "original_draft_empty": true,
+  "final_draft_empty": true,
+  "original_message_nodes": 2,
+  "final_message_nodes": 2,
+  "message_text_nodes_unchanged": true,
+  "original_message_fingerprint": "013a8db297b976af27d351195ef5314582ec7f8f2331d60687b227f23c09e57e",
+  "final_message_fingerprint": "013a8db297b976af27d351195ef5314582ec7f8f2331d60687b227f23c09e57e",
+  "clipboard_restored": true,
+  "restore_operations": [
+    {
+      "action": "setClipboard",
+      "start": 1789093348.1072068,
+      "end": 1789093348.11578,
+      "status": "OK"
+    },
+    {
+      "action": "getClipboard",
+      "start": 1789093348.115786,
+      "end": 1789093348.116247,
+      "status": "OK"
+    },
+    {
+      "action": "clipboard_readback",
+      "equal": true,
+      "characters": 0
+    }
+  ],
+  "message_check_scope": "Visible LINE TextViews excluding header/date; requires nonempty baseline, not full chat history."
+}

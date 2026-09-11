@@ -1,0 +1,2 @@
+    versionCode=261400121 minSdk=32 targetSdk=36
+    versionName=26.14.0
