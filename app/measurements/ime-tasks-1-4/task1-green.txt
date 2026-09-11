@@ -1,0 +1,10 @@
+✔ Test unboundKeyGoesToKeyboard() passed after 0.606 seconds.
+✔ Test editingModeSuppressesPassthrough() passed after 0.606 seconds.
+✔ Suite KeymapControllerRoutingTests passed after 0.612 seconds.
+✔ Test suspendStopsAudioAndWakeResumesIt() passed after 0.638 seconds.
+✔ Test editingModeSendsNoTapEvenWithoutProfile() passed after 0.662 seconds.
+✔ Test hasProfileSendsNoTapWhenNotEditing() passed after 0.662 seconds.
+✔ Suite MirrorCoordinatorTests passed after 0.667 seconds.
+✔ Test suspendBeforeFirstConnectStaysSilentUntilWake() passed after 0.763 seconds.
+✔ Suite EmulatorClientAudioTests passed after 0.774 seconds.
+✔ Test run with 418 tests passed after 0.787 seconds.
