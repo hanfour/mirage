@@ -44,7 +44,7 @@ struct MirageScene: App {
                 // P1-c: model.keymap 起始為 nil（非同步載入），MirrorView.updateNSView 會在
                 // loadKeymap() 完成、@Observable 觸發重繪時把值同步進 Coordinator。
                 MirrorView(client: model.client, box: model.box,
-                           controller: model.keymap, isEditing: model.editing,
+                           controller: model.keymap, isEditing: model.editing, textInput: model.textInput,
                            queue: model.inputQueue,
                            onFrameSize: { w, h in model.frameSize = (w: w, h: h) })
                     .dropDestination(for: URL.self) { urls, _ in
@@ -53,6 +53,11 @@ struct MirageScene: App {
                         Task { await model.installAPKs(apks) }
                         return true
                     }
+                TextInputControls(state: model.textInput)
+                    .onChange(of: model.textInput.mode) { _, _ in
+                        model.mouseCapture.updateCapture(shouldCapture: model.shouldCapture)
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
                 ConnectionBanner(state: model.connState)
                 keymapOverlayLayer
                 // 隱藏按鈕：⌘E 切換編輯模式。用 SwiftUI .keyboardShortcut 走標準

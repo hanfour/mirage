@@ -1,0 +1,1266 @@
+[1/1] Compiling plugin GRPCSwiftPlugin
+[2/2] Compiling plugin SwiftProtobufPlugin
+Building for debugging...
+[2/10] Write sources
+[4/10] Write swift-version--1AB21518FC5DEDBE.txt
+[6/12] Compiling MirageCore TextInputSession.swift
+[7/12] Emitting module MirageCore
+[7/13] Write Objects.LinkFileList
+[9/15] Compiling MirageShell MirageScene.swift
+[10/15] Emitting module MirageShell
+/Users/hanfourhuang/Projects/mirage/app/Sources/MirageShell/Detect/AdbClient.swift:12:77: warning: converting non-Sendable function value to '@Sendable (URL, [String], Duration, Bool) async -> (exit: Int32, stdout: String)?' may introduce data races
+ 10 |     private let runner: Runner
+ 11 | 
+ 12 |     init(adbPath: URL, serial: String, runner: @escaping Runner = AdbClient.runProcess) {
+    |                                                                             `- warning: converting non-Sendable function value to '@Sendable (URL, [String], Duration, Bool) async -> (exit: Int32, stdout: String)?' may introduce data races
+ 13 |         self.adbPath = adbPath
+ 14 |         self.serial = serial
+
+/Users/hanfourhuang/Projects/mirage/app/Sources/MirageShell/TextInput/MirrorTextInputClient.swift:4:26: warning: conformance of 'MirrorMTKView' to protocol 'NSTextInputClient' crosses into main actor-isolated code and can cause data races; this is an error in the Swift 6 language mode [#ConformanceIsolation]
+ 2 | import MirageCore
+ 3 | 
+ 4 | extension MirrorMTKView: NSTextInputClient {
+   | |                        |- warning: conformance of 'MirrorMTKView' to protocol 'NSTextInputClient' crosses into main actor-isolated code and can cause data races; this is an error in the Swift 6 language mode [#ConformanceIsolation]
+   | |                        |- note: isolate this conformance to the main actor with '@MainActor'
+   | |                        `- note: turn data races into runtime errors with '@preconcurrency'
+   | `- note: mark all declarations used in the conformance 'nonisolated'
+ 5 |     func synchronizeTextSession() {
+ 6 |         let next = textInput?.queue.textCoordinator.status.generation
+   :
+30 |         (value as? NSAttributedString)?.string ?? value as? String
+31 |     }
+32 |     func setMarkedText(_ string: Any, selectedRange: NSRange, replacementRange: NSRange) {
+   |          `- note: main actor-isolated instance method 'setMarkedText(_:selectedRange:replacementRange:)' cannot satisfy nonisolated requirement
+33 |         guard callbackAllowed(), let value = plain(string) else { return }
+34 |         eventWasComposing = true
+   :
+36 |         publishComposition()
+37 |     }
+38 |     func insertText(_ string: Any, replacementRange: NSRange) {
+   |          `- note: main actor-isolated instance method 'insertText(_:replacementRange:)' cannot satisfy nonisolated requirement
+39 |         guard callbackAllowed(), let value = plain(string) else { return }
+40 |         if let commit = session.insert(value, replacement: replacementRange, token: session.generation) {
+   :
+43 |         publishComposition()
+44 |     }
+45 |     func unmarkText() {
+   |          `- note: main actor-isolated instance method 'unmarkText()' cannot satisfy nonisolated requirement
+46 |         guard callbackAllowed() else { return }
+47 |         if let commit = session.unmark(token: session.generation) { textInput?.submit(commit.text) }
+   :
+54 |         inputContext?.invalidateCharacterCoordinates()
+55 |     }
+56 |     func hasMarkedText() -> Bool { !session.composition.text.isEmpty }
+   |          `- note: main actor-isolated instance method 'hasMarkedText()' cannot satisfy nonisolated requirement
+57 |     func markedRange() -> NSRange { session.composition.markedRange }
+   |          `- note: main actor-isolated instance method 'markedRange()' cannot satisfy nonisolated requirement
+58 |     func selectedRange() -> NSRange { session.composition.selection }
+   |          `- note: main actor-isolated instance method 'selectedRange()' cannot satisfy nonisolated requirement
+59 |     func validAttributesForMarkedText() -> [NSAttributedString.Key] { [.underlineStyle, .markedClauseSegment] }
+   |          `- note: main actor-isolated instance method 'validAttributesForMarkedText()' cannot satisfy nonisolated requirement
+60 |     func attributedSubstring(forProposedRange range: NSRange, actualRange: NSRangePointer?) -> NSAttributedString? {
+   |          `- note: main actor-isolated instance method 'attributedSubstring(forProposedRange:actualRange:)' cannot satisfy nonisolated requirement
+61 |         guard CompositionState.valid(range, in: session.composition.text) else { return nil }
+62 |         actualRange?.pointee = range
+63 |         return NSAttributedString(string: (session.composition.text as NSString).substring(with: range))
+64 |     }
+65 |     func characterIndex(for point: NSPoint) -> Int { NSNotFound }
+   |          `- note: main actor-isolated instance method 'characterIndex(for:)' cannot satisfy nonisolated requirement
+66 |     func firstRect(forCharacterRange range: NSRange, actualRange: NSRangePointer?) -> NSRect {
+   |          `- note: main actor-isolated instance method 'firstRect(forCharacterRange:actualRange:)' cannot satisfy nonisolated requirement
+67 |         if let (rect, actual) = coordinateRect?(range) { actualRange?.pointee = actual; return rect }
+68 |         actualRange?.pointee = NSRange(location: 0, length: 0)
+   :
+70 |         return window?.convertToScreen(convert(local, to: nil)) ?? convert(local, to: nil)
+71 |     }
+72 |     override func doCommand(by selector: Selector) {
+   |                   `- note: main actor-isolated instance method 'doCommand(by:)' cannot satisfy nonisolated requirement
+73 |         guard callbackAllowed() else { return }
+74 |         if selector == #selector(NSResponder.cancelOperation(_:)) { cancelComposition(); return }
+
+[#ConformanceIsolation]: <https://docs.swift.org/compiler/documentation/diagnostics/conformance-isolation>
+[10/17] Write Objects.LinkFileList
+[12/17] Linking mirage-pull
+[13/17] Applying mirage-pull
+[14/17] Linking MirageApp
+[15/17] Applying MirageApp
+[16/17] Linking MiragePackageTests
+Build complete! (5.05s)
+◇ Test run started.
+↳ Testing Library Version: 0.99.0
+◇ Suite MultiTouchLiveTests started.
+◇ Suite KeymapReleaseLiveTests started.
+◇ Suite TextCommitEventTests started.
+◇ Suite ActivationDeciderTests started.
+◇ Suite SnapshotStubSmokeTests started.
+◇ Suite MiragePullTests started.
+◇ Suite ChannelTeardownTests started.
+◇ Suite FallbackTransportTests started.
+◇ Suite TextSubmissionStatusTests started.
+◇ Suite AppModelEditingTests started.
+◇ Suite BackoffTests started.
+◇ Suite LifecycleDiagnosticsTests started.
+◇ Suite KeymapEngineTests started.
+◇ Suite LifecyclePolicyTests started.
+◇ Suite MirrorMouseReleaseTests started.
+◇ Suite FrameCounterWindowTests started.
+◇ Suite MirrorTextInputRoutingTests started.
+◇ Suite ShellSmokeTests started.
+◇ Suite TextInputModeTests started.
+◇ Suite MirrorCoordinatorTests started.
+◇ Suite FpsWindowTests started.
+◇ Suite TextCommitLiveTests started.
+◇ Suite EditorDragStateTests started.
+◇ Suite TextSessionRoutingTests started.
+◇ Suite KeyTranslateTests started.
+◇ Suite ClipboardLiveTests started.
+◇ Suite TextCommitStateTests started.
+◇ Suite ClipboardWatcherTests started.
+◇ Suite KeymapControllerRoutingTests started.
+◇ Suite EmulatorClientStartOnceTests started.
+◇ Suite TextCommitQueueTests started.
+◇ Suite MmapStreamLiveTests started.
+◇ Suite NormPointTests started.
+◇ Suite AudioLiveTests started.
+◇ Suite GameDetectorTests started.
+◇ Suite EmulatorClientTouchTests started.
+◇ Suite TextSubmissionPolicyTests started.
+◇ Suite ClipboardBridgeTests started.
+◇ Suite AudioSupplyNoticeTests started.
+◇ Suite TextFieldEvidenceTests started.
+◇ Suite ViewportFitTests started.
+◇ Suite TextClipboardCoordinatorTests started.
+◇ Suite AudioPacketWindowTests started.
+◇ Suite HealthProbeTests started.
+◇ Suite AdbClientTests started.
+◇ Suite CompositionStateTests started.
+◇ Suite ForegroundParserTests started.
+◇ Suite "EmulatorEndpoint" started.
+◇ Suite StreamSizeTests started.
+◇ Suite MmapBlankProbeTests started.
+◇ Suite EmulatorInfoTests started.
+◇ Suite InstallResultTests started.
+◇ Suite FrameQueueTests started.
+◇ Suite EditorSessionTests started.
+◇ Suite EditorEntryDeciderTests started.
+◇ Suite EditorGeometryTests started.
+◇ Suite EmulatorClientReconnectTests started.
+◇ Suite AdbOutcomeTests started.
+◇ Suite ProfileStoreTests started.
+◇ Suite TransitWindowTests started.
+◇ Suite LiveSmokeTests started.
+◇ Suite EmulatorClientHealthGateTests started.
+◇ Suite MmapBufferTests started.
+◇ Suite AudioReopenTransportTests started.
+◇ Suite TextCommitExecutorTests started.
+◇ Suite LatencyWindowTests started.
+◇ Suite FrameTests started.
+◇ Suite KeymapInjectLiveTests started.
+◇ Suite EmulatorClientSuspendTests started.
+◇ Suite ConnectionStateMachineTests started.
+◇ Suite MmapSupportTests started.
+◇ Suite TextInputSessionTests started.
+◇ Suite BuiltInProfilesTests started.
+◇ Suite LatestFrameBoxTests started.
+◇ Suite EditorLimitsTests started.
+◇ Suite FrameSinkFactoryTests started.
+◇ Suite InputQueueTests started.
+◇ Suite AudioRingBufferTests started.
+◇ Suite DrawTimingWindowTests started.
+◇ Suite EmulatorClientAudioTests started.
+◇ Suite JoystickMathTests started.
+◇ Suite KeymapProfileTests started.
+◇ Suite TextEvidenceDirectoryTests started.
+◇ Suite KeyboardLiveTests started.
+◇ Suite DisplayTransportSelectorTests started.
+◇ Suite AudioChunkTests started.
+◇ Suite AudioSupplyMonitorTests started.
+◇ Suite FramePumpTests started.
+✘ Test injectsTwoSimultaneousTouches() skipped: "需 MIRAGE_LIVE=1 與真模擬器"
+◇ Test disabledIsInactiveEvenWithProfile() started.
+◇ Test autoWithProfileActivates() started.
+◇ Test forceOverridesDetection() started.
+◇ Test autoWithoutProfileInactive() started.
+◇ Test pasteEventsNeverUseTextOrPhysicalKeyCode() started.
+◇ Test snapshotPackageFieldsExist() started.
+◇ Test disconnectedCheckedAPIsThrowInsteadOfSilentlySucceeding() started.
+◇ Test secondaryErrorAfterFallbackIsPropagated() started.
+◇ Test primaryFinishingCleanlyDoesNotFallBack() started.
+◇ Test healthyPrimaryNeverTouchesSecondary() started.
+◇ Test unavailableIsPropagatedNotFallenBackOn() started.
+◇ Test lateMmapUnusableStillFallsBackWithoutDuplicatingFrames() started.
+◇ Test cancelStreamForwardsToBothLegs() started.
+◇ Test mmapUnusableSwitchesSeamlessly() started.
+◇ Test primaryGenericErrorIsPropagated() started.
+◇ Test afterFallbackPrimaryIsNeverRetried() started.
+✘ Test shutdownReleasesNioThreads() skipped: "需 MIRAGE_THREAD_AUDIT=1——見上方說明（會讀行程級執行緒數，不能與其他測試並行）"
+◇ Test editingAlwaysCloses() started.
+◇ Test settingRadiusUpdatesJoystickOnly() started.
+✘ Test releasesJoystickTouchOnFocusLossAndReload() skipped: "需 MIRAGE_LIVE=1，請跑 scripts/verify_keymap_release.sh"
+◇ Test successfulSaveOnLeaveClearsPromptAfterWriting() started.
+◇ Test frameSizeStartsUnknownAndIsSettable() started.
+◇ Test currentPackageStartsNilAndIsWritable() started.
+◇ Test editorSessionLifecycleFollowsEditingMode() started.
+◇ Test leavingCleanSessionDoesNotPrompt() started.
+◇ Test openingEditorWritesNothingToDisk() started.
+◇ Test saveProfileReportsOutcome() started.
+◇ Test attemptZeroAroundBase() started.
+◇ Test movingWithoutSelectionChangesNothing() started.
+◇ Test confirmLeaveDiscardingWritesNothing() started.
+◇ Test selectBindingUpdatesTheSession() started.
+◇ Test savingEditorSessionWritesAndReloads() started.
+◇ Test cancelLeaveKeepsEditingAndChanges() started.
+◇ Test failedSaveOnLeaveKeepsEditingAndChanges() started.
+◇ Test capsAtEight() started.
+◇ Test doublesPerAttempt() started.
+◇ Test detectionDuringEditingDoesNotClearInMemoryProfile() started.
+◇ Test movingSelectedBindingUpdatesSessionAndEngine() started.
+◇ Test settingSensitivityUpdatesLookOnly() started.
+◇ Test toggleEditingDoesNotReadUnusedStarter() started.
+◇ Test failedSaveKeepsSessionDirty() started.
+◇ Test confirmLeaveSavingWritesThenLeaves() started.
+◇ Test jitterBounds() started.
+◇ Test leavingDirtySessionPromptsInsteadOfDiscarding() started.
+◇ Test editingStaysClosedWithoutPackageOrProfile() started.
+◇ Test staleStatusUsesExitCodeThree() started.
+◇ Test unknownIsNotSuccessAndResumeDoesNotReplay() started.
+◇ Test hangingTransportIsCancelledAfterDeadlineAndMeasured() started.
+◇ Test leavingUnsavedEditDoesNotLeakStarterIntoSession() started.
+◇ Test editingOpensWithStarterWhenNoProfileExists() started.
+◇ Test jsonContainsBaselineFieldsAndClient() started.
+◇ Test measuredStatusUsesExitCodeZero() started.
+◇ Test fingerprintDetectsAChangedFirstByte() started.
+◇ Test runtimeObjectType() started.
+◇ Test missingObjectType() started.
+◇ Test tokenEscapesFieldSeparators() started.
+◇ Test unavailableTransportIsAnErrorWithContent() started.
+◇ Test textMatchesBaselineAndAddsClientSuffix() started.
+◇ Test fingerprintMatchesForIdenticalFrames() started.
+◇ Test staticStatusUsesExitCodeTwo() started.
+◇ Test probePassesForTcpListener() started.
+◇ Test gatedLookLiftsTouchWhenActivationKeyReleased() started.
+◇ Test handlesReportsBoundKeysOnly() started.
+◇ Test simultaneousJoystickAndTapAreTwoStableTouches() started.
+◇ Test refusedEndpointIsUnavailableError() started.
+◇ Test unmappedKeyLeavesTouchStateUntouched() started.
+◇ Test lookAccumulatesMouseMove() started.
+◇ Test joystickRightMovesTouchFromCenter() started.
+◇ Test noFramesAtDeadlineIsStatic() started.
+◇ Test computesDeltasFromTwoSnapshots() started.
+◇ Test joystickReleaseLiftsTouch() started.
+◇ Test onlySuspendedSessionResumes() started.
+◇ Test tapDownProducesTouchThenUp() started.
+◇ Test joystickAtEdgeStaysInsideUnitSquare() started.
+◇ Test dragOutsideBoundsKeepsTrackingAtTheEdge() started.
+◇ Test keyUpUsesOriginalCodeDespiteLayoutChange() started.
+◇ Test releaseOutsideBoundsStillSendsMouseUp() started.
+◇ Test clampsBackwardsSnapshotsAndPresentedCountToZero() started.
+◇ Test closingLastWindowKeepsApplicationRunning() started.
+◇ Test errorStatusUsesExitCodeOneAndWinsOverCounters() started.
+◇ Test textEventsAreInterpretedOnceWithoutGuestKeys() started.
+◇ Test audioPlayerMuteTogglesState() started.
+◇ Test installStateFinishedCarriesItems() started.
+◇ Test fingerprintDetectsAChangedRow() started.
+◇ Test defaultsAndExplicitMode() started.
+◇ Test markedReturnEscapeFlagsAndLateCallbacksDoNotLeak() started.
+◇ Test releaseOutsideBoundsIsClampedIntoRange() started.
+◇ Test viewCommitGoesThroughOnePasteAndPolicyRejectRetainsDraft() started.
+✘ Test rendersAnySourceSizeIntoAnyTargetSize() skipped: "需 MIRAGE_LIVE_METAL=1——見上方說明"
+◇ Test consecutiveWindowsKeepFramesAndDrawsSeparate() started.
+◇ Test containerLetterboxesMirrorIntoFitRect() started.
+◇ Test noPresentDoesNotReportEvenAfterDeadline() started.
+◇ Test exactBoundaryReportsOnceAndResets() started.
+◇ Test stalledWindowReportsActualElapsedAndRoundedRate() started.
+◇ Test overshootStartsFreshAtEventTime() started.
+◇ Test beforeBoundaryDoesNotReportOrReadCounters() started.
+◇ Test audioPlayerStartReturnsWithoutTrapping() started.
+◇ Test editingModeSendsNoTapEvenWithoutProfile() started.
+◇ Test tapsReachGuestInPressOrder() started.
+◇ Test hasProfileSendsNoTapWhenNotEditing() started.
+◇ Test privateUseAreaCharactersAreDropped() started.
+◇ Test endClearsOffsetAndNextGestureRecomputesIt() started.
+◇ Test modeReloadAndFocusInvalidateTextBeforeRelease() started.
+◇ Test clickStoresOffsetButNeverReportsMovement() started.
+◇ Test unknownKeyWithoutCharactersIsDropped() started.
+◇ Test printableCharacterPassesThrough() started.
+◇ Test ordinaryCharactersStillPassThrough() started.
+◇ Test supplementaryPrivateUsePlanesAreDropped() started.
+◇ Test escapeBecomesAndroidBack() started.
+◇ Test commandCombinationsAreNeverForwarded() started.
+◇ Test duplicateIDsDifferFromDuplicateStrings() started.
+◇ Test offsetIsReusedWhenMarkerCenterChanges() started.
+◇ Test controlCharactersAreDropped() started.
+◇ Test syncBaselineSkipsLocalWrite() started.
+✘ Test hostToGuestSetsClipboard() skipped: "需 MIRAGE_LIVE=1 與真模擬器"
+◇ Test outcomeDependsOnDispatchBoundaryAndRetainsText() started.
+✘ Test realSwiftQueueInsertsReplacesAndPacesDistinctCommits() skipped: "需 MIRAGE_LIVE=1、MIRAGE_LIVE_TEXT=1 與明確測試欄位"
+◇ Test deferredConsumerShowsTheRealRaceAndPolicyPreventsEarlyOverwrite() started.
+◇ Test nonTextAdvancesBaselineWithoutCallback() started.
+◇ Test changedTextNotifies() started.
+◇ Test replacingProfileReleasesHeldJoystickAndStartsClean() started.
+◇ Test holdUsesPolicySnapshot(_:) started.
+◇ Test touchSnapshotsReachGuestInEventOrder() started.
+◇ Test specialKeysMapByVirtualKeyCode() started.
+◇ Test profileReloadWhileKeyHeldStillReleasesGuestKey() started.
+◇ Test editingReleasesInFlightKeysExactlyOnce() started.
+◇ Test unchangedCountDoesNotReadOrNotify() started.
+◇ Test repeatedContentWithNewCountNotifies() started.
+◇ Test modifierKeysNeverPassThroughToGuest() started.
+◇ Test withoutProfileEveryKeyPassesThrough() started.
+◇ Test losingFocusReleasesTouchesAndPassthroughKeys() started.
+◇ Test unboundKeyGoesToKeyboard() started.
+◇ Test editingReloadDoesNotSendTouchFrames() started.
+◇ Test boundKeyGoesToTouchesNotKeyboard() started.
+◇ Test externalConflictPausesWritesButStillReleasesKeysAndNeverReplaysUnknown() started.
+◇ Test removingProfileReleasesHeldJoystick() started.
+◇ Test editingModeSuppressesPassthrough() started.
+◇ Test fromViewPointFlipsYAndClamps() started.
+◇ Test editingDoesNotDesyncEngineState() started.
+◇ Test keyCodeEquatableAndHashable() started.
+◇ Test capacityAndExpiryReturnRecoverableResults() started.
+◇ Test validWithinUnitSquare() started.
+◇ Test twoDifferentCommitsUseConsumptionGate() started.
+◇ Test delayDoesNotPretendToAcknowledgeArbitrarilyLateConsumption() started.
+◇ Test staleAfterReadNeverPastesIntoNewSession() started.
+◇ Test sameTextTwiceButSameIDNeverReplays() started.
+◇ Test passthroughKeysReachGuestInPressOrder() started.
+✘ Test realEmulatorWritesIntoMappedBuffer() skipped: "需 MIRAGE_TRANSPORT=mmap 且 MIRAGE_LIVE=1 且 MIRAGE_LIVE_MMAP=1；請跑 scripts/verify_mmap.sh"
+◇ Test invalidOutOfRange() started.
+◇ Test watcherCannotOverwriteAnInFlightPaste() started.
+✘ Test realEmulatorDeliversAudioPackets() skipped: "需 MIRAGE_LIVE=1 且 MIRAGE_LIVE_AUDIO=1；請跑 scripts/verify_audio.sh"
+◇ Test fromViewPointRejectsDegenerateBounds() started.
+◇ Test guestPixelScalesToFrame() started.
+◇ Test changedPackageNotifiesOnce() started.
+◇ Test unchangedDoesNotNotifyAgain() started.
+◇ Test buildsKeyEventFromW3CKey() started.
+◇ Test overlappingTickIsSkipped() started.
+◇ Test buildsMultiTouchEventWithScaledPixels() started.
+◇ Test initialNilThenPackage() started.
+◇ Test packageBecomesNil() started.
+◇ Test echoBackDoesNotPropagate() started.
+◇ Test configurationIsExplicitAndAdjustable() started.
+◇ Test rejectsInvalidResourceLimits() started.
+◇ Test mouseKeyCodeProducesNoKeyEvent() started.
+◇ Test duplicateValueDeduped() started.
+◇ Test firstValuePropagates() started.
+◇ Test startTwiceDoesNotSpawnASecondConnectionLoop() started.
+◇ Test rejectsInvalidSetting(_:) started.
+◇ Test degradedToHealthyIsRecovery() started.
+◇ Test bridgeIsImmutable() started.
+◇ Test degradedToIdleIsClearedNotRecovered() started.
+◇ Test degradedTransitionsAlwaysNotify() started.
+◇ Test sameStateNeverNotifies() started.
+◇ Test nullStaleWrongFocusOrWrongTargetIsInvalid() started.
+◇ Test degenerateInputReturnsZero(fw:fh:bw:bh:) started.
+◇ Test clipboardCannotProveInsertionOrReplacement(_:) started.
+◇ Test extremeRatioTruncatingToZeroStaysInBounds(fw:fh:bw:bh:) started.
+◇ Test hostWriteIsUnavailableWhileTransactionOwnsClipboard() started.
+◇ Test transitionsNotInvolvingDegradedAreSilent() started.
+◇ Test portraitFrameInWideBoundsGetsLeftRightBars() started.
+◇ Test differentValuePropagatesBothDirections() started.
+◇ Test exactPositionAndUnicodeAreRequired() started.
+◇ Test sameAspectFillsCompletely() started.
+◇ Test landscapeFrameInSquareBoundsGetsTopBottomBars() started.
+◇ Test queuedPolicyIsASnapshotAndInvalidConfigDoesNotDropText() started.
+◇ Test extremeRatioNeverExceedsBounds() started.
+◇ Test ownAndLateEchoesDoNotWriteHostClipboard() started.
+◇ Test overflowStillCountsReceivedPacket() started.
+◇ Test healthResultIsEquatable() started.
+◇ Test scriptedProbeReplaysResults() started.
+◇ Test disabledDoesNotCollect() started.
+◇ Test knownPacketsAndConsecutiveWindows() started.
+◇ Test squareFrameInSquareBoundsFills() started.
+◇ Test repeatedOwnValueRefreshesBoundedEchoHistory() started.
+◇ Test installTimeout() started.
+◇ Test concurrentSnapshotsKeepPacketAndSampleBoundariesTogether() started.
+◇ Test resumedLineWithoutPackageIsNil() started.
+◇ Test parsesLauncherPackage() started.
+◇ Test missingOrTruncatedForeground(output:) started.
+◇ Test foregroundTimeout() started.
+◇ Test utf16AndExactContent(_:) started.
+◇ Test standardMissingExecutable() started.
+◇ Test installFailure() started.
+◇ Test noResumedActivityIsNil() started.
+◇ Test installSuccessAndCommand() started.
+◇ Test replacementAndInvalidRanges() started.
+◇ Test parsesTopResumedActivity() started.
+◇ Test foregroundNonzeroExit() started.
+◇ Test outOfRangePortFallsBackAndSaysWhy(_:) started.
+◇ Test absentOverridesGiveTheDefaultEndpoint() started.
+◇ Test hostOverrideIsApplied() started.
+◇ Test emptyOutputIsNil() started.
+◇ Test bothOverridesApplyTogether() started.
+◇ Test foregroundAndCommand() started.
+◇ Test boundaryPortsAreAccepted() started.
+◇ Test pixelBudgetHoldsForAnyAspect(aw:ah:) started.
+◇ Test belowMinimumClampsUp() started.
+◇ Test streamEndingWithZeroFramesObservedReportsNoContent() started.
+◇ Test blankHostFallsBackAndSaysWhy() started.
+◇ Test landscapeIsBoundedByWidthNotPixels() started.
+◇ Test bothProblemsAreReportedTogether() started.
+◇ Test portraitFullScreenStaysWithinPixelBudget() started.
+◇ Test installNonzeroExitUsesOutput() started.
+◇ Test smallWindowIsUnaffectedByCaps() started.
+◇ Test streamEndingBeforeBudgetExhaustedReportsNoContent() started.
+◇ Test degenerateAspectFallsBackToWidthOnly(aw:ah:) started.
+◇ Test threeBlankFramesBecomeUnusableOnTheThird() started.
+◇ Test widthIsAlwaysEven(contentWidth:) started.
+◇ Test infoCarriesVersionAndOptionalDisplay() started.
+◇ Test nonNumericPortFallsBackAndSaysWhy() started.
+◇ Test parsesLcdSizeFromHardwareConfig() started.
+◇ Test emptyIsUnknown() started.
+◇ Test portOverrideIsApplied() started.
+◇ Test rejectsMissingOrUnusableValues() started.
+◇ Test plainSuccess() started.
+◇ Test progressBracketNotMistakenForFailure() started.
+◇ Test unknownFormatReturnsTrimmed() started.
+◇ Test testDepthOneMatchesLatestWins() started.
+◇ Test failureBracketReason() started.
+◇ Test firstBlankThenContentDeliversFromSecondFrameOnward() started.
+◇ Test streamEndingAfterContentSeenIsNotFlaggedAsNoContent() started.
+◇ Test failedNoBracket() started.
+◇ Test failureBracketEmptyReason() started.
+◇ Test contentOnFirstFrameDeliversImmediately() started.
+◇ Test testConcurrentPutTakeDoesNotCrash() started.
+◇ Test mutationsWithoutSelectionAreNoOps() started.
+◇ Test adbErrorPrefixWithBracket() started.
+◇ Test testInvalidFrameIsRejectedAndNotQueued() started.
+◇ Test streamedSuccess() started.
+◇ Test selectingDoesNotMarkDirty() started.
+◇ Test mutationsToTheSameValueDoNotMarkDirty() started.
+◇ Test profileRoundTripsBackIntoASession() started.
+◇ Test settingSensitivityAppliesOnlyToLook() started.
+◇ Test movingSelectedTapChangesOnlyThatBinding() started.
+◇ Test profileBumpsVersionAndKeepsGameIdAndOrder() started.
+◇ Test movingSelectedJoystickMovesCentreOnly() started.
+◇ Test testTakingFromEmptyQueueReturnsNil() started.
+◇ Test noProfileAndNoPackageIsIgnored() started.
+◇ Test editingAlwaysAllowsLeaving() started.
+◇ Test testDepthTwoDropsOldestAndTakesFifo() started.
+◇ Test initAssignsStableIdentityAndKeepsOrder() started.
+◇ Test viewPointHonoursVerticalLetterboxOffset() started.
+◇ Test existingProfileEntersDirectly() started.
+◇ Test neededStarterIsEvaluatedOnce() started.
+◇ Test settingRadiusAppliesOnlyToJoystick() started.
+◇ Test movingSelectedLookIsNoOp() started.
+◇ Test testStatsAndCountRemainConsistent() started.
+◇ Test normPointRoundTripsThroughViewPoint() started.
+◇ Test viewPointIsRelativeToContentRectNotWindow() started.
+◇ Test statesPublishesTransitions() started.
+◇ Test unusedStarterIsNotEvaluated() started.
+◇ Test radiusIsNormalisedAgainstWidth() started.
+◇ Test zeroExitNoForegroundIsNil() started.
+◇ Test streamFailureResubscribesWithBackoff() started.
+◇ Test normPointClampsPointsInTheLetterbox() started.
+◇ Test normPointRejectsDegenerateRect() started.
+◇ Test loadMissingThrowsNotFound() started.
+◇ Test saveRejectsZeroRadius() started.
+◇ Test saveRejectsInvalidProfile() started.
+◇ Test emptyStarterIsIgnored() started.
+◇ Test loadInvalidSchemaThrows() started.
+◇ Test invalidAndUnavailableAreNotLatencySamples() started.
+◇ Test nonZeroExitDegradesToNil() started.
+◇ Test noProfileButKnownGameEntersWithStarter() started.
+◇ Test saveThenLoadRoundTrip() started.
+◇ Test frameEqualityIgnoresTransit() started.
+◇ Test closeUnlinksTheFile() started.
+◇ Test loadCorruptedThrowsCorrupted() started.
+◇ Test zeroExitWithForegroundReturnsPackage() started.
+✘ Test liveStreamDeliversFrames() skipped: "需 MIRAGE_LIVE=1 與真模擬器"
+◇ Test unwritablePathIsRejected() started.
+◇ Test bannerHonestWhileReconnecting() started.
+◇ Test zeroByteCountIsRejected() started.
+◇ Test snapshotStartsAllZero() started.
+◇ Test closeIsIdempotent() started.
+◇ Test snapshotSeesExternalWrites() started.
+◇ Test eachFailureIsClassifiedAndNeverRetriesPaste(_:) started.
+◇ Test stopCancelsDisplayStream() started.
+◇ Test snapshotIsACopyNotAView() started.
+◇ Test createsFileOfRequestedSize() started.
+◇ Test waitsForCancellationBeforeReopeningAndForwardsPackets() started.
+✘ Test liveHealthProbeCarriesGuestPhysicalResolution() skipped: "需 MIRAGE_LIVE=1 與真模擬器"
+◇ Test cancellationAfterDispatchIsUnknown() started.
+◇ Test unhealthyProbeIncrementsAttemptThenConnects() started.
+◇ Test expiredScheduledStartDoesNotOpenRPC() started.
+◇ Test cancellingDuringOnPreventsFurtherRPCs() started.
+◇ Test convertsMixedSecondsAndSubsecond() started.
+◇ Test resetClearsSamples() started.
+◇ Test staleBeforeClipboardProducesNoOperations() started.
+◇ Test convertsDurationToMilliseconds() started.
+◇ Test canonicalEquivalenceIsNotClipboardReadbackEquality() started.
+◇ Test invalidZeroDimensions() started.
+◇ Test unicodeUsesOneClipboardAndOneChordThenWaits() started.
+◇ Test invalidSizeMismatch() started.
+◇ Test validFrame() started.
+◇ Test identicalStringsAreTwoIndependentCommits() started.
+◇ Test wakeResumesStreamingAfterSuspend() started.
+◇ Test reconnectFailureIncrementsAttempt() started.
+◇ Test orderDoesNotMatter() started.
+◇ Test initialConnectFailureGoesToReconnecting() started.
+◇ Test suspendPreservesConnectionAndDoesNotReconnect() started.
+◇ Test p95ReflectsTheTail() started.
+◇ Test loopNotRecursionUnderManyFailures() started.
+◇ Test singleSampleIsBothP50AndP95() started.
+◇ Test streamBrokenTriggersReconnectWithAttemptZero() started.
+✘ Test engineDrivenMultiTouchInjects() skipped: "需 MIRAGE_LIVE=1 與真模擬器；請跑 scripts/verify_keymap_inject.sh"
+◇ Test happyPath() started.
+◇ Test summaryIsNilBeforeAnySample() started.
+◇ Test p50IsTheMedian() started.
+◇ Test emptyDataIsBlank() started.
+◇ Test versionGateRejects(version:) started.
+◇ Test reconnectSuccessResets() started.
+◇ Test handleURLPrefixesFileScheme() started.
+◇ Test handlePathIsUniquePerSeq() started.
+◇ Test isBlankDetectsAllZero() started.
+◇ Test handlePathIsUniquePerProcess() started.
+◇ Test finalizeOnceAndSameTextTwice() started.
+◇ Test byteCountIsRGBA8888() started.
+◇ Test tempDirWithoutTrailingSlashStillProducesValidPath() started.
+◇ Test seedSkipsMissingSourceButContinues() started.
+◇ Test isBlankIsFalseWhenAnyByteIsNonZero() started.
+◇ Test seedCreatesDestinationDirectory() started.
+◇ Test starterBindingsFallBackWhenNoSourceIsReadable() started.
+◇ Test seedCopiesWhenAbsent() started.
+◇ Test seedingFromBundleProducesLoadableProfile() started.
+◇ Test starterBindingsFallBackWhenSourceHasEmptyBindings() started.
+◇ Test versionGateAllows(version:) started.
+◇ Test seedWithNoSourcesIsNoOp() started.
+◇ Test starterBindingsFallBackWhenSourceIsCorrupt() started.
+◇ Test starterBindingsComeFromTheFirstReadableSource() started.
+◇ Test standardDirectoryIsUnderApplicationSupport() started.
+◇ Test stopFromAnyStateDisconnects() started.
+◇ Test bundledSourcesFindsTheSampleProfile() started.
+◇ Test testInvalidFrameRejectedNotStored() started.
+◇ Test starterBindingsFallBackWhenSourceHasOutOfRangeCoordinate() started.
+◇ Test fallbackMatchesBundledSampleBindings() started.
+◇ Test bundleContainsSampleProfile() started.
+◇ Test testTakingLatestDoesNotChangeArrived() started.
+◇ Test cancellationAndUnsupportedGuestRange() started.
+◇ Test fallbackStarterIsValid() started.
+◇ Test testTakeReturnsLatestAndCountsDropped() started.
+◇ Test clampsAboveUpperBound() started.
+◇ Test leavesInRangeValuesUntouched() started.
+◇ Test testMissingAndInvalidValuesUseLatestFrameBox() started.
+◇ Test handlePathCarriesRecognisablePrefix() started.
+◇ Test testConcurrentPutTakeDoesNotCrash() started.
+◇ Test seedReportsEveryFailure() started.
+◇ Test testValidDepthUsesFrameQueue() started.
+◇ Test clampsBelowLowerBound() started.
+◇ Test seedNeverOverwritesExisting() started.
+◇ Test clampedRadiusAlwaysPassesValidation() started.
+◇ Test sensitivityRangeIsPositive() started.
+◇ Test touchFramesArriveInSubmissionOrder() started.
+◇ Test depthNeverGoesNegativeUnderThreadedContention() started.
+◇ Test differentEventKindsShareOneOrder() started.
+◇ Test measurementPreservesOrder() started.
+◇ Test testTakeEmptiesBox() started.
+◇ Test primeResetsAfterBufferDrained() started.
+◇ Test primeTimeoutDoesNotReleaseEarly() started.
+◇ Test partialReadCountsUnderrunAndReturnsWhatExists() started.
+◇ Test readStereoLeavesDanglingHalfFrameInBuffer() started.
+◇ Test productionDefaultsWithholdUntil100msAccumulated() started.
+◇ Test statsTracksWriteCountAndDepth() started.
+◇ Test primeReleasesOnceThresholdReached() started.
+◇ Test concurrentProducerConsumerKeepsDataIntact() started.
+◇ Test primesCountsEachReEntryIntoPrimedState() started.
+◇ Test writeExceedingFreeSpaceIsDroppedWholeAndCountsOverrun() started.
+◇ Test readStereoSplitsInterleavedIntoChannels() started.
+◇ Test shortSoundPlaysAtDefaultPrimeTimeout() started.
+◇ Test wrapAroundPreservesOrder() started.
+◇ Test writtenSamplesCountsSamplesNotPackets() started.
+◇ Test primeWithheldBelowThresholdAndNotCountedAsUnderrun() started.
+◇ Test writtenSamplesExcludesDroppedPackets() started.
+◇ Test slowEventIsNotOvertakenByFastFollower() started.
+◇ Test primeTimeoutStatsCountOnlyForcedStarts() started.
+◇ Test primeTimeoutRestartsAfterDrain() started.
+◇ Test noDrawableAndNoFrameAreIndependentCounters() started.
+◇ Test emptyBufferDoesNotPrimeTimeoutOrUnderrun() started.
+◇ Test countsLongGapsAndKeepsTheLargestGap() started.
+◇ Test readStereoOnEmptyReturnsZeroAndCountsUnderrun() started.
+◇ Test writeThenReadRoundTripsValues() started.
+◇ Test p95UsesNearestRankForTwentySamples() started.
+◇ Test oneSampleIsTheP95() started.
+◇ Test injectorIsNeverCalledConcurrently() started.
+◇ Test readOnEmptyReturnsZeroAndCountsUnderrun() started.
+◇ Test writeLargerThanCapacityIsDropped() started.
+◇ Test primeThresholdIsClampedToHalfCapacity() started.
+◇ Test noSinkMeansNoSubscription() started.
+◇ Test suspendStopsAudioAndWakeResumesIt() started.
+◇ Test suspendBeforeFirstConnectStaysSilentUntilWake() started.
+◇ Test readStereoWrapAroundPreservesChannelOrder() started.
+◇ Test diagonalIsNormalizedNotOverOne() started.
+◇ Test allReleasedIsZero() started.
+◇ Test threeKeysNormalized() started.
+◇ Test connectedClientWritesAudioIntoSink() started.
+◇ Test rejectsNonPositiveSensitivity() started.
+◇ Test allowsRepeatedTapBindings() started.
+◇ Test singleKeyIsUnit() started.
+◇ Test rejectsOutOfRangeCoordinate() started.
+◇ Test validProfilePassesValidation() started.
+◇ Test readStereoPartialReturnsWholeFramesAndCountsUnderrun() started.
+◇ Test jsonRoundTrip() started.
+◇ Test rejectsDuplicateJoystickBinding() started.
+◇ Test stopCancelsAudioStream() started.
+◇ Test rejectsNonPositiveRadius() started.
+◇ Test resetClearsCountsAndDurationSamples() started.
+◇ Test existingFailureEvidenceCannotBeOverwritten() started.
+◇ Test rejectsDuplicateLookBinding() started.
+◇ Test freshRunnerLogDoesNotCountAsOldCases() started.
+◇ Test upIsNegativeY() started.
+✘ Test sendsKeySequenceToGuest() skipped: "需 MIRAGE_LIVE=1 與真模擬器；**請跑 scripts/verify_keyboard.sh**——單獨跑本測試不會驗證任何事"
+◇ Test oppositeKeysCancel() started.
+◇ Test oddByteCountTruncatesInsteadOfCrashing() started.
+◇ Test emptyDataYieldsNoSamples() started.
+◇ Test optInWithVersionBelow37OrUnparsableChoosesRawOnly(version:) started.
+◇ Test noOptInWithVersionBelow37OrUnparsableChoosesRawOnly(version:) started.
+◇ Test silenceDecodesToZero() started.
+◇ Test minimumSampleMapsToNegativeOne() started.
+◇ Test maximumSampleMapsJustBelowOne() started.
+◇ Test optInWithVersionAtOrAbove37ChoosesMmapWithRawFallback(version:) started.
+◇ Test littleEndianByteOrderIsRespected() started.
+◇ Test standardFormatIs48kStereo() started.
+◇ Passing 1 argument milliseconds → 713 to holdUsesPolicySnapshot(_:)
+◇ Passing 1 argument milliseconds → 250 to holdUsesPolicySnapshot(_:)
+◇ Passing 1 argument milliseconds → 100 to holdUsesPolicySnapshot(_:)
+◇ Passing 1 argument value → "0" to rejectsInvalidSetting(_:)
+◇ Passing 1 argument value → "-1" to rejectsInvalidSetting(_:)
+◇ Passing 1 argument value → "bad" to rejectsInvalidSetting(_:)
+◇ Test noOptInWithVersionAtOrAbove37ChoosesRawOnly(version:) started.
+◇ Passing 1 argument value → "1.5" to rejectsInvalidSetting(_:)
+◇ Passing 1 argument value → "Infinity" to rejectsInvalidSetting(_:)
+◇ Passing 4 arguments fw → 0, fh → 100, bw → 100, bh → 100 to degenerateInputReturnsZero(fw:fh:bw:bh:)
+◇ Passing 4 arguments fw → 100, fh → 0, bw → 100, bh → 100 to degenerateInputReturnsZero(fw:fh:bw:bh:)
+◇ Passing 1 argument value → "9999999999999999999999999" to rejectsInvalidSetting(_:)
+◇ Passing 4 arguments fw → 100, fh → 100, bw → 0, bh → 100 to degenerateInputReturnsZero(fw:fh:bw:bh:)
+◇ Passing 4 arguments fw → -9, fh → 20, bw → 270, bh → 600 to degenerateInputReturnsZero(fw:fh:bw:bh:)
+◇ Passing 4 arguments fw → 9, fh → 20, bw → -270, bh → 600 to degenerateInputReturnsZero(fw:fh:bw:bh:)
+◇ Passing 4 arguments fw → 100, fh → 100, bw → 100, bh → 0 to degenerateInputReturnsZero(fw:fh:bw:bh:)
+◇ Passing 1 argument wrong → "LEFTRIGHT中文🙂" to clipboardCannotProveInsertionOrReplacement(_:)
+◇ Passing 1 argument wrong → "中文🙂" to clipboardCannotProveInsertionOrReplacement(_:)
+◇ Passing 1 argument wrong → "LEFT中文🙂" to clipboardCannotProveInsertionOrReplacement(_:)
+◇ Passing 1 argument wrong → "中文🙂RIGHT" to clipboardCannotProveInsertionOrReplacement(_:)
+◇ Passing 1 argument wrong → "LEFTold中文🙂RIGHT" to clipboardCannotProveInsertionOrReplacement(_:)
+◇ Passing 4 arguments fw → 1000, fh → 1, bw → 1, bh → 1000 to extremeRatioTruncatingToZeroStaysInBounds(fw:fh:bw:bh:)
+◇ Passing 4 arguments fw → 1, fh → 1000, bw → 1000, bh → 1 to extremeRatioTruncatingToZeroStaysInBounds(fw:fh:bw:bh:)
+◇ Passing 1 argument value → "" to rejectsInvalidSetting(_:)
+◇ Passing 1 argument output → "" to missingOrTruncatedForeground(output:)
+◇ Passing 1 argument output → "      topResumedActivity=ActivityRecord{39cc710 u0 com.andro" to missingOrTruncatedForeground(output:)
+◇ Passing 1 argument text → "中文" to utf16AndExactContent(_:)
+◇ Passing 1 argument text → "👩‍👩‍👧‍👦" to utf16AndExactContent(_:)
+◇ Passing 1 argument text → "é" to utf16AndExactContent(_:)
+◇ Passing 1 argument value → "NaN" to rejectsInvalidSetting(_:)
+◇ Passing 1 argument text → "🙂" to utf16AndExactContent(_:)
+◇ Passing 1 argument raw → "0" to outOfRangePortFallsBackAndSaysWhy(_:)
+◇ Passing 1 argument raw → "-1" to outOfRangePortFallsBackAndSaysWhy(_:)
+◇ Passing 1 argument raw → "99999" to outOfRangePortFallsBackAndSaysWhy(_:)
+◇ Passing 2 arguments aw → 9, ah → 20 to pixelBudgetHoldsForAnyAspect(aw:ah:)
+◇ Passing 2 arguments aw → 20, ah → 9 to pixelBudgetHoldsForAnyAspect(aw:ah:)
+◇ Passing 2 arguments aw → 1, ah → 5 to pixelBudgetHoldsForAnyAspect(aw:ah:)
+◇ Passing 2 arguments aw → 1, ah → 1 to pixelBudgetHoldsForAnyAspect(aw:ah:)
+◇ Passing 1 argument text → "é" to utf16AndExactContent(_:)
+◇ Passing 2 arguments aw → 5, ah → 1 to pixelBudgetHoldsForAnyAspect(aw:ah:)
+◇ Passing 2 arguments aw → 3, ah → 4 to pixelBudgetHoldsForAnyAspect(aw:ah:)
+◇ Passing 2 arguments aw → 0, ah → 20 to degenerateAspectFallsBackToWidthOnly(aw:ah:)
+◇ Passing 2 arguments aw → 9, ah → 0 to degenerateAspectFallsBackToWidthOnly(aw:ah:)
+◇ Passing 2 arguments aw → -9, ah → 20 to degenerateAspectFallsBackToWidthOnly(aw:ah:)
+◇ Passing 1 argument contentWidth → 271 to widthIsAlwaysEven(contentWidth:)
+◇ Passing 1 argument contentWidth → 899 to widthIsAlwaysEven(contentWidth:)
+◇ Passing 1 argument contentWidth → 1079 to widthIsAlwaysEven(contentWidth:)
+◇ Passing 1 argument contentWidth → 1081 to widthIsAlwaysEven(contentWidth:)
+◇ Passing 1 argument contentWidth → 5000 to widthIsAlwaysEven(contentWidth:)
+◇ Passing 1 argument contentWidth → 333 to widthIsAlwaysEven(contentWidth:)
+◇ Passing 1 argument raw → "65536" to outOfRangePortFallsBackAndSaysWhy(_:)
+◇ Test requiresFiveConsecutiveSeconds() started.
+◇ Test packetCountDoesNotAffectJudgementWhenNonZero() started.
+◇ Test healthyResetsAndRecovers() started.
+◇ Test silenceResetsPendingAndDegradedStates() started.
+◇ Test testOnEndReceivesStreamError() started.
+◇ Test testPumpConsumesStreamIntoBox() started.
+◇ Test supplyThresholdIsExclusive() started.
+◇ Test testReattachCancelsPreviousConsumer() started.
+◇ Test configurableThresholds() started.
+◇ Passing 1 argument event → "write:A" to eachFailureIsClassifiedAndNeverRetriesPaste(_:)
+◇ Passing 1 argument event → "read" to eachFailureIsClassifiedAndNeverRetriesPaste(_:)
+◇ Passing 1 argument event → "key:Control:down" to eachFailureIsClassifiedAndNeverRetriesPaste(_:)
+◇ Passing 1 argument event → "key:v:down" to eachFailureIsClassifiedAndNeverRetriesPaste(_:)
+◇ Passing 1 argument event → "key:v:up" to eachFailureIsClassifiedAndNeverRetriesPaste(_:)
+◇ Passing 1 argument event → "key:Control:up" to eachFailureIsClassifiedAndNeverRetriesPaste(_:)
+◇ Passing 1 argument version → "36.6.11.0" to versionGateRejects(version:)
+◇ Passing 1 argument version → "" to versionGateRejects(version:)
+◇ Passing 1 argument version → "abc" to versionGateRejects(version:)
+◇ Passing 1 argument version → "unknown.1" to versionGateRejects(version:)
+[profile] ⚠️ 無可用的內建 starter profile，改用 fallback 版面（來源共 0 筆）
+[profile] ⚠️ 無可用的內建 starter profile，改用 fallback 版面（來源共 1 筆）
+◇ Passing 1 argument version → "37.2.1.0" to versionGateAllows(version:)
+◇ Passing 1 argument version → "38.0.0" to versionGateAllows(version:)
+◇ Passing 1 argument version → "40.1" to versionGateAllows(version:)
+[profile] ⚠️ 無可用的內建 starter profile，改用 fallback 版面（來源共 1 筆）
+[profile] ⚠️ 無可用的內建 starter profile，改用 fallback 版面（來源共 1 筆）
+✔ Suite MultiTouchLiveTests passed after 0.031 seconds.
+✔ Test disabledIsInactiveEvenWithProfile() passed after 0.029 seconds.
+✔ Test autoWithProfileActivates() passed after 0.029 seconds.
+✔ Test autoWithoutProfileInactive() passed after 0.029 seconds.
+✔ Test snapshotPackageFieldsExist() passed after 0.029 seconds.
+✔ Test cancelStreamForwardsToBothLegs() passed after 0.029 seconds.
+✔ Suite ChannelTeardownTests passed after 0.032 seconds.
+✔ Test attemptZeroAroundBase() passed after 0.029 seconds.
+✔ Test capsAtEight() passed after 0.029 seconds.
+✔ Test jitterBounds() passed after 0.029 seconds.
+✔ Test doublesPerAttempt() passed after 0.029 seconds.
+✔ Test missingObjectType() passed after 0.029 seconds.
+✔ Test runtimeObjectType() passed after 0.029 seconds.
+✔ Test disconnectedCheckedAPIsThrowInsteadOfSilentlySucceeding() passed after 0.030 seconds.
+✔ Test tokenEscapesFieldSeparators() passed after 0.029 seconds.
+[transport] mmap unusable, falling back to raw rgba
+[transport] mmap unusable, falling back to raw rgba
+[transport] mmap unusable, falling back to raw rgba
+✔ Test forceOverridesDetection() passed after 0.031 seconds.
+✔ Test lookAccumulatesMouseMove() passed after 0.029 seconds.
+✔ Test gatedLookLiftsTouchWhenActivationKeyReleased() passed after 0.029 seconds.
+✔ Test joystickRightMovesTouchFromCenter() passed after 0.029 seconds.
+✔ Test computesDeltasFromTwoSnapshots() passed after 0.029 seconds.
+✔ Test joystickReleaseLiftsTouch() passed after 0.029 seconds.
+✔ Test simultaneousJoystickAndTapAreTwoStableTouches() passed after 0.029 seconds.
+✔ Test tapDownProducesTouchThenUp() passed after 0.029 seconds.
+✔ Test onlySuspendedSessionResumes() passed after 0.029 seconds.
+✔ Test joystickAtEdgeStaysInsideUnitSquare() passed after 0.029 seconds.
+✔ Test clampsBackwardsSnapshotsAndPresentedCountToZero() passed after 0.029 seconds.
+✔ Test closingLastWindowKeepsApplicationRunning() passed after 0.029 seconds.
+✔ Test handlesReportsBoundKeysOnly() passed after 0.030 seconds.
+✔ Test installStateFinishedCarriesItems() passed after 0.029 seconds.
+✔ Test pasteEventsNeverUseTextOrPhysicalKeyCode() passed after 0.031 seconds.
+✔ Test exactBoundaryReportsOnceAndResets() passed after 0.029 seconds.
+✔ Test noPresentDoesNotReportEvenAfterDeadline() passed after 0.029 seconds.
+✔ Test overshootStartsFreshAtEventTime() passed after 0.029 seconds.
+✔ Test stalledWindowReportsActualElapsedAndRoundedRate() passed after 0.029 seconds.
+✔ Test beforeBoundaryDoesNotReportOrReadCounters() passed after 0.029 seconds.
+✔ Test unknownKeyWithoutCharactersIsDropped() passed after 0.029 seconds.
+◇ Passing 1 argument version → "" to optInWithVersionBelow37OrUnparsableChoosesRawOnly(version:)
+◇ Passing 1 argument version → "36.6.11.0" to optInWithVersionBelow37OrUnparsableChoosesRawOnly(version:)
+◇ Passing 1 argument version → "abc" to optInWithVersionBelow37OrUnparsableChoosesRawOnly(version:)
+◇ Passing 1 argument version → "unknown.1" to optInWithVersionBelow37OrUnparsableChoosesRawOnly(version:)
+✔ Test privateUseAreaCharactersAreDropped() passed after 0.029 seconds.
+✔ Test printableCharacterPassesThrough() passed after 0.029 seconds.
+◇ Passing 1 argument version → "36.6.11.0" to noOptInWithVersionBelow37OrUnparsableChoosesRawOnly(version:)
+◇ Passing 1 argument version → "" to noOptInWithVersionBelow37OrUnparsableChoosesRawOnly(version:)
+◇ Passing 1 argument version → "abc" to noOptInWithVersionBelow37OrUnparsableChoosesRawOnly(version:)
+◇ Passing 1 argument version → "unknown.1" to noOptInWithVersionBelow37OrUnparsableChoosesRawOnly(version:)
+✔ Test ordinaryCharactersStillPassThrough() passed after 0.029 seconds.
+✔ Test unmappedKeyLeavesTouchStateUntouched() passed after 0.030 seconds.
+✔ Test escapeBecomesAndroidBack() passed after 0.029 seconds.
+✔ Test commandCombinationsAreNeverForwarded() passed after 0.029 seconds.
+✔ Test duplicateIDsDifferFromDuplicateStrings() passed after 0.029 seconds.
+✔ Test offsetIsReusedWhenMarkerCenterChanges() passed after 0.029 seconds.
+◇ Passing 1 argument version → "38.0.0" to optInWithVersionAtOrAbove37ChoosesMmapWithRawFallback(version:)
+◇ Passing 1 argument version → "40.1" to optInWithVersionAtOrAbove37ChoosesMmapWithRawFallback(version:)
+◇ Passing 1 argument version → "37.2.1.0" to optInWithVersionAtOrAbove37ChoosesMmapWithRawFallback(version:)
+[keymap] profile save failed: Error Domain=NSCocoaErrorDomain Code=512 "The file “com.game.outcome.json.tmp” couldn’t be saved in the folder “mirage-nope”." UserInfo={NSFilePath=/dev/null/mirage-nope/com.game.outcome.json.tmp, NSURL=file:///dev/null/mirage-nope/com.game.outcome.json.tmp, NSUnderlyingError=0x9a216c0f0 {Error Domain=NSPOSIXErrorDomain Code=20 "Not a directory"}}
+[transport] mmap unusable, falling back to raw rgba
+✔ Test controlCharactersAreDropped() passed after 0.029 seconds.
+✔ Suite TextCommitLiveTests passed after 0.035 seconds.
+✔ Test deferredConsumerShowsTheRealRaceAndPolicyPreventsEarlyOverwrite() passed after 0.030 seconds.
+✔ Suite ClipboardLiveTests passed after 0.035 seconds.
+✔ Test outcomeDependsOnDispatchBoundaryAndRetainsText() passed after 0.030 seconds.
+✔ Test clickStoresOffsetButNeverReportsMovement() passed after 0.030 seconds.
+✔ Test consecutiveWindowsKeepFramesAndDrawsSeparate() passed after 0.030 seconds.
+✔ Test specialKeysMapByVirtualKeyCode() passed after 0.030 seconds.
+✔ Test keyCodeEquatableAndHashable() passed after 0.029 seconds.
+✔ Test holdUsesPolicySnapshot(_:) passed after 0.029 seconds.
+✔ Test fromViewPointFlipsYAndClamps() passed after 0.029 seconds.
+✔ Test validWithinUnitSquare() passed after 0.029 seconds.
+✔ Test supplementaryPrivateUsePlanesAreDropped() passed after 0.030 seconds.
+✔ Suite AudioLiveTests passed after 0.035 seconds.
+✔ Test fromViewPointRejectsDegenerateBounds() passed after 0.029 seconds.
+✔ Suite MmapStreamLiveTests passed after 0.035 seconds.
+✔ Test guestPixelScalesToFrame() passed after 0.029 seconds.
+✔ Test buildsKeyEventFromW3CKey() passed after 0.029 seconds.
+✔ Test echoBackDoesNotPropagate() passed after 0.029 seconds.
+✔ Test buildsMultiTouchEventWithScaledPixels() passed after 0.029 seconds.
+✔ Test duplicateValueDeduped() passed after 0.029 seconds.
+✔ Test configurationIsExplicitAndAdjustable() passed after 0.029 seconds.
+✔ Test firstValuePropagates() passed after 0.029 seconds.
+✔ Test mouseKeyCodeProducesNoKeyEvent() passed after 0.029 seconds.
+✔ Test invalidOutOfRange() passed after 0.029 seconds.
+✔ Test endClearsOffsetAndNextGestureRecomputesIt() passed after 0.031 seconds.
+◇ Passing 1 argument version → "37.2.1.0" to noOptInWithVersionAtOrAbove37ChoosesRawOnly(version:)
+◇ Passing 1 argument version → "38.0.0" to noOptInWithVersionAtOrAbove37ChoosesRawOnly(version:)
+◇ Passing 1 argument version → "40.1" to noOptInWithVersionAtOrAbove37ChoosesRawOnly(version:)
+✔ Test degradedToHealthyIsRecovery() passed after 0.029 seconds.
+✔ Test bridgeIsImmutable() passed after 0.029 seconds.
+✔ Test rejectsInvalidResourceLimits() passed after 0.029 seconds.
+✔ Test degradedTransitionsAlwaysNotify() passed after 0.029 seconds.
+✔ Test degradedToIdleIsClearedNotRecovered() passed after 0.029 seconds.
+✔ Test nullStaleWrongFocusOrWrongTargetIsInvalid() passed after 0.029 seconds.
+✔ Test degenerateInputReturnsZero(fw:fh:bw:bh:) passed after 0.029 seconds.
+✔ Test clipboardCannotProveInsertionOrReplacement(_:) passed after 0.029 seconds.
+✔ Test extremeRatioTruncatingToZeroStaysInBounds(fw:fh:bw:bh:) passed after 0.029 seconds.
+✔ Test hostWriteIsUnavailableWhileTransactionOwnsClipboard() passed after 0.029 seconds.
+✔ Test transitionsNotInvolvingDegradedAreSilent() passed after 0.029 seconds.
+✔ Test portraitFrameInWideBoundsGetsLeftRightBars() passed after 0.029 seconds.
+✔ Test sameAspectFillsCompletely() passed after 0.029 seconds.
+✔ Test exactPositionAndUnicodeAreRequired() passed after 0.029 seconds.
+✔ Test differentValuePropagatesBothDirections() passed after 0.029 seconds.
+✔ Test landscapeFrameInSquareBoundsGetsTopBottomBars() passed after 0.029 seconds.
+✔ Test queuedPolicyIsASnapshotAndInvalidConfigDoesNotDropText() passed after 0.029 seconds.
+✔ Test healthResultIsEquatable() passed after 0.029 seconds.
+✔ Test scriptedProbeReplaysResults() passed after 0.029 seconds.
+✔ Test ownAndLateEchoesDoNotWriteHostClipboard() passed after 0.029 seconds.
+✔ Test disabledDoesNotCollect() passed after 0.029 seconds.
+✔ Test overflowStillCountsReceivedPacket() passed after 0.029 seconds.
+✔ Test squareFrameInSquareBoundsFills() passed after 0.029 seconds.
+✔ Test installTimeout() passed after 0.029 seconds.
+✔ Test parsesLauncherPackage() passed after 0.029 seconds.
+✔ Test missingOrTruncatedForeground(output:) passed after 0.029 seconds.
+✔ Test resumedLineWithoutPackageIsNil() passed after 0.029 seconds.
+✔ Test foregroundTimeout() passed after 0.029 seconds.
+✔ Test utf16AndExactContent(_:) passed after 0.029 seconds.
+✔ Test standardMissingExecutable() passed after 0.029 seconds.
+✔ Test noResumedActivityIsNil() passed after 0.029 seconds.
+✔ Test installSuccessAndCommand() passed after 0.029 seconds.
+✔ Test installFailure() passed after 0.029 seconds.
+✔ Test sameStateNeverNotifies() passed after 0.030 seconds.
+✔ Test extremeRatioNeverExceedsBounds() passed after 0.029 seconds.
+✔ Test foregroundNonzeroExit() passed after 0.029 seconds.
+✔ Test parsesTopResumedActivity() passed after 0.029 seconds.
+✔ Test outOfRangePortFallsBackAndSaysWhy(_:) passed after 0.029 seconds.
+✔ Test absentOverridesGiveTheDefaultEndpoint() passed after 0.029 seconds.
+✔ Test emptyOutputIsNil() passed after 0.029 seconds.
+✔ Test replacementAndInvalidRanges() passed after 0.029 seconds.
+✔ Test foregroundAndCommand() passed after 0.029 seconds.
+✔ Test boundaryPortsAreAccepted() passed after 0.029 seconds.
+✔ Test pixelBudgetHoldsForAnyAspect(aw:ah:) passed after 0.029 seconds.
+✔ Test belowMinimumClampsUp() passed after 0.029 seconds.
+✔ Test rejectsInvalidSetting(_:) passed after 0.030 seconds.
+✔ Test hostOverrideIsApplied() passed after 0.029 seconds.
+✔ Test blankHostFallsBackAndSaysWhy() passed after 0.029 seconds.
+✔ Test landscapeIsBoundedByWidthNotPixels() passed after 0.029 seconds.
+✔ Test portraitFullScreenStaysWithinPixelBudget() passed after 0.029 seconds.
+✔ Test installNonzeroExitUsesOutput() passed after 0.029 seconds.
+✔ Test smallWindowIsUnaffectedByCaps() passed after 0.029 seconds.
+✔ Test streamEndingBeforeBudgetExhaustedReportsNoContent() passed after 0.029 seconds.
+✔ Test degenerateAspectFallsBackToWidthOnly(aw:ah:) passed after 0.029 seconds.
+✔ Test threeBlankFramesBecomeUnusableOnTheThird() passed after 0.029 seconds.
+✔ Test widthIsAlwaysEven(contentWidth:) passed after 0.029 seconds.
+✔ Test infoCarriesVersionAndOptionalDisplay() passed after 0.029 seconds.
+✔ Test nonNumericPortFallsBackAndSaysWhy() passed after 0.029 seconds.
+✔ Test parsesLcdSizeFromHardwareConfig() passed after 0.029 seconds.
+✔ Test emptyIsUnknown() passed after 0.029 seconds.
+✔ Test portOverrideIsApplied() passed after 0.029 seconds.
+✔ Test plainSuccess() passed after 0.029 seconds.
+✔ Test rejectsMissingOrUnusableValues() passed after 0.029 seconds.
+✔ Test progressBracketNotMistakenForFailure() passed after 0.029 seconds.
+✔ Test unknownFormatReturnsTrimmed() passed after 0.029 seconds.
+✔ Test failureBracketReason() passed after 0.029 seconds.
+✔ Test testDepthOneMatchesLatestWins() passed after 0.029 seconds.
+✔ Test firstBlankThenContentDeliversFromSecondFrameOnward() passed after 0.029 seconds.
+✔ Test streamEndingAfterContentSeenIsNotFlaggedAsNoContent() passed after 0.028 seconds.
+✔ Test failedNoBracket() passed after 0.029 seconds.
+✔ Test contentOnFirstFrameDeliversImmediately() passed after 0.029 seconds.
+✔ Test bothOverridesApplyTogether() passed after 0.030 seconds.
+✔ Test repeatedOwnValueRefreshesBoundedEchoHistory() passed after 0.030 seconds.
+✔ Test testInvalidFrameIsRejectedAndNotQueued() passed after 0.029 seconds.
+✔ Test mutationsWithoutSelectionAreNoOps() passed after 0.029 seconds.
+✔ Test streamEndingWithZeroFramesObservedReportsNoContent() passed after 0.030 seconds.
+✔ Test selectingDoesNotMarkDirty() passed after 0.029 seconds.
+✔ Test profileRoundTripsBackIntoASession() passed after 0.029 seconds.
+✔ Test settingSensitivityAppliesOnlyToLook() passed after 0.029 seconds.
+✔ Test movingSelectedTapChangesOnlyThatBinding() passed after 0.029 seconds.
+✔ Test failureBracketEmptyReason() passed after 0.029 seconds.
+✔ Test testTakingFromEmptyQueueReturnsNil() passed after 0.029 seconds.
+✔ Test profileBumpsVersionAndKeepsGameIdAndOrder() passed after 0.029 seconds.
+✔ Test bothProblemsAreReportedTogether() passed after 0.030 seconds.
+✔ Test noProfileAndNoPackageIsIgnored() passed after 0.029 seconds.
+✔ Test editingAlwaysAllowsLeaving() passed after 0.029 seconds.
+✔ Test testDepthTwoDropsOldestAndTakesFifo() passed after 0.029 seconds.
+✔ Test mutationsToTheSameValueDoNotMarkDirty() passed after 0.029 seconds.
+✔ Test viewPointHonoursVerticalLetterboxOffset() passed after 0.029 seconds.
+✔ Test initAssignsStableIdentityAndKeepsOrder() passed after 0.029 seconds.
+✔ Test existingProfileEntersDirectly() passed after 0.029 seconds.
+✔ Test streamedSuccess() passed after 0.029 seconds.
+✔ Test movingSelectedJoystickMovesCentreOnly() passed after 0.029 seconds.
+✔ Test knownPacketsAndConsecutiveWindows() passed after 0.031 seconds.
+✔ Test testStatsAndCountRemainConsistent() passed after 0.030 seconds.
+✔ Test settingRadiusAppliesOnlyToJoystick() passed after 0.029 seconds.
+✔ Test movingSelectedLookIsNoOp() passed after 0.030 seconds.
+✔ Test neededStarterIsEvaluatedOnce() passed after 0.029 seconds.
+✔ Test normPointRoundTripsThroughViewPoint() passed after 0.029 seconds.
+✔ Test viewPointIsRelativeToContentRectNotWindow() passed after 0.029 seconds.
+✔ Test unusedStarterIsNotEvaluated() passed after 0.030 seconds.
+✔ Test radiusIsNormalisedAgainstWidth() passed after 0.029 seconds.
+✔ Test adbErrorPrefixWithBracket() passed after 0.031 seconds.
+✔ Test emptyStarterIsIgnored() passed after 0.030 seconds.
+✔ Test normPointRejectsDegenerateRect() passed after 0.030 seconds.
+✔ Test normPointClampsPointsInTheLetterbox() passed after 0.030 seconds.
+✔ Test nonZeroExitDegradesToNil() passed after 0.030 seconds.
+✔ Test noProfileButKnownGameEntersWithStarter() passed after 0.030 seconds.
+✔ Test frameEqualityIgnoresTransit() passed after 0.030 seconds.
+✔ Test invalidAndUnavailableAreNotLatencySamples() passed after 0.030 seconds.
+✔ Test zeroExitWithForegroundReturnsPackage() passed after 0.030 seconds.
+✔ Suite LiveSmokeTests passed after 0.039 seconds.
+✔ Test unwritablePathIsRejected() passed after 0.030 seconds.
+✔ Test zeroExitNoForegroundIsNil() passed after 0.030 seconds.
+✔ Test zeroByteCountIsRejected() passed after 0.030 seconds.
+✔ Test loadMissingThrowsNotFound() passed after 0.031 seconds.
+✔ Test closeIsIdempotent() passed after 0.030 seconds.
+✔ Test closeUnlinksTheFile() passed after 0.031 seconds.
+✔ Test snapshotSeesExternalWrites() passed after 0.030 seconds.
+✔ Test snapshotStartsAllZero() passed after 0.030 seconds.
+[transport] raw rgba (default; set MIRAGE_TRANSPORT=mmap to try mmap)
+[transport] raw rgba (default; set MIRAGE_TRANSPORT=mmap to try mmap)
+✔ Test convertsMixedSecondsAndSubsecond() passed after 0.033 seconds.
+✔ Test resetClearsSamples() passed after 0.034 seconds.
+✔ Test convertsDurationToMilliseconds() passed after 0.034 seconds.
+✔ Test snapshotIsACopyNotAView() passed after 0.034 seconds.
+✔ Test invalidZeroDimensions() passed after 0.034 seconds.
+✔ Test invalidSizeMismatch() passed after 0.034 seconds.
+✔ Test validFrame() passed after 0.034 seconds.
+✔ Test unicodeUsesOneClipboardAndOneChordThenWaits() passed after 0.034 seconds.
+✔ Test identicalStringsAreTwoIndependentCommits() passed after 0.034 seconds.
+✔ Test canonicalEquivalenceIsNotClipboardReadbackEquality() passed after 0.034 seconds.
+✔ Test reconnectFailureIncrementsAttempt() passed after 0.034 seconds.
+✔ Test orderDoesNotMatter() passed after 0.034 seconds.
+✔ Test initialConnectFailureGoesToReconnecting() passed after 0.034 seconds.
+✔ Test p95ReflectsTheTail() passed after 0.034 seconds.
+✔ Test streamBrokenTriggersReconnectWithAttemptZero() passed after 0.034 seconds.
+✔ Test happyPath() passed after 0.034 seconds.
+✔ Test singleSampleIsBothP50AndP95() passed after 0.034 seconds.
+✔ Test summaryIsNilBeforeAnySample() passed after 0.035 seconds.
+✔ Suite KeymapInjectLiveTests passed after 0.044 seconds.
+✔ Test p50IsTheMedian() passed after 0.035 seconds.
+✔ Test emptyDataIsBlank() passed after 0.035 seconds.
+✔ Test versionGateRejects(version:) passed after 0.036 seconds.
+✔ Test reconnectSuccessResets() passed after 0.036 seconds.
+✔ Test handleURLPrefixesFileScheme() passed after 0.036 seconds.
+✔ Test handlePathIsUniquePerSeq() passed after 0.036 seconds.
+✔ Test handlePathIsUniquePerProcess() passed after 0.037 seconds.
+✔ Test isBlankDetectsAllZero() passed after 0.037 seconds.
+✔ Test loadCorruptedThrowsCorrupted() passed after 0.038 seconds.
+✔ Test byteCountIsRGBA8888() passed after 0.037 seconds.
+✔ Test tempDirWithoutTrailingSlashStillProducesValidPath() passed after 0.037 seconds.
+✔ Test saveRejectsZeroRadius() passed after 0.038 seconds.
+✔ Test isBlankIsFalseWhenAnyByteIsNonZero() passed after 0.037 seconds.
+✔ Test starterBindingsFallBackWhenNoSourceIsReadable() passed after 0.037 seconds.
+✔ Test finalizeOnceAndSameTextTwice() passed after 0.038 seconds.
+✔ Test saveThenLoadRoundTrip() passed after 0.039 seconds.
+✔ Test loadInvalidSchemaThrows() passed after 0.040 seconds.
+✔ Test starterBindingsFallBackWhenSourceHasEmptyBindings() passed after 0.038 seconds.
+✔ Test saveRejectsInvalidProfile() passed after 0.040 seconds.
+✔ Test versionGateAllows(version:) passed after 0.039 seconds.
+✔ Test seedWithNoSourcesIsNoOp() passed after 0.039 seconds.
+✔ Test seedCreatesDestinationDirectory() passed after 0.039 seconds.
+✔ Test seedCopiesWhenAbsent() passed after 0.039 seconds.
+✔ Test stopFromAnyStateDisconnects() passed after 0.039 seconds.
+✔ Test standardDirectoryIsUnderApplicationSupport() passed after 0.039 seconds.
+[transport] raw rgba (default; set MIRAGE_TRANSPORT=mmap to try mmap)
+[keymap] profile save failed: Error Domain=NSCocoaErrorDomain Code=512 "The file “com.game.savefail.json.tmp” couldn’t be saved in the folder “mirage-nope”." UserInfo={NSFilePath=/dev/null/mirage-nope/com.game.savefail.json.tmp, NSURL=file:///dev/null/mirage-nope/com.game.savefail.json.tmp, NSUnderlyingError=0x9a216c7e0 {Error Domain=NSPOSIXErrorDomain Code=20 "Not a directory"}}
+[keymap] profile save failed: Error Domain=NSCocoaErrorDomain Code=512 "The file “com.game.savefail2.json.tmp” couldn’t be saved in the folder “mirage-nope”." UserInfo={NSFilePath=/dev/null/mirage-nope/com.game.savefail2.json.tmp, NSURL=file:///dev/null/mirage-nope/com.game.savefail2.json.tmp, NSUnderlyingError=0x9a216c780 {Error Domain=NSPOSIXErrorDomain Code=20 "Not a directory"}}
+✔ Test testInvalidFrameRejectedNotStored() passed after 0.039 seconds.
+✔ Test createsFileOfRequestedSize() passed after 0.040 seconds.
+✔ Test starterBindingsComeFromTheFirstReadableSource() passed after 0.039 seconds.
+✔ Test testTakingLatestDoesNotChangeArrived() passed after 0.039 seconds.
+✔ Test cancellationAndUnsupportedGuestRange() passed after 0.039 seconds.
+✔ Test fallbackStarterIsValid() passed after 0.039 seconds.
+✔ Test testTakeReturnsLatestAndCountsDropped() passed after 0.039 seconds.
+✔ Test clampsAboveUpperBound() passed after 0.039 seconds.
+✔ Test leavesInRangeValuesUntouched() passed after 0.039 seconds.
+✔ Test testMissingAndInvalidValuesUseLatestFrameBox() passed after 0.039 seconds.
+✔ Test handlePathCarriesRecognisablePrefix() passed after 0.039 seconds.
+✔ Test staleBeforeClipboardProducesNoOperations() passed after 0.040 seconds.
+✔ Test starterBindingsFallBackWhenSourceIsCorrupt() passed after 0.044 seconds.
+✔ Test testValidDepthUsesFrameQueue() passed after 0.044 seconds.
+✔ Test clampsBelowLowerBound() passed after 0.044 seconds.
+✔ Test starterBindingsFallBackWhenSourceHasOutOfRangeCoordinate() passed after 0.044 seconds.
+✔ Test clampedRadiusAlwaysPassesValidation() passed after 0.044 seconds.
+✔ Test sensitivityRangeIsPositive() passed after 0.044 seconds.
+✔ Test seedNeverOverwritesExisting() passed after 0.045 seconds.
+✔ Test testTakeEmptiesBox() passed after 0.045 seconds.
+✔ Test primeResetsAfterBufferDrained() passed after 0.044 seconds.
+✔ Test primeTimeoutDoesNotReleaseEarly() passed after 0.045 seconds.
+✔ Test partialReadCountsUnderrunAndReturnsWhatExists() passed after 0.044 seconds.
+✔ Test readStereoLeavesDanglingHalfFrameInBuffer() passed after 0.044 seconds.
+✔ Test seedingFromBundleProducesLoadableProfile() passed after 0.045 seconds.
+✔ Test bundleContainsSampleProfile() passed after 0.045 seconds.
+✔ Test statsTracksWriteCountAndDepth() passed after 0.044 seconds.
+✔ Test primeReleasesOnceThresholdReached() passed after 0.044 seconds.
+✔ Test writeExceedingFreeSpaceIsDroppedWholeAndCountsOverrun() passed after 0.045 seconds.
+✔ Test readStereoSplitsInterleavedIntoChannels() passed after 0.045 seconds.
+✔ Test productionDefaultsWithholdUntil100msAccumulated() passed after 0.045 seconds.
+✔ Test wrapAroundPreservesOrder() passed after 0.045 seconds.
+✔ Test bundledSourcesFindsTheSampleProfile() passed after 0.045 seconds.
+✔ Test primesCountsEachReEntryIntoPrimedState() passed after 0.045 seconds.
+✔ Test primeWithheldBelowThresholdAndNotCountedAsUnderrun() passed after 0.045 seconds.
+✔ Test primeTimeoutStatsCountOnlyForcedStarts() passed after 0.045 seconds.
+✔ Test primeTimeoutRestartsAfterDrain() passed after 0.045 seconds.
+✔ Test noDrawableAndNoFrameAreIndependentCounters() passed after 0.045 seconds.
+✔ Test writtenSamplesExcludesDroppedPackets() passed after 0.045 seconds.
+✔ Test fallbackMatchesBundledSampleBindings() passed after 0.046 seconds.
+✔ Test countsLongGapsAndKeepsTheLargestGap() passed after 0.045 seconds.
+✔ Test readStereoOnEmptyReturnsZeroAndCountsUnderrun() passed after 0.045 seconds.
+✔ Test emptyBufferDoesNotPrimeTimeoutOrUnderrun() passed after 0.045 seconds.
+✔ Test oneSampleIsTheP95() passed after 0.045 seconds.
+✔ Test writeThenReadRoundTripsValues() passed after 0.045 seconds.
+✔ Test readOnEmptyReturnsZeroAndCountsUnderrun() passed after 0.045 seconds.
+✔ Test p95UsesNearestRankForTwentySamples() passed after 0.045 seconds.
+✔ Test primeThresholdIsClampedToHalfCapacity() passed after 0.045 seconds.
+✔ Test writeLargerThanCapacityIsDropped() passed after 0.045 seconds.
+[transport] raw rgba (default; set MIRAGE_TRANSPORT=mmap to try mmap)
+[transport] raw rgba (default; set MIRAGE_TRANSPORT=mmap to try mmap)
+✔ Test diagonalIsNormalizedNotOverOne() passed after 0.048 seconds.
+✔ Test allReleasedIsZero() passed after 0.049 seconds.
+✔ Test threeKeysNormalized() passed after 0.049 seconds.
+✔ Test rejectsNonPositiveSensitivity() passed after 0.049 seconds.
+✔ Test allowsRepeatedTapBindings() passed after 0.049 seconds.
+[transport] raw rgba (default; set MIRAGE_TRANSPORT=mmap to try mmap)
+[transport] raw rgba (default; set MIRAGE_TRANSPORT=mmap to try mmap)
+✔ Test rejectsOutOfRangeCoordinate() passed after 0.049 seconds.
+✔ Test writtenSamplesCountsSamplesNotPackets() passed after 0.050 seconds.
+✔ Test singleKeyIsUnit() passed after 0.050 seconds.
+✔ Test rejectsDuplicateJoystickBinding() passed after 0.050 seconds.
+✔ Test rejectsNonPositiveRadius() passed after 0.050 seconds.
+✔ Test resetClearsCountsAndDurationSamples() passed after 0.050 seconds.
+✔ Test shortSoundPlaysAtDefaultPrimeTimeout() passed after 0.052 seconds.
+✔ Test rejectsDuplicateLookBinding() passed after 0.050 seconds.
+✔ Test existingFailureEvidenceCannotBeOverwritten() passed after 0.051 seconds.
+✔ Test upIsNegativeY() passed after 0.051 seconds.
+✔ Test freshRunnerLogDoesNotCountAsOldCases() passed after 0.051 seconds.
+✔ Suite KeyboardLiveTests passed after 0.062 seconds.
+✔ Test seedSkipsMissingSourceButContinues() passed after 0.053 seconds.
+✔ Test readStereoWrapAroundPreservesChannelOrder() passed after 0.052 seconds.
+✔ Test oppositeKeysCancel() passed after 0.051 seconds.
+✔ Test validProfilePassesValidation() passed after 0.051 seconds.
+✔ Test jsonRoundTrip() passed after 0.051 seconds.
+✔ Test oddByteCountTruncatesInsteadOfCrashing() passed after 0.050 seconds.
+✔ Test emptyDataYieldsNoSamples() passed after 0.050 seconds.
+✔ Test optInWithVersionBelow37OrUnparsableChoosesRawOnly(version:) passed after 0.050 seconds.
+✔ Test noOptInWithVersionBelow37OrUnparsableChoosesRawOnly(version:) passed after 0.050 seconds.
+✔ Test silenceDecodesToZero() passed after 0.050 seconds.
+✔ Test minimumSampleMapsToNegativeOne() passed after 0.050 seconds.
+✔ Test maximumSampleMapsJustBelowOne() passed after 0.050 seconds.
+✔ Test optInWithVersionAtOrAbove37ChoosesMmapWithRawFallback(version:) passed after 0.050 seconds.
+✔ Test littleEndianByteOrderIsRespected() passed after 0.050 seconds.
+✔ Test standardFormatIs48kStereo() passed after 0.050 seconds.
+✔ Test readStereoPartialReturnsWholeFramesAndCountsUnderrun() passed after 0.052 seconds.
+✔ Test requiresFiveConsecutiveSeconds() passed after 0.047 seconds.
+✔ Test healthyResetsAndRecovers() passed after 0.047 seconds.
+✔ Test packetCountDoesNotAffectJudgementWhenNonZero() passed after 0.047 seconds.
+✔ Test silenceResetsPendingAndDegradedStates() passed after 0.047 seconds.
+✔ Test supplyThresholdIsExclusive() passed after 0.047 seconds.
+✔ Test configurableThresholds() passed after 0.047 seconds.
+[transport] raw rgba (default; set MIRAGE_TRANSPORT=mmap to try mmap)
+✔ Test seedReportsEveryFailure() passed after 0.055 seconds.
+✔ Test noOptInWithVersionAtOrAbove37ChoosesRawOnly(version:) passed after 0.051 seconds.
+[transport] raw rgba (default; set MIRAGE_TRANSPORT=mmap to try mmap)
+[transport] raw rgba (default; set MIRAGE_TRANSPORT=mmap to try mmap)
+✔ Suite ActivationDeciderTests passed after 0.068 seconds.
+✔ Test secondaryErrorAfterFallbackIsPropagated() passed after 0.065 seconds.
+✔ Test healthyPrimaryNeverTouchesSecondary() passed after 0.065 seconds.
+✔ Test primaryFinishingCleanlyDoesNotFallBack() passed after 0.065 seconds.
+✔ Test lateMmapUnusableStillFallsBackWithoutDuplicatingFrames() passed after 0.065 seconds.
+✔ Test primaryGenericErrorIsPropagated() passed after 0.065 seconds.
+✔ Suite SnapshotStubSmokeTests passed after 0.069 seconds.
+✘ Test resignKeyNotificationReleasesTouch() skipped: "需 MIRAGE_LIVE=1，請跑 scripts/verify_keymap_release.sh"
+✔ Suite BackoffTests passed after 0.068 seconds.
+✔ Test unavailableIsPropagatedNotFallenBackOn() passed after 0.066 seconds.
+✔ Suite LifecycleDiagnosticsTests passed after 0.069 seconds.
+✔ Suite TextCommitEventTests passed after 0.070 seconds.
+✔ Suite KeymapEngineTests passed after 0.070 seconds.
+✔ Suite FrameCounterWindowTests passed after 0.070 seconds.
+✔ Suite LifecyclePolicyTests passed after 0.070 seconds.
+✔ Suite FpsWindowTests passed after 0.070 seconds.
+✔ Suite KeyTranslateTests passed after 0.070 seconds.
+✔ Test mmapUnusableSwitchesSeamlessly() passed after 0.068 seconds.
+[transport] raw rgba (default; set MIRAGE_TRANSPORT=mmap to try mmap)
+[transport] raw rgba (default; set MIRAGE_TRANSPORT=mmap to try mmap)
+✔ Test afterFallbackPrimaryIsNeverRetried() passed after 0.065 seconds.
+✔ Suite TextCommitStateTests passed after 0.071 seconds.
+✔ Suite NormPointTests passed after 0.071 seconds.
+✔ Test delayDoesNotPretendToAcknowledgeArbitrarilyLateConsumption() passed after 0.065 seconds.
+✔ Suite EditorDragStateTests passed after 0.071 seconds.
+✔ Test sameTextTwiceButSameIDNeverReplays() passed after 0.065 seconds.
+✔ Suite EmulatorClientTouchTests passed after 0.071 seconds.
+✔ Suite ClipboardBridgeTests passed after 0.071 seconds.
+✔ Suite TextSubmissionPolicyTests passed after 0.071 seconds.
+✔ Suite TextFieldEvidenceTests passed after 0.071 seconds.
+✔ Suite TextClipboardCoordinatorTests passed after 0.071 seconds.
+✔ Suite HealthProbeTests passed after 0.071 seconds.
+✔ Suite AdbClientTests passed after 0.071 seconds.
+✔ Suite ForegroundParserTests passed after 0.071 seconds.
+✔ Suite AudioSupplyNoticeTests passed after 0.071 seconds.
+✔ Suite CompositionStateTests passed after 0.071 seconds.
+✔ Suite StreamSizeTests passed after 0.071 seconds.
+✔ Suite MmapBlankProbeTests passed after 0.071 seconds.
+✔ Suite EmulatorInfoTests passed after 0.071 seconds.
+✔ Suite "EmulatorEndpoint" passed after 0.071 seconds.
+✔ Suite InstallResultTests passed after 0.071 seconds.
+✔ Suite EditorEntryDeciderTests passed after 0.071 seconds.
+✔ Suite EditorGeometryTests passed after 0.071 seconds.
+✔ Suite EditorSessionTests passed after 0.071 seconds.
+✔ Suite AdbOutcomeTests passed after 0.071 seconds.
+✔ Suite MmapBufferTests passed after 0.071 seconds.
+✔ Test eachFailureIsClassifiedAndNeverRetriesPaste(_:) passed after 0.063 seconds.
+✔ Suite ProfileStoreTests passed after 0.072 seconds.
+✔ Test cancellationAfterDispatchIsUnknown() passed after 0.063 seconds.
+✔ Test expiredScheduledStartDoesNotOpenRPC() passed after 0.063 seconds.
+✔ Suite LatencyWindowTests passed after 0.072 seconds.
+✔ Suite TransitWindowTests passed after 0.072 seconds.
+✔ Suite ViewportFitTests passed after 0.073 seconds.
+✔ Suite ConnectionStateMachineTests passed after 0.072 seconds.
+✔ Suite TextInputSessionTests passed after 0.072 seconds.
+✔ Suite EditorLimitsTests passed after 0.072 seconds.
+✔ Suite FrameSinkFactoryTests passed after 0.072 seconds.
+✔ Suite MmapSupportTests passed after 0.072 seconds.
+✔ Test testConcurrentPutTakeDoesNotCrash() passed after 0.065 seconds.
+✔ Suite JoystickMathTests passed after 0.072 seconds.
+✔ Suite DrawTimingWindowTests passed after 0.072 seconds.
+✔ Suite BuiltInProfilesTests passed after 0.072 seconds.
+✔ Suite TextEvidenceDirectoryTests passed after 0.072 seconds.
+✔ Suite KeymapProfileTests passed after 0.072 seconds.
+✔ Suite AudioChunkTests passed after 0.072 seconds.
+✔ Suite DisplayTransportSelectorTests passed after 0.073 seconds.
+✔ Suite AudioSupplyMonitorTests passed after 0.072 seconds.
+✔ Test testConcurrentPutTakeDoesNotCrash() passed after 0.063 seconds.
+✔ Test statesPublishesTransitions() passed after 0.065 seconds.
+✔ Test bannerHonestWhileReconnecting() passed after 0.065 seconds.
+✔ Test unhealthyProbeIncrementsAttemptThenConnects() passed after 0.064 seconds.
+✔ Suite KeymapReleaseLiveTests passed after 0.075 seconds.
+✔ Test staleStatusUsesExitCodeThree() passed after 0.071 seconds.
+✔ Test fingerprintMatchesForIdenticalFrames() passed after 0.071 seconds.
+✔ Test measuredStatusUsesExitCodeZero() passed after 0.071 seconds.
+✔ Test staticStatusUsesExitCodeTwo() passed after 0.071 seconds.
+✔ Test errorStatusUsesExitCodeOneAndWinsOverCounters() passed after 0.070 seconds.
+✔ Suite FallbackTransportTests passed after 0.075 seconds.
+✔ Test fingerprintDetectsAChangedRow() passed after 0.070 seconds.
+✔ Test textMatchesBaselineAndAddsClientSuffix() passed after 0.071 seconds.
+✔ Test staleAfterReadNeverPastesIntoNewSession() passed after 0.069 seconds.
+✔ Suite TextCommitExecutorTests passed after 0.074 seconds.
+✔ Suite FrameQueueTests passed after 0.074 seconds.
+✔ Suite LatestFrameBoxTests passed after 0.074 seconds.
+✔ Test fingerprintDetectsAChangedFirstByte() passed after 0.071 seconds.
+✔ Test unavailableTransportIsAnErrorWithContent() passed after 0.071 seconds.
+✔ Test capacityAndExpiryReturnRecoverableResults() passed after 0.069 seconds.
+✔ Test externalConflictPausesWritesButStillReleasesKeysAndNeverReplaysUnknown() passed after 0.069 seconds.
+✔ Test cancellingDuringOnPreventsFurtherRPCs() passed after 0.065 seconds.
+✔ Suite FrameTests passed after 0.073 seconds.
+✔ Test suspendPreservesConnectionAndDoesNotReconnect() passed after 0.065 seconds.
+✔ Test jsonContainsBaselineFieldsAndClient() passed after 0.071 seconds.
+[conn] start() 重複呼叫，已忽略（已有連線迴圈在跑）——上游不該走到這裡，見 D30
+✔ Test wakeResumesStreamingAfterSuspend() passed after 0.070 seconds.
+✔ Suite EmulatorClientSuspendTests passed after 0.079 seconds.
+✔ Test probePassesForTcpListener() passed after 0.077 seconds.
+[transport] raw rgba (default; set MIRAGE_TRANSPORT=mmap to try mmap)
+✔ Test hangingTransportIsCancelledAfterDeadlineAndMeasured() passed after 0.084 seconds.
+✔ Test noFramesAtDeadlineIsStatic() passed after 0.084 seconds.
+✔ Test watcherCannotOverwriteAnInFlightPaste() passed after 0.082 seconds.
+✔ Test twoDifferentCommitsUseConsumptionGate() passed after 0.082 seconds.
+✔ Suite TextCommitQueueTests passed after 0.089 seconds.
+✔ Test concurrentProducerConsumerKeepsDataIntact() passed after 0.081 seconds.
+✔ Test concurrentSnapshotsKeepPacketAndSampleBoundariesTogether() passed after 0.097 seconds.
+✔ Suite AudioPacketWindowTests passed after 0.104 seconds.
+[transport] raw rgba (default; set MIRAGE_TRANSPORT=mmap to try mmap)
+✔ Test loopNotRecursionUnderManyFailures() passed after 0.114 seconds.
+✔ Suite EmulatorClientHealthGateTests passed after 0.123 seconds.
+✔ Test testOnEndReceivesStreamError() passed after 0.122 seconds.
+✔ Test touchFramesArriveInSubmissionOrder() passed after 0.129 seconds.
+✔ Test slowEventIsNotOvertakenByFastFollower() passed after 0.129 seconds.
+✔ Test differentEventKindsShareOneOrder() passed after 0.140 seconds.
+✔ Test measurementPreservesOrder() passed after 0.140 seconds.
+✔ Test injectorIsNeverCalledConcurrently() passed after 0.173 seconds.
+✔ Suite InputQueueTests passed after 0.184 seconds.
+✔ Test testPumpConsumesStreamIntoBox() passed after 0.222 seconds.
+✔ Test testReattachCancelsPreviousConsumer() passed after 0.222 seconds.
+✔ Suite FramePumpTests passed after 0.239 seconds.
+✔ Test refusedEndpointIsUnavailableError() passed after 0.271 seconds.
+✔ Suite MiragePullTests passed after 0.276 seconds.
+✔ Test waitsForCancellationBeforeReopeningAndForwardsPackets() passed after 0.274 seconds.
+✔ Suite AudioReopenTransportTests passed after 0.283 seconds.
+✔ Test audioPlayerMuteTogglesState() passed after 0.281 seconds.
+✔ Test containerLetterboxesMirrorIntoFitRect() passed after 0.305 seconds.
+[transport] raw rgba (default; set MIRAGE_TRANSPORT=mmap to try mmap)
+✔ Test stopCancelsDisplayStream() passed after 0.315 seconds.
+✔ Test audioPlayerStartReturnsWithoutTrapping() passed after 0.327 seconds.
+✔ Suite ShellSmokeTests passed after 0.331 seconds.
+✔ Test connectedClientWritesAudioIntoSink() passed after 0.321 seconds.
+✔ Test noSinkMeansNoSubscription() passed after 0.321 seconds.
+✔ Test stopCancelsAudioStream() passed after 0.321 seconds.
+✔ Test editingAlwaysCloses() passed after 0.334 seconds.
+✔ Test openingEditorWritesNothingToDisk() passed after 0.334 seconds.
+✔ Test currentPackageStartsNilAndIsWritable() passed after 0.334 seconds.
+✔ Test successfulSaveOnLeaveClearsPromptAfterWriting() passed after 0.334 seconds.
+✔ Test editorSessionLifecycleFollowsEditingMode() passed after 0.334 seconds.
+✔ Test saveProfileReportsOutcome() passed after 0.334 seconds.
+✔ Test leavingCleanSessionDoesNotPrompt() passed after 0.334 seconds.
+✔ Test settingRadiusUpdatesJoystickOnly() passed after 0.334 seconds.
+✔ Test failedSaveOnLeaveKeepsEditingAndChanges() passed after 0.334 seconds.
+✔ Test selectBindingUpdatesTheSession() passed after 0.334 seconds.
+✔ Test savingEditorSessionWritesAndReloads() passed after 0.334 seconds.
+✔ Test movingSelectedBindingUpdatesSessionAndEngine() passed after 0.333 seconds.
+✔ Test detectionDuringEditingDoesNotClearInMemoryProfile() passed after 0.333 seconds.
+✔ Test failedSaveKeepsSessionDirty() passed after 0.333 seconds.
+✔ Test leavingDirtySessionPromptsInsteadOfDiscarding() passed after 0.333 seconds.
+✔ Test confirmLeaveSavingWritesThenLeaves() passed after 0.333 seconds.
+✔ Test cancelLeaveKeepsEditingAndChanges() passed after 0.334 seconds.
+✔ Test leavingUnsavedEditDoesNotLeakStarterIntoSession() passed after 0.333 seconds.
+✔ Test editingStaysClosedWithoutPackageOrProfile() passed after 0.333 seconds.
+✔ Test dragOutsideBoundsKeepsTrackingAtTheEdge() passed after 0.333 seconds.
+✔ Test releaseOutsideBoundsStillSendsMouseUp() passed after 0.333 seconds.
+✔ Test editingOpensWithStarterWhenNoProfileExists() passed after 0.334 seconds.
+✔ Test keyUpUsesOriginalCodeDespiteLayoutChange() passed after 0.332 seconds.
+✔ Test markedReturnEscapeFlagsAndLateCallbacksDoNotLeak() passed after 0.332 seconds.
+✔ Test releaseOutsideBoundsIsClampedIntoRange() passed after 0.332 seconds.
+✔ Test toggleEditingDoesNotReadUnusedStarter() passed after 0.334 seconds.
+✔ Test confirmLeaveDiscardingWritesNothing() passed after 0.334 seconds.
+✔ Test textEventsAreInterpretedOnceWithoutGuestKeys() passed after 0.332 seconds.
+✔ Test defaultsAndExplicitMode() passed after 0.332 seconds.
+✔ Test frameSizeStartsUnknownAndIsSettable() passed after 0.334 seconds.
+✔ Test syncBaselineSkipsLocalWrite() passed after 0.332 seconds.
+✔ Test modeReloadAndFocusInvalidateTextBeforeRelease() passed after 0.332 seconds.
+✔ Test unchangedCountDoesNotReadOrNotify() passed after 0.331 seconds.
+✔ Test changedTextNotifies() passed after 0.332 seconds.
+✔ Suite MirrorMouseReleaseTests passed after 0.337 seconds.
+✔ Test nonTextAdvancesBaselineWithoutCallback() passed after 0.332 seconds.
+✔ Test repeatedContentWithNewCountNotifies() passed after 0.332 seconds.
+✔ Test movingWithoutSelectionChangesNothing() passed after 0.334 seconds.
+✔ Suite MirrorTextInputRoutingTests passed after 0.337 seconds.
+✔ Suite TextSessionRoutingTests passed after 0.337 seconds.
+✔ Test settingSensitivityUpdatesLookOnly() passed after 0.333 seconds.
+✔ Suite ClipboardWatcherTests passed after 0.337 seconds.
+✔ Test withoutProfileEveryKeyPassesThrough() passed after 0.332 seconds.
+✔ Test unknownIsNotSuccessAndResumeDoesNotReplay() passed after 0.334 seconds.
+✔ Test removingProfileReleasesHeldJoystick() passed after 0.332 seconds.
+✔ Test profileReloadWhileKeyHeldStillReleasesGuestKey() passed after 0.332 seconds.
+✔ Test editingReloadDoesNotSendTouchFrames() passed after 0.332 seconds.
+✔ Suite AppModelEditingTests passed after 0.338 seconds.
+✔ Test overlappingTickIsSkipped() passed after 0.331 seconds.
+✔ Suite TextSubmissionStatusTests passed after 0.338 seconds.
+✔ Test viewCommitGoesThroughOnePasteAndPolicyRejectRetainsDraft() passed after 0.333 seconds.
+✔ Test editingReleasesInFlightKeysExactlyOnce() passed after 0.332 seconds.
+✔ Test packageBecomesNil() passed after 0.331 seconds.
+✔ Test losingFocusReleasesTouchesAndPassthroughKeys() passed after 0.332 seconds.
+✔ Test changedPackageNotifiesOnce() passed after 0.331 seconds.
+✔ Test unchangedDoesNotNotifyAgain() passed after 0.331 seconds.
+✔ Suite TextInputModeTests passed after 0.338 seconds.
+✔ Test modifierKeysNeverPassThroughToGuest() passed after 0.332 seconds.
+✔ Test initialNilThenPackage() passed after 0.331 seconds.
+✔ Test replacingProfileReleasesHeldJoystickAndStartsClean() passed after 0.332 seconds.
+✔ Test editingDoesNotDesyncEngineState() passed after 0.332 seconds.
+✔ Suite GameDetectorTests passed after 0.339 seconds.
+✔ Test startTwiceDoesNotSpawnASecondConnectionLoop() passed after 0.381 seconds.
+✔ Suite EmulatorClientStartOnceTests passed after 0.388 seconds.
+✔ Test touchSnapshotsReachGuestInEventOrder() passed after 0.400 seconds.
+✔ Test tapsReachGuestInPressOrder() passed after 0.401 seconds.
+✔ Test passthroughKeysReachGuestInPressOrder() passed after 0.401 seconds.
+✔ Test boundKeyGoesToTouchesNotKeyboard() passed after 0.433 seconds.
+✔ Test unboundKeyGoesToKeyboard() passed after 0.433 seconds.
+✔ Test editingModeSuppressesPassthrough() passed after 0.433 seconds.
+✔ Suite KeymapControllerRoutingTests passed after 0.439 seconds.
+✔ Test hasProfileSendsNoTapWhenNotEditing() passed after 0.485 seconds.
+✔ Test editingModeSendsNoTapEvenWithoutProfile() passed after 0.485 seconds.
+✔ Suite MirrorCoordinatorTests passed after 0.490 seconds.
+✔ Test streamFailureResubscribesWithBackoff() passed after 0.512 seconds.
+✔ Suite EmulatorClientReconnectTests passed after 0.520 seconds.
+✔ Test suspendStopsAudioAndWakeResumesIt() passed after 0.637 seconds.
+✔ Test suspendBeforeFirstConnectStaysSilentUntilWake() passed after 0.740 seconds.
+✔ Suite EmulatorClientAudioTests passed after 0.751 seconds.
+✔ Test depthNeverGoesNegativeUnderThreadedContention() passed after 0.877 seconds.
+✔ Suite AudioRingBufferTests passed after 0.887 seconds.
+✔ Test run with 454 tests passed after 0.889 seconds.

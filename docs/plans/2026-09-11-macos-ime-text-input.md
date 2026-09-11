@@ -222,20 +222,20 @@ Test `CompositionStateTests.swift`／`TextInputSessionTests.swift`。
 Create Shell `TextInput/` client adapter 與提交狀態呈現；
 Test `MirrorTextInputRoutingTests.swift`、`TextInputModeTests.swift`、`TextSubmissionStatusTests.swift`。
 
-- [ ] **Step 1 — RED：** 在真 MirrorMTKView 的事件入口測 interpret 只呼叫一次，IME 吃的
+- [x] **Step 1 — RED：** 在真 MirrorMTKView 的事件入口測 interpret 只呼叫一次，IME 吃的
   down/up 不送 guest；有 marked 的 Return 不能再送 Enter，Escape 不變 GoBack。
   覆蓋 flagsChanged、key-up 使用 down 時的所有權與鍵值、失焦／profile 切換，
   no-profile 的 LINE 預設文字模式、有 profile 時明確切換文字模式才暫停整份映射。
   timeout UI 不得顯示成功、關掉提示不能默默重試；非法配置保留文字而不啟動 Paste。
-- [ ] **Step 2 — 確認紅：** `(cd app && swift test --filter 'MirrorTextInputRoutingTests|TextInputModeTests|TextSubmissionStatusTests')`。
+- [x] **Step 2 — 確認紅：** `(cd app && swift test --filter 'MirrorTextInputRoutingTests|TextInputModeTests|TextSubmissionStatusTests')`。
   舊的直接 KeyTranslate 路由應違反「組字中零 guest 按鍵」；不只測 Core reducer。
-- [ ] **Step 3 — GREEN：** 實作 NSTextInputClient 所需回呼、接 Task 5／3；不要同時呼叫
+- [x] **Step 3 — GREEN：** 實作 NSTextInputClient 所需回呼、接 Task 5／3；不要同時呼叫
   interpretKeyEvents 與另一遍 handleEvent。配置解析值真正注入 queue policy，
   UI 的調整／暫停／複製未送草稿有效。已 dispatch 不確定的文字與未 dispatch 草稿分開，
   手動恢復不重播未知交易；不把 raw error 或每筆未驗證狀態做成干擾性的成功／失敗彈窗。
-- [ ] **Step 4 — 驗成立：** 從 view 入口到 fake transport 的有序 trace 正確，候選用鍵不漏送，
+- [x] **Step 4 — 驗成立：** 從 view 入口到 fake transport 的有序 trace 正確，候選用鍵不漏送，
   mode 切換先釋放舊鍵／觸點，調設定真的改下一筆等待時間；去掉 interpret 或所有權記錄時紅。
-- [ ] **Step 5 — 全測與提交：** `(cd app && swift test)`，包含 keyboard/keymap/clipboard/focus
+- [x] **Step 5 — 全測與提交：** `(cd app && swift test)`，包含 keyboard/keymap/clipboard/focus
   回歸；全綠後 commit 本機 IME 接線與狀態入口。
 
 ### Task 7：marked overlay 與候選窗座標

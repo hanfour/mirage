@@ -21,6 +21,7 @@ final class AppModel {
     /// 的 Android 實體鍵全部走這一條。各自持有一條佇列的話，每條內部有序但彼此之間
     /// 沒有順序——例如切換 profile 的瞬間 tap 與觸控快照仍可能對調，等於沒修。
     let inputQueue: InputQueue
+    let textInput: TextInputPresentation
 
     /// **參數都有預設值，產品呼叫端（`MirageScene` 的 `@State private var model = AppModel()`）
     /// 一個字都不用改。** 開這道縫只為了測試能餵暫存目錄與固定的 starter——構造 `AppModel`
@@ -32,6 +33,7 @@ final class AppModel {
         self.store = store
         self.starterBindings = starterBindings
         inputQueue = InputQueue(injector: client)
+        textInput = TextInputPresentation(queue: inputQueue)
         if ProcessInfo.processInfo.environment["MIRAGE_CONN_LOG"] == "1" {
             print("[app] frame sink=\(FrameSinkFactory.label(for: box))")
         }
@@ -250,7 +252,7 @@ final class AppModel {
         // 「Unexpectedly found nil」死掉，而那句錯誤訊息完全不指向「這是 NSApp」。
         // 先轉成 Optional 再用 `?.`，讓「App 不在前景／測試行程」與「有 key window」
         // 用同一條路徑表達，不必為前者另開特殊情況。
-        keymap?.hasProfile == true && !editing && (NSApp as NSApplication?)?.keyWindow != nil
+        keymap?.hasProfile == true && !textInput.usesText(hasProfile: true) && !editing && (NSApp as NSApplication?)?.keyWindow != nil
     }
 
     /// OverlayEditorView 的「存檔」呼叫這裡：version+1 已在編輯器裡算好，這裡只管原子寫

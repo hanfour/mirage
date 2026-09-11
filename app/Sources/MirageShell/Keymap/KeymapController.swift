@@ -11,6 +11,14 @@ final class KeymapController {
     private let queue: InputQueue
     private var engine: KeymapEngine?
     private var editing = false
+    private var textMode = false
+    func setTextMode(_ on: Bool) {
+        guard textMode != on else { return }
+        queue.invalidateTextSession()
+        releaseEverything()
+        pressedModifiers.removeAll()
+        textMode = on
+    }
     private var pressedModifiers: Set<KeyCode> = []
 
     /// 已經送出 keyDown、還沒送出對應 keyUp 的直通鍵。
@@ -101,6 +109,7 @@ final class KeymapController {
     func handleMouseMoved(dx: Double, dy: Double) { emit(engine?.apply(.mouseMove(dx: dx, dy: dy))) }
 
     private func route(_ code: KeyCode, down: Bool) {
+        guard !textMode else { return }
         // 第一順位：已經送出 down 的直通鍵，它的 up 一定要送。
         // 不受編輯模式影響、也不受「這顆鍵現在綁不綁」影響——按住期間使用者可能按了
         // ⌘E，也可能存檔換了 profile 讓這顆鍵變成綁定鍵。任何一種情況下漏掉這個 up，
@@ -140,6 +149,7 @@ final class KeymapController {
     ///
     /// 引擎仍然要餵：profile 可以把修飾鍵綁成搖桿/tap 鍵，那條路徑照舊有效。
     func handleFlagsChanged(_ event: NSEvent) {
+        guard !textMode else { return }
         for (flag, code) in Self.modifierKeys {
             let isDown = event.modifierFlags.contains(flag)
             let wasDown = pressedModifiers.contains(code)
@@ -155,7 +165,7 @@ final class KeymapController {
     }
 
     private func emit(_ frame: TouchFrame?) {
-        guard let frame, !editing else { return }
+        guard let frame, !editing, !textMode else { return }
         queue.touches(frame.touches)
     }
 }

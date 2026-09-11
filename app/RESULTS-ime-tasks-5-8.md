@@ -10,3 +10,21 @@ RED：4 個測試、27 個行為斷言失敗（空實作可編譯）。GREEN：�
 本機 UTF-16 buffer 保留 NFC/NFD/ZWJ；拒絕切半代理對與未知 guest replacement。
 多次 mark 沒有提交出口；insert→unmark 僅一筆，不同組字的同字有不同 UUID。
 取消 generation 拒絕舊 token。這些是純狀態證據，尚非真 IME 驗收。
+
+## Task 6 — AppKit 路由與操作入口
+
+RED：舊 MirrorMTKView 有 2 tests／3 issues：interpret 次數 0、guest 收到組字鍵、
+key-up 在字元切換後由 a 變 b。GREEN：完整 454 tests passed。
+`task6-red.log` 與 `task6-green.log` 保存實際輸出。
+
+NSTextInputClient 接本機狀態及共享 queue；真正 view 入口的合成事件測試確認：
+一次 interpret、組字 Return/Escape/flags 零 guest 鍵、舊 key-up 使用原鍵碼、
+中文＋ZWJ＋é 只一組四鍵 Paste、設定 0 拒收且保留字串。這不是實體鍵／真 IME 驗收。
+無 profile 預設文字模式；有 profile 預設映射，可明確切文字模式並釋放／暫停整份映射與游標捕捉。
+模式／失焦／session 取消本機組字；未知 replacement 有提示且不猜 guest 編輯。
+左下「文字輸入」可調候選間隔、暫停、核對後恢復、分筆複製保留文字。
+恢復沒有重送出口；複製前先暫停 watcher 寫入。一般提交只顯示欄位未驗證。
+
+計畫具體化：文字模式 Return 一律不直送 guest（包括未組字時），需用畫面送出鈕。
+這保守擋住 insertText 清掉 marked 後同一 Return 再被當 Send 的風險。
+Cmd-V 明確走同一提交路；其他 Cmd 快捷鍵仍留 AppKit，不新增 guest Meta。

@@ -5,6 +5,23 @@ import SwiftUI
 
 /// MTKView 子類：滑鼠事件 → 正規化座標 → guest 觸控；鍵盤/滑鼠位移 → KeymapController（P1-c）。
 final class MirrorMTKView: MTKView {
+    var textMode = true { didSet { if oldValue != textMode { cancelComposition() } } }
+    var textInput: TextInputPresentation?
+    var session = TextInputSession()
+    var acceptsTextCallbacks = false
+    var eventGeneration: UInt64?
+    var currentTextEvent: NSEvent?
+    var eventWasComposing = false
+    nonisolated(unsafe) var textWindowObservers: [NSObjectProtocol] = []
+    deinit { for observer in textWindowObservers { NotificationCenter.default.removeObserver(observer) } }
+
+    var ownedKeys: [UInt16: [KeyCode]] = [:]
+    var observedGeneration: UInt64?
+    var compositionChanged: (() -> Void)?
+    var coordinateRect: ((NSRange) -> (NSRect, NSRange))?
+
+    var interpretInput: (([NSEvent]) -> Void)?
+
     var onMouse: ((_ nx: Double, _ ny: Double, _ down: Bool) -> Void)?
     var onResize: ((_ pixelSize: CGSize) -> Void)?
     // P1-c 鍵位映射：keyDown/keyUp 已解碼為 KeyCode；look 用原始 mouseMoved delta（未關聯游標時為 raw）。
@@ -25,7 +42,12 @@ final class MirrorMTKView: MTKView {
     override func viewDidMoveToWindow() {
         super.viewDidMoveToWindow()
         AppLifecycle.diagnose("mirror-viewDidMoveToWindow", window: window)
-        guard let window else { return }
+        for observer in textWindowObservers { NotificationCenter.default.removeObserver(observer) }
+        textWindowObservers.removeAll()
+        guard let window else { cancelComposition(); return }
+        textWindowObservers.append(NotificationCenter.default.addObserver(forName: NSWindow.didResignKeyNotification, object: window, queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated { self?.cancelComposition() }
+        })
         // P1-c：keyDown/keyUp 需要 first responder；mouseMoved（look）需要視窗開啟
         // acceptsMouseMovedEvents——AppKit 預設不投遞 mouseMoved，兩者缺一都會讓
         // KeymapController 完全收不到輸入。
@@ -47,9 +69,13 @@ final class MirrorMTKView: MTKView {
     }
 
     override func mouseDown(with event: NSEvent) {
+        window?.makeFirstResponder(self)
+        if textMode { cancelComposition() }
         if let (nx, ny) = normalized(event) { onMouse?(nx, ny, true) }
     }
     override func mouseDragged(with event: NSEvent) {
+        window?.makeFirstResponder(self)
+        if textMode { cancelComposition() }
         if let (nx, ny) = normalized(event) { onMouse?(nx, ny, true) }
     }
     override func mouseUp(with event: NSEvent) {
@@ -57,17 +83,30 @@ final class MirrorMTKView: MTKView {
     }
 
     override func mouseMoved(with event: NSEvent) {
-        onMouseMovedDelta?(Double(event.deltaX), Double(event.deltaY))
+        if !textMode { onMouseMovedDelta?(Double(event.deltaX), Double(event.deltaY)) }
     }
 
     override func keyDown(with event: NSEvent) {
-        if let c = keyCode(from: event) { onKey?(c, true) }
+        synchronizeTextSession()
+        if textMode {
+            guard !event.modifierFlags.contains(.command) else { super.keyDown(with: event); return }
+            acceptsTextCallbacks = true
+            eventGeneration = session.generation
+            currentTextEvent = event
+            eventWasComposing = hasMarkedText()
+            defer { currentTextEvent = nil }
+            if let interpretInput { interpretInput([event]) }
+            else { interpretKeyEvents([event]) }
+        } else if let c = keyCode(from: event) {
+            ownedKeys[event.keyCode] = [c]
+            onKey?(c, true)
+        }
     }
     override func keyUp(with event: NSEvent) {
-        if let c = keyCode(from: event) { onKey?(c, false) }
+        for code in (ownedKeys.removeValue(forKey: event.keyCode) ?? []).reversed() { onKey?(code, false) }
     }
     override func flagsChanged(with event: NSEvent) {
-        onFlagsChanged?(event)
+        if !textMode { onFlagsChanged?(event) }
     }
 
     /// 換算邏輯本身在 `MirageCore.KeyTranslate`（純函式、逐行單元測試）——這裡只負責
@@ -88,6 +127,7 @@ struct MirrorView: NSViewRepresentable {
     var controller: KeymapController?
     /// D22：由 `AppModel.editing` 驅動，透過 `updateNSView` 逐次同步進 Coordinator。
     var isEditing: Bool
+    var textInput: TextInputPresentation? = nil
     /// D6：tap 與鍵位映射的觸控／鍵盤共用**同一條**佇列（由 `AppModel` 持有），
     /// 否則兩條佇列各自有序、彼此無序，切換 profile 的瞬間仍會對調。
     let queue: InputQueue
@@ -114,7 +154,8 @@ struct MirrorView: NSViewRepresentable {
             context.coordinator.resizeDebounced(to: pixelSize)
         }
         view.onKey = { code, down in
-            if down { context.coordinator.controller?.handleKeyDown(code) }
+            if context.coordinator.textMode { queue.key(code, down: down) }
+            else if down { context.coordinator.controller?.handleKeyDown(code) }
             else { context.coordinator.controller?.handleKeyUp(code) }
         }
         view.onMouseMovedDelta = { dx, dy in
@@ -123,12 +164,23 @@ struct MirrorView: NSViewRepresentable {
         view.onFlagsChanged = { event in
             context.coordinator.controller?.handleFlagsChanged(event)
         }
+        configureText(view, coordinator: context.coordinator)
         return container
+    }
+
+    private func configureText(_ view: MirrorMTKView, coordinator: Coordinator) {
+        let enabled = !isEditing && (textInput?.usesText(hasProfile: controller?.hasProfile == true) ?? (controller?.hasProfile != true))
+        controller?.setTextMode(enabled)
+        view.textInput = textInput
+        view.textMode = enabled
+        view.synchronizeTextSession()
+        coordinator.textMode = enabled
     }
 
     func updateNSView(_ view: MirrorContainerView, context: Context) {
         context.coordinator.controller = controller
         context.coordinator.isEditing = isEditing
+        configureText(view.mirror, coordinator: context.coordinator)
     }
 
     @MainActor
@@ -145,6 +197,7 @@ struct MirrorView: NSViewRepresentable {
         /// D22：編輯模式下一律不送滑鼠事件。與 `hasProfile` 是**兩件事**：
         /// 前者問「該不該交給引擎」，這個問「該不該送出去」。
         var isEditing = false
+        var textMode = false
         let queue: InputQueue
         private var resizeTask: Task<Void, Never>?
         private static let defaultStreamSize = (w: 540, h: 1200)
@@ -158,7 +211,7 @@ struct MirrorView: NSViewRepresentable {
             // D22：編輯中一律不送。使用者正在拖鍵位，不是在玩。
             guard !isEditing else { return }
             // 有作用中 profile 時鍵鼠改走 KeymapController → KeymapEngine，這裡不再重複送 tap。
-            guard controller?.hasProfile != true else { return }
+            guard textMode || controller?.hasProfile != true else { return }
             // 直接送正規化座標：換算成 guest 像素需要**實體螢幕解析度**，那是
             // EmulatorClient 才知道的事（來自健康探測）。這裡原本用 lastFrameSize（串流
             // 幀尺寸）自行換算，而兩者在本機相差兩倍，所以每次點擊都偏到左上一半處。

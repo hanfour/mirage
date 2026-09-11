@@ -8,8 +8,11 @@ public struct TextInputSession: Sendable {
     public mutating func insert(_ text: String, replacement: NSRange, token: UInt64) -> TextCommit? {
         guard token == generation else { return nil }
         let offset = replacement.location == NSNotFound ? 0 : replacement.location
-        guard offset <= composition.text.utf16.count,
-              composition.update(text, selection: NSRange(location: offset + text.utf16.count, length: 0), replacement: replacement)
+        guard offset >= 0, offset <= composition.text.utf16.count else {
+            _ = composition.update(text, selection: NSRange(location: 0, length: 0), replacement: replacement)
+            return nil
+        }
+        guard composition.update(text, selection: NSRange(location: offset + text.utf16.count, length: 0), replacement: replacement)
         else { return nil }
         return unmark(token: token)
     }
