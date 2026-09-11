@@ -1,6 +1,6 @@
 # macOS IME 與 guest 文字提交 實作計畫
 
-**狀態：已核准執行 Task 1–4；Task 1–4 完成（原始 FAIL 與修正後證據均保留）；Task 5–8 本輪不做。**
+**狀態：Task 1–5 完成；已核准 Task 6–7 與 Task 8 自動化半部。Task 8 真 Mac IME／實體鍵驗收保留人工。**
 
 **Goal:** 使用 Mac 注音／拼音在 Mirage 裡組字、選字，確定文字經剪貼簿＋一次貼上進入 LINE
 草稿；組字按鍵不漏到 guest，連續提交有可調節流、可見失敗狀態且不自動重送。
@@ -204,17 +204,17 @@ Python／adb 只作清理、定位及觀察，不讓另一套 Python paste 代�
 **Files:** Create `MirageCore/Input/CompositionState.swift`、`TextInputSession.swift`；
 Test `CompositionStateTests.swift`／`TextInputSessionTests.swift`。
 
-- [ ] **Step 1 — RED：** setMarkedText 多次變更不產生 commit；候選替換、UTF-16 selection、
+- [x] **Step 1 — RED：** setMarkedText 多次變更不產生 commit；候選替換、UTF-16 selection、
   emoji 代理對、NFD／ZWJ、NSNotFound 與越界 replacement；insert→unmark 只一次 finalize，
   不同組字的相同文字兩次 finalize；取消／失焦後殘留 unmark 不提交。
-- [ ] **Step 2 — 確認紅：** `(cd app && swift test --filter 'CompositionStateTests|TextInputSessionTests')`。
+- [x] **Step 2 — 確認紅：** `(cd app && swift test --filter 'CompositionStateTests|TextInputSessionTests')`。
   讓以 String.count 當 UTF-16 長度、每次 marked 都送、unmark 重送的版本分別紅。
-- [ ] **Step 3 — GREEN：** 本機 buffer 只代表尚未提交的組字，commit 一次快照到 Task 3。
+- [x] **Step 3 — GREEN：** 本機 buffer 只代表尚未提交的組字，commit 一次快照到 Task 3。
   不模擬未知的 LINE document；超出本機範圍的 replacement 保留草稿並明示不支援，
   不猜成 guest Delete、全部取代或追加。
-- [ ] **Step 4 — 驗成立：** 組字過程 sink 事件 0，確定事件與 commit ID 數量完全吻合；
+- [x] **Step 4 — 驗成立：** 組字過程 sink 事件 0，確定事件與 commit ID 數量完全吻合；
   cancel generation 讓遲來回呼無效，字串碼位未被拆散／正規化。
-- [ ] **Step 5 — 全測與提交：** `(cd app && swift test)`，全綠後 commit 組字 model。
+- [x] **Step 5 — 全測與提交：** `(cd app && swift test)`，全綠後 commit 組字 model。
 
 ### Task 6：NSTextInputClient、模式與錯誤／調整入口
 
