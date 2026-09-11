@@ -1,0 +1,10 @@
+✔ Test touchSnapshotsReachGuestInEventOrder() passed after 1.147 seconds.
+✔ Test passthroughKeysReachGuestInPressOrder() passed after 1.147 seconds.
+✔ Test editingModeSuppressesPassthrough() passed after 1.173 seconds.
+✔ Test unboundKeyGoesToKeyboard() passed after 1.176 seconds.
+✔ Test boundKeyGoesToTouchesNotKeyboard() passed after 1.176 seconds.
+✔ Suite KeymapControllerRoutingTests passed after 1.181 seconds.
+✔ Test hasProfileSendsNoTapWhenNotEditing() passed after 1.227 seconds.
+✔ Test editingModeSendsNoTapEvenWithoutProfile() passed after 1.227 seconds.
+✔ Suite MirrorCoordinatorTests passed after 1.233 seconds.
+✔ Test run with 426 tests passed after 1.234 seconds.

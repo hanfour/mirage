@@ -1,6 +1,6 @@
 # macOS IME 與 guest 文字提交 實作計畫
 
-**狀態：已核准執行 Task 1–4；Task 1 完成，Task 2–4 進行中；Task 5–8 本輪不做。**
+**狀態：已核准執行 Task 1–4；Task 1–2 完成，Task 3–4 進行中；Task 5–8 本輪不做。**
 
 **Goal:** 使用 Mac 注音／拼音在 Mirage 裡組字、選字，確定文字經剪貼簿＋一次貼上進入 LINE
 草稿；組字按鍵不漏到 guest，連續提交有可調節流、可見失敗狀態且不自動重送。
@@ -126,16 +126,16 @@ Test `TextCommitExecutorTests.swift`／`TextCommitEventTests.swift`。
 **Interfaces:** checked `set/readClipboard`、checked W3C key send，明確丟出失敗；不復用會吞掉
 錯誤的 `try?` wrapper。Executor 接收 policy、clock、session-valid predicate，產出狀態／結果。
 
-- [ ] **Step 1 — RED：** fake 記錄完整順序。回讀錯值不得送 chord；每個 RPC 分別失敗／timeout
+- [x] **Step 1 — RED：** fake 記錄完整順序。回讀錯值不得送 chord；每個 RPC 分別失敗／timeout
   必須有正確結果，dispatch 後未知不得變成可自動重試。驗 Unicode 整串只設 clipboard.text，
   沒有 KeyboardEvent.text、沒有每個中文字各造鍵事件。測不同 ID 的相同字串送兩次。
-- [ ] **Step 2 — 確認紅：** `(cd app && swift test --filter 'TextCommitExecutorTests|TextCommitEventTests')`；
+- [x] **Step 2 — 確認紅：** `(cd app && swift test --filter 'TextCommitExecutorTests|TextCommitEventTests')`；
   例如原來吞錯會誤繼續 Paste、原來無 checked 結果無法區分 timeout，必須看見對應斷言紅。
-- [ ] **Step 3 — GREEN：** 實作 set→有限回讀→再次檢查 session→四個合成鍵→settle。
+- [x] **Step 3 — GREEN：** 實作 set→有限回讀→再次檢查 session→四個合成鍵→settle。
   Paste 發出後的 cancellation 仍進未知分支，不能當沒送出；盡力釋放合成 v／Control。
-- [ ] **Step 4 — 驗成立：** 每案對照有序 trace、Paste 次數與 key-up：準備失敗 0 次，
+- [x] **Step 4 — 驗成立：** 每案對照有序 trace、Paste 次數與 key-up：準備失敗 0 次，
   dispatch 後錯誤至多 1 次，釋放不是再次按下。移除錯誤傳播或加入 auto-retry，測試要紅。
-- [ ] **Step 5 — 全測與提交：** `(cd app && swift test)`；全綠後 commit checked executor。
+- [x] **Step 5 — 全測與提交：** `(cd app && swift test)`；全綠後 commit checked executor。
 
 ### Task 3：共享佇列、clipboard 同步、失焦與保留期（最高風險）
 
