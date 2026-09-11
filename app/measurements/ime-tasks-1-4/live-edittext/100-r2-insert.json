@@ -1,0 +1,86 @@
+{
+  "after" : {
+    "bounds" : [
+      126,
+      136,
+      933,
+      325
+    ],
+    "capturedAt" : 1789098378.520073,
+    "className" : "android.widget.EditText",
+    "field" : "com.google.android.settings.intelligence:id\/open_search_view_edit_text",
+    "focused" : true,
+    "fresh" : true,
+    "package" : "com.google.android.settings.intelligence",
+    "rawText" : "LEFT中文🙂RIGHT",
+    "text" : "LEFT中文🙂RIGHT"
+  },
+  "before" : {
+    "bounds" : [
+      126,
+      136,
+      933,
+      325
+    ],
+    "capturedAt" : 1789098375.5029938,
+    "className" : "android.widget.EditText",
+    "field" : "com.google.android.settings.intelligence:id\/open_search_view_edit_text",
+    "focused" : true,
+    "fresh" : true,
+    "package" : "com.google.android.settings.intelligence",
+    "rawText" : "LEFTRIGHT",
+    "text" : "LEFTRIGHT"
+  },
+  "chunks" : [
+    "中文🙂"
+  ],
+  "end" : 1789098379.4500089,
+  "expected" : "LEFT中文🙂RIGHT",
+  "name" : "insert",
+  "outcomes" : [
+    "submittedUnverified"
+  ],
+  "passed" : true,
+  "round" : 2,
+  "rpc" : [
+    {
+      "end" : 1789098366.622569,
+      "operation" : "setClipboard",
+      "start" : 1789098366.620625,
+      "text" : "LEFTRIGHT"
+    },
+    {
+      "end" : 1789098376.283865,
+      "operation" : "setClipboard",
+      "start" : 1789098376.282257,
+      "text" : "中文🙂"
+    },
+    {
+      "end" : 1789098376.285181,
+      "operation" : "getClipboard",
+      "start" : 1789098376.2838712
+    },
+    {
+      "end" : 1789098376.2865171,
+      "operation" : "key:Control:true",
+      "start" : 1789098376.285209
+    },
+    {
+      "end" : 1789098376.288992,
+      "operation" : "key:v:true",
+      "start" : 1789098376.286529
+    },
+    {
+      "end" : 1789098376.290341,
+      "operation" : "key:v:false",
+      "start" : 1789098376.289015
+    },
+    {
+      "end" : 1789098376.2916288,
+      "operation" : "key:Control:false",
+      "start" : 1789098376.290361
+    }
+  ],
+  "settleMilliseconds" : 100,
+  "start" : 1789098362.333603
+}

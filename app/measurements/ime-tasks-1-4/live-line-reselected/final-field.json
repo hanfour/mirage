@@ -1,0 +1,16 @@
+{
+  "bounds" : [
+    158,
+    2040,
+    829,
+    2141
+  ],
+  "capturedAt" : 1789101468.287848,
+  "className" : "android.widget.EditText",
+  "field" : "jp.naver.line.android:id\/chat_ui_message_edit",
+  "focused" : true,
+  "fresh" : true,
+  "package" : "jp.naver.line.android",
+  "rawText" : "",
+  "text" : ""
+}

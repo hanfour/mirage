@@ -1,0 +1,23 @@
+{
+  "app/measurements/ime-tasks-1-4/live-line/initial-field.json": "eeec5a952cdb4f2d647251bfa439d2f768243c344156b75df6ee2944f140e3be",
+  "app/measurements/ime-tasks-1-4/live-line/100-r1-accent.png": "93fd3e0632e0c02354c01febb67a86e58bcc651ab69fe9d7aacb5ba87a79ea59",
+  "app/measurements/ime-tasks-1-4/live-line/100-r1-repeated.json": "98a59880660099ffb3a308bd144a8275682cb22c5329412daecb4452d301fe98",
+  "app/measurements/ime-tasks-1-4/live-line/run-failure.json": "da31d46a6a5f55a8fde4320014fb11d9a3ca5ae84fcbb9705a9c47be42100405",
+  "app/measurements/ime-tasks-1-4/live-line/100-r1-repeated.png": "9ad73d7d55412833ba55221f5fc09fe3c08ffaeea3ca3abcc2e5cb8c8496627d",
+  "app/measurements/ime-tasks-1-4/live-line/100-r1-mixed.png": "f9666d081198701d4e2cb63f6337afc9f7b0cc986a93942d1ea8358049fdf0c2",
+  "app/measurements/ime-tasks-1-4/live-line/100-r1-ascii.json": "3c98587d0ea42b7b939721f7b309b8f9f440de9b5462fc3c7d1222c3163fbbc8",
+  "app/measurements/ime-tasks-1-4/live-line/100-r1-insert-selection.png": "90eb42e563abc667f7d9d72e8cad2e9a10d3a810c5d947f21efbb1ba28e28262",
+  "app/measurements/ime-tasks-1-4/live-line/100-r1-ascii.png": "bb21e8f4fbe72af9804de7ebbb6cb039e31db1878e3ca042cb936a731cf967f7",
+  "app/measurements/ime-tasks-1-4/live-line/swift-live.log": "ae6a49a2b65de6f47a7b74a3aa30443728f132766dbfab65a7aa497f09dee17e",
+  "app/measurements/ime-tasks-1-4/live-line/100-r1-zwj.json": "ed76adf77601274c598d87d6dc2389bfe7db99452ffa75e2d7beec8054f3e03a",
+  "app/measurements/ime-tasks-1-4/live-line/100-r1-emoji.json": "764639cd9f85349b0e3b538d9db4f6dd5876862a3573c0caa109a4a292d405cf",
+  "app/measurements/ime-tasks-1-4/live-line/100-r1-replace-selection.png": "c0fe2bea57cfdb4bed896c91c8e76b2b5f4827a855f7c15bc959aa4e64b3a4f1",
+  "app/measurements/ime-tasks-1-4/live-line/100-r1-insert.json": "986811ca0ec9486f210be9038a027ed1c6a7536202b2bc1d53ca3e806585cc94",
+  "app/measurements/ime-tasks-1-4/live-line/100-r1-insert.png": "3dbcd2a0905438edf0146347c6cca6425faedc61362e82de18e5431199097684",
+  "app/measurements/ime-tasks-1-4/live-line/100-r1-accent.json": "79bafc2c70f5835c83961a251c84308898953ed30c9f6408b18ba1a1447f5e50",
+  "app/measurements/ime-tasks-1-4/live-line/100-r1-replace.json": "4855cadac03d4cdacbaaf6af2b6da4282df8cd507ae38ee997f14a10f4338a2a",
+  "app/measurements/ime-tasks-1-4/live-line/100-r1-replace.png": "c25b54f1d61bf23ad472e169704b25145e4bd07e266ad8abe9c9a8e92f43bf5d",
+  "app/measurements/ime-tasks-1-4/live-line/100-r1-emoji.png": "92967af2be77e6386e20650019ed46416d718a47ac44130d1fbdc97fc5381cc3",
+  "app/measurements/ime-tasks-1-4/live-line/100-r1-zwj.png": "488c0d40a49b4f1dee2322a858f35fa1f7df91558326903aea44642f4cf25116",
+  "app/measurements/ime-tasks-1-4/live-line/100-r1-mixed.json": "7d3fce4d394661a05aa78d76ec352a2d34d6ce078e07563b2abce35a58c08fb7"
+}

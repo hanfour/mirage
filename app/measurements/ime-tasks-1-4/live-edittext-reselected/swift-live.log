@@ -1,0 +1,21 @@
+[0/1] Planning build
+◇ Test run started.
+↳ Testing Library Version: 0.99.0
+◇ Suite TextCommitLiveTests started.
+◇ Test realSwiftQueueInsertsReplacesAndPacesDistinctCommits() started.
+[transport] raw rgba (default; set MIRAGE_TRANSPORT=mmap to try mmap)
+[text-live] 100-r1-insert passed=true commits=1
+[text-live] 100-r1-replace passed=true commits=1
+[text-live] 100-r2-insert passed=true commits=1
+[text-live] 100-r2-replace passed=true commits=1
+[text-live] 100-r3-insert passed=true commits=1
+[text-live] 100-r3-replace passed=true commits=1
+[text-live] 250-r1-insert passed=true commits=1
+[text-live] 250-r1-replace passed=true commits=1
+[text-live] 250-r2-insert passed=true commits=1
+[text-live] 250-r2-replace passed=true commits=1
+[text-live] 250-r3-insert passed=true commits=1
+[text-live] 250-r3-replace passed=true commits=1
+✔ Test realSwiftQueueInsertsReplacesAndPacesDistinctCommits() passed after 395.026 seconds.
+✔ Suite TextCommitLiveTests passed after 395.027 seconds.
+✔ Test run with 1 test passed after 395.029 seconds.

@@ -1,0 +1,6 @@
+{
+  "cleanup" : "not assumed; private clipboard backup retained",
+  "completedCases" : "7",
+  "failure" : "fieldMismatch(\"100-r1-replace\")",
+  "policyChangedToHideFailure" : "false"
+}

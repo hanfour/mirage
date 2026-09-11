@@ -1,0 +1,80 @@
+{
+  "after" : {
+    "bounds" : [
+      126,
+      136,
+      933,
+      325
+    ],
+    "capturedAt" : 1789098805.249158,
+    "className" : "android.widget.EditText",
+    "field" : "com.google.android.settings.intelligence:id\/open_search_view_edit_text",
+    "focused" : true,
+    "fresh" : true,
+    "package" : "com.google.android.settings.intelligence",
+    "rawText" : "👩🏽‍💻👨‍👩‍👧‍👦",
+    "text" : "👩🏽‍💻👨‍👩‍👧‍👦"
+  },
+  "before" : {
+    "bounds" : [
+      126,
+      136,
+      1080,
+      325
+    ],
+    "capturedAt" : 1789098802.773105,
+    "className" : "android.widget.EditText",
+    "field" : "com.google.android.settings.intelligence:id\/open_search_view_edit_text",
+    "focused" : true,
+    "fresh" : true,
+    "package" : "com.google.android.settings.intelligence",
+    "rawText" : "Search settings",
+    "text" : ""
+  },
+  "chunks" : [
+    "👩🏽‍💻👨‍👩‍👧‍👦"
+  ],
+  "end" : 1789098806.2033582,
+  "expected" : "👩🏽‍💻👨‍👩‍👧‍👦",
+  "name" : "zwj",
+  "outcomes" : [
+    "submittedUnverified"
+  ],
+  "passed" : true,
+  "round" : 3,
+  "rpc" : [
+    {
+      "end" : 1789098802.8027968,
+      "operation" : "setClipboard",
+      "start" : 1789098802.778802,
+      "text" : "👩🏽‍💻👨‍👩‍👧‍👦"
+    },
+    {
+      "end" : 1789098802.8066049,
+      "operation" : "getClipboard",
+      "start" : 1789098802.80281
+    },
+    {
+      "end" : 1789098802.807815,
+      "operation" : "key:Control:true",
+      "start" : 1789098802.806617
+    },
+    {
+      "end" : 1789098802.809025,
+      "operation" : "key:v:true",
+      "start" : 1789098802.807818
+    },
+    {
+      "end" : 1789098802.81023,
+      "operation" : "key:v:false",
+      "start" : 1789098802.8090281
+    },
+    {
+      "end" : 1789098802.811409,
+      "operation" : "key:Control:false",
+      "start" : 1789098802.810237
+    }
+  ],
+  "settleMilliseconds" : 250,
+  "start" : 1789098798.574625
+}

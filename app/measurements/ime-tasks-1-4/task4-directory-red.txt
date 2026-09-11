@@ -1,0 +1,2 @@
+✘ Test existingFailureEvidenceCannotBeOverwritten() recorded an issue at TextEvidenceDirectoryTests.swift:11:9: Expectation failed: an error was expected but none was thrown
+✘ Test run with 2 tests failed after 0.005 seconds with 1 issue.

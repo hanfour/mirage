@@ -1,0 +1,18 @@
+[0/1] Planning build
+◇ Test run started.
+↳ Testing Library Version: 0.99.0
+◇ Suite TextCommitLiveTests started.
+◇ Test realSwiftQueueInsertsReplacesAndPacesDistinctCommits() started.
+[transport] raw rgba (default; set MIRAGE_TRANSPORT=mmap to try mmap)
+[text-live] 100-r1-mixed passed=true commits=1
+[text-live] 100-r1-repeated passed=true commits=1
+[text-live] 100-r1-emoji passed=true commits=1
+[text-live] 100-r1-accent passed=true commits=1
+[text-live] 100-r1-zwj passed=true commits=1
+[text-live] 100-r1-ascii passed=true commits=1
+[text-live] 100-r1-insert passed=true commits=1
+[text-live] 100-r1-replace passed=false commits=1
+✘ Test realSwiftQueueInsertsReplacesAndPacesDistinctCommits() recorded an issue at TextCommitLiveTests.swift:77:6: Caught error: fieldMismatch("100-r1-replace")
+✘ Test realSwiftQueueInsertsReplacesAndPacesDistinctCommits() failed after 111.893 seconds with 1 issue.
+✘ Suite TextCommitLiveTests failed after 111.895 seconds with 1 issue.
+✘ Test run with 1 test failed after 111.896 seconds with 1 issue.

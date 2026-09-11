@@ -1,0 +1,4 @@
+{
+  "app/Tests/MirageCoreTests/TextCommitLiveTests.swift": "app/measurements/ime-tasks-1-4/TextCommitLiveTests.swift.live-source.txt",
+  "app/scripts/verify_text_commit.sh": "app/measurements/ime-tasks-1-4/verify_text_commit.sh.live-source.txt"
+}

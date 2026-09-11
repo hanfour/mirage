@@ -1,0 +1,81 @@
+{
+  "after" : {
+    "bounds" : [
+      158,
+      2040,
+      829,
+      2141
+    ],
+    "capturedAt" : 1789101341.821808,
+    "className" : "android.widget.EditText",
+    "field" : "jp.naver.line.android:id\/chat_ui_message_edit",
+    "focused" : true,
+    "fresh" : true,
+    "package" : "jp.naver.line.android",
+    "rawText" : "你好🙂",
+    "text" : "你好🙂"
+  },
+  "before" : {
+    "bounds" : [
+      158,
+      2040,
+      829,
+      2141
+    ],
+    "capturedAt" : 1789101339.380215,
+    "className" : "android.widget.EditText",
+    "field" : "jp.naver.line.android:id\/chat_ui_message_edit",
+    "focused" : true,
+    "fresh" : true,
+    "package" : "jp.naver.line.android",
+    "rawText" : "",
+    "text" : ""
+  },
+  "chunks" : [
+    "你好🙂"
+  ],
+  "end" : 1789101342.663589,
+  "expected" : "你好🙂",
+  "name" : "emoji",
+  "outcomes" : [
+    "submittedUnverified"
+  ],
+  "passed" : true,
+  "round" : 3,
+  "rpc" : [
+    {
+      "end" : 1789101339.397377,
+      "operation" : "setClipboard",
+      "start" : 1789101339.385951,
+      "text" : "你好🙂"
+    },
+    {
+      "end" : 1789101339.4012709,
+      "operation" : "getClipboard",
+      "start" : 1789101339.397389
+    },
+    {
+      "end" : 1789101339.4024749,
+      "operation" : "key:Control:true",
+      "start" : 1789101339.401283
+    },
+    {
+      "end" : 1789101339.403686,
+      "operation" : "key:v:true",
+      "start" : 1789101339.4024801
+    },
+    {
+      "end" : 1789101339.404944,
+      "operation" : "key:v:false",
+      "start" : 1789101339.4036899
+    },
+    {
+      "end" : 1789101339.406241,
+      "operation" : "key:Control:false",
+      "start" : 1789101339.404947
+    }
+  ],
+  "selectionReappliedAfterCopy" : false,
+  "settleMilliseconds" : 250,
+  "start" : 1789101334.49705
+}

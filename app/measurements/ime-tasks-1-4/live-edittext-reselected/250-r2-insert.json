@@ -1,0 +1,87 @@
+{
+  "after" : {
+    "bounds" : [
+      126,
+      136,
+      933,
+      325
+    ],
+    "capturedAt" : 1789100333.824547,
+    "className" : "android.widget.EditText",
+    "field" : "com.google.android.settings.intelligence:id\/open_search_view_edit_text",
+    "focused" : true,
+    "fresh" : true,
+    "package" : "com.google.android.settings.intelligence",
+    "rawText" : "LEFT中文🙂RIGHT",
+    "text" : "LEFT中文🙂RIGHT"
+  },
+  "before" : {
+    "bounds" : [
+      126,
+      136,
+      933,
+      325
+    ],
+    "capturedAt" : 1789100328.328715,
+    "className" : "android.widget.EditText",
+    "field" : "com.google.android.settings.intelligence:id\/open_search_view_edit_text",
+    "focused" : true,
+    "fresh" : true,
+    "package" : "com.google.android.settings.intelligence",
+    "rawText" : "LEFTRIGHT",
+    "text" : "LEFTRIGHT"
+  },
+  "chunks" : [
+    "中文🙂"
+  ],
+  "end" : 1789100336.6622329,
+  "expected" : "LEFT中文🙂RIGHT",
+  "name" : "insert",
+  "outcomes" : [
+    "submittedUnverified"
+  ],
+  "passed" : true,
+  "round" : 2,
+  "rpc" : [
+    {
+      "end" : 1789100317.092962,
+      "operation" : "setClipboard",
+      "start" : 1789100317.090141,
+      "text" : "LEFTRIGHT"
+    },
+    {
+      "end" : 1789100330.9988198,
+      "operation" : "setClipboard",
+      "start" : 1789100330.996408,
+      "text" : "中文🙂"
+    },
+    {
+      "end" : 1789100331.0006618,
+      "operation" : "getClipboard",
+      "start" : 1789100330.998826
+    },
+    {
+      "end" : 1789100331.0023332,
+      "operation" : "key:Control:true",
+      "start" : 1789100331.000673
+    },
+    {
+      "end" : 1789100331.003974,
+      "operation" : "key:v:true",
+      "start" : 1789100331.002336
+    },
+    {
+      "end" : 1789100331.005635,
+      "operation" : "key:v:false",
+      "start" : 1789100331.003978
+    },
+    {
+      "end" : 1789100331.008984,
+      "operation" : "key:Control:false",
+      "start" : 1789100331.0056372
+    }
+  ],
+  "selectionReappliedAfterCopy" : false,
+  "settleMilliseconds" : 250,
+  "start" : 1789100311.3281078
+}

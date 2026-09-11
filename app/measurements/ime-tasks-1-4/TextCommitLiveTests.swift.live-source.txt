@@ -1,0 +1,238 @@
+import Foundation
+import Testing
+@testable import MirageCore
+
+private struct TextRPCEvent: Codable, Sendable {
+    let operation: String
+    let text: String?
+    let start: Double
+    let end: Double
+    let error: String?
+}
+private actor TextLiveTrace {
+    var entries: [TextRPCEvent] = []
+    var connected = false
+    var connections = 0
+    func record(_ event: TextRPCEvent) { entries.append(event) }
+    func take() -> [TextRPCEvent] { let result = entries; entries = []; return result }
+    func connection(_ state: ConnState) { connected = state == .connected; if connected { connections += 1 } }
+}
+private struct TracedTextTransport: TextCommitTransport {
+    let client: EmulatorClient
+    let trace: TextLiveTrace
+    func writeTextClipboard(_ text: String, timeout: Duration) async throws {
+        let start = Date().timeIntervalSince1970
+        do {
+            try await client.writeTextClipboard(text, timeout: timeout)
+            await trace.record(TextRPCEvent(operation: "setClipboard", text: text, start: start, end: Date().timeIntervalSince1970, error: nil))
+        } catch {
+            await trace.record(TextRPCEvent(operation: "setClipboard", text: text, start: start, end: Date().timeIntervalSince1970, error: String(describing: error)))
+            throw error
+        }
+    }
+    func readTextClipboard(timeout: Duration) async throws -> String {
+        let start = Date().timeIntervalSince1970
+        do {
+            let value = try await client.readTextClipboard(timeout: timeout)
+            await trace.record(TextRPCEvent(operation: "getClipboard", text: nil, start: start, end: Date().timeIntervalSince1970, error: nil))
+            return value
+        } catch {
+            await trace.record(TextRPCEvent(operation: "getClipboard", text: nil, start: start, end: Date().timeIntervalSince1970, error: String(describing: error)))
+            throw error
+        }
+    }
+    func sendTextKey(_ key: String, down: Bool, timeout: Duration) async throws {
+        let start = Date().timeIntervalSince1970
+        do {
+            try await client.sendTextKey(key, down: down, timeout: timeout)
+            await trace.record(TextRPCEvent(operation: "key:\(key):\(down)", text: nil, start: start, end: Date().timeIntervalSince1970, error: nil))
+        } catch {
+            await trace.record(TextRPCEvent(operation: "key:\(key):\(down)", text: nil, start: start, end: Date().timeIntervalSince1970, error: String(describing: error)))
+            throw error
+        }
+    }
+}
+private enum TextLiveError: Error {
+    case driver(String), initialDraftNotEmpty, notConnected, clipboardSetupMismatch
+    case fieldMismatch(String), submissionFailed(String), configuration
+}
+
+private struct TextLiveCase: Codable {
+    let name: String
+    let settleMilliseconds: Int
+    let round: Int
+    let chunks: [String]
+    let expected: String
+    let before: TextFieldSnapshot
+    let after: TextFieldSnapshot
+    let selectionClipboardProof: String?
+    let outcomes: [String]
+    let rpc: [TextRPCEvent]
+    let start: Double
+    let end: Double
+    let passed: Bool
+}
+
+@Suite struct TextCommitLiveTests {
+    @Test(.enabled(if: LiveGate.text, "需 MIRAGE_LIVE=1、MIRAGE_LIVE_TEXT=1 與明確測試欄位"))
+    func realSwiftQueueInsertsReplacesAndPacesDistinctCommits() async throws {
+        let env = ProcessInfo.processInfo.environment
+        let package = try #require(env["MIRAGE_TEXT_TARGET_PACKAGE"])
+        let field = try #require(env["MIRAGE_TEXT_TARGET_FIELD"])
+        let output = URL(fileURLWithPath: try #require(env["MIRAGE_TEXT_EVIDENCE_DIR"]))
+        let serial = env["MIRAGE_TEXT_SERIAL"] ?? "emulator-5554"
+        let hint = env["MIRAGE_TEXT_EMPTY_HINT"] ?? ""
+        let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+        let python = root.appendingPathComponent("phase0/harness/.venv-d45/bin/python")
+        let driver = root.appendingPathComponent("app/scripts/lib/text_field_driver.py")
+        let policies = try (env["MIRAGE_TEXT_POLICIES"] ?? "100,250")
+            .split(separator: ",", omittingEmptySubsequences: false).map { raw -> Int in
+                guard !raw.isEmpty, raw.utf8.allSatisfy({ (48...57).contains($0) }), let value = Int(raw) else {
+                    throw TextLiveError.configuration
+                }
+                return value
+            }
+        let rounds = Int(env["MIRAGE_TEXT_ROUNDS"] ?? "3") ?? 0
+        guard !package.isEmpty, !field.isEmpty, !policies.isEmpty, rounds >= 3 else { throw TextLiveError.configuration }
+        try FileManager.default.createDirectory(at: output, withIntermediateDirectories: true)
+
+        func observe(_ action: String, expected: String? = nil, seed: String? = nil, image: String? = nil) throws -> TextFieldSnapshot {
+            var request: [String: Any] = ["serial": serial, "package": package, "field": field, "emptyLabel": hint, "action": action]
+            if let expected { request["expectedCurrent"] = expected }
+            if let seed { request["seed"] = seed }
+            if let image { request["image"] = output.appendingPathComponent(image).path }
+            let process = Process()
+            process.executableURL = python
+            process.arguments = ["-B", driver.path]
+            let input = Pipe(), stdout = Pipe(), stderr = Pipe()
+            process.standardInput = input; process.standardOutput = stdout; process.standardError = stderr
+            try process.run()
+            input.fileHandleForWriting.write(try JSONSerialization.data(withJSONObject: request))
+            try input.fileHandleForWriting.close()
+            let data = stdout.fileHandleForReading.readDataToEndOfFile()
+            let errors = stderr.fileHandleForReading.readDataToEndOfFile()
+            process.waitUntilExit()
+            guard process.terminationStatus == 0 else {
+                throw TextLiveError.driver(String(data: errors, encoding: .utf8) ?? "driver failed")
+            }
+            return try JSONDecoder().decode(TextFieldSnapshot.self, from: data)
+        }
+        func save<T: Encodable>(_ value: T, name: String) throws {
+            let encoder = JSONEncoder(); encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+            try encoder.encode(value).write(to: output.appendingPathComponent(name), options: .atomic)
+        }
+
+        let client = EmulatorClient()
+        let trace = TextLiveTrace()
+        let transport = TracedTextTransport(client: client, trace: trace)
+        let queue = InputQueue(injector: client, textTransport: transport, textPolicy: .success(try TextSubmissionPolicy()))
+        let connection = Task {
+            for await state in client.states {
+                if state != .connected { queue.invalidateTextSession() }
+                await trace.connection(state)
+            }
+        }
+        let clipboard = Task {
+            for await text in client.guestClipboard { _ = queue.observeGuestClipboard(text) }
+        }
+        defer { connection.cancel(); clipboard.cancel() }
+        await client.start(box: LatestFrameBox(), width: 540, height: 1200)
+        var current = ""
+        var completed = 0
+        do {
+            for _ in 0..<100 {
+                if await trace.connected { break }
+                try await Task.sleep(for: .milliseconds(50))
+            }
+            guard await trace.connected else { throw TextLiveError.notConnected }
+            let initial = try observe("observe")
+            guard initial.text.isEmpty else { throw TextLiveError.initialDraftNotEmpty }
+            try save(initial, name: "initial-field.json")
+            let originalClipboard = try await client.readTextClipboard(timeout: .seconds(2))
+            let backup = URL(fileURLWithPath: "/private/tmp/mirage-task4-\(package)-clipboard.txt")
+            try originalClipboard.write(to: backup, atomically: true, encoding: .utf8)
+
+            func setSetupClipboard(_ text: String) async throws {
+                queue.hostClipboardChanged(text)
+                await queue.drained()
+                let deadline = ContinuousClock.now.advanced(by: .seconds(2))
+                while ContinuousClock.now < deadline {
+                    let value = try await client.readTextClipboard(timeout: .seconds(1))
+                    if TextContent.exactlyEqual(value, text) { return }
+                    try await Task.sleep(for: .milliseconds(20))
+                }
+                throw TextLiveError.clipboardSetupMismatch
+            }
+            let corpus: [(String, [String])] = [
+                ("mixed", ["Mirage IME 中文測試 42！"]), ("repeated", ["你好你好"]),
+                ("emoji", ["你好🙂"]), ("accent", ["é e\u{301}"]),
+                ("zwj", ["👩🏽‍💻👨‍👩‍👧‍👦"]), ("ascii", ["Mirage ASCII 42"]),
+                ("insert", ["中文🙂"]), ("replace", ["中文🙂"]),
+                ("burst-same", Array(repeating: "你好", count: 20)),
+                ("burst-distinct", (0..<20).map { String(format: "測%02d🙂 ", $0) })
+            ]
+            for ms in policies {
+                let policy = try TextSubmissionPolicy(settleMilliseconds: ms)
+                queue.textCoordinator.setPolicy(.success(policy))
+                for round in 1...rounds {
+                    for (name, chunks) in corpus {
+                        let label = "\(ms)-r\(round)-\(name)"
+                        let start = Date().timeIntervalSince1970
+                        _ = await trace.take()
+                        var before = try observe("clear", expected: current)
+                        current = ""
+                        var selectionProof: String?
+                        if name == "insert" || name == "replace" {
+                            let seed = name == "insert" ? "LEFTRIGHT" : "LEFToldRIGHT"
+                            try await setSetupClipboard(seed)
+                            before = try observe("paste-seed", expected: "", seed: seed)
+                            current = seed
+                            before = try observe("place-\(name)", expected: seed, image: "\(label)-selection.png")
+                            if name == "replace" {
+                                try await setSetupClipboard("MIRAGE_SELECTION_SENTINEL")
+                                _ = try observe("copy-selection", expected: seed)
+                                let copied = try await client.readTextClipboard(timeout: .seconds(2))
+                                guard TextContent.exactlyEqual(copied, "old") else { throw TextLiveError.clipboardSetupMismatch }
+                                selectionProof = copied
+                                before = try observe("observe", expected: seed)
+                            }
+                        }
+                        // 同步入列，再觀察結果；沒有每筆一個傳輸 Task，沒有 Python Unicode 注入。
+                        let streams = chunks.map { text in
+                            queue.commitText(TextCommit(text: text, generation: queue.textCoordinator.status.generation))
+                        }
+                        var outcomes: [TextCommitOutcome] = []
+                        for stream in streams { outcomes.append(try await receipt(stream).outcome) }
+                        let after = try observe("observe", image: "\(label).png")
+                        let expected = (name == "insert" || name == "replace") ? "LEFT中文🙂RIGHT" : chunks.joined()
+                        let passed = outcomes.allSatisfy { $0 == .submittedUnverified }
+                            && TextFieldEvidence.matches(after, expected: expected, package: package, field: field, notBefore: start)
+                        let record = TextLiveCase(name: name, settleMilliseconds: ms, round: round, chunks: chunks, expected: expected,
+                            before: before, after: after, selectionClipboardProof: selectionProof,
+                            outcomes: outcomes.map { String(describing: $0) }, rpc: await trace.take(),
+                            start: start, end: Date().timeIntervalSince1970, passed: passed)
+                        try save(record, name: "\(label).json")
+                        current = after.text
+                        print("[text-live] \(label) passed=\(passed) commits=\(chunks.count)")
+                        guard passed else {
+                            queue.pauseTextSubmissions()
+                            // 停在失敗配置，沒有加大 sleep／自動重送後改寫舊結果。
+                            throw TextLiveError.fieldMismatch(label)
+                        }
+                        completed += 1
+                    }
+                }
+            }
+            let final = try observe("clear", expected: current, image: "final-empty.png")
+            try save(final, name: "final-field.json")
+            try await setSetupClipboard(originalClipboard)
+            try save(["completedCases": completed, "connectionCount": await trace.connections], name: "run-summary.json")
+            await client.stop()
+        } catch {
+            try? save(["completedCases": String(completed), "failure": String(describing: error),
+                       "policyChangedToHideFailure": "false", "cleanup": "not assumed; private clipboard backup retained"], name: "run-failure.json")
+            await client.stop()
+            throw error
+        }
+    }
+}

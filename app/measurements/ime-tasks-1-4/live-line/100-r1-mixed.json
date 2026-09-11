@@ -1,0 +1,80 @@
+{
+  "after" : {
+    "bounds" : [
+      158,
+      2040,
+      829,
+      2141
+    ],
+    "capturedAt" : 1789099084.7417312,
+    "className" : "android.widget.EditText",
+    "field" : "jp.naver.line.android:id\/chat_ui_message_edit",
+    "focused" : true,
+    "fresh" : true,
+    "package" : "jp.naver.line.android",
+    "rawText" : "Mirage IME 中文測試 42！",
+    "text" : "Mirage IME 中文測試 42！"
+  },
+  "before" : {
+    "bounds" : [
+      158,
+      2040,
+      829,
+      2141
+    ],
+    "capturedAt" : 1789099082.33849,
+    "className" : "android.widget.EditText",
+    "field" : "jp.naver.line.android:id\/chat_ui_message_edit",
+    "focused" : true,
+    "fresh" : true,
+    "package" : "jp.naver.line.android",
+    "rawText" : "",
+    "text" : ""
+  },
+  "chunks" : [
+    "Mirage IME 中文測試 42！"
+  ],
+  "end" : 1789099086.5927129,
+  "expected" : "Mirage IME 中文測試 42！",
+  "name" : "mixed",
+  "outcomes" : [
+    "submittedUnverified"
+  ],
+  "passed" : true,
+  "round" : 1,
+  "rpc" : [
+    {
+      "end" : 1789099082.412572,
+      "operation" : "setClipboard",
+      "start" : 1789099082.410347,
+      "text" : "Mirage IME 中文測試 42！"
+    },
+    {
+      "end" : 1789099082.414229,
+      "operation" : "getClipboard",
+      "start" : 1789099082.4125872
+    },
+    {
+      "end" : 1789099082.416854,
+      "operation" : "key:Control:true",
+      "start" : 1789099082.4142818
+    },
+    {
+      "end" : 1789099082.418037,
+      "operation" : "key:v:true",
+      "start" : 1789099082.4168758
+    },
+    {
+      "end" : 1789099082.419102,
+      "operation" : "key:v:false",
+      "start" : 1789099082.41804
+    },
+    {
+      "end" : 1789099082.420203,
+      "operation" : "key:Control:false",
+      "start" : 1789099082.419108
+    }
+  ],
+  "settleMilliseconds" : 100,
+  "start" : 1789099077.688926
+}

@@ -1,0 +1,9 @@
+Traceback (most recent call last):
+  File "/Users/hanfourhuang/Projects/mirage/app/scripts/lib/text_swift_live_summary.py", line 81, in <module>
+    main()
+  File "/Users/hanfourhuang/Projects/mirage/app/scripts/lib/text_swift_live_summary.py", line 75, in main
+    result=summarize(args.directory,args.positions_only,args.require_reselection)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/hanfourhuang/Projects/mirage/app/scripts/lib/text_swift_live_summary.py", line 23, in summarize
+    raise ValueError(f'{directory.name}: incomplete or failed live run; {len(records)} cases')
+ValueError: live-line: incomplete or failed live run; 8 cases

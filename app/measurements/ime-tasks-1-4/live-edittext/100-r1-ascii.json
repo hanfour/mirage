@@ -1,0 +1,80 @@
+{
+  "after" : {
+    "bounds" : [
+      126,
+      136,
+      933,
+      325
+    ],
+    "capturedAt" : 1789098252.0769799,
+    "className" : "android.widget.EditText",
+    "field" : "com.google.android.settings.intelligence:id\/open_search_view_edit_text",
+    "focused" : true,
+    "fresh" : true,
+    "package" : "com.google.android.settings.intelligence",
+    "rawText" : "Mirage ASCII 42",
+    "text" : "Mirage ASCII 42"
+  },
+  "before" : {
+    "bounds" : [
+      126,
+      136,
+      1080,
+      325
+    ],
+    "capturedAt" : 1789098249.7306612,
+    "className" : "android.widget.EditText",
+    "field" : "com.google.android.settings.intelligence:id\/open_search_view_edit_text",
+    "focused" : true,
+    "fresh" : true,
+    "package" : "com.google.android.settings.intelligence",
+    "rawText" : "Search settings",
+    "text" : ""
+  },
+  "chunks" : [
+    "Mirage ASCII 42"
+  ],
+  "end" : 1789098252.999868,
+  "expected" : "Mirage ASCII 42",
+  "name" : "ascii",
+  "outcomes" : [
+    "submittedUnverified"
+  ],
+  "passed" : true,
+  "round" : 1,
+  "rpc" : [
+    {
+      "end" : 1789098249.743577,
+      "operation" : "setClipboard",
+      "start" : 1789098249.7368112,
+      "text" : "Mirage ASCII 42"
+    },
+    {
+      "end" : 1789098249.747545,
+      "operation" : "getClipboard",
+      "start" : 1789098249.7436
+    },
+    {
+      "end" : 1789098249.748757,
+      "operation" : "key:Control:true",
+      "start" : 1789098249.74756
+    },
+    {
+      "end" : 1789098249.749886,
+      "operation" : "key:v:true",
+      "start" : 1789098249.7487621
+    },
+    {
+      "end" : 1789098249.7509341,
+      "operation" : "key:v:false",
+      "start" : 1789098249.7498899
+    },
+    {
+      "end" : 1789098249.751937,
+      "operation" : "key:Control:false",
+      "start" : 1789098249.750939
+    }
+  ],
+  "settleMilliseconds" : 100,
+  "start" : 1789098245.5360398
+}

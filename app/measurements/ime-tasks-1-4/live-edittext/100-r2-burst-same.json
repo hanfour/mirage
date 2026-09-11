@@ -1,0 +1,707 @@
+{
+  "after" : {
+    "bounds" : [
+      126,
+      136,
+      933,
+      325
+    ],
+    "capturedAt" : 1789098412.161363,
+    "className" : "android.widget.EditText",
+    "field" : "com.google.android.settings.intelligence:id\/open_search_view_edit_text",
+    "focused" : true,
+    "fresh" : true,
+    "package" : "com.google.android.settings.intelligence",
+    "rawText" : "你好你好你好你好你好你好你好你好你好你好你好你好你好你好你好你好你好你好你好你好",
+    "text" : "你好你好你好你好你好你好你好你好你好你好你好你好你好你好你好你好你好你好你好你好"
+  },
+  "before" : {
+    "bounds" : [
+      126,
+      136,
+      1080,
+      325
+    ],
+    "capturedAt" : 1789098407.387548,
+    "className" : "android.widget.EditText",
+    "field" : "com.google.android.settings.intelligence:id\/open_search_view_edit_text",
+    "focused" : true,
+    "fresh" : true,
+    "package" : "com.google.android.settings.intelligence",
+    "rawText" : "Search settings",
+    "text" : ""
+  },
+  "chunks" : [
+    "你好",
+    "你好",
+    "你好",
+    "你好",
+    "你好",
+    "你好",
+    "你好",
+    "你好",
+    "你好",
+    "你好",
+    "你好",
+    "你好",
+    "你好",
+    "你好",
+    "你好",
+    "你好",
+    "你好",
+    "你好",
+    "你好",
+    "你好"
+  ],
+  "end" : 1789098412.941541,
+  "expected" : "你好你好你好你好你好你好你好你好你好你好你好你好你好你好你好你好你好你好你好你好",
+  "name" : "burst-same",
+  "outcomes" : [
+    "submittedUnverified",
+    "submittedUnverified",
+    "submittedUnverified",
+    "submittedUnverified",
+    "submittedUnverified",
+    "submittedUnverified",
+    "submittedUnverified",
+    "submittedUnverified",
+    "submittedUnverified",
+    "submittedUnverified",
+    "submittedUnverified",
+    "submittedUnverified",
+    "submittedUnverified",
+    "submittedUnverified",
+    "submittedUnverified",
+    "submittedUnverified",
+    "submittedUnverified",
+    "submittedUnverified",
+    "submittedUnverified",
+    "submittedUnverified"
+  ],
+  "passed" : true,
+  "round" : 2,
+  "rpc" : [
+    {
+      "end" : 1789098407.458812,
+      "operation" : "setClipboard",
+      "start" : 1789098407.456832,
+      "text" : "你好"
+    },
+    {
+      "end" : 1789098407.460216,
+      "operation" : "getClipboard",
+      "start" : 1789098407.458819
+    },
+    {
+      "end" : 1789098407.4614491,
+      "operation" : "key:Control:true",
+      "start" : 1789098407.460227
+    },
+    {
+      "end" : 1789098407.462858,
+      "operation" : "key:v:true",
+      "start" : 1789098407.461454
+    },
+    {
+      "end" : 1789098407.464158,
+      "operation" : "key:v:false",
+      "start" : 1789098407.462861
+    },
+    {
+      "end" : 1789098407.465383,
+      "operation" : "key:Control:false",
+      "start" : 1789098407.464167
+    },
+    {
+      "end" : 1789098407.6454191,
+      "operation" : "setClipboard",
+      "start" : 1789098407.5673609,
+      "text" : "你好"
+    },
+    {
+      "end" : 1789098407.734857,
+      "operation" : "getClipboard",
+      "start" : 1789098407.6454291
+    },
+    {
+      "end" : 1789098407.8184729,
+      "operation" : "key:Control:true",
+      "start" : 1789098407.7348719
+    },
+    {
+      "end" : 1789098407.909809,
+      "operation" : "key:v:true",
+      "start" : 1789098407.818481
+    },
+    {
+      "end" : 1789098407.972729,
+      "operation" : "key:v:false",
+      "start" : 1789098407.9098248
+    },
+    {
+      "end" : 1789098407.975518,
+      "operation" : "key:Control:false",
+      "start" : 1789098407.9727368
+    },
+    {
+      "end" : 1789098408.07789,
+      "operation" : "setClipboard",
+      "start" : 1789098408.075675,
+      "text" : "你好"
+    },
+    {
+      "end" : 1789098408.079619,
+      "operation" : "getClipboard",
+      "start" : 1789098408.077896
+    },
+    {
+      "end" : 1789098408.08145,
+      "operation" : "key:Control:true",
+      "start" : 1789098408.079649
+    },
+    {
+      "end" : 1789098408.0832338,
+      "operation" : "key:v:true",
+      "start" : 1789098408.081456
+    },
+    {
+      "end" : 1789098408.0848022,
+      "operation" : "key:v:false",
+      "start" : 1789098408.0832481
+    },
+    {
+      "end" : 1789098408.0862541,
+      "operation" : "key:Control:false",
+      "start" : 1789098408.0848088
+    },
+    {
+      "end" : 1789098408.207632,
+      "operation" : "setClipboard",
+      "start" : 1789098408.189324,
+      "text" : "你好"
+    },
+    {
+      "end" : 1789098408.210928,
+      "operation" : "getClipboard",
+      "start" : 1789098408.207644
+    },
+    {
+      "end" : 1789098408.212089,
+      "operation" : "key:Control:true",
+      "start" : 1789098408.210948
+    },
+    {
+      "end" : 1789098408.213176,
+      "operation" : "key:v:true",
+      "start" : 1789098408.212092
+    },
+    {
+      "end" : 1789098408.214374,
+      "operation" : "key:v:false",
+      "start" : 1789098408.21318
+    },
+    {
+      "end" : 1789098408.215506,
+      "operation" : "key:Control:false",
+      "start" : 1789098408.2143788
+    },
+    {
+      "end" : 1789098408.323072,
+      "operation" : "setClipboard",
+      "start" : 1789098408.316284,
+      "text" : "你好"
+    },
+    {
+      "end" : 1789098408.3243918,
+      "operation" : "getClipboard",
+      "start" : 1789098408.3230839
+    },
+    {
+      "end" : 1789098408.325603,
+      "operation" : "key:Control:true",
+      "start" : 1789098408.3244061
+    },
+    {
+      "end" : 1789098408.326757,
+      "operation" : "key:v:true",
+      "start" : 1789098408.325613
+    },
+    {
+      "end" : 1789098408.32789,
+      "operation" : "key:v:false",
+      "start" : 1789098408.326761
+    },
+    {
+      "end" : 1789098408.3289561,
+      "operation" : "key:Control:false",
+      "start" : 1789098408.327894
+    },
+    {
+      "end" : 1789098408.44467,
+      "operation" : "setClipboard",
+      "start" : 1789098408.429587,
+      "text" : "你好"
+    },
+    {
+      "end" : 1789098408.447764,
+      "operation" : "getClipboard",
+      "start" : 1789098408.4446812
+    },
+    {
+      "end" : 1789098408.448796,
+      "operation" : "key:Control:true",
+      "start" : 1789098408.447773
+    },
+    {
+      "end" : 1789098408.449786,
+      "operation" : "key:v:true",
+      "start" : 1789098408.448798
+    },
+    {
+      "end" : 1789098408.450921,
+      "operation" : "key:v:false",
+      "start" : 1789098408.44979
+    },
+    {
+      "end" : 1789098408.452008,
+      "operation" : "key:Control:false",
+      "start" : 1789098408.450924
+    },
+    {
+      "end" : 1789098408.5552258,
+      "operation" : "setClipboard",
+      "start" : 1789098408.553821,
+      "text" : "你好"
+    },
+    {
+      "end" : 1789098408.556457,
+      "operation" : "getClipboard",
+      "start" : 1789098408.5552301
+    },
+    {
+      "end" : 1789098408.557602,
+      "operation" : "key:Control:true",
+      "start" : 1789098408.556467
+    },
+    {
+      "end" : 1789098408.55878,
+      "operation" : "key:v:true",
+      "start" : 1789098408.557613
+    },
+    {
+      "end" : 1789098408.560117,
+      "operation" : "key:v:false",
+      "start" : 1789098408.558809
+    },
+    {
+      "end" : 1789098408.561255,
+      "operation" : "key:Control:false",
+      "start" : 1789098408.5601258
+    },
+    {
+      "end" : 1789098408.6655989,
+      "operation" : "setClipboard",
+      "start" : 1789098408.664104,
+      "text" : "你好"
+    },
+    {
+      "end" : 1789098408.666788,
+      "operation" : "getClipboard",
+      "start" : 1789098408.6656032
+    },
+    {
+      "end" : 1789098408.668056,
+      "operation" : "key:Control:true",
+      "start" : 1789098408.666798
+    },
+    {
+      "end" : 1789098408.669445,
+      "operation" : "key:v:true",
+      "start" : 1789098408.668061
+    },
+    {
+      "end" : 1789098408.671838,
+      "operation" : "key:v:false",
+      "start" : 1789098408.669457
+    },
+    {
+      "end" : 1789098408.673387,
+      "operation" : "key:Control:false",
+      "start" : 1789098408.671873
+    },
+    {
+      "end" : 1789098408.7776,
+      "operation" : "setClipboard",
+      "start" : 1789098408.77633,
+      "text" : "你好"
+    },
+    {
+      "end" : 1789098408.778717,
+      "operation" : "getClipboard",
+      "start" : 1789098408.777604
+    },
+    {
+      "end" : 1789098408.779814,
+      "operation" : "key:Control:true",
+      "start" : 1789098408.778748
+    },
+    {
+      "end" : 1789098408.781044,
+      "operation" : "key:v:true",
+      "start" : 1789098408.779821
+    },
+    {
+      "end" : 1789098408.782182,
+      "operation" : "key:v:false",
+      "start" : 1789098408.781049
+    },
+    {
+      "end" : 1789098408.783462,
+      "operation" : "key:Control:false",
+      "start" : 1789098408.782186
+    },
+    {
+      "end" : 1789098408.887926,
+      "operation" : "setClipboard",
+      "start" : 1789098408.885489,
+      "text" : "你好"
+    },
+    {
+      "end" : 1789098408.8891501,
+      "operation" : "getClipboard",
+      "start" : 1789098408.8879309
+    },
+    {
+      "end" : 1789098408.8904362,
+      "operation" : "key:Control:true",
+      "start" : 1789098408.8891602
+    },
+    {
+      "end" : 1789098408.891711,
+      "operation" : "key:v:true",
+      "start" : 1789098408.89044
+    },
+    {
+      "end" : 1789098408.893055,
+      "operation" : "key:v:false",
+      "start" : 1789098408.891724
+    },
+    {
+      "end" : 1789098408.8942971,
+      "operation" : "key:Control:false",
+      "start" : 1789098408.893059
+    },
+    {
+      "end" : 1789098408.9965901,
+      "operation" : "setClipboard",
+      "start" : 1789098408.99508,
+      "text" : "你好"
+    },
+    {
+      "end" : 1789098408.997923,
+      "operation" : "getClipboard",
+      "start" : 1789098408.996593
+    },
+    {
+      "end" : 1789098408.9994779,
+      "operation" : "key:Control:true",
+      "start" : 1789098408.997937
+    },
+    {
+      "end" : 1789098409.001011,
+      "operation" : "key:v:true",
+      "start" : 1789098408.9994922
+    },
+    {
+      "end" : 1789098409.002351,
+      "operation" : "key:v:false",
+      "start" : 1789098409.001019
+    },
+    {
+      "end" : 1789098409.003552,
+      "operation" : "key:Control:false",
+      "start" : 1789098409.002356
+    },
+    {
+      "end" : 1789098409.106528,
+      "operation" : "setClipboard",
+      "start" : 1789098409.1044168,
+      "text" : "你好"
+    },
+    {
+      "end" : 1789098409.110184,
+      "operation" : "getClipboard",
+      "start" : 1789098409.106533
+    },
+    {
+      "end" : 1789098409.111424,
+      "operation" : "key:Control:true",
+      "start" : 1789098409.110197
+    },
+    {
+      "end" : 1789098409.112544,
+      "operation" : "key:v:true",
+      "start" : 1789098409.111428
+    },
+    {
+      "end" : 1789098409.113659,
+      "operation" : "key:v:false",
+      "start" : 1789098409.1125479
+    },
+    {
+      "end" : 1789098409.114867,
+      "operation" : "key:Control:false",
+      "start" : 1789098409.113663
+    },
+    {
+      "end" : 1789098409.2186298,
+      "operation" : "setClipboard",
+      "start" : 1789098409.217126,
+      "text" : "你好"
+    },
+    {
+      "end" : 1789098409.219856,
+      "operation" : "getClipboard",
+      "start" : 1789098409.2186332
+    },
+    {
+      "end" : 1789098409.2210999,
+      "operation" : "key:Control:true",
+      "start" : 1789098409.2198858
+    },
+    {
+      "end" : 1789098409.222312,
+      "operation" : "key:v:true",
+      "start" : 1789098409.221106
+    },
+    {
+      "end" : 1789098409.223504,
+      "operation" : "key:v:false",
+      "start" : 1789098409.222317
+    },
+    {
+      "end" : 1789098409.22465,
+      "operation" : "key:Control:false",
+      "start" : 1789098409.223511
+    },
+    {
+      "end" : 1789098409.327335,
+      "operation" : "setClipboard",
+      "start" : 1789098409.3257608,
+      "text" : "你好"
+    },
+    {
+      "end" : 1789098409.32864,
+      "operation" : "getClipboard",
+      "start" : 1789098409.327347
+    },
+    {
+      "end" : 1789098409.329876,
+      "operation" : "key:Control:true",
+      "start" : 1789098409.328669
+    },
+    {
+      "end" : 1789098409.331274,
+      "operation" : "key:v:true",
+      "start" : 1789098409.32988
+    },
+    {
+      "end" : 1789098409.3327951,
+      "operation" : "key:v:false",
+      "start" : 1789098409.331285
+    },
+    {
+      "end" : 1789098409.334122,
+      "operation" : "key:Control:false",
+      "start" : 1789098409.33281
+    },
+    {
+      "end" : 1789098409.441181,
+      "operation" : "setClipboard",
+      "start" : 1789098409.437048,
+      "text" : "你好"
+    },
+    {
+      "end" : 1789098409.44544,
+      "operation" : "getClipboard",
+      "start" : 1789098409.441208
+    },
+    {
+      "end" : 1789098409.446729,
+      "operation" : "key:Control:true",
+      "start" : 1789098409.445455
+    },
+    {
+      "end" : 1789098409.447931,
+      "operation" : "key:v:true",
+      "start" : 1789098409.446733
+    },
+    {
+      "end" : 1789098409.449127,
+      "operation" : "key:v:false",
+      "start" : 1789098409.447935
+    },
+    {
+      "end" : 1789098409.4504151,
+      "operation" : "key:Control:false",
+      "start" : 1789098409.44913
+    },
+    {
+      "end" : 1789098409.552815,
+      "operation" : "setClipboard",
+      "start" : 1789098409.551213,
+      "text" : "你好"
+    },
+    {
+      "end" : 1789098409.5539808,
+      "operation" : "getClipboard",
+      "start" : 1789098409.55282
+    },
+    {
+      "end" : 1789098409.555179,
+      "operation" : "key:Control:true",
+      "start" : 1789098409.5539908
+    },
+    {
+      "end" : 1789098409.5563731,
+      "operation" : "key:v:true",
+      "start" : 1789098409.555184
+    },
+    {
+      "end" : 1789098409.557571,
+      "operation" : "key:v:false",
+      "start" : 1789098409.556377
+    },
+    {
+      "end" : 1789098409.558748,
+      "operation" : "key:Control:false",
+      "start" : 1789098409.557575
+    },
+    {
+      "end" : 1789098409.660979,
+      "operation" : "setClipboard",
+      "start" : 1789098409.6595201,
+      "text" : "你好"
+    },
+    {
+      "end" : 1789098409.662147,
+      "operation" : "getClipboard",
+      "start" : 1789098409.660984
+    },
+    {
+      "end" : 1789098409.663365,
+      "operation" : "key:Control:true",
+      "start" : 1789098409.6621761
+    },
+    {
+      "end" : 1789098409.664633,
+      "operation" : "key:v:true",
+      "start" : 1789098409.6633692
+    },
+    {
+      "end" : 1789098409.665862,
+      "operation" : "key:v:false",
+      "start" : 1789098409.664639
+    },
+    {
+      "end" : 1789098409.667007,
+      "operation" : "key:Control:false",
+      "start" : 1789098409.6658669
+    },
+    {
+      "end" : 1789098409.770455,
+      "operation" : "setClipboard",
+      "start" : 1789098409.7686691,
+      "text" : "你好"
+    },
+    {
+      "end" : 1789098409.771894,
+      "operation" : "getClipboard",
+      "start" : 1789098409.770461
+    },
+    {
+      "end" : 1789098409.773771,
+      "operation" : "key:Control:true",
+      "start" : 1789098409.771908
+    },
+    {
+      "end" : 1789098409.775286,
+      "operation" : "key:v:true",
+      "start" : 1789098409.773778
+    },
+    {
+      "end" : 1789098409.7766619,
+      "operation" : "key:v:false",
+      "start" : 1789098409.7752972
+    },
+    {
+      "end" : 1789098409.777911,
+      "operation" : "key:Control:false",
+      "start" : 1789098409.776681
+    },
+    {
+      "end" : 1789098409.880477,
+      "operation" : "setClipboard",
+      "start" : 1789098409.8789458,
+      "text" : "你好"
+    },
+    {
+      "end" : 1789098409.881659,
+      "operation" : "getClipboard",
+      "start" : 1789098409.880481
+    },
+    {
+      "end" : 1789098409.882952,
+      "operation" : "key:Control:true",
+      "start" : 1789098409.881669
+    },
+    {
+      "end" : 1789098409.884242,
+      "operation" : "key:v:true",
+      "start" : 1789098409.882956
+    },
+    {
+      "end" : 1789098409.885607,
+      "operation" : "key:v:false",
+      "start" : 1789098409.884254
+    },
+    {
+      "end" : 1789098409.886771,
+      "operation" : "key:Control:false",
+      "start" : 1789098409.885613
+    },
+    {
+      "end" : 1789098409.993166,
+      "operation" : "setClipboard",
+      "start" : 1789098409.988349,
+      "text" : "你好"
+    },
+    {
+      "end" : 1789098409.997479,
+      "operation" : "getClipboard",
+      "start" : 1789098409.993176
+    },
+    {
+      "end" : 1789098409.998672,
+      "operation" : "key:Control:true",
+      "start" : 1789098409.997497
+    },
+    {
+      "end" : 1789098409.999907,
+      "operation" : "key:v:true",
+      "start" : 1789098409.9986758
+    },
+    {
+      "end" : 1789098410.001151,
+      "operation" : "key:v:false",
+      "start" : 1789098409.999912
+    },
+    {
+      "end" : 1789098410.002379,
+      "operation" : "key:Control:false",
+      "start" : 1789098410.001154
+    }
+  ],
+  "settleMilliseconds" : 100,
+  "start" : 1789098403.0917149
+}

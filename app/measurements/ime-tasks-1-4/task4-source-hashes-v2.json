@@ -1,0 +1,13 @@
+{
+  "app/Sources/MirageCore/Input/TextCommitState.swift": "de5ef0063501d272cdaed928186b0f31fc4a295e40995c350817ac4ca09a84bb",
+  "app/Sources/MirageCore/Input/TextSubmissionPolicy.swift": "6ea1f2fd19db15be851649e6508ff5ae24ba005db054c2e6aaf95c958a130cff",
+  "app/Sources/MirageCore/Input/TextCommitTransport.swift": "716e8d96e7eb6e316b21cc1ab9317924abbd85fcb7ab0a36e7af4b2065279720",
+  "app/Sources/MirageCore/Input/TextCommitExecutor.swift": "5eae4ee778c28e7ee1ad38ba6a763415ac515e3f17622059b82056874ecc09d1",
+  "app/Sources/MirageCore/Input/InputQueue.swift": "a4ca29129e555169b415940cb8b4bd55d4dc3ee2153699c8e679609e6e7af7f5",
+  "app/Sources/MirageCore/Input/TextClipboardCoordinator.swift": "282cce77d43d64e3b0afc4ae1d936df22837e90225a0b98de9ff4afd6f0c41b1",
+  "app/Sources/MirageCore/EmulatorClient+Text.swift": "970caad1e09b741b92c343bb782d993f888cec36386c441d9bf18d2d3645c666",
+  "app/Tests/MirageCoreTests/TextCommitLiveTests.swift": "7eaedce1a47cc1f866e3ff12e19a05bfed6bf21276ae3581e38c3a8fe04e5770",
+  "app/Tests/MirageCoreTests/TextFieldEvidence.swift": "7f99e9d76a291423bfcc8fb43e5a160ff6ab3a7d237b38f74f76ca4522d4306f",
+  "app/scripts/lib/text_field_driver.py": "1880fbba6e18ea3e83a61e0676a2bd4b2c542ce53031d12e1e6c7658bde0961f",
+  "app/scripts/verify_text_commit.sh": "150bf8c189fc17c6131db72fd092e4ea29fa66515a5a3b6288b055b7d5e1c8f6"
+}

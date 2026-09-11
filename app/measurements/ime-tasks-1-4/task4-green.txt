@@ -1,0 +1,12 @@
+✔ Suite KeymapControllerRoutingTests passed after 0.481 seconds.
+✔ Test streamFailureResubscribesWithBackoff() passed after 0.518 seconds.
+✔ Suite EmulatorClientReconnectTests passed after 0.521 seconds.
+✔ Test editingModeSendsNoTapEvenWithoutProfile() passed after 0.524 seconds.
+✔ Test hasProfileSendsNoTapWhenNotEditing() passed after 0.524 seconds.
+✔ Suite MirrorCoordinatorTests passed after 0.528 seconds.
+✔ Test suspendStopsAudioAndWakeResumesIt() passed after 0.643 seconds.
+✔ Test suspendBeforeFirstConnectStaysSilentUntilWake() passed after 0.715 seconds.
+✔ Suite EmulatorClientAudioTests passed after 0.725 seconds.
+✔ Test depthNeverGoesNegativeUnderThreadedContention() passed after 0.934 seconds.
+✔ Suite AudioRingBufferTests passed after 0.945 seconds.
+✔ Test run with 444 tests passed after 0.948 seconds.

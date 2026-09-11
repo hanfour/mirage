@@ -1,0 +1,69 @@
+{
+  "before": {
+    "package": "jp.naver.line.android",
+    "field": "jp.naver.line.android:id/chat_ui_message_edit",
+    "className": "android.widget.EditText",
+    "focused": true,
+    "text": "LEFToldRIGHT",
+    "rawText": "LEFToldRIGHT",
+    "bounds": [
+      158,
+      2040,
+      829,
+      2141
+    ],
+    "capturedAt": 1789099618.375597,
+    "fresh": true
+  },
+  "after": {
+    "package": "jp.naver.line.android",
+    "field": "jp.naver.line.android:id/chat_ui_message_edit",
+    "className": "android.widget.EditText",
+    "focused": true,
+    "text": "LEFToldRIGHT",
+    "rawText": "LEFToldRIGHT",
+    "bounds": [
+      158,
+      2040,
+      829,
+      2141
+    ],
+    "capturedAt": 1789099626.160463,
+    "fresh": true
+  },
+  "copied": "old",
+  "reselected": {
+    "package": "jp.naver.line.android",
+    "field": "jp.naver.line.android:id/chat_ui_message_edit",
+    "className": "android.widget.EditText",
+    "focused": true,
+    "text": "LEFToldRIGHT",
+    "rawText": "LEFToldRIGHT",
+    "bounds": [
+      158,
+      2040,
+      829,
+      2141
+    ],
+    "capturedAt": 1789099634.3542242,
+    "fresh": true
+  },
+  "final": {
+    "package": "jp.naver.line.android",
+    "field": "jp.naver.line.android:id/chat_ui_message_edit",
+    "className": "android.widget.EditText",
+    "focused": true,
+    "text": "",
+    "rawText": "",
+    "bounds": [
+      158,
+      2040,
+      829,
+      2141
+    ],
+    "capturedAt": 1789099641.262461,
+    "fresh": true
+  },
+  "clipboardRestored": true,
+  "unicodePasteAttempts": 0
+}

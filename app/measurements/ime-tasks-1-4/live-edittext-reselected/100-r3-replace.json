@@ -1,0 +1,94 @@
+{
+  "after" : {
+    "bounds" : [
+      126,
+      136,
+      933,
+      325
+    ],
+    "capturedAt" : 1789100245.1058948,
+    "className" : "android.widget.EditText",
+    "field" : "com.google.android.settings.intelligence:id\/open_search_view_edit_text",
+    "focused" : true,
+    "fresh" : true,
+    "package" : "com.google.android.settings.intelligence",
+    "rawText" : "LEFT中文🙂RIGHT",
+    "text" : "LEFT中文🙂RIGHT"
+  },
+  "before" : {
+    "bounds" : [
+      126,
+      136,
+      933,
+      325
+    ],
+    "capturedAt" : 1789100239.8245618,
+    "className" : "android.widget.EditText",
+    "field" : "com.google.android.settings.intelligence:id\/open_search_view_edit_text",
+    "focused" : true,
+    "fresh" : true,
+    "package" : "com.google.android.settings.intelligence",
+    "rawText" : "LEFToldRIGHT",
+    "text" : "LEFToldRIGHT"
+  },
+  "chunks" : [
+    "中文🙂"
+  ],
+  "end" : 1789100247.828474,
+  "expected" : "LEFT中文🙂RIGHT",
+  "name" : "replace",
+  "outcomes" : [
+    "submittedUnverified"
+  ],
+  "passed" : true,
+  "round" : 3,
+  "rpc" : [
+    {
+      "end" : 1789100215.0964742,
+      "operation" : "setClipboard",
+      "start" : 1789100215.093993,
+      "text" : "LEFToldRIGHT"
+    },
+    {
+      "end" : 1789100228.665206,
+      "operation" : "setClipboard",
+      "start" : 1789100228.6622171,
+      "text" : "MIRAGE_SELECTION_SENTINEL"
+    },
+    {
+      "end" : 1789100242.284899,
+      "operation" : "setClipboard",
+      "start" : 1789100242.28125,
+      "text" : "中文🙂"
+    },
+    {
+      "end" : 1789100242.286371,
+      "operation" : "getClipboard",
+      "start" : 1789100242.284906
+    },
+    {
+      "end" : 1789100242.288217,
+      "operation" : "key:Control:true",
+      "start" : 1789100242.286382
+    },
+    {
+      "end" : 1789100242.290432,
+      "operation" : "key:v:true",
+      "start" : 1789100242.2882218
+    },
+    {
+      "end" : 1789100242.2924051,
+      "operation" : "key:v:false",
+      "start" : 1789100242.2904391
+    },
+    {
+      "end" : 1789100242.29387,
+      "operation" : "key:Control:false",
+      "start" : 1789100242.292409
+    }
+  ],
+  "selectionClipboardProof" : "old",
+  "selectionReappliedAfterCopy" : true,
+  "settleMilliseconds" : 100,
+  "start" : 1789100209.54702
+}

@@ -1,0 +1,80 @@
+{
+  "after" : {
+    "bounds" : [
+      126,
+      136,
+      933,
+      325
+    ],
+    "capturedAt" : 1789098322.188489,
+    "className" : "android.widget.EditText",
+    "field" : "com.google.android.settings.intelligence:id\/open_search_view_edit_text",
+    "focused" : true,
+    "fresh" : true,
+    "package" : "com.google.android.settings.intelligence",
+    "rawText" : "Mirage IME 中文測試 42！",
+    "text" : "Mirage IME 中文測試 42！"
+  },
+  "before" : {
+    "bounds" : [
+      126,
+      136,
+      1080,
+      325
+    ],
+    "capturedAt" : 1789098319.229721,
+    "className" : "android.widget.EditText",
+    "field" : "com.google.android.settings.intelligence:id\/open_search_view_edit_text",
+    "focused" : true,
+    "fresh" : true,
+    "package" : "com.google.android.settings.intelligence",
+    "rawText" : "Search settings",
+    "text" : ""
+  },
+  "chunks" : [
+    "Mirage IME 中文測試 42！"
+  ],
+  "end" : 1789098322.9491792,
+  "expected" : "Mirage IME 中文測試 42！",
+  "name" : "mixed",
+  "outcomes" : [
+    "submittedUnverified"
+  ],
+  "passed" : true,
+  "round" : 2,
+  "rpc" : [
+    {
+      "end" : 1789098319.381017,
+      "operation" : "setClipboard",
+      "start" : 1789098319.3010101,
+      "text" : "Mirage IME 中文測試 42！"
+    },
+    {
+      "end" : 1789098319.447482,
+      "operation" : "getClipboard",
+      "start" : 1789098319.3810282
+    },
+    {
+      "end" : 1789098319.582627,
+      "operation" : "key:Control:true",
+      "start" : 1789098319.447506
+    },
+    {
+      "end" : 1789098319.66627,
+      "operation" : "key:v:true",
+      "start" : 1789098319.5826368
+    },
+    {
+      "end" : 1789098319.757084,
+      "operation" : "key:v:false",
+      "start" : 1789098319.6662788
+    },
+    {
+      "end" : 1789098319.8631039,
+      "operation" : "key:Control:false",
+      "start" : 1789098319.7571
+    }
+  ],
+  "settleMilliseconds" : 100,
+  "start" : 1789098314.507738
+}

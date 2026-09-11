@@ -1,0 +1,81 @@
+{
+  "after" : {
+    "bounds" : [
+      158,
+      2040,
+      829,
+      2141
+    ],
+    "capturedAt" : 1789101367.380827,
+    "className" : "android.widget.EditText",
+    "field" : "jp.naver.line.android:id\/chat_ui_message_edit",
+    "focused" : true,
+    "fresh" : true,
+    "package" : "jp.naver.line.android",
+    "rawText" : "Mirage ASCII 42",
+    "text" : "Mirage ASCII 42"
+  },
+  "before" : {
+    "bounds" : [
+      158,
+      2040,
+      829,
+      2141
+    ],
+    "capturedAt" : 1789101364.919797,
+    "className" : "android.widget.EditText",
+    "field" : "jp.naver.line.android:id\/chat_ui_message_edit",
+    "focused" : true,
+    "fresh" : true,
+    "package" : "jp.naver.line.android",
+    "rawText" : "",
+    "text" : ""
+  },
+  "chunks" : [
+    "Mirage ASCII 42"
+  ],
+  "end" : 1789101368.390001,
+  "expected" : "Mirage ASCII 42",
+  "name" : "ascii",
+  "outcomes" : [
+    "submittedUnverified"
+  ],
+  "passed" : true,
+  "round" : 3,
+  "rpc" : [
+    {
+      "end" : 1789101364.92703,
+      "operation" : "setClipboard",
+      "start" : 1789101364.925173,
+      "text" : "Mirage ASCII 42"
+    },
+    {
+      "end" : 1789101364.928601,
+      "operation" : "getClipboard",
+      "start" : 1789101364.927037
+    },
+    {
+      "end" : 1789101364.9306788,
+      "operation" : "key:Control:true",
+      "start" : 1789101364.9286351
+    },
+    {
+      "end" : 1789101364.932238,
+      "operation" : "key:v:true",
+      "start" : 1789101364.930694
+    },
+    {
+      "end" : 1789101364.9338698,
+      "operation" : "key:v:false",
+      "start" : 1789101364.9322438
+    },
+    {
+      "end" : 1789101364.935561,
+      "operation" : "key:Control:false",
+      "start" : 1789101364.933877
+    }
+  ],
+  "selectionReappliedAfterCopy" : false,
+  "settleMilliseconds" : 250,
+  "start" : 1789101359.8524861
+}

@@ -1,0 +1,31 @@
+{
+  "scope": "positions-only",
+  "target": "com.google.android.settings.intelligence",
+  "policies": {
+    "100": {
+      "cases": 6,
+      "passed": 6,
+      "rounds": 3,
+      "insert_passes": 3,
+      "replace_passes": 3,
+      "burst_passes": 0,
+      "actual_start_gap_min_ms": null,
+      "actual_start_gap_median_ms": null,
+      "actual_hold_min_ms": null,
+      "actual_hold_median_ms": null
+    },
+    "250": {
+      "cases": 6,
+      "passed": 6,
+      "rounds": 3,
+      "insert_passes": 3,
+      "replace_passes": 3,
+      "burst_passes": 0,
+      "actual_start_gap_min_ms": null,
+      "actual_start_gap_median_ms": null,
+      "actual_hold_min_ms": null,
+      "actual_hold_median_ms": null
+    }
+  },
+  "final_draft_empty": true
+}

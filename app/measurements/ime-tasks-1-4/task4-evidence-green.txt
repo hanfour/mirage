@@ -1,0 +1,10 @@
+◇ Passing 1 argument wrong → "LEFTold中文🙂RIGHT" to clipboardCannotProveInsertionOrReplacement(_:)
+◇ Passing 1 argument wrong → "中文🙂RIGHT" to clipboardCannotProveInsertionOrReplacement(_:)
+◇ Passing 1 argument wrong → "中文🙂" to clipboardCannotProveInsertionOrReplacement(_:)
+◇ Passing 1 argument wrong → "LEFTRIGHT中文🙂" to clipboardCannotProveInsertionOrReplacement(_:)
+✔ Test clipboardCannotProveInsertionOrReplacement(_:) passed after 0.001 seconds.
+✔ Suite TextFieldEvidenceTests passed after 0.002 seconds.
+✔ Test freshRunnerLogDoesNotCountAsOldCases() passed after 0.003 seconds.
+✔ Test existingFailureEvidenceCannotBeOverwritten() passed after 0.009 seconds.
+✔ Suite TextEvidenceDirectoryTests passed after 0.011 seconds.
+✔ Test run with 5 tests passed after 0.011 seconds.

@@ -1,0 +1,15 @@
+{
+  "serial": "emulator-5554",
+  "grpc": "localhost:8554",
+  "androidApi": "35",
+  "ime": "com.google.android.inputmethod.latin/com.android.inputmethod.latin.LatinIME",
+  "lineVersion": [
+    "versionCode=261400121 minSdk=32 targetSdk=36",
+    "versionName=26.14.0"
+  ],
+  "emulatorVersion": "Android emulator version 37.1.11.0 (build_id 15917651) (CL:N/A)",
+  "finalDraftEmpty": true,
+  "visibleChatTextNodes": 2,
+  "sameVisibleChatAsPriorStage": true,
+  "guestClipboardTextRestored": true
+}

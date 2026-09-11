@@ -1,0 +1,16 @@
+{
+  "bounds" : [
+    126,
+    136,
+    1080,
+    325
+  ],
+  "capturedAt" : 1789098208.1857111,
+  "className" : "android.widget.EditText",
+  "field" : "com.google.android.settings.intelligence:id\/open_search_view_edit_text",
+  "focused" : true,
+  "fresh" : true,
+  "package" : "com.google.android.settings.intelligence",
+  "rawText" : "Search settings",
+  "text" : ""
+}

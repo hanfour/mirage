@@ -1,0 +1,80 @@
+{
+  "after" : {
+    "bounds" : [
+      126,
+      136,
+      933,
+      325
+    ],
+    "capturedAt" : 1789098547.932946,
+    "className" : "android.widget.EditText",
+    "field" : "com.google.android.settings.intelligence:id\/open_search_view_edit_text",
+    "focused" : true,
+    "fresh" : true,
+    "package" : "com.google.android.settings.intelligence",
+    "rawText" : "你好你好",
+    "text" : "你好你好"
+  },
+  "before" : {
+    "bounds" : [
+      126,
+      136,
+      1080,
+      325
+    ],
+    "capturedAt" : 1789098545.391982,
+    "className" : "android.widget.EditText",
+    "field" : "com.google.android.settings.intelligence:id\/open_search_view_edit_text",
+    "focused" : true,
+    "fresh" : true,
+    "package" : "com.google.android.settings.intelligence",
+    "rawText" : "Search settings",
+    "text" : ""
+  },
+  "chunks" : [
+    "你好你好"
+  ],
+  "end" : 1789098548.703249,
+  "expected" : "你好你好",
+  "name" : "repeated",
+  "outcomes" : [
+    "submittedUnverified"
+  ],
+  "passed" : true,
+  "round" : 1,
+  "rpc" : [
+    {
+      "end" : 1789098545.5716949,
+      "operation" : "setClipboard",
+      "start" : 1789098545.463883,
+      "text" : "你好你好"
+    },
+    {
+      "end" : 1789098545.611059,
+      "operation" : "getClipboard",
+      "start" : 1789098545.5717049
+    },
+    {
+      "end" : 1789098545.612994,
+      "operation" : "key:Control:true",
+      "start" : 1789098545.6110759
+    },
+    {
+      "end" : 1789098545.614532,
+      "operation" : "key:v:true",
+      "start" : 1789098545.6130009
+    },
+    {
+      "end" : 1789098545.616002,
+      "operation" : "key:v:false",
+      "start" : 1789098545.614547
+    },
+    {
+      "end" : 1789098545.617213,
+      "operation" : "key:Control:false",
+      "start" : 1789098545.616025
+    }
+  ],
+  "settleMilliseconds" : 250,
+  "start" : 1789098540.7842941
+}

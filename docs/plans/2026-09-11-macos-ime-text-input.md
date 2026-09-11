@@ -1,6 +1,6 @@
 # macOS IME 與 guest 文字提交 實作計畫
 
-**狀態：已核准執行 Task 1–4；Task 1–3 完成，Task 4 進行中；Task 5–8 本輪不做。**
+**狀態：已核准執行 Task 1–4；Task 1–4 完成（原始 FAIL 與修正後證據均保留）；Task 5–8 本輪不做。**
 
 **Goal:** 使用 Mac 注音／拼音在 Mirage 裡組字、選字，確定文字經剪貼簿＋一次貼上進入 LINE
 草稿；組字按鍵不漏到 guest，連續提交有可調節流、可見失敗狀態且不自動重送。
@@ -173,28 +173,29 @@ Modify `LiveGate.swift`、`text_channel_probe.py`／新增 `verify_text_commit.s
 新增 RESULTS 節與 measurements。Swift live 測試須呼叫 Task 2–3 的真 executor／queue，
 Python／adb 只作清理、定位及觀察，不讓另一套 Python paste 代替被驗的 Swift 實作。
 
-- [ ] **Step 1 — RED：** 先寫精確比對測試／錯誤 fixture：錯成結尾追加、整欄替換、丟掉前後綴、
+- [x] **Step 1 — RED：** 先寫精確比對測試／錯誤 fixture：錯成結尾追加、整欄替換、丟掉前後綴、
   沒有 focus、stale/null XML、NFC/NFD 被互換、clipboard 等於期望但欄位不同，都必須 FAIL。以 clipboard 相符
   作 pass 的最小版本要真的紅；缺現場資料記 blocked，不偽造功能已失敗或已可行。
-- [ ] **Step 2 — 確認紅：** `(cd app && swift test --filter TextFieldEvidenceTests)`，並測診斷腳本
+- [x] **Step 2 — 確認紅：** `(cd app && swift test --filter TextFieldEvidenceTests)`，並測診斷腳本
   對錯欄位／錯內容退出非零。新增 live gate 關閉時顯示 skip；開啟但缺前置時 `#require` 失敗。
-- [ ] **Step 3 — 建立前置：** 普通原生 EditText 先做、LINE 草稿後做；確認版本、IME、目標
+- [x] **Step 3 — 建立前置：** 普通原生 EditText 先做、LINE 草稿後做；確認版本、IME、目標
   field、focus、原內容備份。每案獨立清理／種下已知 ASCII seed 並讀回，不先清掉使用者真草稿。
   新鮮 UI dump、已知 placeholder、精確碼位與欄位裁切圖沿用上一輪加固規則。
-- [ ] **Step 4 — 中間插入實測（尚未驗過）：** 獨立設 `LEFTRIGHT`，把 caret 放在 LEFT 後，
+- [x] **Step 4 — 中間插入實測（尚未驗過）：** 獨立設 `LEFTRIGHT`，把 caret 放在 LEFT 後，
   以真 Swift 主路提交 `中文🙂`；最終**必須恰為 `LEFT中文🙂RIGHT`**，不可接受結尾追加。
   保存定位手勢／按鍵、caret 可見證據與前後欄位；操作回覆不是 caret 位置證明。
-- [ ] **Step 5 — 選取替換實測（尚未驗過）：** 獨立設 `LEFToldRIGHT`，只選 old，再提交
+- [x] **Step 5 — 選取替換實測（尚未驗過）：** 獨立設 `LEFToldRIGHT`，只選 old，再提交
   `中文🙂`；最終也必須恰為 `LEFT中文🙂RIGHT`。先以可見選取範圍或 sentinel→guest Copy→
   clipboard 變成 old 證明選取；不能把原來 clipboard 已是 old 當 Copy 成功。
+  **現場修正：LINE 的 Copy 會收合選取，故證明後必須重新選取 old、保存高亮，再測 Paste。**
   這是驗 guest 選取後的 Paste，**不等於支援 NSTextInputClient 任意 guest replacementRange**。
-- [ ] **Step 6 — 固定政策驗收：** 兩個目標皆跑六種既有字串、20 筆同字／異字 burst，
+- [x] **Step 6 — 固定政策驗收：** 兩個目標皆跑六種既有字串、20 筆同字／異字 burst，
   100／250 ms 與最終選定配置分列。每個準備交付的配置至少三輪獨立重設，記實際起點間隔；
   輪數是回歸抽樣，不是安全下限證明。遇到內容不符保留失敗並停止放行該配置，不默改 sleep。
-- [ ] **Step 7 — 驗成立：** 中間插入、選取替換在**兩個目標**都有精確欄位證據，Swift 路徑
+- [x] **Step 7 — 驗成立：** 中間插入、選取替換在**兩個目標**都有精確欄位證據，Swift 路徑
   的 burst 不漏、不重、不亂序；未發送訊息、還原原草稿。權限／登入／可讀性不足是 blocked，
   task 不勾完成，也不靠 Task 5–7 的 UI 工作掩蓋前置缺口。
-- [ ] **Step 8 — 全測與提交：** live 以 `MIRAGE_LIVE=1 MIRAGE_LIVE_TEXT=1` 明確啟用，
+- [x] **Step 8 — 全測與提交：** live 以 `MIRAGE_LIVE=1 MIRAGE_LIVE_TEXT=1` 明確啟用，
   腳本指定 serial、port、package、field、settle 值並保存紀錄；之後跑 `(cd app && swift test)`。
   所需 live 證據與完整測試皆通過才 commit 本 task 的驗收成果。
 

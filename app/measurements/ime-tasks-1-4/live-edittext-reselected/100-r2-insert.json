@@ -1,0 +1,87 @@
+{
+  "after" : {
+    "bounds" : [
+      126,
+      136,
+      933,
+      325
+    ],
+    "capturedAt" : 1789100142.786711,
+    "className" : "android.widget.EditText",
+    "field" : "com.google.android.settings.intelligence:id\/open_search_view_edit_text",
+    "focused" : true,
+    "fresh" : true,
+    "package" : "com.google.android.settings.intelligence",
+    "rawText" : "LEFT中文🙂RIGHT",
+    "text" : "LEFT中文🙂RIGHT"
+  },
+  "before" : {
+    "bounds" : [
+      126,
+      136,
+      933,
+      325
+    ],
+    "capturedAt" : 1789100137.3548942,
+    "className" : "android.widget.EditText",
+    "field" : "com.google.android.settings.intelligence:id\/open_search_view_edit_text",
+    "focused" : true,
+    "fresh" : true,
+    "package" : "com.google.android.settings.intelligence",
+    "rawText" : "LEFTRIGHT",
+    "text" : "LEFTRIGHT"
+  },
+  "chunks" : [
+    "中文🙂"
+  ],
+  "end" : 1789100145.485388,
+  "expected" : "LEFT中文🙂RIGHT",
+  "name" : "insert",
+  "outcomes" : [
+    "submittedUnverified"
+  ],
+  "passed" : true,
+  "round" : 2,
+  "rpc" : [
+    {
+      "end" : 1789100126.270195,
+      "operation" : "setClipboard",
+      "start" : 1789100126.264756,
+      "text" : "LEFTRIGHT"
+    },
+    {
+      "end" : 1789100140.0498118,
+      "operation" : "setClipboard",
+      "start" : 1789100140.0474648,
+      "text" : "中文🙂"
+    },
+    {
+      "end" : 1789100140.0513191,
+      "operation" : "getClipboard",
+      "start" : 1789100140.049817
+    },
+    {
+      "end" : 1789100140.052796,
+      "operation" : "key:Control:true",
+      "start" : 1789100140.0513291
+    },
+    {
+      "end" : 1789100140.0545158,
+      "operation" : "key:v:true",
+      "start" : 1789100140.052799
+    },
+    {
+      "end" : 1789100140.056057,
+      "operation" : "key:v:false",
+      "start" : 1789100140.0545201
+    },
+    {
+      "end" : 1789100140.057687,
+      "operation" : "key:Control:false",
+      "start" : 1789100140.0560598
+    }
+  ],
+  "selectionReappliedAfterCopy" : false,
+  "settleMilliseconds" : 100,
+  "start" : 1789100120.891115
+}

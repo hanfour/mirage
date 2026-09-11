@@ -14,6 +14,9 @@ enum LiveGate {
     /// 需要真模擬器（`localhost:8554`）。
     static let live = ProcessInfo.processInfo.environment["MIRAGE_LIVE"] == "1"
 
+    /// 文字驗收只在明確指定的測試欄位執行；前置缺失由 live test 報錯，不假 pass。
+    static let text = live && ProcessInfo.processInfo.environment["MIRAGE_LIVE_TEXT"] == "1"
+
     /// MMAP transport 活體：除了模擬器，還需主動選擇加入 mmap。
     /// 三道閘門是既有設計（見 `MmapStreamLiveTests` 與 `scripts/verify_mmap.sh`），此處只是搬家。
     static let mmap = live

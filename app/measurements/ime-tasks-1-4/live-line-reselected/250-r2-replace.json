@@ -1,0 +1,94 @@
+{
+  "after" : {
+    "bounds" : [
+      158,
+      2040,
+      829,
+      2141
+    ],
+    "capturedAt" : 1789101273.468777,
+    "className" : "android.widget.EditText",
+    "field" : "jp.naver.line.android:id\/chat_ui_message_edit",
+    "focused" : true,
+    "fresh" : true,
+    "package" : "jp.naver.line.android",
+    "rawText" : "LEFT中文🙂RIGHT",
+    "text" : "LEFT中文🙂RIGHT"
+  },
+  "before" : {
+    "bounds" : [
+      158,
+      2040,
+      829,
+      2141
+    ],
+    "capturedAt" : 1789101268.266777,
+    "className" : "android.widget.EditText",
+    "field" : "jp.naver.line.android:id\/chat_ui_message_edit",
+    "focused" : true,
+    "fresh" : true,
+    "package" : "jp.naver.line.android",
+    "rawText" : "LEFToldRIGHT",
+    "text" : "LEFToldRIGHT"
+  },
+  "chunks" : [
+    "中文🙂"
+  ],
+  "end" : 1789101275.887981,
+  "expected" : "LEFT中文🙂RIGHT",
+  "name" : "replace",
+  "outcomes" : [
+    "submittedUnverified"
+  ],
+  "passed" : true,
+  "round" : 2,
+  "rpc" : [
+    {
+      "end" : 1789101243.883909,
+      "operation" : "setClipboard",
+      "start" : 1789101243.881751,
+      "text" : "LEFToldRIGHT"
+    },
+    {
+      "end" : 1789101256.5006871,
+      "operation" : "setClipboard",
+      "start" : 1789101256.498802,
+      "text" : "MIRAGE_SELECTION_SENTINEL"
+    },
+    {
+      "end" : 1789101270.4892669,
+      "operation" : "setClipboard",
+      "start" : 1789101270.487236,
+      "text" : "中文🙂"
+    },
+    {
+      "end" : 1789101270.4908562,
+      "operation" : "getClipboard",
+      "start" : 1789101270.489272
+    },
+    {
+      "end" : 1789101270.4928808,
+      "operation" : "key:Control:true",
+      "start" : 1789101270.490864
+    },
+    {
+      "end" : 1789101270.494355,
+      "operation" : "key:v:true",
+      "start" : 1789101270.4928842
+    },
+    {
+      "end" : 1789101270.496095,
+      "operation" : "key:v:false",
+      "start" : 1789101270.494358
+    },
+    {
+      "end" : 1789101270.4978619,
+      "operation" : "key:Control:false",
+      "start" : 1789101270.496098
+    }
+  ],
+  "selectionClipboardProof" : "old",
+  "selectionReappliedAfterCopy" : true,
+  "settleMilliseconds" : 250,
+  "start" : 1789101238.80619
+}

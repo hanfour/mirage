@@ -1,0 +1,31 @@
+{
+  "scope": "full",
+  "target": "jp.naver.line.android",
+  "policies": {
+    "100": {
+      "cases": 30,
+      "passed": 30,
+      "rounds": 3,
+      "insert_passes": 3,
+      "replace_passes": 3,
+      "burst_passes": 6,
+      "actual_start_gap_min_ms": 107.39803314208984,
+      "actual_start_gap_median_ms": 113.36195468902588,
+      "actual_hold_min_ms": 100.14629364013672,
+      "actual_hold_median_ms": 102.63848304748535
+    },
+    "250": {
+      "cases": 30,
+      "passed": 30,
+      "rounds": 3,
+      "insert_passes": 3,
+      "replace_passes": 3,
+      "burst_passes": 6,
+      "actual_start_gap_min_ms": 258.9540481567383,
+      "actual_start_gap_median_ms": 270.27666568756104,
+      "actual_hold_min_ms": 250.17404556274414,
+      "actual_hold_median_ms": 253.4635066986084
+    }
+  },
+  "final_draft_empty": true
+}

@@ -1,0 +1,707 @@
+{
+  "after" : {
+    "bounds" : [
+      126,
+      136,
+      933,
+      325
+    ],
+    "capturedAt" : 1789098765.538673,
+    "className" : "android.widget.EditText",
+    "field" : "com.google.android.settings.intelligence:id\/open_search_view_edit_text",
+    "focused" : true,
+    "fresh" : true,
+    "package" : "com.google.android.settings.intelligence",
+    "rawText" : "測00🙂 測01🙂 測02🙂 測03🙂 測04🙂 測05🙂 測06🙂 測07🙂 測08🙂 測09🙂 測10🙂 測11🙂 測12🙂 測13🙂 測14🙂 測15🙂 測16🙂 測17🙂 測18🙂 測19🙂 ",
+    "text" : "測00🙂 測01🙂 測02🙂 測03🙂 測04🙂 測05🙂 測06🙂 測07🙂 測08🙂 測09🙂 測10🙂 測11🙂 測12🙂 測13🙂 測14🙂 測15🙂 測16🙂 測17🙂 測18🙂 測19🙂 "
+  },
+  "before" : {
+    "bounds" : [
+      126,
+      136,
+      1080,
+      325
+    ],
+    "capturedAt" : 1789098757.380146,
+    "className" : "android.widget.EditText",
+    "field" : "com.google.android.settings.intelligence:id\/open_search_view_edit_text",
+    "focused" : true,
+    "fresh" : true,
+    "package" : "com.google.android.settings.intelligence",
+    "rawText" : "Search settings",
+    "text" : ""
+  },
+  "chunks" : [
+    "測00🙂 ",
+    "測01🙂 ",
+    "測02🙂 ",
+    "測03🙂 ",
+    "測04🙂 ",
+    "測05🙂 ",
+    "測06🙂 ",
+    "測07🙂 ",
+    "測08🙂 ",
+    "測09🙂 ",
+    "測10🙂 ",
+    "測11🙂 ",
+    "測12🙂 ",
+    "測13🙂 ",
+    "測14🙂 ",
+    "測15🙂 ",
+    "測16🙂 ",
+    "測17🙂 ",
+    "測18🙂 ",
+    "測19🙂 "
+  ],
+  "end" : 1789098766.412632,
+  "expected" : "測00🙂 測01🙂 測02🙂 測03🙂 測04🙂 測05🙂 測06🙂 測07🙂 測08🙂 測09🙂 測10🙂 測11🙂 測12🙂 測13🙂 測14🙂 測15🙂 測16🙂 測17🙂 測18🙂 測19🙂 ",
+  "name" : "burst-distinct",
+  "outcomes" : [
+    "submittedUnverified",
+    "submittedUnverified",
+    "submittedUnverified",
+    "submittedUnverified",
+    "submittedUnverified",
+    "submittedUnverified",
+    "submittedUnverified",
+    "submittedUnverified",
+    "submittedUnverified",
+    "submittedUnverified",
+    "submittedUnverified",
+    "submittedUnverified",
+    "submittedUnverified",
+    "submittedUnverified",
+    "submittedUnverified",
+    "submittedUnverified",
+    "submittedUnverified",
+    "submittedUnverified",
+    "submittedUnverified",
+    "submittedUnverified"
+  ],
+  "passed" : true,
+  "round" : 2,
+  "rpc" : [
+    {
+      "end" : 1789098757.385933,
+      "operation" : "setClipboard",
+      "start" : 1789098757.3842402,
+      "text" : "測00🙂 "
+    },
+    {
+      "end" : 1789098757.387236,
+      "operation" : "getClipboard",
+      "start" : 1789098757.3859382
+    },
+    {
+      "end" : 1789098757.3886719,
+      "operation" : "key:Control:true",
+      "start" : 1789098757.3872762
+    },
+    {
+      "end" : 1789098757.390218,
+      "operation" : "key:v:true",
+      "start" : 1789098757.388684
+    },
+    {
+      "end" : 1789098757.3917708,
+      "operation" : "key:v:false",
+      "start" : 1789098757.390224
+    },
+    {
+      "end" : 1789098757.3934531,
+      "operation" : "key:Control:false",
+      "start" : 1789098757.391792
+    },
+    {
+      "end" : 1789098757.649842,
+      "operation" : "setClipboard",
+      "start" : 1789098757.647873,
+      "text" : "測01🙂 "
+    },
+    {
+      "end" : 1789098757.651356,
+      "operation" : "getClipboard",
+      "start" : 1789098757.649852
+    },
+    {
+      "end" : 1789098757.652961,
+      "operation" : "key:Control:true",
+      "start" : 1789098757.6514292
+    },
+    {
+      "end" : 1789098757.654307,
+      "operation" : "key:v:true",
+      "start" : 1789098757.652966
+    },
+    {
+      "end" : 1789098757.6556911,
+      "operation" : "key:v:false",
+      "start" : 1789098757.654313
+    },
+    {
+      "end" : 1789098757.657031,
+      "operation" : "key:Control:false",
+      "start" : 1789098757.655702
+    },
+    {
+      "end" : 1789098757.9104939,
+      "operation" : "setClipboard",
+      "start" : 1789098757.9078732,
+      "text" : "測02🙂 "
+    },
+    {
+      "end" : 1789098757.912706,
+      "operation" : "getClipboard",
+      "start" : 1789098757.9105
+    },
+    {
+      "end" : 1789098757.915247,
+      "operation" : "key:Control:true",
+      "start" : 1789098757.9127278
+    },
+    {
+      "end" : 1789098757.9174209,
+      "operation" : "key:v:true",
+      "start" : 1789098757.915261
+    },
+    {
+      "end" : 1789098757.919486,
+      "operation" : "key:v:false",
+      "start" : 1789098757.917428
+    },
+    {
+      "end" : 1789098757.921386,
+      "operation" : "key:Control:false",
+      "start" : 1789098757.919498
+    },
+    {
+      "end" : 1789098758.1768079,
+      "operation" : "setClipboard",
+      "start" : 1789098758.174902,
+      "text" : "測03🙂 "
+    },
+    {
+      "end" : 1789098758.178335,
+      "operation" : "getClipboard",
+      "start" : 1789098758.176815
+    },
+    {
+      "end" : 1789098758.179811,
+      "operation" : "key:Control:true",
+      "start" : 1789098758.178374
+    },
+    {
+      "end" : 1789098758.1813998,
+      "operation" : "key:v:true",
+      "start" : 1789098758.179819
+    },
+    {
+      "end" : 1789098758.182897,
+      "operation" : "key:v:false",
+      "start" : 1789098758.181407
+    },
+    {
+      "end" : 1789098758.1842551,
+      "operation" : "key:Control:false",
+      "start" : 1789098758.182901
+    },
+    {
+      "end" : 1789098758.4386148,
+      "operation" : "setClipboard",
+      "start" : 1789098758.43595,
+      "text" : "測04🙂 "
+    },
+    {
+      "end" : 1789098758.440467,
+      "operation" : "getClipboard",
+      "start" : 1789098758.438623
+    },
+    {
+      "end" : 1789098758.442325,
+      "operation" : "key:Control:true",
+      "start" : 1789098758.440484
+    },
+    {
+      "end" : 1789098758.4441261,
+      "operation" : "key:v:true",
+      "start" : 1789098758.4423342
+    },
+    {
+      "end" : 1789098758.446326,
+      "operation" : "key:v:false",
+      "start" : 1789098758.4441319
+    },
+    {
+      "end" : 1789098758.448722,
+      "operation" : "key:Control:false",
+      "start" : 1789098758.446337
+    },
+    {
+      "end" : 1789098758.704265,
+      "operation" : "setClipboard",
+      "start" : 1789098758.702317,
+      "text" : "測05🙂 "
+    },
+    {
+      "end" : 1789098758.7059422,
+      "operation" : "getClipboard",
+      "start" : 1789098758.7042708
+    },
+    {
+      "end" : 1789098758.7079182,
+      "operation" : "key:Control:true",
+      "start" : 1789098758.705954
+    },
+    {
+      "end" : 1789098758.709455,
+      "operation" : "key:v:true",
+      "start" : 1789098758.707924
+    },
+    {
+      "end" : 1789098758.710966,
+      "operation" : "key:v:false",
+      "start" : 1789098758.7094588
+    },
+    {
+      "end" : 1789098758.712398,
+      "operation" : "key:Control:false",
+      "start" : 1789098758.71097
+    },
+    {
+      "end" : 1789098758.9680638,
+      "operation" : "setClipboard",
+      "start" : 1789098758.964813,
+      "text" : "測06🙂 "
+    },
+    {
+      "end" : 1789098758.9703012,
+      "operation" : "getClipboard",
+      "start" : 1789098758.968081
+    },
+    {
+      "end" : 1789098758.972899,
+      "operation" : "key:Control:true",
+      "start" : 1789098758.970324
+    },
+    {
+      "end" : 1789098758.9751558,
+      "operation" : "key:v:true",
+      "start" : 1789098758.97291
+    },
+    {
+      "end" : 1789098758.977489,
+      "operation" : "key:v:false",
+      "start" : 1789098758.975168
+    },
+    {
+      "end" : 1789098758.979625,
+      "operation" : "key:Control:false",
+      "start" : 1789098758.977498
+    },
+    {
+      "end" : 1789098759.234359,
+      "operation" : "setClipboard",
+      "start" : 1789098759.232261,
+      "text" : "測07🙂 "
+    },
+    {
+      "end" : 1789098759.236888,
+      "operation" : "getClipboard",
+      "start" : 1789098759.234374
+    },
+    {
+      "end" : 1789098759.2389178,
+      "operation" : "key:Control:true",
+      "start" : 1789098759.236912
+    },
+    {
+      "end" : 1789098759.24102,
+      "operation" : "key:v:true",
+      "start" : 1789098759.2389321
+    },
+    {
+      "end" : 1789098759.242677,
+      "operation" : "key:v:false",
+      "start" : 1789098759.241029
+    },
+    {
+      "end" : 1789098759.244437,
+      "operation" : "key:Control:false",
+      "start" : 1789098759.2426848
+    },
+    {
+      "end" : 1789098759.583737,
+      "operation" : "setClipboard",
+      "start" : 1789098759.494608,
+      "text" : "測08🙂 "
+    },
+    {
+      "end" : 1789098759.719675,
+      "operation" : "getClipboard",
+      "start" : 1789098759.583756
+    },
+    {
+      "end" : 1789098759.801958,
+      "operation" : "key:Control:true",
+      "start" : 1789098759.719761
+    },
+    {
+      "end" : 1789098759.873652,
+      "operation" : "key:v:true",
+      "start" : 1789098759.801968
+    },
+    {
+      "end" : 1789098759.995345,
+      "operation" : "key:v:false",
+      "start" : 1789098759.873663
+    },
+    {
+      "end" : 1789098760.05304,
+      "operation" : "key:Control:false",
+      "start" : 1789098759.9953551
+    },
+    {
+      "end" : 1789098760.3075051,
+      "operation" : "setClipboard",
+      "start" : 1789098760.305725,
+      "text" : "測09🙂 "
+    },
+    {
+      "end" : 1789098760.308889,
+      "operation" : "getClipboard",
+      "start" : 1789098760.307509
+    },
+    {
+      "end" : 1789098760.310601,
+      "operation" : "key:Control:true",
+      "start" : 1789098760.3089008
+    },
+    {
+      "end" : 1789098760.312117,
+      "operation" : "key:v:true",
+      "start" : 1789098760.310606
+    },
+    {
+      "end" : 1789098760.3136039,
+      "operation" : "key:v:false",
+      "start" : 1789098760.312121
+    },
+    {
+      "end" : 1789098760.314887,
+      "operation" : "key:Control:false",
+      "start" : 1789098760.3136082
+    },
+    {
+      "end" : 1789098760.5678968,
+      "operation" : "setClipboard",
+      "start" : 1789098760.566214,
+      "text" : "測10🙂 "
+    },
+    {
+      "end" : 1789098760.569552,
+      "operation" : "getClipboard",
+      "start" : 1789098760.567902
+    },
+    {
+      "end" : 1789098760.571027,
+      "operation" : "key:Control:true",
+      "start" : 1789098760.5695682
+    },
+    {
+      "end" : 1789098760.572441,
+      "operation" : "key:v:true",
+      "start" : 1789098760.571032
+    },
+    {
+      "end" : 1789098760.573636,
+      "operation" : "key:v:false",
+      "start" : 1789098760.5724459
+    },
+    {
+      "end" : 1789098760.575039,
+      "operation" : "key:Control:false",
+      "start" : 1789098760.5736399
+    },
+    {
+      "end" : 1789098760.82951,
+      "operation" : "setClipboard",
+      "start" : 1789098760.827863,
+      "text" : "測11🙂 "
+    },
+    {
+      "end" : 1789098760.8308082,
+      "operation" : "getClipboard",
+      "start" : 1789098760.829514
+    },
+    {
+      "end" : 1789098760.8320189,
+      "operation" : "key:Control:true",
+      "start" : 1789098760.830822
+    },
+    {
+      "end" : 1789098760.833383,
+      "operation" : "key:v:true",
+      "start" : 1789098760.8320231
+    },
+    {
+      "end" : 1789098760.834745,
+      "operation" : "key:v:false",
+      "start" : 1789098760.833387
+    },
+    {
+      "end" : 1789098760.836196,
+      "operation" : "key:Control:false",
+      "start" : 1789098760.834749
+    },
+    {
+      "end" : 1789098761.090757,
+      "operation" : "setClipboard",
+      "start" : 1789098761.0890698,
+      "text" : "測12🙂 "
+    },
+    {
+      "end" : 1789098761.0920858,
+      "operation" : "getClipboard",
+      "start" : 1789098761.0907621
+    },
+    {
+      "end" : 1789098761.093348,
+      "operation" : "key:Control:true",
+      "start" : 1789098761.092099
+    },
+    {
+      "end" : 1789098761.095607,
+      "operation" : "key:v:true",
+      "start" : 1789098761.093353
+    },
+    {
+      "end" : 1789098761.098332,
+      "operation" : "key:v:false",
+      "start" : 1789098761.095622
+    },
+    {
+      "end" : 1789098761.100133,
+      "operation" : "key:Control:false",
+      "start" : 1789098761.098342
+    },
+    {
+      "end" : 1789098761.353953,
+      "operation" : "setClipboard",
+      "start" : 1789098761.35204,
+      "text" : "測13🙂 "
+    },
+    {
+      "end" : 1789098761.355715,
+      "operation" : "getClipboard",
+      "start" : 1789098761.3539581
+    },
+    {
+      "end" : 1789098761.3572989,
+      "operation" : "key:Control:true",
+      "start" : 1789098761.35573
+    },
+    {
+      "end" : 1789098761.358814,
+      "operation" : "key:v:true",
+      "start" : 1789098761.357305
+    },
+    {
+      "end" : 1789098761.3602781,
+      "operation" : "key:v:false",
+      "start" : 1789098761.358824
+    },
+    {
+      "end" : 1789098761.3617291,
+      "operation" : "key:Control:false",
+      "start" : 1789098761.360285
+    },
+    {
+      "end" : 1789098761.614551,
+      "operation" : "setClipboard",
+      "start" : 1789098761.61286,
+      "text" : "測14🙂 "
+    },
+    {
+      "end" : 1789098761.6159139,
+      "operation" : "getClipboard",
+      "start" : 1789098761.6145558
+    },
+    {
+      "end" : 1789098761.617466,
+      "operation" : "key:Control:true",
+      "start" : 1789098761.61595
+    },
+    {
+      "end" : 1789098761.618989,
+      "operation" : "key:v:true",
+      "start" : 1789098761.617476
+    },
+    {
+      "end" : 1789098761.620673,
+      "operation" : "key:v:false",
+      "start" : 1789098761.618998
+    },
+    {
+      "end" : 1789098761.622693,
+      "operation" : "key:Control:false",
+      "start" : 1789098761.620689
+    },
+    {
+      "end" : 1789098761.87472,
+      "operation" : "setClipboard",
+      "start" : 1789098761.873077,
+      "text" : "測15🙂 "
+    },
+    {
+      "end" : 1789098761.8760529,
+      "operation" : "getClipboard",
+      "start" : 1789098761.874724
+    },
+    {
+      "end" : 1789098761.877285,
+      "operation" : "key:Control:true",
+      "start" : 1789098761.8760672
+    },
+    {
+      "end" : 1789098761.878576,
+      "operation" : "key:v:true",
+      "start" : 1789098761.877289
+    },
+    {
+      "end" : 1789098761.880003,
+      "operation" : "key:v:false",
+      "start" : 1789098761.878581
+    },
+    {
+      "end" : 1789098761.8813028,
+      "operation" : "key:Control:false",
+      "start" : 1789098761.880008
+    },
+    {
+      "end" : 1789098762.13514,
+      "operation" : "setClipboard",
+      "start" : 1789098762.13346,
+      "text" : "測16🙂 "
+    },
+    {
+      "end" : 1789098762.1364431,
+      "operation" : "getClipboard",
+      "start" : 1789098762.135144
+    },
+    {
+      "end" : 1789098762.137912,
+      "operation" : "key:Control:true",
+      "start" : 1789098762.136481
+    },
+    {
+      "end" : 1789098762.1395931,
+      "operation" : "key:v:true",
+      "start" : 1789098762.13792
+    },
+    {
+      "end" : 1789098762.1411262,
+      "operation" : "key:v:false",
+      "start" : 1789098762.139606
+    },
+    {
+      "end" : 1789098762.1424298,
+      "operation" : "key:Control:false",
+      "start" : 1789098762.141135
+    },
+    {
+      "end" : 1789098762.395365,
+      "operation" : "setClipboard",
+      "start" : 1789098762.3936682,
+      "text" : "測17🙂 "
+    },
+    {
+      "end" : 1789098762.39673,
+      "operation" : "getClipboard",
+      "start" : 1789098762.3953729
+    },
+    {
+      "end" : 1789098762.398025,
+      "operation" : "key:Control:true",
+      "start" : 1789098762.396774
+    },
+    {
+      "end" : 1789098762.399314,
+      "operation" : "key:v:true",
+      "start" : 1789098762.39803
+    },
+    {
+      "end" : 1789098762.40059,
+      "operation" : "key:v:false",
+      "start" : 1789098762.399323
+    },
+    {
+      "end" : 1789098762.401795,
+      "operation" : "key:Control:false",
+      "start" : 1789098762.400594
+    },
+    {
+      "end" : 1789098762.6565208,
+      "operation" : "setClipboard",
+      "start" : 1789098762.654656,
+      "text" : "測18🙂 "
+    },
+    {
+      "end" : 1789098762.657973,
+      "operation" : "getClipboard",
+      "start" : 1789098762.656526
+    },
+    {
+      "end" : 1789098762.6592999,
+      "operation" : "key:Control:true",
+      "start" : 1789098762.657985
+    },
+    {
+      "end" : 1789098762.6605759,
+      "operation" : "key:v:true",
+      "start" : 1789098762.659305
+    },
+    {
+      "end" : 1789098762.661957,
+      "operation" : "key:v:false",
+      "start" : 1789098762.660581
+    },
+    {
+      "end" : 1789098762.6633081,
+      "operation" : "key:Control:false",
+      "start" : 1789098762.661961
+    },
+    {
+      "end" : 1789098762.919517,
+      "operation" : "setClipboard",
+      "start" : 1789098762.917222,
+      "text" : "測19🙂 "
+    },
+    {
+      "end" : 1789098762.9213881,
+      "operation" : "getClipboard",
+      "start" : 1789098762.919524
+    },
+    {
+      "end" : 1789098762.923369,
+      "operation" : "key:Control:true",
+      "start" : 1789098762.9214048
+    },
+    {
+      "end" : 1789098762.92518,
+      "operation" : "key:v:true",
+      "start" : 1789098762.923382
+    },
+    {
+      "end" : 1789098762.926796,
+      "operation" : "key:v:false",
+      "start" : 1789098762.925184
+    },
+    {
+      "end" : 1789098762.928693,
+      "operation" : "key:Control:false",
+      "start" : 1789098762.926803
+    }
+  ],
+  "settleMilliseconds" : 250,
+  "start" : 1789098752.443707
+}

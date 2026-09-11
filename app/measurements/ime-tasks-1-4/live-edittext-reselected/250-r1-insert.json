@@ -1,0 +1,87 @@
+{
+  "after" : {
+    "bounds" : [
+      126,
+      136,
+      933,
+      325
+    ],
+    "capturedAt" : 1789100270.111265,
+    "className" : "android.widget.EditText",
+    "field" : "com.google.android.settings.intelligence:id\/open_search_view_edit_text",
+    "focused" : true,
+    "fresh" : true,
+    "package" : "com.google.android.settings.intelligence",
+    "rawText" : "LEFT中文🙂RIGHT",
+    "text" : "LEFT中文🙂RIGHT"
+  },
+  "before" : {
+    "bounds" : [
+      126,
+      136,
+      933,
+      325
+    ],
+    "capturedAt" : 1789100264.553437,
+    "className" : "android.widget.EditText",
+    "field" : "com.google.android.settings.intelligence:id\/open_search_view_edit_text",
+    "focused" : true,
+    "fresh" : true,
+    "package" : "com.google.android.settings.intelligence",
+    "rawText" : "LEFTRIGHT",
+    "text" : "LEFTRIGHT"
+  },
+  "chunks" : [
+    "中文🙂"
+  ],
+  "end" : 1789100273.003759,
+  "expected" : "LEFT中文🙂RIGHT",
+  "name" : "insert",
+  "outcomes" : [
+    "submittedUnverified"
+  ],
+  "passed" : true,
+  "round" : 1,
+  "rpc" : [
+    {
+      "end" : 1789100253.2487721,
+      "operation" : "setClipboard",
+      "start" : 1789100253.246696,
+      "text" : "LEFTRIGHT"
+    },
+    {
+      "end" : 1789100267.182131,
+      "operation" : "setClipboard",
+      "start" : 1789100267.18027,
+      "text" : "中文🙂"
+    },
+    {
+      "end" : 1789100267.183327,
+      "operation" : "getClipboard",
+      "start" : 1789100267.182136
+    },
+    {
+      "end" : 1789100267.184476,
+      "operation" : "key:Control:true",
+      "start" : 1789100267.183336
+    },
+    {
+      "end" : 1789100267.1857228,
+      "operation" : "key:v:true",
+      "start" : 1789100267.184478
+    },
+    {
+      "end" : 1789100267.189595,
+      "operation" : "key:v:false",
+      "start" : 1789100267.185725
+    },
+    {
+      "end" : 1789100267.191975,
+      "operation" : "key:Control:false",
+      "start" : 1789100267.189602
+    }
+  ],
+  "selectionReappliedAfterCopy" : false,
+  "settleMilliseconds" : 250,
+  "start" : 1789100247.8292851
+}

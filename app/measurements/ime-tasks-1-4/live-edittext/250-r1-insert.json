@@ -1,0 +1,86 @@
+{
+  "after" : {
+    "bounds" : [
+      126,
+      136,
+      933,
+      325
+    ],
+    "capturedAt" : 1789098596.541607,
+    "className" : "android.widget.EditText",
+    "field" : "com.google.android.settings.intelligence:id\/open_search_view_edit_text",
+    "focused" : true,
+    "fresh" : true,
+    "package" : "com.google.android.settings.intelligence",
+    "rawText" : "LEFT中文🙂RIGHT",
+    "text" : "LEFT中文🙂RIGHT"
+  },
+  "before" : {
+    "bounds" : [
+      126,
+      136,
+      933,
+      325
+    ],
+    "capturedAt" : 1789098593.097992,
+    "className" : "android.widget.EditText",
+    "field" : "com.google.android.settings.intelligence:id\/open_search_view_edit_text",
+    "focused" : true,
+    "fresh" : true,
+    "package" : "com.google.android.settings.intelligence",
+    "rawText" : "LEFTRIGHT",
+    "text" : "LEFTRIGHT"
+  },
+  "chunks" : [
+    "中文🙂"
+  ],
+  "end" : 1789098597.3139858,
+  "expected" : "LEFT中文🙂RIGHT",
+  "name" : "insert",
+  "outcomes" : [
+    "submittedUnverified"
+  ],
+  "passed" : true,
+  "round" : 1,
+  "rpc" : [
+    {
+      "end" : 1789098584.330673,
+      "operation" : "setClipboard",
+      "start" : 1789098584.328779,
+      "text" : "LEFTRIGHT"
+    },
+    {
+      "end" : 1789098594.100503,
+      "operation" : "setClipboard",
+      "start" : 1789098594.098742,
+      "text" : "中文🙂"
+    },
+    {
+      "end" : 1789098594.105441,
+      "operation" : "getClipboard",
+      "start" : 1789098594.1005101
+    },
+    {
+      "end" : 1789098594.107275,
+      "operation" : "key:Control:true",
+      "start" : 1789098594.1054769
+    },
+    {
+      "end" : 1789098594.108666,
+      "operation" : "key:v:true",
+      "start" : 1789098594.10729
+    },
+    {
+      "end" : 1789098594.109998,
+      "operation" : "key:v:false",
+      "start" : 1789098594.1086779
+    },
+    {
+      "end" : 1789098594.111587,
+      "operation" : "key:Control:false",
+      "start" : 1789098594.1100059
+    }
+  ],
+  "settleMilliseconds" : 250,
+  "start" : 1789098580.01863
+}
