@@ -478,6 +478,7 @@ Android Chrome 需要 HTTPS。
 - **腳本環境變數**：`MIRAGE_REMOTE=1` 啟動即開、`MIRAGE_REMOTE_PORT` 預設 8765、
   `MIRAGE_REMOTE_TOKEN` 為 32 個小寫十六進位字元（不合法時另產生 token）。
   `MIRAGE_REMOTE_PULL_FPS` 預設 30、接受 5–60 的整數；無效值回到 30 並印診斷。
+  上限設為 60 可把 age p50 再降約 2 ms，代價是編碼次數翻倍；驗收線 7 對照只在上限 30 驗過。
   stdout 印 `[remote] listening port=<n> 已可連線`，不印 token；腳本自行產生並傳入 token。
 
 在 `app/` 執行，兩支遙控腳本僅接受已啟動的 `emulator-5554`／gRPC `8554`（mirage-game），
