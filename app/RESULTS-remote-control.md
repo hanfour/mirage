@@ -44,3 +44,11 @@ iPhone 實測回報畫面、點擊、滑動、雙指縮放都正常，但回主�
 - 統計疊層點一下收合，狀態存 localStorage；收合時錯誤仍顯示；`?stats=0` 維持完全不顯示。
 
 `verify_remote_mirror.sh` 加三段：R4 送 `GoHome` 後前景是 launcher；R5 送 `AppSwitch` 後 getevent 出現 `KEY_APPSELECT` DOWN／UP（Pixel 的最近任務由 launcher activity 自己畫，前景不會變，第一版用前景判是錯的）；R6 送 `Mirage remote 中文🙂 hello` 到設定搜尋欄位（`com.google.android.settings.intelligence/.modules.search.SearchActivity`）後 uiautomator 回讀逐碼位相等。六段全過。
+
+## 6. 2026-09-12 追加：延遲分段、事件驅動編碼、iOS 實測修正
+
+- Mac 端分段延遲（本機 Python 用戶端，10 秒）：transit 10、age p50 8（p95 16 到 21）、encode p50 7、send 0.03 ms；手機端解碼到畫出 5 ms。手機疊層每秒顯示這些數字（`{"type":"stats"}` 文字訊息，不進影像佇列）。
+- 拉幀改成事件驅動（`NotifyingFrameSink`，幀一到就編，以拉取率上限限速合併），age p50 從 8 到 10 降到約 6（上限 60 時）；p95 有約 15 ms 的地板（幀抵達、拷貝、轉 BGRA 到交給編碼器的固定成本）。預設上限維持 30。`verify_remote_mirror.sh` 用各窗 p50／p95 的中位數判（p50 < 12、p95 < 25），逐窗判會被單一窗口的尖峰打紅（同一 build 三次 p95 最大值 21／18／27.6）。
+- 使用者感覺慢的是點擊到畫面，且手機不在同一個 Wi-Fi（Tailscale 經公網直連，單程 39 ms，WS RTT 47 到 75 ms）；這段佔整條路徑的大半。同一 Wi-Fi 的數字尚未量。
+- iOS Safari 的 pointerId 可為負數（實測 `-10102172`），第一版驗證只收非負整數，所有觸控被丟（`invalidPointerId` 累計 188），症狀是「點擊無效」。改為接受 Int32 全範圍，活體改用負數 id 送。
+- 手機頁面：斷線自動重連（1／2／4 秒三次）、解碼錯誤重建解碼器、切到背景回前景時主動重連（iOS 切背景會斷 WebSocket）、退避只算前景時間。
