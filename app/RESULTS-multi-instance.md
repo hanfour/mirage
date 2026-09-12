@@ -48,3 +48,26 @@
 - 同一個 AVD 開第二台時，若第一台沒有 `-read-only`，第二台會直接失敗：
   `Another emulator instance is running. Please close it or run all emulators with -read-only flag.`
 - `emu.sh` 目前不支援多開：`running()` 會匹配任何 qemu 行程，而且 serial 是固定的。
+
+## 2026-09-12 追加：vCPU 與視窗兩個變數
+
+問題：把每台 vCPU 從 4 降到 2、或用 `-no-window`，能不能讓「兩台＋Mirage」撐住？由 subagent 執行，每組兩台都在關卡內（像素簽名確認）、疊層＋持續滑動、一個 Mirage 連 8554，各量兩輪。
+
+| 組合 | 5554 guest fps | 5556 guest fps | Mirage fps 中位數 | 外來 CPU % | qemu CPU %（5554／5556） |
+|---|---|---|---|---|---|
+| 4 vCPU、有視窗（昨天 G 的重跑） | 9.99／9.75 | 8.44／10.16 | 3／3 | 275–326 | 81–184／79–174 |
+| 2 vCPU、有視窗 | 解析失敗×2 | 解析失敗×2 | 2／2 | 247–319 | 43–132／38–130 |
+| 4 vCPU、`-no-window` | 0.48／1.32 | 1.23／0.07 | 1／2 | 304–376 | 60–157／52–146 |
+| 2 vCPU、`-no-window` | 0.54／0.54 | 3.54／1.60 | 2／1 | 357–430 | 53–153／46–153 |
+| 單台、2 vCPU、有視窗＋Mirage | 20.31／21.72 | 關閉 | 3／3 | 230–287 | 135–212 |
+| 單台、4 vCPU、`-no-window`、無滑動、無 Mirage | 選關 32.23、關卡內 29.30 | 關閉 | 無 | 141–278 | 146–339 |
+
+讀法：
+- 降 vCPU 讓單台就撐不住（20 對比昨天單台 4 vCPU＋Mirage 的 54–57），兩台則直接 ANR（`Process system isn't responding`），timestats 裡沒有遊戲 layer 的幀。
+- `-no-window` 比有視窗更慢：單台無負載時 29–32 對比有視窗的 59.7，兩台時掉到 1 fps 以下，進關卡要 5 到 10 分鐘。emulator log 兩者都是 Apple M1 Metal translator，差異不在渲染後端，原因未查。
+- 昨天 G 組的 19.74／19.81 存疑：今天用「固定等 40＋15 秒」的舊流程重跑，量到 19.74／19.55 的那輪截圖顯示 5554 在 Loading、5556 在選關畫面，不在關卡內。用像素簽名確認在關卡內之後只有約 10。
+- 這台機器沒有 Mirage 時的外來 CPU 基線就有 140–280%（WindowServer、iTerm2、開發工具），量測全程都在這個底噪上。
+
+結論：在這台 M1 上「兩台同時可玩」不成立，兩個可調的變數都讓它更糟。多開要做，只能做「多台各自存在、同一時間只有一台接 Mirage」。
+
+限制：量測窗口因 `dumpsys` 在負載下極慢而變成 23–50 秒（fps 是除以實際 displayOnTime，不受影響）；每組間有 ANR 對話框被按掉；量測腳本與每組原始輸出在 session scratchpad，未進 repo。
