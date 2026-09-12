@@ -15,6 +15,8 @@ let package = Package(
         // P1-e：SPSC 無鎖環形緩衝需要 atomic 讀寫索引。1.3.1 已存在於 Package.resolved
         // （grpc-swift 的傳遞依賴），此處只是宣告成可 import 的 product，不引入新的網路依賴。
         .package(url: "https://github.com/apple/swift-atomics.git", exact: "1.3.1"),
+        // 手機遙控：沿用已解析的傳遞依賴版本，供 RemoteServer 使用。
+        .package(url: "https://github.com/apple/swift-nio.git", exact: "2.101.3"),
     ],
     targets: [
         .target(
@@ -22,6 +24,10 @@ let package = Package(
             dependencies: [
                 .product(name: "GRPC", package: "grpc-swift"),
                 .product(name: "Atomics", package: "swift-atomics"),
+                .product(name: "NIOCore", package: "swift-nio"),
+                .product(name: "NIOPosix", package: "swift-nio"),
+                .product(name: "NIOHTTP1", package: "swift-nio"),
+                .product(name: "NIOWebSocket", package: "swift-nio"),
             ],
             // 內建範例 profile。`.copy` 而非 `.process`：這是 JSON，不需要任何編譯期
             // 處理，`.copy` 保持 profiles/ 這層目錄結構原樣（查表時要用 subdirectory）。
