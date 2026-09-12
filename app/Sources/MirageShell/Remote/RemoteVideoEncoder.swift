@@ -48,6 +48,7 @@ final class RemoteVideoEncoder: RemoteFrameEncoding, @unchecked Sendable {
     // VT 操作串列化；回呼只拿 state lock，invalidate 等待回呼時不會互鎖。
     private let operationLock = NSLock()
     private let lock = NSLock()
+    // 回呼不可同步重入 encode/invalidate；AppModel 透過 MainActor Task 處理錯誤。
     private let onError: @Sendable (String) -> Void
     private var generation: UInt64 = 0
     private var session: VTCompressionSession?

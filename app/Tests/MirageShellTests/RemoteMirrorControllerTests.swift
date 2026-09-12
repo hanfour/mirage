@@ -150,7 +150,9 @@ private enum TestFailure: Error { case unexpectedMessageKind, encoding }
             #expect(second.sequence == 2)
             #expect(!second.isKeyframe)
 
-            while h.controller.stats().framesEncoded < 2 { await Task.yield() }
+            while h.controller.stats().framesEncoded < 2 || h.controller.stats().server.framesSent < 2 {
+                await Task.yield()
+            }
             let stats = h.controller.stats()
             #expect(stats.framesPulled == 2)
             #expect(stats.framesEncoded == 2)

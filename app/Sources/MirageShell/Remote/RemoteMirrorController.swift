@@ -131,7 +131,8 @@ final class RemoteMirrorController: @unchecked Sendable {
         lock.lock(); defer { lock.unlock() }
         guard !stopped else { return false }
         pullTask = Task.detached { [weak self] in
-            await self?.pullLoop()
+            guard let self else { return }
+            await self.pullLoop()
         }
         return true
     }

@@ -1,0 +1,226 @@
+import Darwin
+import Foundation
+import Testing
+@testable import MirageCore
+@testable import MirageShell
+
+/// 沒有幀時不建立 VT session。測試 encoder 注入只供錯誤回呼；socket、sink 與重啟皆是真的。
+private final class RemoteModelEncoder: RemoteFrameEncoding, @unchecked Sendable {
+    let fail: @Sendable (String) -> Void
+    init(fail: @escaping @Sendable (String) -> Void) { self.fail = fail }
+    func encode(_ frame: Frame) throws {}
+    func requestKeyframe() {}
+    func invalidate() {}
+}
+
+/// 在舊 listener 已關、新 listener 尚未 bind 的 factory 呼叫點占住埠，重現重新配對失敗。
+private final class RemotePortBlocker {
+    private var descriptor: Int32 = -1
+    func listen(on port: Int) -> Bool {
+        descriptor = socket(AF_INET, SOCK_STREAM, 0)
+        guard descriptor >= 0 else { return false }
+        var reuse: Int32 = 1
+        _ = setsockopt(descriptor, SOL_SOCKET, SO_REUSEADDR, &reuse, socklen_t(MemoryLayout<Int32>.size))
+        var address = sockaddr_in()
+        address.sin_len = UInt8(MemoryLayout<sockaddr_in>.size)
+        address.sin_family = sa_family_t(AF_INET)
+        address.sin_port = UInt16(port).bigEndian
+        address.sin_addr.s_addr = inet_addr("127.0.0.1")
+        let bound = withUnsafePointer(to: &address) {
+            $0.withMemoryRebound(to: sockaddr.self, capacity: 1) {
+                Darwin.bind(descriptor, $0, socklen_t(MemoryLayout<sockaddr_in>.size))
+            }
+        }
+        return bound == 0 && Darwin.listen(descriptor, 1) == 0
+    }
+    deinit { if descriptor >= 0 { Darwin.close(descriptor) } }
+}
+
+@MainActor
+@Suite(.timeLimit(.minutes(1))) struct AppModelRemoteTests {
+    private func withModel(_ tag: String, _ body: (AppModel) async throws -> Void) async throws {
+        let (store, dir) = AppModelEditingTests.tempStore(tag)
+        let model = AppModel(store: store, starterBindings: { [] })
+        defer { try? FileManager.default.removeItem(at: dir) }
+        // 死埠避免 PM 的環境漏設 MIRAGE_PORT 時誤連真 guest。
+        let changed = await model.client.setEndpoint(EmulatorEndpoint(host: "127.0.0.1", port: 1))
+        #expect(changed)
+        do {
+            try await body(model)
+        } catch {
+            await model.disableRemote()
+            await model.client.stop()
+            throw error
+        }
+        await model.disableRemote()
+        await model.client.stop()
+    }
+
+    @Test func remoteOffUsesTheOriginalSink() async throws {
+        try await withModel("remote-off") { model in
+            #expect((model.activeSink as AnyObject) === (model.box as AnyObject))
+            #expect(model.remote == nil)
+            #expect(model.remoteMenuState == .off)
+            #expect(!model.hasActiveRemoteViewer)
+        }
+    }
+
+    @Test func enableWrapsBoxAndRestartsClientWithSameStreamSize() async throws {
+        try await withModel("remote-enable") { model in
+            await model.client.start(box: model.box, width: 900, height: 2000)
+            await model.enableRemote(host: "127.0.0.1", port: 0)
+            let sink = try #require(model.activeSink as? BroadcastFrameSink)
+            #expect((sink.primary as AnyObject) === (model.box as AnyObject))
+            let controller = try #require(model.remote)
+            #expect(controller.secondary === sink.secondary)
+            let port = try #require(controller.boundPort)
+            #expect(port > 0)
+            if case .on(let urls, let session) = model.remoteMenuState {
+                #expect(session == .initial)
+                #expect(urls.allSatisfy { $0.hasSuffix("/?t=\(controller.token.value)") })
+            } else { Issue.record("預期 .on，實得 \(model.remoteMenuState)") }
+            #expect(await model.client.isRunning)
+            let size = await model.client.requestedStreamSize
+            #expect(size.w == 900)
+            #expect(size.h == 2000)
+            await model.disableRemote()
+            #expect((model.activeSink as AnyObject) === (model.box as AnyObject))
+            #expect(model.remote == nil)
+            #expect(model.remoteMenuState == .off)
+            #expect(await model.client.isRunning)
+        }
+    }
+
+    @Test func enableBeforeStartOnlySwapsSink() async throws {
+        try await withModel("remote-before-start") { model in
+            await model.enableRemote(host: "127.0.0.1", port: 0)
+            #expect(model.activeSink is BroadcastFrameSink)
+            #expect(!(await model.client.isRunning))
+            await model.disableRemote()
+            #expect((model.activeSink as AnyObject) === (model.box as AnyObject))
+        }
+    }
+
+    @Test func disconnectRotatesTokenKeepingTheSinkAndHost() async throws {
+        try await withModel("remote-disconnect") { model in
+            await model.enableRemote(host: "127.0.0.1", port: 0)
+            let before = try #require(model.remote)
+            let sinkBefore = model.activeSink as AnyObject
+            await model.disconnectRemoteViewer()
+            let after = try #require(model.remote)
+            #expect(after !== before)
+            #expect(after.token != before.token)
+            #expect(after.secondary === before.secondary)
+            #expect(after.host == "127.0.0.1")
+            #expect(after.boundPort == before.boundPort)
+            #expect((model.activeSink as AnyObject) === sinkBefore)
+            #expect(!(await model.client.isRunning))
+            let port = try #require(after.boundPort)
+            let url = try #require(URL(string: "http://127.0.0.1:\(port)/?t=\(before.token.value)"))
+            let (_, response) = try await URLSession.shared.data(from: url)
+            #expect((response as? HTTPURLResponse)?.statusCode == 403)
+        }
+    }
+
+    @Test func portInUseReportsFailureAndKeepsOriginalSink() async throws {
+        try await withModel("remote-port-clash") { model in
+            let occupant = RemoteServer(configuration: RemoteServerConfiguration(
+                host: "127.0.0.1", port: 0, token: PairingToken.generate(), viewerPage: Data()), onTouches: { _ in })
+            let port = try await occupant.start()
+            await model.enableRemote(host: "127.0.0.1", port: port)
+            #expect(model.remote == nil)
+            #expect((model.activeSink as AnyObject) === (model.box as AnyObject))
+            if case .failed(let message) = model.remoteMenuState {
+                #expect(message.contains(String(port)))
+            } else { Issue.record("預期 .failed，實得 \(model.remoteMenuState)") }
+            await occupant.stop()
+        }
+    }
+
+    @Test func failedRePairingRestoresOriginalSink() async throws {
+        try await withModel("remote-repair-failure") { model in
+            await model.enableRemote(host: "127.0.0.1", port: 0)
+            let controller = try #require(model.remote)
+            let port = try #require(controller.boundPort)
+            let blocker = RemotePortBlocker()
+            model.makeRemoteEncoder = { _, fail in
+                #expect(blocker.listen(on: port))
+                return RemoteModelEncoder(fail: fail)
+            }
+            await model.disconnectRemoteViewer()
+            #expect(model.remote == nil)
+            #expect((model.activeSink as AnyObject) === (model.box as AnyObject))
+            if case .failed(let message) = model.remoteMenuState {
+                #expect(message.contains(String(port)))
+            } else { Issue.record("重新配對 bind 失敗必須回報錯誤") }
+        }
+    }
+
+    @Test func errorDuringEnableIsNotLostByTransitionGuard() async throws {
+        try await withModel("remote-early-error") { model in
+            model.makeRemoteEncoder = { _, fail in
+                fail("sessionCreation(-12903)")
+                return RemoteModelEncoder(fail: fail)
+            }
+            await model.enableRemote(host: "127.0.0.1", port: 0)
+            // 等整個 teardown 完成，不能只看到 remote = nil 就讀 sink。
+            while model.remote != nil || model.remoteTransitionInProgress { await Task.yield() }
+            #expect(model.remoteMenuState == .failed("sessionCreation(-12903)"))
+            #expect((model.activeSink as AnyObject) === (model.box as AnyObject))
+        }
+    }
+
+    @Test func staleEncoderErrorCannotDisableNewPairing() async throws {
+        try await withModel("remote-stale-error") { model in
+            var encoders: [RemoteModelEncoder] = []
+            model.makeRemoteEncoder = { _, fail in
+                let encoder = RemoteModelEncoder(fail: fail)
+                encoders.append(encoder)
+                return encoder
+            }
+            await model.enableRemote(host: "127.0.0.1", port: 0)
+            let old = try #require(encoders.first)
+            await model.disconnectRemoteViewer()
+            let current = try #require(encoders.last)
+            #expect(current !== old)
+            old.fail("stale")
+            // 當代錯誤是處理回呼的正向見證；舊通知不得覆蓋當代訊息。
+            current.fail("current")
+            while model.remote != nil || model.remoteTransitionInProgress { await Task.yield() }
+            #expect(model.remoteMenuState == .failed("current"))
+            #expect((model.activeSink as AnyObject) === (model.box as AnyObject))
+        }
+    }
+
+    @Test func instanceSwitchKeepsBroadcastSink() async throws {
+        try await withModel("remote-instance") { model in
+            await model.enableRemote(host: "127.0.0.1", port: 0)
+            let sink = model.activeSink as AnyObject
+            let other = EmulatorInstance(avdName: "remote-test", consolePort: 5556, grpcPort: 2, pid: 2)
+            await model.switchInstance(to: other)
+            #expect((model.activeSink as AnyObject) === sink)
+            #expect(model.remote != nil)
+            #expect(await model.client.isRunning)
+            #expect(await model.client.currentEndpoint.port == 2)
+            await model.disableRemote()
+            #expect((model.activeSink as AnyObject) === (model.box as AnyObject))
+        }
+    }
+    @Test func viewerConnectionDrivesLifecycleGuard() async throws {
+        try await withModel("remote-viewer") { model in
+            await model.enableRemote(host: "127.0.0.1", port: 0)
+            let controller = try #require(model.remote)
+            let port = try #require(controller.boundPort)
+            let url = try #require(URL(string: "ws://127.0.0.1:\(port)/ws/video?t=\(controller.token.value)"))
+            let video = URLSession.shared.webSocketTask(with: url)
+            defer { video.cancel(with: .normalClosure, reason: nil) }
+            video.resume()
+            while !controller.sessionState.hasVideo { await Task.yield() }
+            #expect(model.hasActiveRemoteViewer)
+            video.cancel(with: .normalClosure, reason: nil)
+            while controller.sessionState.hasVideo { await Task.yield() }
+            #expect(!model.hasActiveRemoteViewer)
+        }
+    }
+
+}

@@ -1,0 +1,34 @@
+import MirageCore
+
+/// 啟動時自動開啟遙控的環境變數。**只給活體腳本用**（腳本驅動不了選單），使用者走選單列。
+/// 壞值退回預設並記在 `problems`，比照 `EmulatorEndpoint.overrideProblem` 的做法：靜默退回
+/// 會讓人盯著錯的埠卻毫無線索。
+struct RemoteLaunchOptions: Equatable, Sendable {
+    static let enableKey = "MIRAGE_REMOTE"
+    static let portKey = "MIRAGE_REMOTE_PORT"
+    static let tokenKey = "MIRAGE_REMOTE_TOKEN"
+    private static let portRange = 1...65535
+
+    let port: Int
+    let token: PairingToken?
+    let problems: [String]
+
+    static func parse(_ environment: [String: String]) -> RemoteLaunchOptions? {
+        guard environment[enableKey] == "1" else { return nil }
+        var problems: [String] = []
+        var port = RemoteServerConfiguration.defaultPort
+        if let raw = environment[portKey] {
+            if let value = Int(raw), portRange.contains(value) {
+                port = value
+            } else {
+                problems.append("\(portKey)=\(raw) 不是 1 到 65535 的整數，改用 \(port)")
+            }
+        }
+        var token: PairingToken?
+        if let raw = environment[tokenKey] {
+            token = PairingToken(value: raw)
+            if token == nil { problems.append("\(tokenKey) 不是 32 個小寫十六進位字元，改用亂數 token") }
+        }
+        return RemoteLaunchOptions(port: port, token: token, problems: problems)
+    }
+}

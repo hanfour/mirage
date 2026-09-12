@@ -11,8 +11,22 @@ final class AppModel {
     /// 解析一次、`EmulatorClient()` 的預設值卻寫死 `localhost:8554`，於是**只有 App 走這條路，
     /// 所有測試都繞過它**。兩份各自解析的複本遲早會漂移，現在只有一份。
     let client = EmulatorClient()
-    let box: any FrameSink = FrameSinkFactory.make(
-        from: ProcessInfo.processInfo.environment)
+    let box: any FrameSink
+    /// `client.start` 實際拿到的 sink。遙控關閉時**就是** `box`（同一個物件，行為零改變）；
+    /// 開啟時是 `BroadcastFrameSink(primary: box, secondary:)`。Renderer 一直拿 `box`
+    /// （`MirageScene.swift:46`），扇出的 `takeLatest` 代理到它，所以 Renderer 不必知道這件事。
+    /// 切換模擬器也傳它（`AppModel+Instances.swift`），否則遙控開著時切台會讓扇出靜默消失。
+    @ObservationIgnored var activeSink: any FrameSink
+    /// 手機遙控的執行期；nil = 功能關閉。
+    var remote: RemoteMirrorController?
+    var remoteMenuState: RemoteMenuState = .off
+    /// enable／disable／disconnect 都會 await，MainActor 期間會重入；進行中就忽略新要求。
+    @ObservationIgnored var remoteTransitionInProgress = false
+    @ObservationIgnored var remoteGeneration = UUID()
+    @ObservationIgnored var remotePendingError: String?
+    @ObservationIgnored var makeRemoteEncoder: RemoteEncoderFactory = { deliver, fail in
+        RemoteVideoEncoder(onError: fail, onAccessUnit: deliver)
+    }
     var connState: ConnState = .disconnected
     /// 目前接著的模擬器。初值來自環境（`MIRAGE_HOST`／`MIRAGE_PORT`），之後只由
     /// `switchInstance` 在 `client.setEndpoint` 成功後寫回。
@@ -41,6 +55,9 @@ final class AppModel {
     {
         self.store = store
         self.starterBindings = starterBindings
+        let sink = FrameSinkFactory.make(from: ProcessInfo.processInfo.environment)
+        box = sink
+        activeSink = sink
         inputQueue = InputQueue(injector: client)
         textInput = TextInputPresentation(queue: inputQueue)
         if ProcessInfo.processInfo.environment["MIRAGE_CONN_LOG"] == "1" {
@@ -149,6 +166,12 @@ final class AppModel {
         // seeds the label with the already-known `connState` at menuBar-creation
         // time (menuBar is nil until then, so earlier emissions would otherwise
         // be missed by it).
+        // 活體腳本用 MIRAGE_REMOTE=1 讓 App 一啟動就開遙控。client 還沒 start，所以這裡只換
+        // activeSink，不會多一次重啟。
+        if let options = RemoteLaunchOptions.parse(ProcessInfo.processInfo.environment) {
+            for problem in options.problems { print("[remote] 環境變數覆寫無效：\(problem)") }
+            await enableRemote(port: options.port, token: options.token)
+        }
         Task { [client] in
             for await s in client.states {
                 await MainActor.run {
@@ -158,11 +181,13 @@ final class AppModel {
                 }
             }
         }
-        await client.start(box: box, width: Self.defaultStreamSize.w, height: Self.defaultStreamSize.h)
+        await client.start(box: activeSink, width: Self.defaultStreamSize.w, height: Self.defaultStreamSize.h)
     }
 
     func startLifecycle() {
-        lifecycle = AppLifecycle(client: client)
+        lifecycle = AppLifecycle(client: client, hasActiveRemoteViewer: { [weak self] in
+            self?.hasActiveRemoteViewer ?? false
+        })
         menuBar = MenuBarController(
             onWake: { [weak self] in self?.wake() },
             onShow: { [weak self] in self?.wake() }
@@ -179,6 +204,7 @@ final class AppModel {
         }
         setupFullScreen()
         setupInstanceMenu()
+        setupRemoteMenu()
         setupFocusTracking()
         startAudio()
         // guest→host 剪貼簿：經 bridge 防回音後寫 NSPasteboard

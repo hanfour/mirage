@@ -58,6 +58,6 @@ extension AppModel {
         }
         currentEndpoint = target
         logEndpoint(target)
-        await client.start(box: box, width: size.w, height: size.h)
+        await client.start(box: activeSink, width: size.w, height: size.h)
     }
 }
