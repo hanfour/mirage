@@ -13,6 +13,7 @@ import Testing
 
     @Test func defaultsToPort8765WithoutToken() throws {
         let options = try #require(RemoteLaunchOptions.parse(["MIRAGE_REMOTE": "1"]))
+        #expect(options.pullFPS == 30)
         #expect(options.port == 8765)
         #expect(options.token == nil)
         #expect(options.problems.isEmpty)
@@ -37,4 +38,25 @@ import Testing
         #expect(options.problems[0].contains("MIRAGE_REMOTE_PORT"))
         #expect(options.problems[1].contains("MIRAGE_REMOTE_TOKEN"))
     }
+    @Test(arguments: [5, 20, 30, 60])
+    func parsesPullFPSAndComputesInterval(_ fps: Int) throws {
+        let options = try #require(RemoteLaunchOptions.parse([
+            "MIRAGE_REMOTE": "1", "MIRAGE_REMOTE_PULL_FPS": String(fps),
+        ]))
+        #expect(options.pullFPS == fps)
+        #expect(options.pullInterval == .nanoseconds(1_000_000_000 / Int64(fps)))
+        #expect(options.problems.isEmpty)
+    }
+
+    @Test(arguments: ["", "4", "61", "0", "-1", "20.5", "abc", "9999999999999999999999"])
+    func invalidPullFPSFallsBackAndReportsOnce(_ raw: String) throws {
+        let options = try #require(RemoteLaunchOptions.parse([
+            "MIRAGE_REMOTE": "1", "MIRAGE_REMOTE_PULL_FPS": raw,
+        ]))
+        #expect(options.pullFPS == 30)
+        #expect(options.problems.count == 1)
+        #expect(options.problems[0].contains("MIRAGE_REMOTE_PULL_FPS"))
+        #expect(options.problems[0].contains("改用 30"))
+    }
+
 }

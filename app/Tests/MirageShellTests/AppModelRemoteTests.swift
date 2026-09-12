@@ -103,7 +103,10 @@ private final class RemotePortBlocker {
 
     @Test func disconnectRotatesTokenKeepingTheSinkAndHost() async throws {
         try await withModel("remote-disconnect") { model in
-            await model.enableRemote(host: "127.0.0.1", port: 0)
+            let options = try #require(RemoteLaunchOptions.parse([
+                "MIRAGE_REMOTE": "1", "MIRAGE_REMOTE_PULL_FPS": "20",
+            ]))
+            await model.enableRemote(host: "127.0.0.1", port: 0, pullInterval: options.pullInterval)
             let before = try #require(model.remote)
             let sinkBefore = model.activeSink as AnyObject
             await model.disconnectRemoteViewer()
@@ -112,6 +115,8 @@ private final class RemotePortBlocker {
             #expect(after.token != before.token)
             #expect(after.secondary === before.secondary)
             #expect(after.host == "127.0.0.1")
+            #expect(before.pullInterval == .milliseconds(50))
+            #expect(after.pullInterval == before.pullInterval)
             #expect(after.boundPort == before.boundPort)
             #expect((model.activeSink as AnyObject) === sinkBefore)
             #expect(!(await model.client.isRunning))

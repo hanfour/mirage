@@ -477,6 +477,7 @@ Android Chrome 需要 HTTPS。
 - **錯誤**：埠被佔用或硬體編碼器建立失敗時，選單顯示錯誤，不退回軟體編碼。
 - **腳本環境變數**：`MIRAGE_REMOTE=1` 啟動即開、`MIRAGE_REMOTE_PORT` 預設 8765、
   `MIRAGE_REMOTE_TOKEN` 為 32 個小寫十六進位字元（不合法時另產生 token）。
+  `MIRAGE_REMOTE_PULL_FPS` 預設 30、接受 5–60 的整數；無效值回到 30 並印診斷。
   stdout 印 `[remote] listening port=<n> 已可連線`，不印 token；腳本自行產生並傳入 token。
 
 在 `app/` 執行，兩支遙控腳本僅接受已啟動的 `emulator-5554`／gRPC `8554`（mirage-game），
@@ -522,10 +523,23 @@ fps 對照每臂取得兩次有效摘要，取兩個中位數的較低者，比�
 靜止畫面也會串流：controller 保留最後一幀，`heartbeatInterval` 預設 250 ms（可透過
 `RemoteMirrorConfiguration` 設定）。新 viewer 連線立即取得可用幀的 keyframe，沒有 viewer 時
 不取幀、不編碼。1080×2400 靜止畫面約每秒 4 次像素拷貝與硬體編碼，低於正常動態的 30 fps。
-重送保留像素並更新編碼時間戳；心跳採 keyframe。viewer 收 chunk 後閒置 100 ms 會 flush
-解碼器，flush 失敗僅記錄診斷。flush 後若先收到 delta，會透過已配對的 `/ws/video` 傳送
-`keyframe` 文字要求補 IDR，避免恢復動態時卡在等待畫面。controller 還沒收到任何一幀時無法
-憑空產生畫面，但會保留 keyframe 請求，第一幀抵達後送出。
+重送保留像素並更新編碼時間戳；心跳與間歇後的新幀都不強制 IDR。只有 viewer 初連／明確請求、
+編碼 session 重建（尺寸變更）、編碼器的 `MaxKeyFrameInterval=120` 到期才產生 keyframe。
+每個 encoder 持有 `CVPixelBufferPool`，同尺寸重用緩衝、尺寸變更重建，每幀一次 vImage 轉換。
+
+PM iPhone 實測 SPS 改寫後 `pending=0`、arrival→output p50/p95 為 5/6 ms，因此正常的
+250 ms P-frame 心跳不需 flush。先前 100 ms flush／強制 IDR 政策曾在 22 秒收到 101 幀、
+其中 92 張 keyframe，MirageApp 約 70% CPU；fps 對照也出現 guest 幀率下降。
+現在 viewer 要連續 2 秒沒有 chunk 才 flush，完成後透過已配對的 `/ws/video` 要求 keyframe；
+失敗僅記錄診斷。controller 還沒收到任何一幀時會保留 keyframe 請求，第一幀抵達後送出。
+本次修改後的 CPU／guest fps 數字待 PM 重測，不能以程式碼變更視為驗收通過。
+
+拉取率 20／30 fps 對照（`verify_remote_fps.sh` 會將此環境變數傳給開啟臂的 App）：
+
+```bash
+MIRAGE_REMOTE_PULL_FPS=20 ./scripts/verify_remote_fps.sh -r 3
+MIRAGE_REMOTE_PULL_FPS=30 ./scripts/verify_remote_fps.sh -r 3
+```
 
 viewer 的計時器與解碼恢復測試（Node.js 18 以上，已接入閘門 8）：
 

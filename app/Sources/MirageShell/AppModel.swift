@@ -170,7 +170,7 @@ final class AppModel {
         // activeSink，不會多一次重啟。
         if let options = RemoteLaunchOptions.parse(ProcessInfo.processInfo.environment) {
             for problem in options.problems { print("[remote] 環境變數覆寫無效：\(problem)") }
-            await enableRemote(port: options.port, token: options.token)
+            await enableRemote(port: options.port, token: options.token, pullInterval: options.pullInterval)
         }
         Task { [client] in
             for await s in client.states {

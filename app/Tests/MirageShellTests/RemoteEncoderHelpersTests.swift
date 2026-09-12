@@ -42,7 +42,7 @@ import Testing
 
     @Test func rgbaBecomesBGRAWithSameGeometry() throws {
         let frame = Frame(width: 2, height: 1, rgba: Data([1, 2, 3, 4, 5, 6, 7, 8]))
-        let buffer = try RGBAPixelBuffer.makeBGRA(from: frame)
+        let buffer = try RGBAPixelBuffer().makeBGRA(from: frame)
         #expect(CVPixelBufferGetWidth(buffer) == 2)
         #expect(CVPixelBufferGetHeight(buffer) == 1)
         #expect(CVPixelBufferGetPixelFormatType(buffer) == kCVPixelFormatType_32BGRA)
@@ -57,6 +57,37 @@ import Testing
     /// 這裡是第二道，因為 `takeLatest` 的來源未來可能換。
     @Test func invalidFrameIsRejected() {
         let frame = Frame(width: 2, height: 2, rgba: Data([0, 0, 0, 0]))
-        #expect(throws: RGBAPixelBufferError.invalidFrame) { _ = try RGBAPixelBuffer.makeBGRA(from: frame) }
+        #expect(throws: RGBAPixelBufferError.invalidFrame) { _ = try RGBAPixelBuffer().makeBGRA(from: frame) }
     }
+    @Test func pixelBufferPoolIsReusedAndResizedWithoutOverwritingInflightBuffers() throws {
+        let converter = RGBAPixelBuffer()
+        let first = try converter.makeBGRA(from: Frame(width: 2, height: 1,
+                                                        rgba: Data([1, 2, 3, 4, 5, 6, 7, 8])))
+        let firstPool = try #require(converter.pool)
+        let second = try converter.makeBGRA(from: Frame(width: 2, height: 1, rgba: Data(repeating: 0, count: 8)))
+        let secondPool = try #require(converter.pool)
+        #expect(firstPool === secondPool)
+        #expect(first !== second) // 第一個 buffer 仍由呼叫端持有，不能回收來覆寫
+        CVPixelBufferLockBaseAddress(first, .readOnly)
+        defer { CVPixelBufferUnlockBaseAddress(first, .readOnly) }
+        let base = try #require(CVPixelBufferGetBaseAddress(first))
+        #expect(Data(bytes: base, count: 8) == Data([3, 2, 1, 4, 7, 6, 5, 8]))
+
+        let resized = try converter.makeBGRA(from: Frame(width: 4, height: 2, rgba: Data(count: 32)))
+        let resizedPool = try #require(converter.pool)
+        #expect(resizedPool !== firstPool)
+        #expect(CVPixelBufferGetWidth(resized) == 4)
+        #expect(CVPixelBufferGetHeight(resized) == 2)
+        converter.reset()
+        #expect(converter.pool == nil)
+    }
+
+    @Test func invalidFrameDoesNotAllocatePixelBufferPool() {
+        let converter = RGBAPixelBuffer()
+        #expect(throws: RGBAPixelBufferError.invalidFrame) {
+            _ = try converter.makeBGRA(from: Frame(width: 2, height: 2, rgba: Data()))
+        }
+        #expect(converter.pool == nil)
+    }
+
 }

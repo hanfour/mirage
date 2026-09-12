@@ -26,7 +26,7 @@ const dropReasons = {gap:0, backlog:0, error:0, waitIDR:0};
 const base = `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}`;
 let decoder, video, input, wake, decoded = 0, lastDecoded = 0, received = 0, gaps = 0, localDrops = 0;
 let lastSeq = null, waiting = true, rtt = NaN, samples = [], pending = new Map(), tick = performance.now();
-let idleFlushTimer = null, keyframeRequested = false;
+let idleFlushTimer = null, keyframeRequested = false, flushingDecoder = null;
 let status = 'initializing', lastTouch = 'none', inputDrops = 0;
 const lines = [];
 function note(s) { lines.push(`${new Date().toISOString()} ${s}`); if(lines.length > 180) lines.shift(); log.textContent = lines.join('\n'); log.scrollTop = log.scrollHeight; }
@@ -63,6 +63,7 @@ function cancelIdleFlush() {
   idleFlushTimer = null;
 }
 function requestKeyframe() {
+  if (flushingDecoder && flushingDecoder === decoder) return;
   if (!keyframeRequested && video?.readyState === WebSocket.OPEN && video.bufferedAmount < 65536) {
     video.send('keyframe');
     keyframeRequested = true;
@@ -74,11 +75,16 @@ function scheduleIdleFlush() {
   idleFlushTimer = setTimeout(async () => {
     idleFlushTimer = null;
     if (decoder !== target || target?.state !== 'configured') return;
-    // WebCodecs flush 會要求下一個 chunk 是 keyframe；不 reset，以免丟掉待輸出的畫面。
+    // PM iPhone 實測：SPS 改寫後 pending=0、arrival→output p50/p95=5/6ms。
+    // 250ms P-frame 心跳會持續輸出；100ms flush 曾造成 101 幀中 92 張 IDR、App 約 70% CPU。
+    // 只在 2 秒無 chunk 時才 flush；WebCodecs 此後要求 keyframe，不 reset 丟棄待輸出畫面。
     waiting = true;
+    flushingDecoder = target;
     try { await target.flush(); }
     catch (e) { note('idle flush: ' + e.message); } // reset／close 的競態也不是致命錯誤。
-  }, 100);
+    if (flushingDecoder === target) flushingDecoder = null;
+    if (decoder === target && target.state === 'configured' && waiting) requestKeyframe();
+  }, 2000);
 }
 function reset(reason, category = 'error') {
   cancelIdleFlush();

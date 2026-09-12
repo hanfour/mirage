@@ -176,21 +176,40 @@ private enum TestFailure: Error { case unexpectedMessageKind, encoding }
             let video = webSocket(h.port, "/ws/video")
             defer { video.cancel(with: .normalClosure, reason: nil) }
             _ = try await receiveData(video)
+            let initialRequests = h.encoder.requests
+            #expect(initialRequests == 1) // 初連只要求一次 IDR
             try await Task.sleep(for: .seconds(1))
             let calls = h.encoder.calls
             #expect((4...5).contains(calls))
+            #expect(h.encoder.requests - initialRequests == 0) // 心跳不另要求 keyframe
             #expect(h.controller.stats().framesPulled == 1)
             let times = h.encoder.presentationTimes
             #expect(zip(times, times.dropFirst()).allSatisfy { pair in pair.0 < pair.1 })
             let heartbeatData = try await receiveData(video)
             let heartbeat = try #require(RemoteVideoMessage.decode(heartbeatData))
             #expect(heartbeat.sequence == 2)
-            #expect(heartbeat.isKeyframe)
+            #expect(!heartbeat.isKeyframe)
             video.cancel(with: .normalClosure, reason: nil)
             while h.controller.sessionState.hasVideo { await Task.yield() }
             let stoppedCalls = h.encoder.calls
             try await Task.sleep(for: .milliseconds(600))
             #expect(h.encoder.calls == stoppedCalls) // 有快取、有 tick 也不得再送心跳
+        }
+    }
+
+    @Test func freshFrameAfterIdleGapDoesNotRequestKeyframe() async throws {
+        try await withController(heartbeatInterval: .seconds(10)) { h in
+            h.controller.secondary.put(frame(8))
+            let video = webSocket(h.port, "/ws/video")
+            defer { video.cancel(with: .normalClosure, reason: nil) }
+            _ = try await receiveData(video)
+            try await Task.sleep(for: .milliseconds(150))
+            h.controller.secondary.put(frame(8))
+            let data = try await receiveData(video)
+            let resumed = try #require(RemoteVideoMessage.decode(data))
+            #expect(!resumed.isKeyframe)
+            #expect(h.encoder.requests == 1)
+            #expect(h.controller.stats().framesPulled == 2)
         }
     }
 
@@ -211,6 +230,7 @@ private enum TestFailure: Error { case unexpectedMessageKind, encoding }
             h.controller.secondary.put(frame(8))
             let firstViewer = webSocket(h.port, "/ws/video")
             _ = try await receiveData(firstViewer)
+            #expect(h.encoder.requests == 1)
             firstViewer.cancel(with: .normalClosure, reason: nil)
             while h.controller.sessionState.hasVideo { await Task.yield() }
             let calls = h.encoder.calls
@@ -226,6 +246,7 @@ private enum TestFailure: Error { case unexpectedMessageKind, encoding }
             #expect(ContinuousClock.now - connectedAt < .seconds(1))
             #expect(next.isKeyframe)
             #expect(next.sequence == 2)
+            #expect(h.encoder.requests == 2) // 新 viewer 各要求一次
             #expect(h.controller.stats().framesPulled == 1) // 唯一一幀已取走，只能靠快取
         }
     }
@@ -243,6 +264,7 @@ private enum TestFailure: Error { case unexpectedMessageKind, encoding }
             let requested = try #require(RemoteVideoMessage.decode(requestedData))
             #expect(requested.isKeyframe)
             #expect(requested.sequence == 2)
+            #expect(h.encoder.requests == 2) // 初連一次、明確請求一次
             #expect(h.controller.stats().framesPulled == 1)
         }
     }

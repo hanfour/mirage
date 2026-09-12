@@ -47,6 +47,7 @@ final class RemoteVideoEncoder: RemoteFrameEncoding, @unchecked Sendable {
     private let onAccessUnit: @Sendable (H264AccessUnit) -> Void
     // VT 操作串列化；回呼只拿 state lock，invalidate 等待回呼時不會互鎖。
     private let operationLock = NSLock()
+    private let pixelBuffers = RGBAPixelBuffer()
     private let lock = NSLock()
     // 回呼不可同步重入 encode/invalidate；AppModel 透過 MainActor Task 處理錯誤。
     private let onError: @Sendable (String) -> Void
@@ -98,13 +99,14 @@ final class RemoteVideoEncoder: RemoteFrameEncoding, @unchecked Sendable {
         sessionSize = (0, 0)
         lock.unlock()
         if let old { VTCompressionSessionInvalidate(old) }
+        pixelBuffers.reset()
     }
 
     func encode(_ frame: Frame) throws {
         operationLock.lock(); defer { operationLock.unlock() }
         let pixelBuffer: CVPixelBuffer
         do {
-            pixelBuffer = try RGBAPixelBuffer.makeBGRA(from: frame)
+            pixelBuffer = try pixelBuffers.makeBGRA(from: frame)
         } catch let error as RGBAPixelBufferError {
             throw RemoteVideoEncoderError.pixelBuffer(error)
         }

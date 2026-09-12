@@ -29,12 +29,13 @@ extension AppModel {
     /// server 綁定成功才換 sink；啟動前開啟只換 activeSink，不自行啟動 client。
     func enableRemote(host: String = RemoteServerConfiguration.allInterfaces,
                       port: Int = RemoteServerConfiguration.defaultPort,
-                      token: PairingToken? = nil) async
+                      token: PairingToken? = nil,
+                      pullInterval: Duration = .nanoseconds(1_000_000_000 / 30)) async
     {
         guard remote == nil, !remoteTransitionInProgress else { return }
         remoteTransitionInProgress = true
         defer { finishRemoteTransition() }
-        await startRemote(host: host, port: port, token: token ?? PairingToken.generate())
+        await startRemote(host: host, port: port, token: token ?? PairingToken.generate(), pullInterval: pullInterval)
     }
 
     /// 關閉後 activeSink 必須是 FrameSinkFactory.make 的原物件，沒有扇出包裝。
@@ -59,13 +60,14 @@ extension AppModel {
         await controller.stop()
         await inputQueue.drained()
         _ = controller.secondary.takeLatest() // 新配對不要送出停服前的殘留幀。
-        await startRemote(host: controller.host, port: port, token: PairingToken.generate())
+        await startRemote(host: controller.host, port: port, token: PairingToken.generate(),
+                          pullInterval: controller.pullInterval)
         if !hasActiveRemoteViewer { lifecycle?.remoteViewerDisconnected() }
     }
 
     // MARK: - 轉移內部（呼叫者持有 remoteTransitionInProgress）
 
-    private func startRemote(host: String, port: Int, token: PairingToken) async {
+    private func startRemote(host: String, port: Int, token: PairingToken, pullInterval: Duration) async {
         remoteGeneration = UUID()
         remotePendingError = nil
         guard let page = RemoteViewerPage.bundled() else {
@@ -75,7 +77,7 @@ extension AppModel {
         }
         let secondary = (activeSink as? BroadcastFrameSink)?.secondary ?? LatestFrameBox()
         let controller = makeRemoteController(host: host, port: port, token: token,
-                                              page: page, secondary: secondary)
+                                              page: page, secondary: secondary, pullInterval: pullInterval)
         do {
             let bound = try await controller.start()
             remote = controller
@@ -108,11 +110,12 @@ extension AppModel {
     }
 
     private func makeRemoteController(host: String, port: Int, token: PairingToken, page: Data,
-                                      secondary: LatestFrameBox) -> RemoteMirrorController
+                                      secondary: LatestFrameBox, pullInterval: Duration) -> RemoteMirrorController
     {
         var configuration = RemoteMirrorConfiguration(token: token, viewerPage: page)
         configuration.host = host
         configuration.port = port
+        configuration.pullInterval = pullInterval
         let generation = remoteGeneration
         let fail: @Sendable (String) -> Void = { [weak self] message in
             Task { @MainActor in await self?.failRemote(message, generation: generation) }

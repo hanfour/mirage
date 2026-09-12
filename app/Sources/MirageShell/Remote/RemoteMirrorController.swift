@@ -4,8 +4,8 @@ import MirageCore
 struct RemoteMirrorConfiguration: Sendable {
     var host = RemoteServerConfiguration.allInterfaces
     var port = RemoteServerConfiguration.defaultPort
-    /// 預設 30 fps（spec 第 3 節）。60 fps 是 `.milliseconds(16)`，由呼叫端決定。
-    var pullInterval: Duration = .milliseconds(33)
+    /// 預設 30 fps，啟動環境變數可覆寫為 5–60 fps。
+    var pullInterval: Duration = .nanoseconds(1_000_000_000 / 30)
     /// 靜止畫面預設每秒 4 次拷貝／硬體編碼，遠低於動態畫面的 30 fps。
     var heartbeatInterval: Duration = .milliseconds(250)
     let token: PairingToken
@@ -119,6 +119,7 @@ final class RemoteMirrorController: @unchecked Sendable {
     var sessionState: RemoteSessionState { server.sessionState }
     var boundPort: Int? { server.boundPort }
     var host: String { configuration.host }
+    var pullInterval: Duration { configuration.pullInterval }
 
     func stats() -> RemoteMirrorStats {
         lock.lock(); defer { lock.unlock() }
@@ -205,10 +206,8 @@ final class RemoteMirrorController: @unchecked Sendable {
         }
         let heartbeatDue = lastEncodedAt.map { now - $0 >= configuration.heartbeatInterval } ?? true
         guard fresh != nil || pendingKeyframe || heartbeatDue, let cached = lastFrame else { return true }
-        // flush 之後必須從 IDR 開始；心跳與閒置 100ms 後恢復的新幀都送 keyframe。
-        if !pendingKeyframe && (fresh == nil || lastEncodedAt.map({ now - $0 >= .milliseconds(100) }) == true) {
-            encoder.requestKeyframe()
-        }
+        // 心跳與間歇的新幀不要求 IDR；只有 viewer 的明確請求走 requestKeyframe。
+        // 尺寸重建與 MaxKeyFrameInterval 則由編碼器自身決定。
         let pts: ContinuousClock.Instant
         if fresh == nil || lastEncodedAt.map({ cached.receivedAt <= $0 }) == true {
             pts = now

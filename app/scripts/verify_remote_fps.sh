@@ -64,7 +64,8 @@ run_arm() {
     out=$(mktemp -t mirage_remote_fps_"$arm") || exit 1
     if [ "$arm" = "on" ]; then
         REMOTE_VIEWER_LOG="$VIEWER_LOG" "$SCRIPT_DIR/verify_fps_fullscreen.sh" -s "$SERIAL" -p "$GRPC_PORT" -g "$PACKAGE" -r "$ROUNDS" -d "$DURATION" \
-            -E "MIRAGE_HOST=127.0.0.1" -E "MIRAGE_REMOTE=1" -E "MIRAGE_REMOTE_PORT=$REMOTE_PORT" -E "MIRAGE_REMOTE_TOKEN=$TOKEN" > "$out" 2>&1
+            -E "MIRAGE_HOST=127.0.0.1" -E "MIRAGE_REMOTE=1" -E "MIRAGE_REMOTE_PORT=$REMOTE_PORT" -E "MIRAGE_REMOTE_TOKEN=$TOKEN" \
+            -E "MIRAGE_REMOTE_PULL_FPS=${MIRAGE_REMOTE_PULL_FPS-30}" > "$out" 2>&1
     else
         REMOTE_VIEWER_LOG="" "$SCRIPT_DIR/verify_fps_fullscreen.sh" -s "$SERIAL" -p "$GRPC_PORT" -g "$PACKAGE" -r "$ROUNDS" -d "$DURATION" -E "MIRAGE_HOST=127.0.0.1" -E "MIRAGE_REMOTE=0" > "$out" 2>&1
     fi
