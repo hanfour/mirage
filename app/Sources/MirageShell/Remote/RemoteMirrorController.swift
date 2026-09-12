@@ -61,6 +61,10 @@ private final class RemoteAccessUnitSequencer: @unchecked Sendable {
 final class RemoteMirrorController: @unchecked Sendable {
     let secondary: LatestFrameBox
     let token: PairingToken
+    /// 單一訂閱者的狀態事件；先送 initial，server stop 後結束。
+    /// 直接在 server 回呼送出，不依賴 MainActor 的選單鏡像。
+    let states: AsyncStream<RemoteSessionState>
+    private let stateContinuation: AsyncStream<RemoteSessionState>.Continuation
     private let configuration: RemoteMirrorConfiguration
     private let server: RemoteServer
     private let encoder: any RemoteFrameEncoding
@@ -83,13 +87,20 @@ final class RemoteMirrorController: @unchecked Sendable {
         self.secondary = secondary
         self.token = configuration.token
         self.onError = onError
+        let (states, continuation) = AsyncStream<RemoteSessionState>.makeStream(bufferingPolicy: .bufferingNewest(8))
+        self.states = states
+        self.stateContinuation = continuation
+        continuation.yield(.initial)
         let relay = RemoteKeyframeRelay()
         let server = RemoteServer(
             configuration: RemoteServerConfiguration(host: configuration.host, port: configuration.port,
                                                      token: configuration.token, viewerPage: configuration.viewerPage),
             onTouches: { inputQueue.touches($0) },
             onKeyframeRequested: { relay.request() },
-            onStateChanged: onStateChanged)
+            onStateChanged: { state in
+                continuation.yield(state)
+                onStateChanged(state)
+            })
         self.server = server
         let sequencer = RemoteAccessUnitSequencer(server: server)
         let encoder = makeEncoder { sequencer.deliver($0) }
@@ -123,6 +134,7 @@ final class RemoteMirrorController: @unchecked Sendable {
         if let task { await task.value }
         encoder.invalidate()
         await server.stop()
+        stateContinuation.finish()
     }
 
     /// 同步 helper 取得鎖，避免 async context 的 noasync 診斷。

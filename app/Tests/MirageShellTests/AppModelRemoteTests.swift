@@ -164,7 +164,7 @@ private final class RemotePortBlocker {
             }
             await model.enableRemote(host: "127.0.0.1", port: 0)
             // 等整個 teardown 完成，不能只看到 remote = nil 就讀 sink。
-            while model.remote != nil || model.remoteTransitionInProgress { await Task.yield() }
+            try await RemoteTestWaits.teardown(of: model)
             #expect(model.remoteMenuState == .failed("sessionCreation(-12903)"))
             #expect((model.activeSink as AnyObject) === (model.box as AnyObject))
         }
@@ -186,7 +186,7 @@ private final class RemotePortBlocker {
             old.fail("stale")
             // 當代錯誤是處理回呼的正向見證；舊通知不得覆蓋當代訊息。
             current.fail("current")
-            while model.remote != nil || model.remoteTransitionInProgress { await Task.yield() }
+            try await RemoteTestWaits.teardown(of: model)
             #expect(model.remoteMenuState == .failed("current"))
             #expect((model.activeSink as AnyObject) === (model.box as AnyObject))
         }
@@ -206,19 +206,52 @@ private final class RemotePortBlocker {
             #expect((model.activeSink as AnyObject) === (model.box as AnyObject))
         }
     }
+    @Test func teardownWaitHasAnIndependentDeadline() async throws {
+        try await withModel("remote-teardown-timeout") { model in
+            model.remoteTransitionInProgress = true
+            defer { model.remoteTransitionInProgress = false }
+            do {
+                try await RemoteTestWaits.teardown(of: model, timeout: .milliseconds(20))
+                Issue.record("未完成的 transition 必須逾時失敗")
+            } catch let error as RemoteTestWaitError {
+                if case .timedOut(let detail) = error {
+                    #expect(detail.contains("AppModel teardown"))
+                    #expect(detail.contains("transition=true"))
+                } else { Issue.record("預期 teardown 逾時，實得 \(error)") }
+            }
+        }
+    }
+
     @Test func viewerConnectionDrivesLifecycleGuard() async throws {
         try await withModel("remote-viewer") { model in
             await model.enableRemote(host: "127.0.0.1", port: 0)
             let controller = try #require(model.remote)
             let port = try #require(controller.boundPort)
             let url = try #require(URL(string: "ws://127.0.0.1:\(port)/ws/video?t=\(controller.token.value)"))
-            let video = URLSession.shared.webSocketTask(with: url)
+            #expect(!(await model.client.isRunning)) // listener 不依賴 emulator client.start。
+            let probe = RemoteHandshakeProbe()
+            let queue = OperationQueue()
+            queue.maxConcurrentOperationCount = 1
+            let configuration = URLSessionConfiguration.ephemeral
+            configuration.timeoutIntervalForRequest = 10
+            configuration.timeoutIntervalForResource = 10
+            let session = URLSession(configuration: configuration, delegate: probe, delegateQueue: queue)
+            defer { session.invalidateAndCancel() }
+            let video = session.webSocketTask(with: url)
+            let diagnostics: @Sendable () -> String = {
+                "port=\(port)，state=\(controller.sessionState)，stats=\(controller.stats())"
+            }
             defer { video.cancel(with: .normalClosure, reason: nil) }
             video.resume()
-            while !controller.sessionState.hasVideo { await Task.yield() }
+            try await probe.wait(diagnostics: diagnostics)
+            let connected = try await RemoteTestWaits.state(in: controller.states, hasVideo: true,
+                                                           diagnostics: diagnostics)
+            #expect(connected.hasVideo)
             #expect(model.hasActiveRemoteViewer)
             video.cancel(with: .normalClosure, reason: nil)
-            while controller.sessionState.hasVideo { await Task.yield() }
+            let disconnected = try await RemoteTestWaits.state(in: controller.states, hasVideo: false,
+                                                              diagnostics: diagnostics)
+            #expect(!disconnected.hasVideo)
             #expect(!model.hasActiveRemoteViewer)
         }
     }
