@@ -98,6 +98,8 @@ WebSocket `/ws/input`，JSON 文字訊息：
 {"type": "ping", "t": 1234.5}
 ```
 
+多點快照新增 `{"type":"touches","t":1234.5,"points":[{"id":7,"phase":"down","x":0.49,"y":0.75},{"id":8,"phase":"move","x":0.65,"y":0.75}]}`；`t` 是有限毫秒數，`points` 每則 1–10 點且 id 不重複，phase 為 `down|move|up|cancel`，沿用單點的座標驗證與識別碼配置，任一點非法整批丟棄並計一則，合法整批一次交給 `onTouches`。既有單點訊息保留相容，也接受 `type:"touch"` 搭配 `phase`；viewer 每個 rAF 只送有變化的手指，同一 id 的 down／up／cancel 依序分幀保留，背景以 16 ms timeout 兜底，up／cancel 成功送出才移除。消費端以約 16 ms 窗口合併連續且識別碼集合相同的純 move 批次，不跨越邊緣或其他輸入；stats 的 `inputRPCsPerSecond` 為實際 `sendTouches` 呼叫次數除以窗口秒數，`inputCoalesced` 為該窗口丟棄的 move 批次數。
+
 `x`、`y` 是 0 到 1，相對於畫面內容區（不含 letterbox），左上原點；手機端算好再送。伺服器對 `ping` 原封 echo，供手機量往返。
 
 手機端頁面：`VideoDecoder({codec, optimizeForLatency: true})`，output 回呼 `drawImage` 後立刻 `close()`；CSS `touch-action: none`、`user-select: none`、`-webkit-touch-callout: none`、`overscroll-behavior: none`，攔 `gesturestart`／`gesturechange`；`navigator.wakeLock.request("screen")`。不用 Fullscreen API（iPhone 沒有）。角落顯示解碼 fps、`decodeQueueSize`、抵達到畫出 p50/p95、往返、丟幀，可用 `?stats=0` 關掉。
