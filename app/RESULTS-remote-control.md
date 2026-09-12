@@ -52,3 +52,11 @@ iPhone 實測回報畫面、點擊、滑動、雙指縮放都正常，但回主�
 - 使用者感覺慢的是點擊到畫面，且手機不在同一個 Wi-Fi（Tailscale 經公網直連，單程 39 ms，WS RTT 47 到 75 ms）；這段佔整條路徑的大半。同一 Wi-Fi 的數字尚未量。
 - iOS Safari 的 pointerId 可為負數（實測 `-10102172`），第一版驗證只收非負整數，所有觸控被丟（`invalidPointerId` 累計 188），症狀是「點擊無效」。改為接受 Int32 全範圍，活體改用負數 id 送。
 - 手機頁面：斷線自動重連（1／2／4 秒三次）、解碼錯誤重建解碼器、切到背景回前景時主動重連（iOS 切背景會斷 WebSocket）、退避只算前景時間。
+
+## 7. 2026-09-13 追加：雙指縮放時所有輸入排隊
+
+iPhone 雙指縮放圖片時疊層顯示 `transit 326.7 ms`（平常 10）、`frames/s new=5`，使用者描述縮放期間所有後續操作都排在後面才執行。機制：手機端每根手指每個 `pointermove` 各送一則訊息，雙指每秒 120 到 240 則，Mac 端每則一次 `sendTouches` gRPC，模擬器逐一消化、與畫面串流共用同一條 HTTP/2 連線。
+
+處理：手機端每個畫面週期把所有手指打包成一則 `touches` 快照（同一幀內的 down／up 邊緣保留、背景時 `setTimeout` 兜底）；Mac 端一次 `sendTouches` 送多點；`InputQueue` 消費端把「識別碼集合相同的連續純 move 批次」合併成最新一則（keymap 的全狀態快照與本機滑鼠不受影響，邊緣事件不合併）。統計多 `inputRPCsPerSecond` 與 `inputCoalesced`。
+
+活體 R7（Python 用戶端模擬雙指 120 Hz 縮放 3 秒）：RPC 每秒 42 到 44、合併 82 批／秒、pinch 期間 transit 10.7 ms、兩 slot 最後都放開、縮放結束後的 tap 在 guest 時鐘上 500 ms 內到達。第一版的 tap 判定把 guest 的 getevent 時間戳與主機 `monotonic` 相減，兩個時鐘不可比，已改成同一時鐘的差。
