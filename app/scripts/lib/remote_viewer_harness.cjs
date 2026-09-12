@@ -2,7 +2,8 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
-const html = fs.readFileSync(path.join(__dirname, '../../Sources/MirageCore/Resources/remote/viewer.html'), 'utf8');
+const html = fs.readFileSync(path.join(__dirname, '../../Sources/MirageCore/Resources/remote/viewer.html'), 'utf8').replace('/* MIRAGE_VIEWER_INPUT */',
+  () => fs.readFileSync(path.join(__dirname, '../../Sources/MirageCore/Resources/remote/viewer-input.js'), 'utf8'));
 const script = html.match(/<script>([\s\S]*?)<\/script>/)[1];
 
 function harness({immediateOutput = false, search = '?t=abc', storage = new Map(), storageFails = false, viewport = null} = {}) {
@@ -16,6 +17,7 @@ function harness({immediateOutput = false, search = '?t=abc', storage = new Map(
       focus() { document.activeElement = this; this.listeners.focus?.(); },
       blur() { if (document.activeElement === this) { document.activeElement = null; this.listeners.blur?.(); } },
       setPointerCapture() {},
+      getBoundingClientRect: () => ({left:0, top:0, width:8, height:1}),
       getContext: () => ({drawImage() { draws++; }}),
       addEventListener(type, listener) { listeners[type] = listener; },
       classList: {
@@ -89,6 +91,8 @@ function harness({immediateOutput = false, search = '?t=abc', storage = new Map(
     EncodedVideoChunk: class {constructor(options) { Object.assign(this, options); }},
     performance: {now: () => now},
     setTimeout(fn, delay) { timers.set(++timerID, {fn, at: now + delay}); return timerID; },
+    requestAnimationFrame(fn) { timers.set(++timerID, {fn, at:now + 16, frame:true}); return timerID; },
+    cancelAnimationFrame(id) { timers.delete(id); },
     clearTimeout(id) { timers.delete(id); }, setInterval() {},
   });
   vm.runInContext(script, context);
@@ -103,7 +107,7 @@ function harness({immediateOutput = false, search = '?t=abc', storage = new Map(
   async function advance(ms) {
     now += ms;
     for (const [id, timer] of [...timers]) {
-      if (timer.at <= now) { timers.delete(id); await timer.fn(); }
+      if (timer.at <= now && (!timer.frame || document.visibilityState === 'visible')) { timers.delete(id); await timer.fn(); }
     }
   }
   return {receive, advance, decoders, sockets, timers, elements, buttons, root, document,

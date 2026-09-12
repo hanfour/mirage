@@ -13,6 +13,9 @@ public enum RemoteViewerPage {
         guard let url = Bundle.module.url(forResource: resourceName, withExtension: resourceExtension,
                                           subdirectory: subdirectory)
         else { return nil }
-        return try? Data(contentsOf: url)
+        guard let inputURL = Bundle.module.url(forResource: "viewer-input", withExtension: "js", subdirectory: subdirectory),
+              let html = try? String(contentsOf: url, encoding: .utf8),
+              let input = try? String(contentsOf: inputURL, encoding: .utf8) else { return nil }
+        return html.replacingOccurrences(of: "/* MIRAGE_VIEWER_INPUT */", with: input).data(using: .utf8)
     }
 }

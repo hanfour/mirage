@@ -10,9 +10,10 @@ import Testing
                        "params.get('t')", "params.get('stats')", "touch-action:none", "user-select:none",
                        "-webkit-touch-callout:none", "overscroll-behavior:none", "gesturestart", "gesturechange",
                        "wakeLock", "getBigUint64(0, false)", "getUint32(8, false)", "getUint8(12)",
-                       "decodeQueueSize", "type:'ping'", "frame.close()"] {
+                       "decodeQueueSize", "type:'ping'", "frame.close()", "type:'touches'", "requestAnimationFrame(flushTouches)"] {
             #expect(html.contains(needle), "viewer.html 缺 \(needle)")
         }
+        #expect(!html.contains("MIRAGE_VIEWER_INPUT"))
         #expect(!html.contains("requestFullscreen"))
         #expect(!html.contains("params.get('codec')"))
     }
