@@ -15,6 +15,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import remote_client as rc  # noqa: E402
+from remote_pinch_selftest import PinchEvidenceTests, PinchTransportTests  # noqa: E402,F401
 from remote_latency_verify_selftest import RemoteLatencyEvidenceTests  # noqa: E402,F401
 from remote_text_verify_selftest import RemoteTextEvidenceTests  # noqa: E402,F401
 

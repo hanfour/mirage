@@ -1,11 +1,12 @@
 #!/usr/bin/env bash
-# 手機遙控活體驗證（spec 第 8 節）：六條斷言
+# 手機遙控活體驗證（spec 第 8 節）：七條斷言
 #   R1 手機端（Python 用戶端）60 秒內收到 keyframe
 #   R2 幀序連續（SEQ_GAPS == 0）
 #   R3 送一組 down/move/up 後 guest 的 getevent 出現 ABS_MT_TRACKING_ID，且沒有 slot 卡在 down
 #   R4 GoHome 後前景為 HOME resolver 指定的 launcher
 #   R5 AppSwitch 在 guest evdev 出現 KEY_APPSELECT DOWN 與 UP
 #   R6 遠端文字提交後，設定搜尋欄位的新鮮 UI dump 精確回讀相等
+#   R7 3 秒雙指縮放：兩 slot 按放、RPC ≤70/s、transit p50 <50ms、tap 500ms 內到達
 # 之前先跑兩條 Swift 活體測試：RemoteVideoEncoderLiveTests（硬體編碼器＋SPS 改寫）與
 # RemoteInputLiveTests（server → InputQueue → 真模擬器），並斷言它們是 passed 不是 skipped。
 #
@@ -71,7 +72,12 @@ CAPTURE_PID=''
 KEY_CAPTURE_PID=''
 start_capture() {
     : > "$EVENT_LOG"
-    "$ADB" shell getevent -lt /dev/input/event1 > "$EVENT_LOG" 2>&1 &
+    if [ "${1:-}" = stamp ]; then
+        "$ADB" -s "$SERIAL" shell getevent -lt /dev/input/event1 2>&1 |
+            "$PY" "${SCRIPT_DIR}/lib/remote_client.py" --stamp > "$EVENT_LOG" &
+    else
+        "$ADB" shell getevent -lt /dev/input/event1 > "$EVENT_LOG" 2>&1 &
+    fi
     CAPTURE_PID=$!
     sleep 1
     kill -0 "$CAPTURE_PID" 2>/dev/null || { echo "❌ getevent 擷取未啟動"; exit 1; }
@@ -203,6 +209,21 @@ echo "Mac 延遲摘要（最後一窗，毫秒）：${MAC_SUMMARY:-未收到 sta
 # 這是窗口百分位的中位數，不是原始幀樣本合併後的百分位；空樣本不得當成零通過。
 "$PY" "${SCRIPT_DIR}/lib/remote_latency_verify.py" "$CLIENT_LOG"
 assert_ok "R3 Mac age 各窗中位數 p50 < 12 ms 且 p95 < 25 ms" "$?"
+# R7 在導覽與文字測試之前，沿用遊戲畫面；獨立證據檔不混入 R3 tap。
+cp "$EVENT_LOG" "${EVENT_LOG}.r3" || exit 1
+PINCH_LOG=$(mktemp -t mirage_remote_pinch) || exit 1
+echo "=== R7：3 秒雙指約 120Hz 縮放（證據：${PINCH_LOG}）==="
+start_capture stamp
+"$PY" "${SCRIPT_DIR}/lib/remote_client.py" --host 127.0.0.1 --port "$REMOTE_PORT" --token "$TOKEN" \
+    --wait-keyframe "$WAIT_KEYFRAME" --seconds 0 --pinch 3 2>&1 | tee "$PINCH_LOG"
+PINCH_RC=${PIPESTATUS[0]}
+stop_capture
+assert_ok "R7 pinch 用戶端完成" "$PINCH_RC"
+assert_equals "R7 兩個 slot 最後都放開" "$(touch_stuck_slots < "$EVENT_LOG" | tr '\n' ' ')" ""
+echo "R7 slot 最終狀態：$(touch_slot_report < "$EVENT_LOG" | tr '\n' ';')"
+"$PY" "${SCRIPT_DIR}/lib/remote_client.py" --verify-pinch "$PINCH_LOG" "$EVENT_LOG"
+assert_ok "R7 雙指、RPC、transit 與後續 tap 證據" "$?"
+cp "$EVENT_LOG" "${EVENT_LOG}.r7" || exit 1
 echo "=== 第五段：遠端導覽鍵 → guest 前景活動 ==="
 # 沿用 emu.sh foreground_on：只看第一條 topResumedActivity，不能把歷史 task 當前景。
 # 解析完整 component，保留套件數字／底線；每次採樣都印出原始證據。

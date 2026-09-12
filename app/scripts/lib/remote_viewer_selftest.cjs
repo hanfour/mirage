@@ -1,5 +1,6 @@
 const {test} = require('node:test');
 const assert = require('node:assert/strict');
+require('./remote_connection_selftest.cjs');
 const {harness, html} = require('./remote_viewer_harness.cjs');
 
 test('only a full 2 seconds without chunks flushes and requests a keyframe', async () => {
