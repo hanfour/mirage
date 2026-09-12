@@ -7,16 +7,18 @@ remote_list_of() { printf '%b' "$1" | awk 'NF' | sort -n | tr '\n' ' ' | sed 's/
 remote_min_of() { printf '%b' "$1" | awk 'NF' | sort -n | head -1; }
 remote_max_of() { printf '%b' "$1" | awk 'NF' | sort -n | tail -1; }
 
-# 只採計有尺寸收斂、有效輪次的摘要。拒絕重複／缺欄位，不將缺值當零。
+# 只採計有尺寸收斂、有效輪次的摘要。回傳 median rounds viewer_rejected。
+# VIEWER_REJECTED 只作診斷，不扣已經排除無效輪次的 ROUNDS；拒絕重複／缺欄位。
 remote_arm_summary() {
     awk -F= '
         /^MIRAGE_MEDIAN=/ { m=$2; mc++ }
         /^ROUNDS=/ { r=$2; rc++ }
         /^SIZE_OK=/ { s=$2; sc++ }
+        /^VIEWER_REJECTED=/ { v=$2; vc++ }
         END {
-            if (mc != 1 || rc != 1 || sc != 1 || m !~ /^[0-9]+$/ ||
+            if (mc != 1 || rc != 1 || sc != 1 || vc != 1 || v !~ /^[0-9]+$/ || m !~ /^[0-9]+$/ ||
                 r !~ /^[0-9]+$/ || r+0 < 1 || s != "1") exit 1
-            print m, r
+            print m, r, v
         }'
 }
 

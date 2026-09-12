@@ -69,29 +69,33 @@ run_arm() {
         REMOTE_VIEWER_LOG="" "$SCRIPT_DIR/verify_fps_fullscreen.sh" -s "$SERIAL" -p "$GRPC_PORT" -g "$PACKAGE" -r "$ROUNDS" -d "$DURATION" -E "MIRAGE_HOST=127.0.0.1" -E "MIRAGE_REMOTE=0" > "$out" 2>&1
     fi
     local rc=$?
-    local median rounds spread summary
+    local median rounds spread summary viewer_rejected
     summary=$(remote_arm_summary < "$out") || {
         echo "❌ ${arm} 沒有有效摘要（fps_script_rc=${rc}）：${out}"; tail -15 "$out"; exit 1;
     }
     # 1 可能只是既有 ≥55 門檻；訊號中止、工具錯誤不可當有效跑次。
     [ "$rc" -le 1 ] || { echo "❌ fps 腳本異常退出 ${rc}：${out}"; exit 1; }
-    read -r median rounds <<< "$summary"
+    read -r median rounds viewer_rejected <<< "$summary"
     spread=$(sed -n 's/^MIRAGE_SPREAD=//p' "$out" | tail -1)
-    echo "[arm=${arm}] median=${median} rounds=${rounds} spread=${spread:-無資料} fps_script_rc=${rc} log=${out}"
+    echo "[arm=${arm}] median=${median} rounds=${rounds} spread=${spread:-無資料} viewer_rejected=${viewer_rejected} fps_script_rc=${rc} log=${out}"
     ARM_MEDIAN="$median"
     ARM_ROUNDS="$rounds"
+    ARM_VIEWER_REJECTED="$viewer_rejected"
 }
 
 OFF_VALS=""
 ON_VALS=""
 OFF_ROUNDS=0
 ON_ROUNDS=0
+OFF_VIEWER_REJECTED=0
+ON_VIEWER_REJECTED=0
 for pass in 1 2; do
     echo ""
     echo "=== 第 ${pass}/2 對：遙控關 ==="
     run_arm off
     [ -n "$ARM_MEDIAN" ] && OFF_VALS="${OFF_VALS}${ARM_MEDIAN}\n"
     OFF_ROUNDS=$((OFF_ROUNDS + ARM_ROUNDS))
+    OFF_VIEWER_REJECTED=$((OFF_VIEWER_REJECTED + ARM_VIEWER_REJECTED))
 
     echo ""
     echo "=== 第 ${pass}/2 對：遙控開（背景 viewer 反覆重連 127.0.0.1:${REMOTE_PORT}）==="
@@ -103,6 +107,7 @@ for pass in 1 2; do
     stop_viewer
     [ -n "$ARM_MEDIAN" ] && ON_VALS="${ON_VALS}${ARM_MEDIAN}\n"
     ON_ROUNDS=$((ON_ROUNDS + ARM_ROUNDS))
+    ON_VIEWER_REJECTED=$((ON_VIEWER_REJECTED + ARM_VIEWER_REJECTED))
 done
 
 OFF_MEDIAN=$(remote_median_of "$OFF_VALS")
@@ -115,6 +120,9 @@ echo "OFF_MEDIAN=${OFF_MEDIAN:-無資料}"
 echo "ON_MEDIAN=${ON_MEDIAN:-無資料}"
 echo "OFF_ROUNDS=${OFF_ROUNDS}"
 echo "ON_ROUNDS=${ON_ROUNDS}"
+echo "OFF_VIEWER_REJECTED=${OFF_VIEWER_REJECTED}"
+echo "ON_VIEWER_REJECTED=${ON_VIEWER_REJECTED}"
+echo "VIEWER_REJECTED=$((OFF_VIEWER_REJECTED + ON_VIEWER_REJECTED))"
 
 echo ""
 echo "===== 判定 ====="

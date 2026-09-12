@@ -346,6 +346,7 @@ SIZE_OK=1
 GUEST_MIN="${GUEST_MIN:-55}"
 GUEST_VALS=""
 GUEST_REJECTED=0
+VIEWER_REJECTED=0
 # D50：擷取窗口內負載飆高而判為無效的輪次數。
 WINDOW_LOAD_REJECTED=0
 
@@ -751,7 +752,13 @@ for round in $(seq 1 "$ROUNDS"); do
             fi
             sleep 1
         done
-        [ "$VIEWER_READY" -eq 1 ] || { echo "❌ viewer 未持續收幀：${REMOTE_VIEWER_LOG}"; gui_session_cleanup "$BUNDLE"; exit 1; }
+        if [ "$VIEWER_READY" -ne 1 ]; then
+            echo "   ❌ 本輪判為無效：viewer 未持續收幀：${REMOTE_VIEWER_LOG}"
+            rm -f "$LOG"
+            gui_session_cleanup "$BUNDLE"
+            VIEWER_REJECTED=$((VIEWER_REJECTED + 1))
+            continue
+        fi
     fi
     if [ -n "${REMOTE_VIEWER_LOG:-}" ]; then REMOTE_WINDOW_START=$(date +%s); fi
     BEFORE=$(fps_samples "$LOG")
@@ -765,7 +772,11 @@ for round in $(seq 1 "$ROUNDS"); do
     if [ -n "${REMOTE_VIEWER_LOG:-}" ]; then
         REMOTE_WINDOW_END=$(date +%s)
         remote_viewer_window_ok "$REMOTE_WINDOW_START" "$REMOTE_WINDOW_END" < "$REMOTE_VIEWER_LOG" || {
-            echo "❌ viewer 沒有覆蓋整個量測窗口：${REMOTE_VIEWER_LOG}"; gui_session_cleanup "$BUNDLE"; exit 1;
+            echo "   ❌ 本輪判為無效：viewer 沒有覆蓋整個量測窗口：${REMOTE_VIEWER_LOG}"
+            rm -f "$LOG"
+            gui_session_cleanup "$BUNDLE"
+            VIEWER_REJECTED=$((VIEWER_REJECTED + 1))
+            continue
         }
     fi
     # `mirage=M` 的取樣母體含全螢幕收斂期。既有 `fps_median` 沒有跳過參數，這是既有
@@ -929,6 +940,7 @@ echo "MIRAGE_VALUES=$(list_of "$MIRAGE_VALS")"
 if [ -n "$MM" ]; then
     echo "MIRAGE_SPREAD=$(min_of "$MIRAGE_VALS")–$(max_of "$MIRAGE_VALS")（$(count_of "$MIRAGE_VALS") 個有效輪次）"
 fi
+echo "VIEWER_REJECTED=${VIEWER_REJECTED}"
 echo "GUEST_VALUES=$(list_of "$GUEST_VALS")"
 echo "GUEST_REJECTED=${GUEST_REJECTED}（guest 未達 ${GUEST_MIN} 而判為無效的輪次數）"
 echo "WINDOW_LOAD_REJECTED=${WINDOW_LOAD_REJECTED}（擷取窗口內 load 峰值超過 ${WINDOW_LOAD_LIMIT} 而判為無效的輪次數）"
@@ -955,6 +967,7 @@ echo "SIZE_OK=${SIZE_OK}"
 
 echo ""
 echo "===== 判定 ====="
+echo "輪次摘要：有效 $(count_of "$MIRAGE_VALS") 輪，VIEWER_REJECTED=${VIEWER_REJECTED}（viewer 未就緒或窗口中斷）"
 
 # 前置：尺寸沒到上限，量的就不是驗收線 7 要的東西。**必須排在最前面**——
 # 尺寸不對的話，後面的驗收判定就算綠了也沒有意義。
