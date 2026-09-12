@@ -67,7 +67,7 @@ enum RemoteHTTPConnection {
     }
 }
 
-/// `/ws/video`：只寫不讀（回 pong、收 close）。寫出迴圈由 `RemoteServerCore` 的 wakeup 驅動。
+/// `/ws/video`：送影像並接受補 keyframe 請求（另回 pong、收 close）。寫出迴圈由 `RemoteServerCore` 的 wakeup 驅動。
 enum RemoteVideoConnection {
     static func run(
         _ channel: NIOAsyncChannel<WebSocketFrame, WebSocketFrame>,
@@ -87,6 +87,13 @@ enum RemoteVideoConnection {
                                 data: frame.unmaskedData
                             ))
                             return
+                        case .text:
+                            // 固定短指令，不接受分片或其他 viewer 輸入。
+                            let data = frame.unmaskedData
+                            if frame.fin && data.readableBytes == 8 &&
+                                data.getString(at: data.readerIndex, length: 8) == "keyframe" {
+                                core.requestVideoKeyframe(channelID: channelID)
+                            }
                         case .ping:
                             try await outbound.write(WebSocketFrame(
                                 fin: true,

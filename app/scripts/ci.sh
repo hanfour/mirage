@@ -414,7 +414,7 @@ else
 fi
 
 echo ""
-echo "=== 閘門 8：Python 測試（phase0/harness 與 tools/probe）==="
+echo "=== 閘門 8：Python 與 viewer JavaScript 測試 ==="
 if python3 ./scripts/lib/host_ime_acceptance_test.py; then
     ok "host IME 精確欄位驗收器負對照通過"
 else
@@ -425,6 +425,12 @@ if python3 -m unittest discover -s scripts/lib -p remote_client_selftest.py; the
     ok "remote_client.py 純函式自我測試通過"
 else
     fail "remote_client.py 純函式自我測試失敗"
+fi
+# stdlib node:test 執行真正的 viewer.html，用假解碼器／時鐘，不連網或開 App。
+if node --test ./scripts/lib/remote_viewer_selftest.cjs; then
+    ok "viewer 閒置 flush 與 keyframe 恢復測試通過"
+else
+    fail "viewer 閒置 flush 測試失敗（需 Node.js 18 以上）"
 fi
 HARNESS_PY="../phase0/harness/.venv-d45/bin/python"
 if [ ! -x "${HARNESS_PY}" ]; then

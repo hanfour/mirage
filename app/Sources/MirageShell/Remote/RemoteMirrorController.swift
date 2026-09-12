@@ -6,6 +6,8 @@ struct RemoteMirrorConfiguration: Sendable {
     var port = RemoteServerConfiguration.defaultPort
     /// 預設 30 fps（spec 第 3 節）。60 fps 是 `.milliseconds(16)`，由呼叫端決定。
     var pullInterval: Duration = .milliseconds(33)
+    /// 靜止畫面預設每秒 4 次拷貝／硬體編碼，遠低於動態畫面的 30 fps。
+    var heartbeatInterval: Duration = .milliseconds(250)
     let token: PairingToken
     let viewerPage: Data
 
@@ -22,16 +24,16 @@ struct RemoteMirrorStats: Sendable, Equatable {
     let encodeFailures: Int
 }
 
-/// server 的 `onKeyframeRequested` 在編碼器存在之前就要綁；用這個盒子晚一步指過去。
+/// server 在 controller 初始化完成前就要綁回呼；弱參照避免循環持有。
 private final class RemoteKeyframeRelay: @unchecked Sendable {
     private let lock = NSLock()
-    private weak var target: (any RemoteFrameEncoding)?
+    private weak var target: RemoteMirrorController?
 
-    func attach(_ encoder: any RemoteFrameEncoding) { lock.lock(); target = encoder; lock.unlock() }
+    func attach(_ controller: RemoteMirrorController) { lock.lock(); target = controller; lock.unlock() }
 
     func request() {
-        lock.lock(); let encoder = target; lock.unlock()
-        encoder?.requestKeyframe()
+        lock.lock(); let controller = target; lock.unlock()
+        controller?.requestKeyframe()
     }
 }
 
@@ -70,6 +72,12 @@ final class RemoteMirrorController: @unchecked Sendable {
     private let encoder: any RemoteFrameEncoding
     private let onError: @Sendable (String) -> Void
     private let lock = NSLock()
+    // 拉取、重連的立即送幀及 stop/invalidate 共用序列佇列；server／VT 回呼不等待它。
+    private let encodingQueue = DispatchQueue(label: "mirage.remote.encoding")
+    private var lastFrame: Frame?
+    private var lastEncodedAt: ContinuousClock.Instant?
+    private var pendingKeyframe = false
+    private var encodingFailed = false
     private var pullTask: Task<Void, Never>?
     private var stopped = false
     private var framesPulled = 0
@@ -105,7 +113,7 @@ final class RemoteMirrorController: @unchecked Sendable {
         let sequencer = RemoteAccessUnitSequencer(server: server)
         let encoder = makeEncoder { sequencer.deliver($0) }
         self.encoder = encoder
-        relay.attach(encoder)
+        relay.attach(self)
     }
 
     var sessionState: RemoteSessionState { server.sessionState }
@@ -132,7 +140,13 @@ final class RemoteMirrorController: @unchecked Sendable {
         let task = beginStop()
         task?.cancel()
         if let task { await task.value }
-        encoder.invalidate()
+        await withCheckedContinuation { continuation in
+            encodingQueue.async {
+                self.encoder.invalidate()
+                self.lastFrame = nil
+                continuation.resume()
+            }
+        }
         await server.stop()
         stateContinuation.finish()
     }
@@ -162,22 +176,69 @@ final class RemoteMirrorController: @unchecked Sendable {
 
     // MARK: - 拉取迴圈
 
-    /// `Task.detached`：不綁任何 actor（比照 `InputQueue` 的幫浦）。沒有 viewer 時只睡覺，
-    /// 不 `takeLatest`——`LatestFrameBox` 覆蓋舊幀零成本，而拉了不編碼只是白拷貝。
-    private func pullLoop() async {
-        let interval = configuration.pullInterval
-        while !Task.isCancelled {
-            do { try await Task.sleep(for: interval) } catch { return }
-            guard server.sessionState.hasVideo, let frame = secondary.takeLatest() else { continue }
+    /// 新 viewer 的 false → true 會由 server 立即要求 keyframe；不等拉取 tick。
+    /// flush 後的補幀請求也走同一路徑。沒有可用幀時保留請求直到第一幀抵達。
+    func requestKeyframe() {
+        encodingQueue.async { [weak self] in
+            guard let self, self.canEncode, self.server.sessionState.hasVideo else { return }
+            self.pendingKeyframe = true
+            self.encoder.requestKeyframe()
+            _ = self.pullAndEncode()
+        }
+    }
+
+    private var canEncode: Bool {
+        lock.lock(); defer { lock.unlock() }
+        return !stopped && !encodingFailed
+    }
+
+    /// 僅在 encodingQueue 上執行。心跳用快取像素，但更新 PTS；新幀若早於上次心跳，
+    /// 也需抬高 PTS，避免 VideoToolbox 收到重複／倒退的時間戳。
+    private func pullAndEncode() -> Bool {
+        guard canEncode else { return false }
+        guard server.sessionState.hasVideo else { return true }
+        let now = ContinuousClock.now
+        let fresh = secondary.takeLatest()
+        if let fresh {
+            lastFrame = fresh
             recordPull()
-            do {
-                try encoder.encode(frame)
-                recordEncoded()
-            } catch {
-                recordFailure()
-                onError("編碼失敗：\(error)")
-                return
+        }
+        let heartbeatDue = lastEncodedAt.map { now - $0 >= configuration.heartbeatInterval } ?? true
+        guard fresh != nil || pendingKeyframe || heartbeatDue, let cached = lastFrame else { return true }
+        // flush 之後必須從 IDR 開始；心跳與閒置 100ms 後恢復的新幀都送 keyframe。
+        if !pendingKeyframe && (fresh == nil || lastEncodedAt.map({ now - $0 >= .milliseconds(100) }) == true) {
+            encoder.requestKeyframe()
+        }
+        let pts: ContinuousClock.Instant
+        if fresh == nil || lastEncodedAt.map({ cached.receivedAt <= $0 }) == true {
+            pts = now
+        } else {
+            pts = cached.receivedAt
+        }
+        let frame = Frame(width: cached.width, height: cached.height, rgba: cached.rgba,
+                          receivedAt: pts, transitMs: cached.transitMs)
+        do {
+            try encoder.encode(frame)
+            lastEncodedAt = now
+            pendingKeyframe = false
+            recordEncoded()
+            return true
+        } catch {
+            lock.lock(); encodingFailed = true; lock.unlock()
+            recordFailure()
+            onError("編碼失敗：\(error)")
+            return false
+        }
+    }
+
+    /// 沒有 viewer 時不 takeLatest／不編碼；每次等待工作完成，不累積過期 tick。
+    private func pullLoop() async {
+        while !Task.isCancelled {
+            do { try await Task.sleep(for: configuration.pullInterval) } catch { return }
+            let keepPulling: Bool = await withCheckedContinuation { continuation in
+                encodingQueue.async { continuation.resume(returning: self.pullAndEncode()) }
             }
+            if !keepPulling { return }
         }
     }
 }

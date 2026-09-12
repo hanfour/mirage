@@ -519,6 +519,20 @@ fps 對照每臂取得兩次有效摘要，取兩個中位數的較低者，比�
 內部間隔最多 3 秒，窗口中斷線即失敗），避免 viewer 未工作時得到假對照。
 兩臂值域交集大於 3 fps 會警告，請加 `-r 4` 重跑；通過只代表該次抽樣。
 
+靜止畫面也會串流：controller 保留最後一幀，`heartbeatInterval` 預設 250 ms（可透過
+`RemoteMirrorConfiguration` 設定）。新 viewer 連線立即取得可用幀的 keyframe，沒有 viewer 時
+不取幀、不編碼。1080×2400 靜止畫面約每秒 4 次像素拷貝與硬體編碼，低於正常動態的 30 fps。
+重送保留像素並更新編碼時間戳；心跳採 keyframe。viewer 收 chunk 後閒置 100 ms 會 flush
+解碼器，flush 失敗僅記錄診斷。flush 後若先收到 delta，會透過已配對的 `/ws/video` 傳送
+`keyframe` 文字要求補 IDR，避免恢復動態時卡在等待畫面。controller 還沒收到任何一幀時無法
+憑空產生畫面，但會保留 keyframe 請求，第一幀抵達後送出。
+
+viewer 的計時器與解碼恢復測試（Node.js 18 以上，已接入閘門 8）：
+
+```bash
+node --test scripts/lib/remote_viewer_selftest.cjs
+```
+
 **驗證狀態（2026-09-12）**：本次僅執行純函式測試、shell 語法檢查與閘門 4 的兩段 lint。
 Swift 編譯、新增的觸控活體測試、兩次 GUI 活體、活體故障注入、fps 對照及完整 CI 由 PM 外部執行；
 尚無本次 OFF_VALUES／ON_VALUES 實測數字。階段 E 的 iPhone glass-to-glass 人工量測（門檻 50 ms）亦未做。

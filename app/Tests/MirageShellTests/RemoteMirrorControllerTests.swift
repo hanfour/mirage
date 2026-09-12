@@ -11,6 +11,7 @@ private final class FakeEncoder: RemoteFrameEncoding, @unchecked Sendable {
     private let onAccessUnit: @Sendable (H264AccessUnit) -> Void
     private let failEncoding: Bool
     private var forceKeyframe = true
+    private var timestamps: [ContinuousClock.Instant] = []
     private(set) var encodeCalls = 0
     private(set) var keyframeRequests = 0
     private(set) var invalidated = false
@@ -24,6 +25,7 @@ private final class FakeEncoder: RemoteFrameEncoding, @unchecked Sendable {
         if failEncoding { throw TestFailure.encoding }
         lock.lock()
         encodeCalls += 1
+        timestamps.append(frame.receivedAt)
         let key = forceKeyframe
         forceKeyframe = false
         lock.unlock()
@@ -33,6 +35,7 @@ private final class FakeEncoder: RemoteFrameEncoding, @unchecked Sendable {
 
     func requestKeyframe() { lock.lock(); keyframeRequests += 1; forceKeyframe = true; lock.unlock() }
     func invalidate() { lock.lock(); invalidated = true; lock.unlock() }
+    var presentationTimes: [ContinuousClock.Instant] { lock.lock(); defer { lock.unlock() }; return timestamps }
     var calls: Int { lock.lock(); defer { lock.unlock() }; return encodeCalls }
     var requests: Int { lock.lock(); defer { lock.unlock() }; return keyframeRequests }
     var wasInvalidated: Bool { lock.lock(); defer { lock.unlock() }; return invalidated }
@@ -66,11 +69,14 @@ private enum TestFailure: Error { case unexpectedMessageKind, encoding }
         let states: StateRecorder<RemoteSessionState>
     }
 
-    private func start(failEncoding: Bool = false) async throws -> Harness {
+    private func start(failEncoding: Bool = false,
+                       pullInterval: Duration = .milliseconds(5),
+                       heartbeatInterval: Duration = .milliseconds(250)) async throws -> Harness {
         var configuration = RemoteMirrorConfiguration(token: Self.token, viewerPage: Self.page)
         configuration.host = "127.0.0.1"
         configuration.port = 0
-        configuration.pullInterval = .milliseconds(5)
+        configuration.pullInterval = pullInterval
+        configuration.heartbeatInterval = heartbeatInterval
         let injector = RecordingInjector()
         let queue = InputQueue(injector: injector)
         let states = StateRecorder<RemoteSessionState>()
@@ -111,8 +117,10 @@ private enum TestFailure: Error { case unexpectedMessageKind, encoding }
         Frame(width: width, height: 1, rgba: Data(count: width * 4))
     }
 
-    private func withController(_ body: (Harness) async throws -> Void) async throws {
-        let h = try await start()
+    private func withController(pullInterval: Duration = .milliseconds(5),
+                                heartbeatInterval: Duration = .milliseconds(250),
+                                _ body: (Harness) async throws -> Void) async throws {
+        let h = try await start(pullInterval: pullInterval, heartbeatInterval: heartbeatInterval)
         do { try await body(h) } catch { await h.controller.stop(); throw error }
         await h.controller.stop()
     }
@@ -123,7 +131,7 @@ private enum TestFailure: Error { case unexpectedMessageKind, encoding }
             #expect(h.port > 0)
             #expect(h.controller.boundPort == h.port)
             h.controller.secondary.put(frame(8))
-            try await Task.sleep(for: .milliseconds(60))     // 十幾個拉取週期
+            try await Task.sleep(for: .seconds(1))     // 四個心跳週期也不能消耗 sink
             #expect(h.encoder.calls == 0)
             #expect(h.controller.stats().framesPulled == 0)
             #expect(h.controller.secondary.stats().arrived == 1)
@@ -159,6 +167,83 @@ private enum TestFailure: Error { case unexpectedMessageKind, encoding }
             #expect(stats.server.framesSent == 2)
             video.cancel(with: .normalClosure, reason: nil)
             await h.states.wait { $0.contains { $0.phase == .disconnected } }
+        }
+    }
+
+    @Test func staticFrameIsRepeatedAtHeartbeatIntervalWithIncreasingPTS() async throws {
+        try await withController { h in
+            h.controller.secondary.put(frame(8))
+            let video = webSocket(h.port, "/ws/video")
+            defer { video.cancel(with: .normalClosure, reason: nil) }
+            _ = try await receiveData(video)
+            try await Task.sleep(for: .seconds(1))
+            let calls = h.encoder.calls
+            #expect((4...5).contains(calls))
+            #expect(h.controller.stats().framesPulled == 1)
+            let times = h.encoder.presentationTimes
+            #expect(zip(times, times.dropFirst()).allSatisfy { pair in pair.0 < pair.1 })
+            let heartbeatData = try await receiveData(video)
+            let heartbeat = try #require(RemoteVideoMessage.decode(heartbeatData))
+            #expect(heartbeat.sequence == 2)
+            #expect(heartbeat.isKeyframe)
+            video.cancel(with: .normalClosure, reason: nil)
+            while h.controller.sessionState.hasVideo { await Task.yield() }
+            let stoppedCalls = h.encoder.calls
+            try await Task.sleep(for: .milliseconds(600))
+            #expect(h.encoder.calls == stoppedCalls) // 有快取、有 tick 也不得再送心跳
+        }
+    }
+
+    @Test func heartbeatIntervalIsConfigurable() async throws {
+        try await withController(heartbeatInterval: .seconds(10)) { h in
+            h.controller.secondary.put(frame(8))
+            let video = webSocket(h.port, "/ws/video")
+            defer { video.cancel(with: .normalClosure, reason: nil) }
+            _ = try await receiveData(video)
+            try await Task.sleep(for: .milliseconds(600))
+            #expect(h.encoder.calls == 1)
+        }
+    }
+
+    /// 拉取 tick 刻意設成十秒：初連與重連都必須在 tick 前送出 keyframe。
+    @Test func viewerImmediatelyGetsCachedKeyframeAndDisconnectStopsHeartbeats() async throws {
+        try await withController(pullInterval: .seconds(10)) { h in
+            h.controller.secondary.put(frame(8))
+            let firstViewer = webSocket(h.port, "/ws/video")
+            _ = try await receiveData(firstViewer)
+            firstViewer.cancel(with: .normalClosure, reason: nil)
+            while h.controller.sessionState.hasVideo { await Task.yield() }
+            let calls = h.encoder.calls
+            try await Task.sleep(for: .milliseconds(600))
+            #expect(h.encoder.calls == calls)
+            #expect(h.controller.stats().framesPulled == 1)
+
+            let connectedAt = ContinuousClock.now
+            let nextViewer = webSocket(h.port, "/ws/video")
+            defer { nextViewer.cancel(with: .normalClosure, reason: nil) }
+            let nextData = try await receiveData(nextViewer)
+            let next = try #require(RemoteVideoMessage.decode(nextData))
+            #expect(ContinuousClock.now - connectedAt < .seconds(1))
+            #expect(next.isKeyframe)
+            #expect(next.sequence == 2)
+            #expect(h.controller.stats().framesPulled == 1) // 唯一一幀已取走，只能靠快取
+        }
+    }
+
+    @Test func pendingKeyframeWaitsForFirstFrameAndViewerCanRequestAnother() async throws {
+        try await withController(heartbeatInterval: .seconds(10)) { h in
+            let video = webSocket(h.port, "/ws/video")
+            defer { video.cancel(with: .normalClosure, reason: nil) }
+            while h.encoder.requests < 1 { await Task.yield() }
+            #expect(h.encoder.calls == 0)
+            h.controller.secondary.put(frame(8))
+            _ = try await receiveData(video)
+            try await video.send(.string("keyframe"))
+            let requestedData = try await receiveData(video)
+            let requested = try #require(RemoteVideoMessage.decode(requestedData))
+            #expect(requested.isKeyframe)
+            #expect(requested.sequence == 2)
+            #expect(h.controller.stats().framesPulled == 1)
         }
     }
 

@@ -226,6 +226,15 @@ final class RemoteServerCore: @unchecked Sendable {
         if accepted { wakeup?.yield(()) }
     }
 
+    /// 已配對的 video viewer 在 decoder.flush 後要求 IDR；沿用有序的效果回呼。
+    func requestVideoKeyframe(channelID: ObjectIdentifier) {
+        lock.lock()
+        guard !stopped, kinds[channelID] == .video else { lock.unlock(); return }
+        pendingEffects.append(onKeyframeRequested)
+        lock.unlock()
+        performEffects()
+    }
+
     /// 寫出迴圈在連線建立後呼叫。回傳的 stream 每收到一個值代表「佇列有東西」；
     /// 立刻 yield 一次是為了把連線建立前就排進佇列的 keyframe 送出去。
     func attachVideoWakeups(channelID: ObjectIdentifier) -> AsyncStream<Void> {
