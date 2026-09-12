@@ -61,7 +61,7 @@ def send_text(args):
 def verify(args):
     adb = str(Path.home() / "Library/Android/sdk/platform-tools/adb")
     launch = subprocess.run([adb, "-s", args.serial, "shell", "am", "start", "-W", "-n",
-                             PACKAGE + "/.search.SearchActivity"],
+                             PACKAGE + "/.modules.search.SearchActivity"],
                             capture_output=True, text=True, timeout=20)
     print("設定搜尋啟動證據：" + launch.stdout + launch.stderr, flush=True)
     if launch.returncode or "Error" in launch.stdout + launch.stderr:
