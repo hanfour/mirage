@@ -12,26 +12,37 @@ enum RemoteHTTPConnection {
     static func run(_ channel: Channel, core: RemoteServerCore) async throws {
         let channelID = ObjectIdentifier(channel.channel)
         try await channel.executeThenClose { inbound, outbound in
+            // 帶 Upgrade 標頭但被拒絕時，NIO 不會重送 head。先消耗保存的拒絕決定。
+            if let rejection = core.takePendingRejection(channelID: channelID) {
+                try await outbound.write(contentsOf: responseParts(for: rejection, viewerPage: core.configuration.viewerPage))
+                return
+            }
             for try await part in inbound {
                 guard case .head(let head) = part else { continue }
-                let route = core.route(channelID: channelID, method: head.method.rawValue, uri: head.uri)
+                let route = core.route(method: head.method.rawValue, uri: head.uri)
                 core.recordHTTP(route)
-                let response = response(for: route, viewerPage: core.configuration.viewerPage)
-                // 不快取配對頁；完整寫 head/body/end 後才離開 scope。
-                // 拒絕升級也走同一路徑，URLSession 才能讀到 403／409。
-                var headers = HTTPHeaders()
-                headers.add(name: "Content-Type", value: response.contentType)
-                headers.add(name: "Content-Length", value: String(response.body.count))
-                headers.add(name: "Cache-Control", value: "no-store")
-                headers.add(name: "Connection", value: "close")
-                try await outbound.write(contentsOf: [
-                    .head(HTTPResponseHead(version: .http1_1, status: response.status, headers: headers)),
-                    .body(ByteBuffer(bytes: response.body)),
-                    .end(nil),
-                ])
+                try await outbound.write(contentsOf: responseParts(for: route, viewerPage: core.configuration.viewerPage))
                 return
             }
         }
+    }
+
+    /// 兩種 HTTP 路徑使用相同 part 型別，由 RemoteHTTPResponsePartHandler 轉給 encoder。
+    /// 不快取配對頁；完整寫 head/body/end 後才離開 executeThenClose scope。
+    private static func responseParts(for route: RemoteRoute, viewerPage: Data)
+        -> [HTTPPart<HTTPResponseHead, ByteBuffer>]
+    {
+        let response = response(for: route, viewerPage: viewerPage)
+        var headers = HTTPHeaders()
+        headers.add(name: "Content-Type", value: response.contentType)
+        headers.add(name: "Content-Length", value: String(response.body.count))
+        headers.add(name: "Cache-Control", value: "no-store")
+        headers.add(name: "Connection", value: "close")
+        return [
+            .head(HTTPResponseHead(version: .http1_1, status: response.status, headers: headers)),
+            .body(ByteBuffer(bytes: response.body)),
+            .end(nil),
+        ]
     }
 
     static func response(for route: RemoteRoute, viewerPage: Data)

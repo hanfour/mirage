@@ -55,7 +55,7 @@ final class RemoteServerCore: @unchecked Sendable {
     private var queue: RemoteVideoQueue
     private var allocator = RemoteTouchIdentifierAllocator()
     private var stopped = false
-    private var rejectedRoutes: [ObjectIdentifier: RemoteRoute] = [:]
+    private var pendingRejections: [ObjectIdentifier: RemoteRoute] = [:]
     private var pendingEffects: [@Sendable () -> Void] = []
     private var performingEffects = false
     private var kinds: [ObjectIdentifier: RemoteUpgradeKind] = [:]
@@ -101,14 +101,19 @@ final class RemoteServerCore: @unchecked Sendable {
 
     // MARK: - 連線生命週期
 
-    func route(channelID: ObjectIdentifier, method: String, uri: String) -> RemoteRoute {
+    func route(method: String, uri: String) -> RemoteRoute {
         lock.lock(); defer { lock.unlock() }
-        // shouldUpgrade 拒絕時的決定不可因原連線剛好離開而從 409 變成 426。
-        return rejectedRoutes[channelID]
-            ?? RemoteRequestRouter.route(method: method, uri: uri, token: configuration.token, state: session)
+        return RemoteRequestRouter.route(method: method, uri: uri, token: configuration.token, state: session)
     }
 
-    /// `shouldUpgrade` 呼叫：鎖內路由＋保留名額。回 nil 代表拒絕，NIO 會把請求交回 HTTP 路徑算狀態碼。
+    /// 拒絕決定只取一次，HTTP 路徑不再等 NIO 未保留的 request head，也不重新計數。
+    func takePendingRejection(channelID: ObjectIdentifier) -> RemoteRoute? {
+        lock.lock(); defer { lock.unlock() }
+        return pendingRejections.removeValue(forKey: channelID)
+    }
+
+    /// `shouldUpgrade` 呼叫：鎖內路由＋保留名額；拒絕時保存決定並計數。
+    /// 原連線即使隨後離開，已決定的 409 也不能變成 426。
     func admitUpgrade(channel: any Channel, method: String, uri: String) -> RemoteUpgradeKind? {
         lock.lock()
         guard !stopped, channels[ObjectIdentifier(channel)] != nil else { lock.unlock(); return nil }
@@ -120,7 +125,8 @@ final class RemoteServerCore: @unchecked Sendable {
         default: kind = nil
         }
         guard let kind else {
-            rejectedRoutes[ObjectIdentifier(channel)] = route
+            pendingRejections[ObjectIdentifier(channel)] = route
+            recordHTTPLocked(route)
             lock.unlock()
             return nil
         }
@@ -154,7 +160,7 @@ final class RemoteServerCore: @unchecked Sendable {
     func channelClosed(_ id: ObjectIdentifier) {
         lock.lock()
         channels[id] = nil
-        rejectedRoutes[id] = nil
+        pendingRejections[id] = nil
         guard let kind = kinds.removeValue(forKey: id) else { lock.unlock(); return }
         if kind == .video { wakeup?.finish(); wakeup = nil }
         let effects = applyLocked(kind == .video ? .videoClosed : .inputClosed)
@@ -163,8 +169,13 @@ final class RemoteServerCore: @unchecked Sendable {
         performEffects()
     }
 
+    /// 僅供一般 HTTP 請求使用；升級拒絕已在 admitUpgrade 計數。
     func recordHTTP(_ route: RemoteRoute) {
         lock.lock(); defer { lock.unlock() }
+        recordHTTPLocked(route)
+    }
+
+    private func recordHTTPLocked(_ route: RemoteRoute) {
         switch route {
         case .forbidden: rejectedForbidden += 1
         case .busy: rejectedBusy += 1
@@ -178,7 +189,7 @@ final class RemoteServerCore: @unchecked Sendable {
         let open = Array(channels.values)
         channels.removeAll()
         kinds.removeAll()
-        rejectedRoutes.removeAll()
+        pendingRejections.removeAll()
         wakeup?.finish()
         wakeup = nil
         let effects = applyLocked(.stopRequested)

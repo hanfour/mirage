@@ -140,6 +140,11 @@ public final class RemoteServer: @unchecked Sendable {
             })
         let upgradeConfiguration = NIOTypedHTTPServerUpgradeConfiguration(
             upgraders: [upgrader],
+            // NIO 2.101.3：NIOTypedHTTPServerUpgraderStateMachine.swift:181-183
+            // 對帶 Upgrade 的請求不 buffer head；shouldUpgrade 回 nil 後，
+            // NIOTypedHTTPServerUpgradeHandler.swift:352-362 執行此 initializer 再 unbuffer，
+            // HTTP 路徑只收到後續 part（無 body 時只有 end），不能等待 head 才回應。
+            // RemoteHTTPConnection 會先取 core 保存的拒絕決定，直接寫完整 403／409。
             notUpgradingCompletionHandler: { channel in
                 channel.eventLoop.makeCompletedFuture {
                     try channel.pipeline.syncOperations.addHandler(RemoteHTTPResponsePartHandler())
