@@ -1,0 +1,36 @@
+# 區域網路手機遙控：實作結果（2026-09-12）
+
+設計：`docs/specs/2026-09-12-lan-remote-control-design.md`。實作分兩個分支合併：MirageCore 端（純函式、NIO 伺服器、手機頁面）與 MirageShell 端（VideoToolbox 編碼器、controller、選單、生命週期）。
+
+## 1. 端到端
+
+| 項目 | 結果 |
+|---|---|
+| iPhone（iOS 18.7、Safari 26.6.1）經 Tailscale 開 `?t=` 網址 | 畫面即模擬器鏡像；WS 往返 47 到 57 ms |
+| 手機端抵達到畫出 p50/p95 | 5/6 ms（與 spike 相同） |
+| `verify_remote_mirror.sh`（Python 用戶端，127.0.0.1） | 第一個 keyframe 0 秒；10 秒收 280 幀、幀序缺口 0；觸控經 `/ws/input` → `InputQueue` → 模擬器，guest getevent 看到按下與放開各 1 次 |
+| 驗收線 7 對照（`verify_remote_fps.sh`，`GUEST_MIN=45`、每臂 3 輪×2 pass） | Mirage 中位數：關 46、開 46；guest：關 48.5 到 54.2、開 46.6 到 51.3。判定「開 ≥ 關 − 3」通過 |
+
+對照時這台機器連遙控關閉都只有 46 到 50（平常 55 到 58），是當天的主機狀態，兩臂在同一狀態下交錯量。
+
+## 2. 實作中被實測推翻的三件事
+
+1. 硬體 H.264 編碼器不支援 `MaxFrameDelayCount`，設定回 `-12900`。改成必要屬性（硬體、`RealTime`、`AllowFrameReordering=false`、profile）失敗才中止，可選屬性失敗只記錄在 `skippedProperties`。活體測試斷言這台機器會跳過 `MaxFrameDelayCount`。
+2. 畫面靜止時手機黑畫面：`LatestFrameBox` 只在畫面變化時有幀，controller 沒東西可編，連第一張 keyframe 都送不出。加 250 ms 心跳重編最後一幀，viewer 連上時立刻送 keyframe。
+3. 心跳幀第一版一律送 IDR（22 秒收 101 幀其中 92 幀 keyframe），Mac 端約 70% CPU，回壓到 guest（對照時 guest 從 51 到 53 掉到 47 到 50，一個 pass 有兩輪 32）。改成心跳與間歇新幀都是 P-frame，IDR 只在 viewer 連上、明確請求、session 重建、GOP 到期四種情況；像素緩衝改用 pool。改完 280 幀只有 3 個 keyframe，對照通過。
+
+## 3. 其他在實作中定案的細節
+
+- `/ws/input` 必須依附 `/ws/video`（否則 409）；video 斷線時 input 一併關閉並放開所有手指。第一版兩條各自獨立，拿到 token 的第二台裝置可以不看畫面就注入觸控。
+- NIO typed 升級被拒絕時不重送 request head（`NIOTypedHTTPServerUpgraderStateMachine.swift:181-183`），403／409 要由 `shouldUpgrade` 記下、HTTP 路徑不等 head 直接回。
+- 手機連著時關 Mac 視窗不 suspend；手機斷線後若視窗仍隱藏，補走與關視窗相同的 suspend 路徑。
+- 配對網址與 token 不印進 stdout，只從選單列取得（QR 或複製）。
+- viewer 閒置 2 秒才 flush 解碼器並請求 keyframe；心跳每 250 ms 到就不會觸發。
+- `MIRAGE_REMOTE=1`、`MIRAGE_REMOTE_PORT`、`MIRAGE_REMOTE_TOKEN`、`MIRAGE_REMOTE_PULL_FPS`（5 到 60，預設 30）供腳本與 A/B 用。
+
+## 4. 未做與已知限制
+
+- Android：WebCodecs 需要 HTTPS，未做。
+- glass-to-glass 延遲未量（要第三台裝置同框拍）。手機端內部 5 ms、往返約 50 ms（Tailscale）；Wi-Fi 直連未量。
+- macOS 防火牆對每次重新打包的 ad-hoc 簽署 app 都會問一次「允許傳入連線」，不按允許就只有本機能連。腳本一律連 127.0.0.1。
+- 驗收線 7 的絕對值 55 這天沒達到（遙控關閉時也只有 46），對照只證明開關差距在容許範圍內。
