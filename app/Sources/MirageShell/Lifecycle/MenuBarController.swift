@@ -13,6 +13,8 @@ final class MenuBarController: NSObject, NSMenuDelegate {
     private let audioHealthItem: NSMenuItem
     private let muteItem: NSMenuItem
     private let forceMenu: NSMenu
+    /// 「切換模擬器」子選單。內容每次展開前由 `instanceEntries` 重算（探索檔隨模擬器起停而變）。
+    private let instanceMenu: NSMenu
 
     /// Task 6：AppModel.startDetection() 綁定這三個回呼到 setOverride(.disabled/.auto/.force(profile))。
     var onDisable: (() -> Void)?
@@ -21,6 +23,11 @@ final class MenuBarController: NSObject, NSMenuDelegate {
 
     /// P1-e：AppModel.startLifecycle() 綁定 → NSApp.keyWindow?.toggleFullScreen(nil)。
     var onToggleFullScreen: (() -> Void)?
+
+    /// 模擬器多開（2026-09-12）：AppModel.setupInstanceMenu() 綁定。前者在子選單展開前
+    /// 被呼叫、回傳要顯示的列；後者在使用者選了某一台時被呼叫。
+    var instanceEntries: (() -> [InstanceMenuEntry])?
+    var onSwitchInstance: ((EmulatorInstance) -> Void)?
 
     /// P1-e：AppModel.startAudio() 綁定 → AudioPlayer.setMuted。
     var onToggleMute: (() -> Void)?
@@ -48,8 +55,11 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         audioHealthItem.isEnabled = false
         audioHealthItem.isHidden = true
         forceMenu = NSMenu()
+        instanceMenu = NSMenu()
+        instanceMenu.autoenablesItems = false   // 停用與否由 populate 決定，不讓 AppKit 依 action 猜
         super.init()
         forceMenu.delegate = self
+        instanceMenu.delegate = self
 
         let menu = NSMenu()
         menu.addItem(statusMenuItem)
@@ -62,6 +72,9 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         muteItem.action = #selector(muteTapped)
         muteItem.target = self
         menu.addItem(muteItem)
+        let instanceParent = NSMenuItem(title: "切換模擬器", action: nil, keyEquivalent: "")
+        instanceParent.submenu = instanceMenu   // 與「套用 profile」同形：AppKit 自己畫 ▸
+        menu.addItem(instanceParent)
         menu.addItem(.separator())
         menu.addItem(withTitle: "返回", action: #selector(backTapped), keyEquivalent: "").target = self
         menu.addItem(withTitle: "主畫面", action: #selector(homeTapped), keyEquivalent: "").target = self
@@ -94,9 +107,14 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         audioHealthItem.isHidden = state != .degraded
     }
 
-    /// 每次「套用 profile」子選單要顯示前重新掃描，讓 saveProfile 新存的 profile
-    /// 不需重開 App 就會出現——比起只在 init 建一次更貼近「選單即時反映磁碟狀態」。
+    /// 兩個子選單都在展開前重算：「套用 profile」掃 profile 目錄、「切換模擬器」掃探索檔。
+    /// 兩者都是「選單即時反映磁碟狀態」，不在 init 建一次。
     func menuNeedsUpdate(_ menu: NSMenu) {
+        if menu === instanceMenu {
+            Self.populate(instanceMenu: instanceMenu, entries: instanceEntries?() ?? [],
+                          target: self, action: #selector(instanceTapped(_:)))
+            return
+        }
         guard menu === forceMenu else { return }
         forceMenu.removeAllItems()
         for gameId in Self.availableGameIds() {
@@ -119,6 +137,28 @@ final class MenuBarController: NSObject, NSMenuDelegate {
     @objc private func forceTapped(_ sender: NSMenuItem) {
         guard let gameId = sender.representedObject as? String else { return }
         onForce?(gameId)
+    }
+
+    @objc private func instanceTapped(_ sender: NSMenuItem) {
+        guard let instance = sender.representedObject as? EmulatorInstance else { return }
+        onSwitchInstance?(instance)
+    }
+
+    /// 純佈局：entries → NSMenuItem。抽成 static 是為了測試——建 `MenuBarController` 會在
+    /// 開發機的選單列放一個狀態列圖示，測試只該碰一個裸的 NSMenu。
+    static func populate(instanceMenu menu: NSMenu, entries: [InstanceMenuEntry],
+                         target: AnyObject?, action: Selector?) {
+        menu.autoenablesItems = false
+        menu.removeAllItems()
+        for entry in entries {
+            let item = NSMenuItem(title: entry.title, action: entry.isEnabled ? action : nil,
+                                  keyEquivalent: "")
+            item.target = entry.isEnabled ? target : nil
+            item.isEnabled = entry.isEnabled
+            item.state = entry.isCurrent ? .on : .off
+            item.representedObject = entry.instance
+            menu.addItem(item)
+        }
     }
 
     /// 列舉可用 profile 的 gameId：直接掃描 `ProfileStore.standardDirectory()` 指到的目錄
