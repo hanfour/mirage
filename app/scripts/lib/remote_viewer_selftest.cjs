@@ -212,7 +212,7 @@ test('stats=0 hides even the marker, but errors remain visible in every stats mo
     const h = harness({search, storage: new Map([['mirage.statsCollapsed', '1']])});
     assert.equal(h.elements['#panel'].hidden, true);
     assert.equal(h.elements['#stats-toggle'].hidden, search.includes('stats=0'));
-    h.sockets[0].onerror();
+    h.run('reportError("WebSocket error")');
     assert.equal(h.elements['#error'].hidden, false);
     assert.match(h.elements['#error'].textContent, /WebSocket error/);
     h.receive(1);
@@ -339,4 +339,122 @@ test('negative Safari pointer IDs map to small reusable wire IDs across all phas
   assert.equal(h.run('active.size'), 0);
   fire('pointermove', -10102172);
   assert.equal(h.sockets[1].sent.length, 7);
+});
+
+
+test('either socket reconnects the pair with the same token and a fresh decoder waiting for IDR', async () => {
+  for (const closed of [0, 1]) {
+    const h = harness({immediateOutput:true});
+    h.sockets[0].onopen(); h.sockets[1].onopen(); h.receive(99);
+    h.run('active.set(-10102172, 0)');
+    const oldMessage = h.sockets[0].onmessage, oldClose = h.sockets[1].onclose;
+    h.sockets[closed].onclose(); oldClose();
+    assert.equal(h.run('status'), 'reconnecting (1/3)');
+    assert.equal(h.run('active.size'), 0);
+    assert.equal(h.decoders[0].state, 'closed');
+    await h.advance(999); assert.equal(h.sockets.length, 2);
+    await h.advance(1); assert.equal(h.sockets.length, 3);
+    assert.equal(h.sockets[2].url, h.sockets[0].url);
+    assert.equal(h.decoders[1].state, 'configured');
+    h.sockets[2].onopen(); h.sockets[3].onopen();
+    oldMessage({data:'{"type":"stats","newFrames":999}'});
+    assert.equal(h.run('macStats'), null);
+    h.receive(1, false);
+    assert.equal(h.decoders[1].chunks.length, 0);
+    assert.equal(h.run('status'), 'reconnecting (1/3)');
+    h.receive(2);
+    assert.equal(h.run('status'), 'streaming');
+    assert.equal(h.run('reconnectAttempts'), 0);
+    assert.equal(h.run('gaps'), 0);
+    assert.equal(h.elements['#error'].hidden, true);
+  }
+});
+
+test('failed retries use 1/2/4 second delays and only then show reload, including stats=0', async () => {
+  const h = harness({search:'?t=abc&stats=0'});
+  h.sockets[0].onclose();
+  for (const [index, delay] of [1000, 2000, 4000].entries()) {
+    assert.equal(h.run('status'), `reconnecting (${index + 1}/3)`);
+    assert.equal(h.elements['#error'].hidden, true);
+    const count = h.sockets.length;
+    await h.advance(delay - 1); assert.equal(h.sockets.length, count);
+    await h.advance(1); assert.equal(h.sockets.length, count + 1);
+    // Even video opening does not reset the budget if input never opens.
+    h.sockets.at(-1).onopen();
+    h.sockets.at(-1).onclose();
+  }
+  assert.match(h.run('status'), /reload to reconnect/);
+  assert.equal(h.elements['#error'].hidden, false);
+  const count = h.sockets.length;
+  await h.advance(10000); assert.equal(h.sockets.length, count);
+});
+
+test('a stalled handshake times out instead of hanging a retry forever', async () => {
+  const h = harness();
+  await h.advance(5000);
+  assert.equal(h.run('status'), 'reconnecting (1/3)');
+  await h.advance(1000);
+  await h.advance(5000);
+  assert.equal(h.run('status'), 'reconnecting (2/3)');
+});
+
+test('decode throws and closed-decoder error callbacks rebuild/configure and stop at three errors', () => {
+  for (const callback of [false, true]) {
+    const h = harness();
+    h.receive(1);
+    let sequence = 1;
+    for (let n = 1; n <= 3; n++) {
+      const old = h.decoders.at(-1);
+      if (callback) { old.close(); old.callbacks.error(Error('bad bitstream')); }
+      else { old.decode = () => { throw Error('decode failed'); }; h.receive(++sequence); }
+      assert.equal(old.state, 'closed');
+      assert.equal(h.run('pending.size'), 0);
+      assert.equal(h.run('waiting'), true);
+      if (n < 3) {
+        assert.equal(h.decoders.at(-1).state, 'configured');
+        assert.equal(h.decoders.length, n + 1);
+        assert.equal(h.sockets[0].sent.length, n);
+        h.receive(++sequence, false);
+        assert.equal(h.decoders.at(-1).chunks.length, 0);
+        old.callbacks.error(Error('stale error'));
+        assert.equal(h.run('decodeErrors'), n);
+      }
+    }
+    assert.equal(h.run('configurationFailed'), true);
+    assert.match(h.elements['#error'].textContent, /3 consecutive errors/);
+    h.receive(100);
+    assert.equal(h.decoders.length, 3);
+  }
+});
+
+test('successful output resets the consecutive decoder error count', () => {
+  const h = harness({immediateOutput:true});
+  h.receive(1);
+  for (let n = 2; n <= 5; n++) {
+    h.decoders.at(-1).callbacks.error(Error('transient'));
+    assert.equal(h.run('decodeErrors'), 1);
+    h.receive(n);
+    assert.equal(h.run('decodeErrors'), 0);
+  }
+  assert.equal(h.run('configurationFailed'), false);
+  assert.equal(h.draws(), 5);
+});
+
+
+test('old flush completion and output cannot affect a reconnected decoder', async () => {
+  const h = harness();
+  h.sockets[0].onopen(); h.receive(1);
+  const old = h.decoders[0];
+  let complete;
+  old.flush = () => new Promise(resolve => { complete = resolve; });
+  const flushing = h.advance(2000);
+  h.sockets[0].onclose();
+  await h.advance(1000);
+  h.sockets[2].onopen();
+  const sent = h.sockets[2].sent.length;
+  old.emit(old.chunks[0]);
+  complete(); await flushing;
+  assert.equal(h.draws(), 0);
+  assert.equal(h.sockets[2].sent.length, sent);
+  assert.equal(h.run('waiting'), true);
 });

@@ -69,6 +69,7 @@ function harness({immediateOutput = false, search = '?t=abc', storage = new Map(
     static OPEN = 1;
     constructor(url) { this.url = url; this.readyState = 1; this.bufferedAmount = 0; this.sent = []; sockets.push(this); }
     send(text) { this.sent.push(text); }
+    close() { this.readyState = 3; this.onclose?.(); }
   }
   const document = {querySelector: selector => elements[selector], documentElement: root,
     addEventListener() {}, visibilityState: 'visible', activeElement: null};

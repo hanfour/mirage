@@ -85,6 +85,8 @@ const base = `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host
 let decoder, video, input, wake, decoded = 0, lastDecoded = 0, received = 0, gaps = 0, localDrops = 0;
 let lastSeq = null, waiting = true, rtt = NaN, samples = [], pending = new Map(), tick = performance.now();
 let idleFlushTimer = null, keyframeRequested = false, flushingDecoder = null;
+let reconnectAttempts = 0, reconnectTimer = null, connectionTimer = null, generation = 0;
+let reconnecting = false, inputReady = false, frameReady = false, decodeErrors = 0;
 let status = 'initializing', lastTouch = 'none', inputDrops = 0;
 const lines = [];
 function note(s) { lines.push(`${new Date().toISOString()} ${s}`); if(lines.length > 180) lines.shift(); log.textContent = lines.join('\n'); log.scrollTop = log.scrollHeight; }
@@ -107,6 +109,7 @@ function configureDecoder() {
     decoder.configure(config());
     return true;
   } catch (e) {
+    clearTimeout(connectionTimer);
     configurationFailed = true;
     status = `configure failed (${codec}): ${e.message}`;
     reportError(status);
@@ -154,9 +157,79 @@ function reset(reason, category = 'error') {
   }
   note(`${reason}; drops=${JSON.stringify(dropReasons)}`);
 }
+// Close/recreate also handles WebCodecs error callbacks that have already closed the decoder.
+function discardDecoder() {
+  cancelIdleFlush();
+  if (decoder && decoder.state !== 'closed') decoder.close();
+  decoder = null;
+  flushingDecoder = null;
+  dropReasons.error += pending.size;
+  localDrops += pending.size;
+  pending.clear();
+  waiting = true;
+  keyframeRequested = false;
+}
+function recoverDecoder(e) {
+  discardDecoder();
+  decodeErrors++;
+  if (decodeErrors >= 3) {
+    clearTimeout(connectionTimer);
+    configurationFailed = true;
+    status = 'decoder failed after 3 consecutive errors; reload to reconnect';
+    reportError(status);
+    return;
+  }
+  note(`decoder recovery (${decodeErrors}/3): ${e.message}`);
+  decoder = makeDecoder();
+  if (codec && !configureDecoder()) return;
+  requestKeyframe();
+}
+function connectionHealthy() {
+  if (!inputReady || !frameReady || configurationFailed) return;
+  if (connectionTimer === null && !reconnecting) return;
+  clearTimeout(connectionTimer);
+  connectionTimer = null;
+  reconnecting = false;
+  reconnectAttempts = 0;
+  status = 'streaming';
+  errorPanel.hidden = true;
+}
+function reconnect(reason) {
+  if (reconnectTimer !== null) return;
+  generation++; // Ignore callbacks (including delayed output/flush) from the old pair.
+  clearTimeout(connectionTimer);
+  connectionTimer = null;
+  for (const socket of [video, input]) {
+    if (socket) { socket.onclose = socket.onerror = socket.onmessage = socket.onopen = null; socket.close(); }
+  }
+  video = input = null;
+  inputReady = frameReady = false;
+  active.clear();
+  discardDecoder();
+  lastSeq = null;
+  if (reconnectAttempts >= 3) {
+    reconnecting = false;
+    status = `${reason}; reload to reconnect`;
+    reportError(status);
+    return;
+  }
+  reconnecting = true;
+  status = `reconnecting (${++reconnectAttempts}/3)`;
+  panel.textContent = status;
+  errorPanel.hidden = true;
+  note(`${reason}; ${status}`);
+  reconnectTimer = setTimeout(() => {
+    reconnectTimer = null;
+    start();
+  }, 1000 * 2 ** (reconnectAttempts - 1));
+}
 function makeDecoder() {
-  return new VideoDecoder({
+  const target = new VideoDecoder({
     output(frame) {
+      if (decoder !== target) { frame.close(); return; }
+      decodeErrors = 0;
+      frameReady = true;
+      connectionHealthy();
       const now = performance.now(), arrived = pending.get(frame.timestamp);
       if (arrived !== undefined) {
         samples.push(now - arrived);
@@ -169,17 +242,11 @@ function makeDecoder() {
         ctx.drawImage(frame, 0, 0, canvas.width, canvas.height); decoded++;
       } finally { frame.close(); }
     },
-    error(e) {
-      cancelIdleFlush();
-      status = `decoder error (${codec}): ${e.message}`;
-      reportError(status);
-      dropReasons.error += pending.size;
-      localDrops += pending.size;
-      pending.clear();
-      waiting = true;
-    }
+    error(e) { if (decoder === target) recoverDecoder(e); }
   });
+  return target;
 }
+
 function send(obj) {
   if (input?.readyState === WebSocket.OPEN && input.bufferedAmount < 65536) {
     input.send(JSON.stringify(obj)); return true;
@@ -231,10 +298,12 @@ textInput.addEventListener('beforeinput', e => {
 // input 必須等 video 握手完成，才屬於目前的配對。
 function connectInput() {
   input = new WebSocket(base + '/ws/input' + query);
-  input.onopen = () => note('input connected');
-  input.onclose = () => reportError('input disconnected; reload to reconnect');
-  input.onerror = () => reportError('input WebSocket error');
+  const current = generation;
+  input.onopen = () => { if (current !== generation) return; inputReady = true; connectionHealthy(); note('input connected'); };
+  input.onclose = () => { if (current === generation) reconnect('input disconnected'); };
+  input.onerror = () => { if (current === generation) reconnect('input WebSocket error'); };
   input.onmessage = event => {
+    if (current !== generation) return;
     try {
       const obj = JSON.parse(event.data);
       if(obj.type === 'ping') rtt = performance.now() - obj.t;
@@ -249,17 +318,24 @@ async function start() {
     return;
   }
   try {
+    const current = generation;
+    connectionTimer = setTimeout(() => {
+      if (current === generation) reconnect('connection timed out');
+    }, 5000);
+    if (codec && !configurationFailed) { decoder = makeDecoder(); if (!configureDecoder()) return; }
     // codec 必須等首個 keyframe 裡的 SPS，不能預先猜測。
     video = new WebSocket(base + '/ws/video' + query); video.binaryType = 'arraybuffer';
-    video.onopen = () => { status = 'waiting for IDR';
+    video.onopen = () => {
+      if (current !== generation) return;
+      if (!reconnecting) status = 'waiting for IDR';
       connectInput();
+      if (reconnecting) requestKeyframe();
       note(status);
     };
-    video.onclose = () => { cancelIdleFlush(); status = 'video disconnected; reload to reconnect';
-      reportError(status);
-    };
-    video.onerror = () => reportError('video WebSocket error');
+    video.onclose = () => { if (current === generation) reconnect('video disconnected'); };
+    video.onerror = () => { if (current === generation) reconnect('video WebSocket error'); };
     video.onmessage = event => {
+      if (current !== generation) return;
       if (typeof event.data === 'string') {
         try {
           const message = JSON.parse(event.data);
@@ -302,14 +378,16 @@ async function start() {
         // Unique local timestamp identifies output; no server/browser clock synchronization assumed.
         const timestamp = received * 16667;
         pending.set(timestamp, arrival);
-        decoder.decode(new EncodedVideoChunk({type:key ? 'key' : 'delta', timestamp, data:new Uint8Array(data, 13)}));
+        const target = decoder;
+        try { target.decode(new EncodedVideoChunk({type:key ? 'key' : 'delta', timestamp, data:new Uint8Array(data, 13)})); }
+        catch (e) { if (decoder === target) recoverDecoder(e); return; }
+        if (decoder !== target) return;
         scheduleIdleFlush();
-        status = 'streaming';
+        if (!reconnecting) status = 'streaming';
       } catch(e) { status = 'video error: ' + e.message; reset(status); reportError(status); }
     };
   } catch(e) {
-    status = e.message;
-    reportError(status);
+    reconnect(e.message);
   }
 }
 let macStats = null;
