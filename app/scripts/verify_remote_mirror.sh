@@ -192,6 +192,8 @@ assert_at_least "R3 guest 收到按下（ABS_MT_TRACKING_ID）" "$downs" 1
 assert_at_least "R3 guest 收到放開" "$ups" 1
 echo "ping 往返：${PING_RTT_MS:-?} ms（loopback，只是工具健康度，不是手機的數字）"
 echo ""
+MAC_SUMMARY=$(sed -n 's/^MAC_STATS_LAST=//p' "$CLIENT_LOG" | tail -1)
+echo "Mac 延遲摘要（最後一窗，毫秒）：${MAC_SUMMARY:-未收到 stats，無法量測}"
 echo "=== 第五段：遠端導覽鍵 → guest 前景活動 ==="
 # 沿用 emu.sh foreground_on：只看第一條 topResumedActivity，不能把歷史 task 當前景。
 # 解析完整 component，保留套件數字／底線；每次採樣都印出原始證據。

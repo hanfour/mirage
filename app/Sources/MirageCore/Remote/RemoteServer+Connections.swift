@@ -109,7 +109,12 @@ enum RemoteVideoConnection {
                     // wakeup 只合併通知，實際資料與 GOP 丟棄規則仍在 core 的佇列。
                     // writer 等待可寫期間，producer 仍能 offer 並觸發背壓丟幀。
                     for await _ in wakeups {
-                        while let entry = core.popVideoEntry(channelID: channelID) {
+                        while true {
+                            if let json = core.popStats(channelID: channelID) {
+                                try await outbound.write(WebSocketFrame(
+                                    fin: true, opcode: .text, data: ByteBuffer(bytes: json)))
+                            }
+                            guard let entry = core.popVideoEntry(channelID: channelID) else { break }
                             let message = RemoteVideoMessage(
                                 sentAtNanoseconds: DispatchTime.now().uptimeNanoseconds,
                                 sequence: entry.sequence,

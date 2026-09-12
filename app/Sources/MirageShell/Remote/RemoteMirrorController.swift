@@ -42,14 +42,34 @@ private final class RemoteAccessUnitSequencer: @unchecked Sendable {
     private let lock = NSLock()
     private let server: RemoteServer
     private var sequence: UInt32 = 0
+    private var window = RemoteLatencyWindow()
+    private var windowStarted = ContinuousClock.now
 
     init(server: RemoteServer) { self.server = server }
 
-    func deliver(_ unit: H264AccessUnit) {
+    func recordPull(age: Duration, transitMs: Double?, heartbeat: Bool) {
+        lock.lock(); defer { lock.unlock() }
+        window.recordPull(age: age, transitMs: transitMs, heartbeat: heartbeat)
+    }
+
+    func publishIfDue(now: ContinuousClock.Instant = .now) {
+        lock.lock()
+        let interval = now - windowStarted
+        guard interval >= .seconds(1) else { lock.unlock(); return }
+        let summary = window.drain(interval: interval)
+        windowStarted = now
+        lock.unlock()
+        do { server.sendStats(try JSONEncoder().encode(summary)) }
+        catch { print("[remote] 統計 JSON 編碼失敗：\(error)") }
+    }
+
+    func deliver(_ unit: H264AccessUnit, started: ContinuousClock.Instant) {
+        let arrived = ContinuousClock.now
         lock.lock()
         sequence &+= 1
         let number = sequence
         server.send(accessUnit: unit.annexB, keyframe: unit.isKeyframe, sequence: number)
+        window.recordCompletion(encode: arrived - started, send: ContinuousClock.now - arrived)
         lock.unlock()
     }
 }
@@ -70,6 +90,7 @@ final class RemoteMirrorController: @unchecked Sendable {
     private let configuration: RemoteMirrorConfiguration
     private let server: RemoteServer
     private let encoder: any RemoteFrameEncoding
+    private let sequencer: RemoteAccessUnitSequencer
     private let onError: @Sendable (String) -> Void
     private let lock = NSLock()
     // 拉取、重連的立即送幀及 stop/invalidate 共用序列佇列；server／VT 回呼不等待它。
@@ -79,6 +100,7 @@ final class RemoteMirrorController: @unchecked Sendable {
     private var pendingKeyframe = false
     private var encodingFailed = false
     private var pullTask: Task<Void, Never>?
+    private var statsTask: Task<Void, Never>?
     private var stopped = false
     private var framesPulled = 0
     private var framesEncoded = 0
@@ -87,7 +109,7 @@ final class RemoteMirrorController: @unchecked Sendable {
     init(configuration: RemoteMirrorConfiguration,
          secondary: LatestFrameBox,
          inputQueue: InputQueue,
-         makeEncoder: (@escaping @Sendable (H264AccessUnit) -> Void) -> any RemoteFrameEncoding,
+         makeEncoder: () -> any RemoteFrameEncoding,
          onText: @escaping @Sendable (String) -> Void = { _ in },
          onError: @escaping @Sendable (String) -> Void = { _ in },
          onStateChanged: @escaping @Sendable (RemoteSessionState) -> Void = { _ in })
@@ -116,9 +138,8 @@ final class RemoteMirrorController: @unchecked Sendable {
                 onStateChanged(state)
             })
         self.server = server
-        let sequencer = RemoteAccessUnitSequencer(server: server)
-        let encoder = makeEncoder { sequencer.deliver($0) }
-        self.encoder = encoder
+        self.sequencer = RemoteAccessUnitSequencer(server: server)
+        self.encoder = makeEncoder()
         relay.attach(self)
     }
 
@@ -144,9 +165,11 @@ final class RemoteMirrorController: @unchecked Sendable {
     }
 
     func stop() async {
-        let task = beginStop()
+        let (task, statsTask) = beginStop()
         task?.cancel()
+        statsTask?.cancel()
         if let task { await task.value }
+        if let statsTask { await statsTask.value }
         await withCheckedContinuation { continuation in
             encodingQueue.async {
                 self.encoder.invalidate()
@@ -163,6 +186,14 @@ final class RemoteMirrorController: @unchecked Sendable {
     private func installPullTask() -> Bool {
         lock.lock(); defer { lock.unlock() }
         guard !stopped else { return false }
+        // 獨立計時，不讓慢編碼或沒有新幀遮住每秒統計。
+        let sequencer = self.sequencer
+        statsTask = Task.detached {
+            while !Task.isCancelled {
+                do { try await Task.sleep(for: .seconds(1)) } catch { return }
+                sequencer.publishIfDue()
+            }
+        }
         pullTask = Task.detached { [weak self] in
             guard let self else { return }
             await self.pullLoop()
@@ -170,11 +201,11 @@ final class RemoteMirrorController: @unchecked Sendable {
         return true
     }
 
-    private func beginStop() -> Task<Void, Never>? {
+    private func beginStop() -> (Task<Void, Never>?, Task<Void, Never>?) {
         lock.lock(); defer { lock.unlock() }
         stopped = true
         // 保留 task，重複 stop 的呼叫者也必須等它完成。
-        return pullTask
+        return (pullTask, statsTask)
     }
 
     private func recordPull() { lock.lock(); framesPulled += 1; lock.unlock() }
@@ -204,8 +235,8 @@ final class RemoteMirrorController: @unchecked Sendable {
     private func pullAndEncode() -> Bool {
         guard canEncode else { return false }
         guard server.sessionState.hasVideo else { return true }
-        let now = ContinuousClock.now
         let fresh = secondary.takeLatest()
+        let now = ContinuousClock.now
         if let fresh {
             lastFrame = fresh
             recordPull()
@@ -223,7 +254,10 @@ final class RemoteMirrorController: @unchecked Sendable {
         let frame = Frame(width: cached.width, height: cached.height, rgba: cached.rgba,
                           receivedAt: pts, transitMs: cached.transitMs)
         do {
-            try encoder.encode(frame)
+            let sequencer = self.sequencer
+            sequencer.recordPull(age: now - cached.receivedAt, transitMs: cached.transitMs, heartbeat: fresh == nil)
+            let started = ContinuousClock.now
+            try encoder.encode(frame) { unit in sequencer.deliver(unit, started: started) }
             lastEncodedAt = now
             pendingKeyframe = false
             recordEncoded()

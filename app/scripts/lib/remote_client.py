@@ -95,6 +95,21 @@ def connect_options():
     return {"proxy": None} if int(websockets.__version__.split(".")[0]) >= 15 else {}
 
 
+def report_stats(message, results):
+    """文字只作診斷，不干擾幀序、keyframe 期限或二進位解碼。"""
+    try:
+        stats = json.loads(message)
+    except (ValueError, TypeError) as error:
+        print(f"stats JSON error: {error}", file=sys.stderr)
+        return
+    if not isinstance(stats, dict) or stats.get("type") != "stats":
+        return
+    encoded = json.dumps(stats, ensure_ascii=False, separators=(",", ":"))
+    print(f"MAC_STATS={encoded}", flush=True)
+    results["MAC_STATS_WINDOWS"] = results.get("MAC_STATS_WINDOWS", 0) + 1
+    results["MAC_STATS_LAST"] = encoded
+
+
 async def receive_video(args, results):
     from websockets.asyncio.client import connect
 
@@ -112,6 +127,7 @@ async def receive_video(args, results):
             except asyncio.TimeoutError:
                 break
             if not isinstance(message, bytes):
+                report_stats(message, results)
                 continue
             _, seq, keyframe, _ = parse_header(message)
             if keyframe_at is None and not keyframe:
@@ -157,11 +173,13 @@ async def loop_forever(args):
     from websockets.asyncio.client import connect
 
     last_report = -1
+    stats_results = {}
     while True:
         try:
             async with connect(video_url(args.host, args.port, args.token), max_size=None, **connect_options()) as video:
                 async for message in video:
                     if not isinstance(message, bytes):
+                        report_stats(message, stats_results)
                         continue
                     parse_header(message)
                     second = int(time.time())

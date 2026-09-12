@@ -7,7 +7,9 @@ import VideoToolbox
 /// 編碼器抽象：`RemoteMirrorController` 只透過它餵幀、要求 keyframe、收掉 session，
 /// 測試用假件取代真的 VideoToolbox（硬體編碼器在沙箱裡不一定有）。
 protocol RemoteFrameEncoding: AnyObject, Sendable {
-    func encode(_ frame: Frame) throws
+    /// 回呼綁定這次提交；丟幀或 generation 失效時不呼叫，不能用 FIFO 對應計時。
+    /// 允許同步回呼，controller 必須在 encode 前取得 ContinuousClock 起點。
+    func encode(_ frame: Frame, onAccessUnit: @escaping @Sendable (H264AccessUnit) -> Void) throws
     func requestKeyframe()
     func invalidate()
 }
@@ -66,7 +68,7 @@ final class RemoteVideoEncoder: RemoteFrameEncoding, @unchecked Sendable {
 
     init(settings: RemoteVideoEncoderSettings = .init(),
          onError: @escaping @Sendable (String) -> Void = { _ in },
-         onAccessUnit: @escaping @Sendable (H264AccessUnit) -> Void)
+         onAccessUnit: @escaping @Sendable (H264AccessUnit) -> Void = { _ in })
     {
         self.onError = onError
         self.settings = settings
@@ -103,6 +105,10 @@ final class RemoteVideoEncoder: RemoteFrameEncoding, @unchecked Sendable {
     }
 
     func encode(_ frame: Frame) throws {
+        try encode(frame, onAccessUnit: onAccessUnit)
+    }
+
+    func encode(_ frame: Frame, onAccessUnit: @escaping @Sendable (H264AccessUnit) -> Void) throws {
         operationLock.lock(); defer { operationLock.unlock() }
         let pixelBuffer: CVPixelBuffer
         do {
@@ -130,7 +136,7 @@ final class RemoteVideoEncoder: RemoteFrameEncoding, @unchecked Sendable {
         let status = VTCompressionSessionEncodeFrame(
             current, imageBuffer: pixelBuffer, presentationTimeStamp: pts, duration: .invalid,
             frameProperties: properties, infoFlagsOut: nil) { [self] status, flags, sample in
-                handleOutput(status: status, flags: flags, sample: sample, generation: outputGeneration)
+                handleOutput(status: status, flags: flags, sample: sample, generation: outputGeneration, onAccessUnit: onAccessUnit)
             }
         guard status == noErr else { throw RemoteVideoEncoderError.encode(status) }
     }
@@ -201,7 +207,8 @@ final class RemoteVideoEncoder: RemoteFrameEncoding, @unchecked Sendable {
 
     /// VT 的執行緒上跑。`CMSampleBuffer` 不跨執行緒：在這裡就轉成 `[Data]`。
     private func handleOutput(status: OSStatus, flags: VTEncodeInfoFlags, sample: CMSampleBuffer?,
-                              generation outputGeneration: UInt64) {
+                              generation outputGeneration: UInt64,
+                              onAccessUnit: @Sendable (H264AccessUnit) -> Void) {
         lock.lock()
         guard generation == outputGeneration else { lock.unlock(); return }
         lock.unlock()

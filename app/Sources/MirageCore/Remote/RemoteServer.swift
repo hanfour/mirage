@@ -58,6 +58,9 @@ public final class RemoteServer: @unchecked Sendable {
         core.offer(accessUnit: accessUnit, keyframe: keyframe, sequence: sequence)
     }
 
+    /// 統計使用獨立的最新值槽，不受影像 GOP 丟棄影響。
+    public func sendStats(_ json: Data) { core.offerStats(json) }
+
     /// bind 失敗直接向呼叫者拋錯，UI 可維持功能關閉。
     /// stopped 與 started 分開記錄，涵蓋 bind 尚未完成就停止的情況。
     public func start() async throws -> Int {

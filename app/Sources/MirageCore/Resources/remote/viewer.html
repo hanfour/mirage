@@ -260,6 +260,13 @@ async function start() {
     };
     video.onerror = () => reportError('video WebSocket error');
     video.onmessage = event => {
+      if (typeof event.data === 'string') {
+        try {
+          const message = JSON.parse(event.data);
+          if (message?.type === 'stats') macStats = message;
+        } catch(e) { note('stats JSON error: ' + e.message); }
+        return;
+      }
       cancelIdleFlush();
       if (configurationFailed) return;
       const arrival = performance.now();
@@ -305,12 +312,18 @@ async function start() {
     reportError(status);
   }
 }
+let macStats = null;
+function macStatsText() {
+  const ms = value => Number.isFinite(value) ? value.toFixed(1) : '—';
+  const pair = value => `${ms(value?.p50)}/${ms(value?.p95)}`;
+  return `Mac: age ${pair(macStats?.age)} · encode ${pair(macStats?.encode)} · send ${pair(macStats?.send)} · transit ${ms(macStats?.transitMs)} ms\nframes/s new=${macStats?.newFrames ?? '—'} heartbeat=${macStats?.heartbeatFrames ?? '—'}`;
+}
 function percentile(a, p) { return a.length ? a[Math.min(a.length-1, Math.ceil(a.length*p)-1)].toFixed(1) : '—'; }
 setInterval(() => {
   const now = performance.now(), fps = (decoded-lastDecoded)*1000/(now-tick);
   lastDecoded = decoded; tick = now;
   const a = samples.sort((x,y)=>x-y); samples = [];
-  const text = `${status}\n${codec}; hw=${hw}; secure=${isSecureContext}\ndecode fps=${fps.toFixed(1)} queue=${decoder?.decodeQueueSize ?? '—'} pending=${pending.size}\narrival→output p50/p95=${percentile(a,.5)}/${percentile(a,.95)} ms (n=${a.length})\nWS RTT=${Number.isFinite(rtt)?rtt.toFixed(1):'—'} ms\ndropped: seq=${gaps} local=${localDrops}; recv=${received}\nlocal reasons=${JSON.stringify(dropReasons)}\ninput unsent=${inputDrops}\n${lastTouch}`;
+  const text = `${status}\n${codec}; hw=${hw}; secure=${isSecureContext}\ndecode fps=${fps.toFixed(1)} queue=${decoder?.decodeQueueSize ?? '—'} pending=${pending.size}\narrival→output p50/p95=${percentile(a,.5)}/${percentile(a,.95)} ms (n=${a.length})\n${macStatsText()}\nWS RTT=${Number.isFinite(rtt)?rtt.toFixed(1):'—'} ms\ndropped: seq=${gaps} local=${localDrops}; recv=${received}\nlocal reasons=${JSON.stringify(dropReasons)}\ninput unsent=${inputDrops}\n${lastTouch}`;
   if (showStats && !configurationFailed) { panel.textContent = text;
     note(text);
   }

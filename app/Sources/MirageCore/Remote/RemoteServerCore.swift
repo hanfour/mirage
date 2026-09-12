@@ -62,6 +62,7 @@ final class RemoteServerCore: @unchecked Sendable {
     private var performingEffects = false
     private var kinds: [ObjectIdentifier: RemoteUpgradeKind] = [:]
     private var channels: [ObjectIdentifier: any Channel] = [:]
+    private var pendingStats: Data?
     private var wakeup: AsyncStream<Void>.Continuation?
     private var framesOffered = 0
     private var framesSent = 0
@@ -170,6 +171,7 @@ final class RemoteServerCore: @unchecked Sendable {
         guard let kind = kinds.removeValue(forKey: id) else { lock.unlock(); return }
         var pairedInputs: [any Channel] = []
         if kind == .video {
+            pendingStats = nil
             wakeup?.finish(); wakeup = nil
             // 鎖內撤銷舊 input 的資格，再關 socket，阻止緩衝中的觸控繼續轉發。
             // 移除 kind 也避免其延遲 closeFuture 釋放新一組配對的觸控。
@@ -203,6 +205,7 @@ final class RemoteServerCore: @unchecked Sendable {
     func stop() {
         lock.lock()
         stopped = true
+        pendingStats = nil
         let open = Array(channels.values)
         channels.removeAll()
         kinds.removeAll()
@@ -264,6 +267,23 @@ final class RemoteServerCore: @unchecked Sendable {
         let (next, entry) = queue.popping()
         queue = next
         return entry
+    }
+
+    // 慢 viewer 只保留最新一秒統計，避免無上限堆積；不碰影像佇列。
+    func offerStats(_ json: Data) {
+        lock.lock()
+        guard !stopped, session.hasVideo else { lock.unlock(); return }
+        pendingStats = json
+        let wakeup = self.wakeup
+        lock.unlock()
+        wakeup?.yield(())
+    }
+
+    func popStats(channelID: ObjectIdentifier) -> Data? {
+        lock.lock(); defer { lock.unlock() }
+        guard !stopped, kinds[channelID] == .video else { return nil }
+        defer { pendingStats = nil }
+        return pendingStats
     }
 
     func recordSent() {

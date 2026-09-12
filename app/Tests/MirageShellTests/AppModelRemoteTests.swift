@@ -8,7 +8,7 @@ import Testing
 private final class RemoteModelEncoder: RemoteFrameEncoding, @unchecked Sendable {
     let fail: @Sendable (String) -> Void
     init(fail: @escaping @Sendable (String) -> Void) { self.fail = fail }
-    func encode(_ frame: Frame) throws {}
+    func encode(_ frame: Frame, onAccessUnit: @escaping @Sendable (H264AccessUnit) -> Void) throws {}
     func requestKeyframe() {}
     func invalidate() {}
 }
@@ -148,7 +148,7 @@ private final class RemotePortBlocker {
             let controller = try #require(model.remote)
             let port = try #require(controller.boundPort)
             let blocker = RemotePortBlocker()
-            model.makeRemoteEncoder = { _, fail in
+            model.makeRemoteEncoder = { fail in
                 #expect(blocker.listen(on: port))
                 return RemoteModelEncoder(fail: fail)
             }
@@ -163,7 +163,7 @@ private final class RemotePortBlocker {
 
     @Test func errorDuringEnableIsNotLostByTransitionGuard() async throws {
         try await withModel("remote-early-error") { model in
-            model.makeRemoteEncoder = { _, fail in
+            model.makeRemoteEncoder = { fail in
                 fail("sessionCreation(-12903)")
                 return RemoteModelEncoder(fail: fail)
             }
@@ -178,7 +178,7 @@ private final class RemotePortBlocker {
     @Test func staleEncoderErrorCannotDisableNewPairing() async throws {
         try await withModel("remote-stale-error") { model in
             var encoders: [RemoteModelEncoder] = []
-            model.makeRemoteEncoder = { _, fail in
+            model.makeRemoteEncoder = { fail in
                 let encoder = RemoteModelEncoder(fail: fail)
                 encoders.append(encoder)
                 return encoder

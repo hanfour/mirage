@@ -3,7 +3,6 @@ import MirageCore
 
 /// 注入點只替換系統編碼器；server、sink 切換與錯誤復原仍走產品路徑。
 typealias RemoteEncoderFactory = (
-    @escaping @Sendable (H264AccessUnit) -> Void,
     @escaping @Sendable (String) -> Void
 ) -> any RemoteFrameEncoding
 
@@ -13,7 +12,10 @@ extension AppModel {
     var hasActiveRemoteViewer: Bool { remote?.sessionState.isViewerConnected ?? false }
 
     func setupRemoteMenu() {
-        menuBar?.remoteEntries = { [weak self] in RemoteMenu.entries(self?.remoteMenuState ?? .off) }
+        menuBar?.remoteEntries = { [weak self] in
+            RemoteMenu.entries(self?.remoteMenuState ?? .off,
+                               pullInterval: self?.remote?.pullInterval ?? .nanoseconds(1_000_000_000 / 30))
+        }
         menuBar?.onToggleRemote = { [weak self] in Task { @MainActor in await self?.toggleRemote() } }
         menuBar?.onDisconnectRemote = { [weak self] in Task { @MainActor in await self?.disconnectRemoteViewer() } }
         menuBar?.onCopyRemoteURL = { url in
@@ -122,7 +124,7 @@ extension AppModel {
         }
         return RemoteMirrorController(
             configuration: configuration, secondary: secondary, inputQueue: inputQueue,
-            makeEncoder: { deliver in makeRemoteEncoder(deliver, fail) },
+            makeEncoder: { makeRemoteEncoder(fail) },
             onText: { [textInput] text in textInput.enqueue(text, origin: "remote") },
             onError: fail,
             onStateChanged: { [weak self] _ in

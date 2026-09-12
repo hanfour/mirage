@@ -98,6 +98,25 @@ import Testing
         await harness.server.stop()
     }
 
+    @Test func statsTextBypassesWaitingForKeyframe() async throws {
+        try await withServer { h in
+            let video = webSocket(h.port, "/ws/video")
+            defer { video.cancel(with: .normalClosure, reason: nil) }
+            await h.keyframes.wait(for: 1)
+            h.server.send(accessUnit: Self.deltaUnit, keyframe: false, sequence: 0)
+            let json = #"{"type":"stats","newFrames":30,"heartbeatFrames":0}"#
+            h.server.sendStats(Data(json.utf8))
+            let text = try await receiveText(video)
+            #expect(text == json)
+            #expect(h.server.stats().framesOffered == 1)
+            #expect(h.server.stats().framesSent == 0)
+            #expect(h.server.stats().framesDropped == 1)
+            h.server.send(accessUnit: Self.keyframeUnit, keyframe: true, sequence: 1)
+            let data = try await receiveData(video)
+            #expect(RemoteVideoMessage.decode(data)?.sequence == 1)
+        }
+    }
+
     @Test func servesViewerOnlyWithCorrectToken() async throws {
         try await withServer { h in
             #expect(h.port > 0)

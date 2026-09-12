@@ -8,7 +8,6 @@ private final class FakeEncoder: RemoteFrameEncoding, @unchecked Sendable {
     static let sps = Data([0x27, 0x42, 0x00, 0x32, 0xab, 0x40, 0x22, 0x00, 0x96, 0xf2, 0xe8])
     static let pps = Data([0x28, 0xce, 0x3c, 0x80])
     private let lock = NSLock()
-    private let onAccessUnit: @Sendable (H264AccessUnit) -> Void
     private let failEncoding: Bool
     private var forceKeyframe = true
     private var timestamps: [ContinuousClock.Instant] = []
@@ -16,12 +15,11 @@ private final class FakeEncoder: RemoteFrameEncoding, @unchecked Sendable {
     private(set) var keyframeRequests = 0
     private(set) var invalidated = false
 
-    init(failEncoding: Bool = false, onAccessUnit: @escaping @Sendable (H264AccessUnit) -> Void) {
+    init(failEncoding: Bool = false) {
         self.failEncoding = failEncoding
-        self.onAccessUnit = onAccessUnit
     }
 
-    func encode(_ frame: Frame) throws {
+    func encode(_ frame: Frame, onAccessUnit: @escaping @Sendable (H264AccessUnit) -> Void) throws {
         if failEncoding { throw TestFailure.encoding }
         lock.lock()
         encodeCalls += 1
@@ -90,8 +88,8 @@ private enum TestFailure: Error { case unexpectedMessageKind, encoding }
         let box = FakeEncoderBox()
         let controller = RemoteMirrorController(
             configuration: configuration, secondary: LatestFrameBox(), inputQueue: queue,
-            makeEncoder: { deliver in
-                let encoder = FakeEncoder(failEncoding: failEncoding, onAccessUnit: deliver)
+            makeEncoder: {
+                let encoder = FakeEncoder(failEncoding: failEncoding)
                 box.encoder = encoder
                 return encoder
             },
@@ -115,8 +113,15 @@ private enum TestFailure: Error { case unexpectedMessageKind, encoding }
     }
 
     private func receiveData(_ task: URLSessionWebSocketTask) async throws -> Data {
-        guard case .data(let data) = try await task.receive() else { throw TestFailure.unexpectedMessageKind }
-        return data
+        while true {
+            switch try await task.receive() {
+            case .data(let data): return data
+            case .string(let text):
+                let summary = try JSONDecoder().decode(RemoteLatencySummary.self, from: Data(text.utf8))
+                #expect(summary.type == "stats")
+            @unknown default: throw TestFailure.unexpectedMessageKind
+            }
+        }
     }
 
     private func frame(_ width: Int) -> Frame {
@@ -132,6 +137,46 @@ private enum TestFailure: Error { case unexpectedMessageKind, encoding }
     }
 
     /// 沒有 viewer 時不拉幀、不編碼（spec 第 6 節）。
+    @Test func sendsAgeAndHeartbeatStatsOnVideoSocket() async throws {
+        try await withController { h in
+            let source = Frame(width: 8, height: 1, rgba: Data(count: 32),
+                               receivedAt: .now - .milliseconds(50), transitMs: 7)
+            h.controller.secondary.put(source)
+            let video = webSocket(h.port, "/ws/video")
+            defer { video.cancel(with: .normalClosure, reason: nil) }
+            var summary: RemoteLatencySummary?
+            while summary == nil {
+                if case .string(let text) = try await video.receive() {
+                    summary = try JSONDecoder().decode(RemoteLatencySummary.self, from: Data(text.utf8))
+                }
+            }
+            let stats = try #require(summary)
+            #expect(stats.newFrames == 1)
+            #expect(stats.heartbeatFrames > 0)
+            #expect(stats.age?.count == 1)
+            #expect((stats.age?.p50 ?? 0) >= 50)
+            #expect(stats.transitMs == 7)
+            #expect((stats.encode?.count ?? 0) > 0)
+            #expect(stats.send?.count == stats.encode?.count)
+        }
+    }
+
+    @Test func publishesEmptyWindowWithoutEncoderCallbacks() async throws {
+        try await withController { h in
+            let video = webSocket(h.port, "/ws/video")
+            defer { video.cancel(with: .normalClosure, reason: nil) }
+            let message = try await video.receive()
+            guard case .string(let text) = message else { throw TestFailure.unexpectedMessageKind }
+            let stats = try JSONDecoder().decode(RemoteLatencySummary.self, from: Data(text.utf8))
+            #expect(stats.newFrames == 0)
+            #expect(stats.heartbeatFrames == 0)
+            #expect(stats.age == nil)
+            #expect(stats.encode == nil)
+            #expect(stats.send == nil)
+            #expect(h.encoder.calls == 0)
+        }
+    }
+
     @Test func doesNotEncodeWithoutViewer() async throws {
         try await withController { h in
             #expect(h.port > 0)

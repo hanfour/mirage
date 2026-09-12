@@ -24,8 +24,8 @@ final class AppModel {
     @ObservationIgnored var remoteTransitionInProgress = false
     @ObservationIgnored var remoteGeneration = UUID()
     @ObservationIgnored var remotePendingError: String?
-    @ObservationIgnored var makeRemoteEncoder: RemoteEncoderFactory = { deliver, fail in
-        RemoteVideoEncoder(onError: fail, onAccessUnit: deliver)
+    @ObservationIgnored var makeRemoteEncoder: RemoteEncoderFactory = { fail in
+        RemoteVideoEncoder(onError: fail)
     }
     var connState: ConnState = .disconnected
     /// 目前接著的模擬器。初值來自環境（`MIRAGE_HOST`／`MIRAGE_PORT`），之後只由

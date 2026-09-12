@@ -25,7 +25,8 @@ enum RemoteMenu {
     static let noAddressText = "找不到本機 IPv4 位址，請確認 Wi-Fi 或 Tailscale"
     static let qrSide: CGFloat = 176
 
-    static func entries(_ state: RemoteMenuState) -> [RemoteMenuEntry] {
+    static func entries(_ state: RemoteMenuState,
+                        pullInterval: Duration = .nanoseconds(1_000_000_000 / 30)) -> [RemoteMenuEntry] {
         switch state {
         case .off:
             return [.toggle(title: enableTitle), .status("狀態：未開啟")]
@@ -35,10 +36,17 @@ enum RemoteMenu {
             let addresses: [RemoteMenuEntry] = urls.isEmpty
                 ? [.status(noAddressText)]
                 : urls.map { .url($0) } + [.qr(urls[0])]
-            return [.toggle(title: disableTitle), .status(statusText(session))]
+            return [.toggle(title: disableTitle), .status(statusText(session)), .status(pullRateText(pullInterval))]
                 + addresses
                 + [.disconnect(enabled: session.isViewerConnected)]
         }
+    }
+
+    static func pullRateText(_ interval: Duration) -> String {
+        let c = interval.components
+        let seconds = Double(c.seconds) + Double(c.attoseconds) / 1e18
+        let fps = seconds > 0 ? (1 / seconds).rounded() : 0
+        return "拉取率：\(String(format: "%.0f", fps)) fps"
     }
 
     static func statusText(_ session: RemoteSessionState) -> String {

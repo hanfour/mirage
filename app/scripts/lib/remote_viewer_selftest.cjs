@@ -295,3 +295,31 @@ test('visual viewport resize and scroll keep the canvas above the iOS keyboard',
   viewport.height = 800; viewport.offsetTop = 0; listeners.resize();
   assert.equal(style['--view-height'], '800px');
 });
+
+test('stats text renders Mac stages without touching video decoding or idle flush', async () => {
+  const h = harness({immediateOutput: true});
+  h.receive(1);
+  const stats = {type: 'stats', age: {p50: 2, p95: 9}, encode: {p50: 3, p95: 7},
+    send: {p50: 0.1, p95: 0.4}, transitMs: null, newFrames: 30, heartbeatFrames: 4};
+  await h.advance(1500);
+  h.sockets[0].onmessage({data: JSON.stringify(stats)});
+  assert.match(h.run('macStatsText()'), /Mac: age 2.0\/9.0 · encode 3.0\/7.0 · send 0.1\/0.4 · transit — ms/);
+  assert.match(h.run('macStatsText()'), /frames\/s new=30 heartbeat=4/);
+  assert.equal(h.run('received'), 1);
+  h.run('toggleStats()');
+  assert.equal(h.elements['#panel'].hidden, true);
+  await h.advance(500);
+  assert.equal(h.decoders[0].flushes, 1);
+});
+
+test('malformed and unknown stats text only logs, then video continues', () => {
+  const h = harness({immediateOutput: true});
+  h.receive(1);
+  for (const data of ['{bad', 'null', '{"type":"other"}']) h.sockets[0].onmessage({data});
+  assert.match(h.run('lines.join(" ")'), /stats JSON error/);
+  assert.equal(h.run('macStats'), null);
+  h.receive(2, false);
+  assert.equal(h.draws(), 2);
+  assert.equal(h.run('configurationFailed'), false);
+  assert.equal(h.run('localDrops'), 0);
+});

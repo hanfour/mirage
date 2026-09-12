@@ -18,6 +18,20 @@ import remote_client as rc  # noqa: E402
 from remote_text_verify_selftest import RemoteTextEvidenceTests  # noqa: E402,F401
 
 
+class StatsTests(unittest.TestCase):
+    def test_reports_stats_and_keeps_last_window(self):
+        results = {}
+        output = io.StringIO()
+        with contextlib.redirect_stdout(output), contextlib.redirect_stderr(io.StringIO()) as errors:
+            for text in ['{bad', 'null', '[]', '{"type":"other"}',
+                         '{"type":"stats","newFrames":30}', '{"type":"stats","newFrames":0}']:
+                rc.report_stats(text, results)
+        self.assertEqual(results["MAC_STATS_WINDOWS"], 2)
+        self.assertEqual(json.loads(results["MAC_STATS_LAST"])["newFrames"], 0)
+        self.assertEqual(len(output.getvalue().splitlines()), 2)
+        self.assertIn("stats JSON error", errors.getvalue())
+
+
 class HeaderTests(unittest.TestCase):
     def test_parses_thirteen_byte_header(self):
         data = struct.pack(">QIB", 123456789, 7, 1) + b"\x00\x00\x00\x01\x65"
@@ -175,6 +189,7 @@ class PairedConnectionTests(unittest.IsolatedAsyncioTestCase):
             def __init__(self, kind):
                 self.kind = kind
                 self.frames = 0
+                self.stats_sent = False
                 self.echo = None
 
             async def __aenter__(self):
@@ -194,6 +209,9 @@ class PairedConnectionTests(unittest.IsolatedAsyncioTestCase):
                         raise ConnectionError("video disconnected")
                     if self.frames or failure == "timeout":
                         raise asyncio.TimeoutError()
+                    if not self.stats_sent:
+                        self.stats_sent = True
+                        return '{"type":"stats","newFrames":30,"heartbeatFrames":0}'
                     self.frames += 1
                     return rc.HEADER.pack(1, 1, 1) + b"\x00\x00\x01\x65"
                 test.assertIn("video", active, "ping echo 前不得關閉 video")
@@ -231,6 +249,11 @@ class PairedConnectionTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(code, 0)
         self.assertEqual(events, ["open video", "open input", "down", "move", "up", "ping", "echo",
                                   "close input", "close video"])
+        self.assertIn("MAC_STATS=", output)
+        self.assertIn("MAC_STATS_WINDOWS=1", output)
+        self.assertIn("MAC_STATS_LAST=", output)
+        self.assertIn("FRAMES=1", output)
+        self.assertIn("SEQ_GAPS=0", output)
         self.assertIn("TOUCH_SENT=3", output)
         self.assertIn("PING_ECHO_OK=1", output)
 
