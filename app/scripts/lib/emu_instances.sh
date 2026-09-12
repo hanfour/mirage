@@ -1,0 +1,106 @@
+#!/usr/bin/env bash
+# emu.sh 的純函式層。用法：source "$(dirname "$0")/lib/emu_instances.sh"
+#
+# **這裡沒有任何 I/O**：不呼叫 pgrep、lsof、adb。emu.sh 把真實的 `pgrep -fl qemu-system`
+# 輸出餵進來，emu_selftest.sh 餵假的。理由與 verify_common.sh 相同——判斷只有一份，
+# 注入故障驗一次就夠。
+#
+# 一台實例由三個值決定：AVD 名稱、console 埠（5554、5556、……偶數）、gRPC 埠。
+# 實例名稱就是 AVD 名稱：規格 §3.1 要求每台各自一個 AVD，所以名稱與 AVD 一對一，
+# 不需要第四個識別字。
+
+# 預設實例表。格式：空白分隔的項目，每項 `名稱:console埠:gRPC埠`。
+# 第一項就是不帶 -n 時的預設（mirage-game／5554／8554，與 emu.sh 的 MIRAGE_* 預設值相同）。
+# 第二項用 tools/provision 已宣告的另一台 AVD（tools/provision/lib/avdspec.py 只有這兩台）。
+# 埠號沿用 tools/probe/lib/targets.py 的 5556／8556 慣例。
+# 可用環境變數 MIRAGE_INSTANCES 整份覆寫（emu.sh 負責讀它，這裡只吃參數）。
+EMU_DEFAULT_INSTANCES="mirage-game:5554:8554 mirage-poc:5556:8556"
+
+# 三元組驗證。console 埠必須是 5554–5682 的偶數（emulator -port 的限制，奇數是 adb 埠）。
+emu_validate_triplet() {
+    local avd="$1" port="$2" grpc="$3"
+    if [ -z "$avd" ]; then
+        echo "❌ 實例表項目缺 AVD 名稱" >&2; return 1
+    fi
+    case "$port" in
+        ''|*[!0-9]*) echo "❌ ${avd}：console 埠 '${port}' 不是整數" >&2; return 1 ;;
+    esac
+    if [ "$port" -lt 5554 ] || [ "$port" -gt 5682 ] || [ $((port % 2)) -ne 0 ]; then
+        echo "❌ ${avd}：console 埠 ${port} 必須是 5554–5682 的偶數" >&2; return 1
+    fi
+    case "$grpc" in
+        ''|*[!0-9]*) echo "❌ ${avd}：gRPC 埠 '${grpc}' 不是整數" >&2; return 1 ;;
+    esac
+    if [ "$grpc" -lt 1 ] || [ "$grpc" -gt 65535 ]; then
+        echo "❌ ${avd}：gRPC 埠 ${grpc} 不在 1–65535" >&2; return 1
+    fi
+    return 0
+}
+
+# emu_resolve <名稱> [實例表] → stdout "avd console grpc"；找不到回 1。
+emu_resolve() {
+    local name="$1" table="${2:-$EMU_DEFAULT_INSTANCES}" entry avd port grpc
+    for entry in $table; do
+        IFS=: read -r avd port grpc <<< "$entry"
+        [ "$avd" = "$name" ] || continue
+        emu_validate_triplet "$avd" "${port:-}" "${grpc:-}" || return 1
+        printf '%s %s %s\n' "$avd" "$port" "$grpc"
+        return 0
+    done
+    echo "❌ 未知的實例名稱：${name}。可用：$(emu_names "$table")" >&2
+    return 1
+}
+
+# 列出表格裡的名稱（給錯誤訊息用）。
+emu_names() {
+    local entry names=""
+    for entry in $1; do
+        names="${names}${names:+, }${entry%%:*}"
+    done
+    printf '%s\n' "$names"
+}
+
+# emu_table_check [實例表] → AVD／console 埠／gRPC 埠任一重複，或任一三元組無效，回 1。
+emu_table_check() {
+    local table="${1:-$EMU_DEFAULT_INSTANCES}" entry avd port grpc
+    local avds="" ports="" grpcs=""
+    for entry in $table; do
+        IFS=: read -r avd port grpc <<< "$entry"
+        emu_validate_triplet "${avd:-}" "${port:-}" "${grpc:-}" || return 1
+        case " $avds " in *" $avd "*) echo "❌ 實例表裡 AVD ${avd} 出現兩次；每台要各自一個 AVD" >&2; return 1 ;; esac
+        case " $ports " in *" $port "*) echo "❌ 實例表裡 console 埠 ${port} 出現兩次" >&2; return 1 ;; esac
+        case " $grpcs " in *" $grpc "*) echo "❌ 實例表裡 gRPC 埠 ${grpc} 出現兩次" >&2; return 1 ;; esac
+        avds="$avds $avd"; ports="$ports $port"; grpcs="$grpcs $grpc"
+    done
+    return 0
+}
+
+# emu_running_instances "<pgrep -fl qemu-system 的輸出>" → 每台一行 "pid avd console grpc"，
+# 依 console 埠排序；沒帶 -grpc 的行程 grpc 欄印 `?`（那是隨機埠，Mirage 連不上）。
+# 只認含 qemu-system 且有 -port 的行——pgrep -f 比對的是整條命令列，別的行程也可能提到埠號。
+emu_running_instances() {
+    printf '%s\n' "$1" | awk '
+        /qemu-system/ {
+            pid = $1; avd = "?"; port = ""; grpc = "?"
+            for (i = 2; i <= NF; i++) {
+                if ($i == "-avd")  avd  = $(i + 1)
+                if ($i == "-port") port = $(i + 1)
+                if ($i == "-grpc") grpc = $(i + 1)
+            }
+            if (port != "") print pid, avd, port, grpc
+        }' | sort -k3,3n
+}
+
+# emu_is_running "<pgrep 輸出>" <console 埠> → 該埠有 qemu 在跑回 0。
+# 比對整個欄位，不是子字串：555 不會匹配 5554。
+emu_is_running() {
+    emu_running_instances "$1" | awk -v p="$2" '$3 == p { found = 1 } END { exit !found }'
+}
+
+# emu_avd_conflict "<pgrep 輸出>" <avd> <console 埠> → 同名 AVD 在別的埠上跑時回 0 並印那個埠。
+# 同一個埠不算衝突（那是「已在執行」，由 emu_is_running 處理）。
+emu_avd_conflict() {
+    emu_running_instances "$1" | awk -v a="$2" -v p="$3" '
+        $2 == a && $3 != p { print $3; found = 1 }
+        END { exit !found }'
+}

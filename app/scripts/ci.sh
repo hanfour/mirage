@@ -317,7 +317,7 @@ else
 fi
 
 echo ""
-echo "=== 閘門 7：九支共用函式庫的自我測試 ==="
+echo "=== 閘門 7：十支共用函式庫的自我測試 ==="
 if /bin/bash ./scripts/lib/wake_selftest.sh; then
     ok "wake 輪詢與五條故障注入通過"
 else
@@ -388,6 +388,16 @@ else
     ./scripts/lib/backpressure_selftest.sh 2>&1 | grep "❌" | sed 's/^/   /'
 fi
 
+# emu_selftest.sh 是第十支自我測試（2026-09-12，模擬器多開）。emu_instances.sh 決定 emu.sh
+# 認不認得「哪台在跑」——判錯的後果是靜默的：第二台被當成第一台「已在執行」而不啟動、
+# 或 stop 殺錯台。純函式不需要模擬器，直接納入閘門 7。
+if ./scripts/lib/emu_selftest.sh > /dev/null 2>&1; then
+    ok "emu_instances.sh 自我測試通過"
+else
+    fail "emu_instances.sh 自我測試失敗（重跑 ./scripts/lib/emu_selftest.sh 看細節）："
+    ./scripts/lib/emu_selftest.sh 2>&1 | grep "❌" | sed 's/^/   /'
+fi
+
 echo ""
 # 第九支自我測試：getevent 的 slot 狀態與轉移解析，不需要模擬器。
 if /bin/bash ./scripts/lib/getevent_touch_selftest.sh; then
@@ -434,7 +444,7 @@ fi
 echo ""
 echo "======================================"
 if [ "$FAILURES" -eq 0 ]; then
-    echo "全部通過（$RUNS 次跑次、0 行 NIO ERROR、無假 skip、無全形標點陷阱、無永不紅的 #expect、provision 測試綠、九支共用函式庫自我測試（verify_common／audio_stats／load_sentinel／guest_fps／gui_session／backpressure／input_latency／wake／getevent_touch）皆綠、phase0/harness 與 tools/probe pytest 綠、閘門 9 async Tu context 大小一致）"
+    echo "全部通過（$RUNS 次跑次、0 行 NIO ERROR、無假 skip、無全形標點陷阱、無永不紅的 #expect、provision 測試綠、十支共用函式庫自我測試（verify_common／audio_stats／load_sentinel／guest_fps／gui_session／backpressure／input_latency／wake／getevent_touch／emu_instances）皆綠、phase0/harness 與 tools/probe pytest 綠、閘門 9 async Tu context 大小一致）"
     exit 0
 fi
 echo "$FAILURES 項失敗"
