@@ -1,0 +1,67 @@
+/// 單一手機連線的純 reducer（spec 第 3 節），比照 `ConnReducer`：轉移可窮舉，效果由
+/// `RemoteServerCore` 執行（`requestKeyframe` → 重置送出佇列並通知編碼器；`releaseTouches`
+/// → allocator 全放開並送進 InputQueue；`rejectBusy` → 計數）。
+public struct RemoteSessionState: Sendable, Equatable {
+    public enum Phase: Sendable, Equatable {
+        case waitingForPairing
+        case connected
+        case disconnected
+    }
+
+    public let phase: Phase
+    public let hasVideo: Bool
+    public let hasInput: Bool
+
+    public init(phase: Phase, hasVideo: Bool, hasInput: Bool) {
+        self.phase = phase
+        self.hasVideo = hasVideo
+        self.hasInput = hasInput
+    }
+
+    public static let initial = RemoteSessionState(phase: .waitingForPairing, hasVideo: false, hasInput: false)
+
+    public var isViewerConnected: Bool { phase == .connected }
+
+    /// 任一條 socket 在就是 connected；都不在就是 disconnected（從未連過的 waiting 只出現在 initial）。
+    fileprivate func with(video: Bool, input: Bool) -> RemoteSessionState {
+        RemoteSessionState(phase: video || input ? .connected : .disconnected, hasVideo: video, hasInput: input)
+    }
+}
+
+public enum RemoteSessionEvent: Sendable, Equatable {
+    case videoOpened
+    case inputOpened
+    case videoClosed
+    case inputClosed
+    case stopRequested
+}
+
+public enum RemoteSessionEffect: Sendable, Equatable {
+    case none
+    case rejectBusy
+    case requestKeyframe
+    case releaseTouches
+}
+
+public enum RemoteSessionReducer {
+    public static func reduce(_ state: RemoteSessionState, _ event: RemoteSessionEvent)
+        -> (RemoteSessionState, RemoteSessionEffect)
+    {
+        switch event {
+        case .videoOpened:
+            guard !state.hasVideo else { return (state, .rejectBusy) }
+            return (state.with(video: true, input: state.hasInput), .requestKeyframe)
+        case .inputOpened:
+            guard !state.hasInput else { return (state, .rejectBusy) }
+            return (state.with(video: state.hasVideo, input: true), .none)
+        case .videoClosed:
+            guard state.hasVideo else { return (state, .none) }
+            return (state.with(video: false, input: state.hasInput), .none)
+        case .inputClosed:
+            guard state.hasInput else { return (state, .none) }
+            return (state.with(video: state.hasVideo, input: false), .releaseTouches)
+        case .stopRequested:
+            return (state.with(video: false, input: false), state.hasInput ? .releaseTouches : .none)
+        }
+    }
+}
