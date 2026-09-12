@@ -141,3 +141,87 @@ private final class ProbeInjector: InputInjecting, @unchecked Sendable {
         #expect(probe.arrivals == ["touches [1]", "touches [2]"])
     }
 }
+
+@Suite(.timeLimit(.minutes(1))) struct InputMoveCoalescingTests {
+    @Test func keepsOnlyLatestConsecutiveMoves() {
+        let both: Set<Int> = [64, 65]
+        #expect(InputMoveCoalescing.retainedIndices([both, both, both]) == [2])
+        #expect(InputMoveCoalescing.retainedIndices([]).isEmpty)
+    }
+
+    @Test func everyEdgeAndNonTouchCommandIsABarrier() {
+        let both: Set<Int> = [64, 65]
+        #expect(InputMoveCoalescing.retainedIndices([nil, both, both, nil, both, nil]) == [0, 2, 3, 4, 5])
+        #expect(InputMoveCoalescing.retainedIndices([nil, nil, nil]) == [0, 1, 2])
+    }
+
+    @Test func partialSnapshotsCannotEraseOtherFingers() {
+        #expect(InputMoveCoalescing.retainedIndices([[64], [65], [64, 65], [64, 65]]) == [0, 1, 3])
+        #expect(InputMoveCoalescing.retainedIndices([[], []]) == [0, 1])
+    }
+
+    @Test func bufferCoalescesOnlyWhenConsumerPops() throws {
+        let buffer = InputCommandBuffer<Int> { $0 > 0 ? [64, 65] : nil }
+        for value in [0, 1, 2, 3, -1, 4, 5] { buffer.yield(value) }
+        let down = try #require(buffer.pop())
+        #expect(down.command == 0)
+        #expect(down.coalesced == 0)
+        let move = try #require(buffer.pop())
+        #expect(move.command == 3)
+        #expect(move.coalesced == 2)
+        let up = try #require(buffer.pop())
+        #expect(up.command == -1)
+        let last = try #require(buffer.pop())
+        #expect(last.command == 5)
+        #expect(last.coalesced == 1)
+        #expect(buffer.pop() == nil)
+        buffer.finish()
+    }
+
+    @Test func queuePreservesEdgesLocalSnapshotsKeysAndFinalCoordinates() async {
+        let injector = BatchRecorder()
+        let queue = InputQueue(injector: injector)
+        func point(_ x: Double, down: Bool = true, move: Bool = false) -> [TouchSpec] {
+            [TouchSpec(identifier: 64, point: .clamped(x: x, y: 0.5), down: down, isRemoteMove: move)]
+        }
+        queue.touches(point(0.1))
+        // 第一個 RPC 用明確 gate 暫停，使 backlog 可重現，不依賴 sleep 製造競態。
+        await injector.waitForFirst()
+        queue.touches(point(0.2, move: true))
+        queue.touches(point(0.3, move: true))
+        queue.touches(point(0.4, move: true))
+        queue.key(.key("GoHome"), down: true)
+        queue.touches(point(0.5)) // 本機 down=true 不能合併
+        queue.touches(point(0.6))
+        queue.touches(point(0.7, down: false))
+        queue.tap(nx: 0.8, ny: 0.5, down: true)
+        injector.release()
+        await queue.drained()
+        #expect(injector.events == ["touch:0.1:true", "touch:0.4:true", "key", "touch:0.5:true",
+                                   "touch:0.6:true", "touch:0.7:false", "tap"])
+    }
+}
+
+private final class BatchRecorder: InputInjecting, @unchecked Sendable {
+    private let lock = NSLock()
+    private var recorded: [String] = []
+    private let first = AsyncStream<Void>.makeStream()
+    private let gate = AsyncStream<Void>.makeStream()
+    var events: [String] { lock.lock(); defer { lock.unlock() }; return recorded }
+    private func append(_ event: String) -> Bool {
+        lock.lock(); defer { lock.unlock() }
+        recorded.append(event)
+        return recorded.count == 1
+    }
+    func waitForFirst() async { for await _ in first.stream { break } }
+    func release() { gate.continuation.yield(()); gate.continuation.finish() }
+    func sendTouches(_ touches: [TouchSpec]) async {
+        let spec = touches[0]
+        if append("touch:\(spec.point.x):\(spec.down)") {
+            first.continuation.yield(()); first.continuation.finish()
+            for await _ in gate.stream { break }
+        }
+    }
+    func sendKey(_ code: KeyCode, down: Bool) async { _ = append("key") }
+    func sendTap(nx: Double, ny: Double, down: Bool) async { _ = append("tap") }
+}

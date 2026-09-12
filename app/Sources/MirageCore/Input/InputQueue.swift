@@ -48,7 +48,7 @@ public final class InputQueue: Sendable {
         case tap(nx: Double, ny: Double, down: Bool, queuedAt: ContinuousClock.Instant?)
     }
 
-    private let cont: AsyncStream<Command>.Continuation
+    private let cont: InputCommandBuffer<Command>
     private let latencyEnabled: Bool
     public let textDiagnostics: TextInputDiagnostics
     public let textCoordinator: TextClipboardCoordinator
@@ -76,7 +76,13 @@ public final class InputQueue: Sendable {
         self.textCoordinator = coordinator
         self.textTransport = textTransport
         self.latencyEnabled = latencyEnabled
-        let (stream, cont) = AsyncStream.makeStream(of: Command.self)
+        let cont = InputCommandBuffer<Command> { command in
+            if case .touches(let specs, _) = command, !specs.isEmpty,
+               specs.allSatisfy({ $0.down && $0.isRemoteMove }) {
+                return Set(specs.map(\.identifier))
+            }
+            return nil
+        }
         self.cont = cont
         // `Task.detached` 而非 `Task`：後者會繼承呼叫端的 actor（實際呼叫端
         // `AppModel` 是 @MainActor），讓這條幫浦白白掛在 MainActor 上，每個事件多一次
@@ -95,7 +101,13 @@ public final class InputQueue: Sendable {
                 }
             }
             defer { timer?.cancel() }
-            for await command in stream {
+            for await _ in cont.wakeups {
+              while true {
+                // 遠端 120 Hz 壓測也走這裡；每個消費週期收集約一幀的 move。
+                // 本機快照與所有邊緣不主動等待，亦不以 down=true 猜測 move。
+                if cont.firstIsMove { try? await Task.sleep(for: .milliseconds(16)) }
+                guard let entry = cont.pop() else { break }
+                let command = entry.command
                 let queuedAt: ContinuousClock.Instant?
                 switch command {
                 case .text(let commit, let admission, let receipt):
@@ -140,6 +152,7 @@ public final class InputQueue: Sendable {
                 if let queuedAt {
                     recorder?.record(ContinuousClock.now - queuedAt)
                 }
+              }
             }
         }
     }
@@ -203,5 +216,67 @@ public final class InputQueue: Sendable {
 
     public func tap(nx: Double, ny: Double, down: Bool) {
         cont.yield(.tap(nx: nx, ny: ny, down: down, queuedAt: latencyEnabled ? .now : nil))
+    }
+}
+
+/// 消費端純函式：只取佇列最前面、識別碼集合相同的連續純 move 批次。
+/// viewer 只送有變化的手指；不同集合不能互相覆蓋，否則會丟掉另一根手指的最後座標。
+/// nil 是排序屏障（本機快照、down/up/cancel、鍵盤、文字、tap、drained）。
+enum InputMoveCoalescing {
+    static func retainedIndices(_ moveIdentifiers: [Set<Int>?]) -> [Int] {
+        var retained: [Int] = []
+        for index in moveIdentifiers.indices {
+            if let previous = retained.last, let ids = moveIdentifiers[index], !ids.isEmpty,
+               moveIdentifiers[previous] == ids {
+                retained[retained.count - 1] = index
+            } else { retained.append(index) }
+        }
+        return retained
+    }
+}
+
+/// AsyncStream 只負責喚醒；命令放在可同步取出的信箱，讓唯一 consumer 在 await RPC
+/// 完成後看見累積內容。生產者只 append，合併與移除皆在 consumer 的 pop 進行。
+final class InputCommandBuffer<Command: Sendable>: @unchecked Sendable {
+    private let lock = NSLock()
+    private var pending: [Command] = []
+    private let moveIdentifiers: @Sendable (Command) -> Set<Int>?
+    private let continuation: AsyncStream<Void>.Continuation
+    let wakeups: AsyncStream<Void>
+
+    init(moveIdentifiers: @escaping @Sendable (Command) -> Set<Int>?) {
+        self.moveIdentifiers = moveIdentifiers
+        let (stream, continuation) = AsyncStream<Void>.makeStream(bufferingPolicy: .bufferingNewest(1))
+        self.wakeups = stream
+        self.continuation = continuation
+    }
+
+    func yield(_ command: Command) {
+        lock.lock()
+        pending.append(command)
+        lock.unlock()
+        continuation.yield(())
+    }
+
+    func finish() { continuation.finish() }
+
+    var firstIsMove: Bool {
+        lock.lock(); defer { lock.unlock() }
+        return pending.first.flatMap(moveIdentifiers) != nil
+    }
+
+    func pop() -> (command: Command, coalesced: Int)? {
+        lock.lock(); defer { lock.unlock() }
+        guard !pending.isEmpty else { return nil }
+        // 只掃描前綴，不能跨過 key 或邊緣；避免反覆掃描整條混合佇列。
+        var count = 1
+        if let ids = moveIdentifiers(pending[0]) {
+            while count < pending.count, moveIdentifiers(pending[count]) == ids { count += 1 }
+        }
+        let candidates = pending.prefix(count).map(moveIdentifiers)
+        let index = InputMoveCoalescing.retainedIndices(candidates).first ?? 0
+        let command = pending[index]
+        pending.removeFirst(index + 1)
+        return (command, index)
     }
 }
