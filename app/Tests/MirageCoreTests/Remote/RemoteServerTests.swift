@@ -24,6 +24,7 @@ import Testing
         let port: Int
         let touches: StateRecorder<[TouchSpec]>
         let keys: StateRecorder<KeyCode>
+        let texts: StateRecorder<String>
         let touchCalls: CountGate
         let states: StateRecorder<RemoteSessionState>
         let keyframes: CountGate
@@ -32,6 +33,7 @@ import Testing
     private func start() async throws -> Harness {
         let touches = StateRecorder<[TouchSpec]>()
         let keys = StateRecorder<KeyCode>()
+        let texts = StateRecorder<String>()
         let touchCalls = CountGate()
         let states = StateRecorder<RemoteSessionState>()
         let keyframes = CountGate()
@@ -41,11 +43,12 @@ import Testing
                 touchCalls.increment()
                 Task { await touches.record(specs) }
             },
+            onText: { text in Task { await texts.record(text) } },
             onKey: { code in Task { await keys.record(code) } },
             onKeyframeRequested: { keyframes.increment() },
             onStateChanged: { state in Task { await states.record(state) } })
         let port = try await server.start()
-        return Harness(server: server, port: port, touches: touches, keys: keys, touchCalls: touchCalls,
+        return Harness(server: server, port: port, touches: touches, keys: keys, texts: texts, touchCalls: touchCalls,
                        states: states, keyframes: keyframes)
     }
 
@@ -243,6 +246,27 @@ import Testing
             #expect(keys == [.key("GoHome")])
             #expect(h.server.stats().invalidInputMessages == 3)
             #expect(h.server.stats().touchesForwarded == 0)
+        }
+    }
+
+    @Test func inputForwardsTextAndCountsInvalidText() async throws {
+        try await withServer { h in
+            let video = webSocket(h.port, "/ws/video")
+            defer { video.cancel(with: .normalClosure, reason: nil) }
+            await h.keyframes.wait(for: 1)
+            let input = webSocket(h.port, "/ws/input")
+            defer { input.cancel(with: .normalClosure, reason: nil) }
+            try await input.send(.string(#"{"type":"text","text":"中文🙂","t":1}"#))
+            try await input.send(.string(#"{"type":"text","text":"","t":2}"#))
+            let oversized = String(repeating: "a", count: 4097)
+            try await input.send(.string(#"{"type":"text","text":"\#(oversized)","t":3}"#))
+            try await input.send(.string(Self.ping))
+            let echo = try await receiveText(input)
+            #expect(echo == Self.ping)
+            await h.texts.wait { !$0.isEmpty }
+            let texts = await h.texts.items
+            #expect(texts == ["中文🙂"])
+            #expect(h.server.stats().invalidInputMessages == 2)
         }
     }
 

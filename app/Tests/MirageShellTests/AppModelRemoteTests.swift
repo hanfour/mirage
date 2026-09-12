@@ -312,4 +312,37 @@ private final class RemotePortBlocker {
         }
     }
 
+    @Test func remoteTextUsesExistingPolicyAndRetainsRejectedDraft() async throws {
+        try await withModel("remote-text") { model in
+            model.textInput.settle = "0"
+            model.textInput.applyPolicy()
+            await model.enableRemote(host: "127.0.0.1", port: 0)
+            let controller = try #require(model.remote)
+            let port = try #require(controller.boundPort)
+            let base = "ws://127.0.0.1:\(port)"
+            let videoURL = try #require(URL(string: "\(base)/ws/video?t=\(controller.token.value)"))
+            let inputURL = try #require(URL(string: "\(base)/ws/input?t=\(controller.token.value)"))
+            let video = URLSession.shared.webSocketTask(with: videoURL)
+            defer { video.cancel(with: .normalClosure, reason: nil) }
+            video.resume()
+            _ = try await RemoteTestWaits.state(in: controller.states, hasVideo: true, diagnostics: {
+                "remote text state=\(controller.sessionState)"
+            })
+            let input = URLSession.shared.webSocketTask(with: inputURL)
+            defer { input.cancel(with: .normalClosure, reason: nil) }
+            input.resume()
+            try await input.send(.string(#"{"type":"text","text":"遠端草稿🙂","t":1}"#))
+            try await input.send(.string(#"{"type":"ping","t":2}"#))
+            _ = try await input.receive()
+            await model.inputQueue.drained()
+            let deadline = ContinuousClock.now + .seconds(2)
+            while model.textInput.results.isEmpty, ContinuousClock.now < deadline {
+                try await Task.sleep(for: .milliseconds(10))
+            }
+            let result = try #require(model.textInput.results.first)
+            #expect(result.commit.text == "遠端草稿🙂")
+            #expect(result.outcome == .rejected(.invalidPolicy("settle")))
+        }
+    }
+
 }

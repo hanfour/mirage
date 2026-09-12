@@ -4,31 +4,37 @@
 <style>
 *{box-sizing:border-box;touch-action:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;overscroll-behavior:none}
 html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#000;color:#fff;font:13px/1.4 monospace}
-html,body,#nav{touch-action:manipulation}
+html,body,#viewport,#nav{touch-action:manipulation}
+#viewport{position:fixed;top:var(--view-top,0px);left:var(--view-left,0px);width:var(--view-width,100%);height:var(--view-height,100%);overflow:hidden}
+#text-input{position:absolute;bottom:var(--nav-height);left:50%;width:1px;height:1px;opacity:0;font-size:16px;padding:0;border:0;user-select:text;-webkit-user-select:text;touch-action:manipulation}
 :root{--nav-height:calc(52px + env(safe-area-inset-bottom,0px))}
 :root.no-nav{--nav-height:0px}
-canvas{position:fixed;inset:0 0 var(--nav-height);width:100%;height:calc(100% - var(--nav-height));object-fit:contain}
-#nav{position:fixed;bottom:0;left:0;width:100%;height:var(--nav-height);display:flex;background:#18181b;padding:0 env(safe-area-inset-right,0px) env(safe-area-inset-bottom,0px) env(safe-area-inset-left,0px)}
+canvas{position:absolute;inset:0 0 var(--nav-height);width:100%;height:calc(100% - var(--nav-height));object-fit:contain}
+#nav{position:absolute;bottom:0;left:0;width:100%;height:var(--nav-height);display:flex;background:#18181b;padding:0 env(safe-area-inset-right,0px) env(safe-area-inset-bottom,0px) env(safe-area-inset-left,0px)}
 #nav button{flex:1;min-width:0;border:0;border-radius:8px;margin:4px;color:#fff;background:#27272a;font:inherit;touch-action:manipulation;user-select:none}
 #nav button:active,#nav button.pressed{background:#2563eb}
 #nav[hidden]{display:none}
-#panel{position:fixed;top:env(safe-area-inset-top,0px);left:0;max-width:96vw;max-height:calc(100% - var(--nav-height) - env(safe-area-inset-top,0px));overflow:hidden;background:#000b;padding:8px;white-space:pre-wrap;cursor:pointer}
-details{position:fixed;bottom:max(var(--nav-height),env(safe-area-inset-bottom,0px));left:0;width:100%;background:#000c}
+#panel{position:absolute;top:env(safe-area-inset-top,0px);left:0;max-width:96vw;max-height:calc(100% - var(--nav-height) - env(safe-area-inset-top,0px) - 30px);overflow:hidden;background:#000b;padding:8px;white-space:pre-wrap;cursor:pointer}
+details{position:absolute;bottom:max(var(--nav-height),env(safe-area-inset-bottom,0px));left:0;width:100%;background:#000c}
 summary{padding:8px}#log{height:24vh;overflow:auto;touch-action:pan-y;white-space:pre-wrap;overflow-wrap:anywhere;margin:0;padding:8px}
 #panel{top:calc(env(safe-area-inset-top,0px) + 30px)}
-#stats-toggle{position:fixed;top:env(safe-area-inset-top,0px);left:0;border:0;background:#000b;color:#fff;padding:5px 8px;touch-action:manipulation}
-#error{position:fixed;top:env(safe-area-inset-top,0px);right:0;max-width:75vw;padding:8px;background:#7f1d1d;pointer-events:none;white-space:pre-wrap}
+#stats-toggle{position:absolute;top:env(safe-area-inset-top,0px);left:0;border:0;background:#000b;color:#fff;padding:5px 8px;touch-action:manipulation}
+#error{position:absolute;top:env(safe-area-inset-top,0px);right:0;max-width:75vw;padding:8px;background:#7f1d1d;pointer-events:none;white-space:pre-wrap}
 #panel[hidden],details[hidden],#stats-toggle[hidden],#error[hidden]{display:none}
 </style>
+<div id="viewport">
+<input id="text-input" type="text" autocomplete="off" autocapitalize="off" autocorrect="off" aria-label="輸入文字後按 Return 提交">
 <canvas id="canvas" width="1080" height="2400"></canvas>
 <nav id="nav" aria-label="Android 導覽">
 <button type="button" data-key="GoBack">◁ 返回</button>
 <button type="button" data-key="GoHome">○ 主畫面</button>
 <button type="button" data-key="AppSwitch">□ 最近任務</button>
+<button id="keyboard" type="button" aria-label="開關文字輸入" aria-pressed="false">⌨︎</button>
 </nav>
 <button id="stats-toggle" type="button" aria-label="收合統計">ⓘ</button>
 <div id="error" role="alert" hidden></div>
 <div id="panel">Initializing…</div><details><summary>統計 / 診斷紀錄（展開可捲動）</summary><pre id="log"></pre></details>
+</div>
 <script>
 const canvas = document.querySelector('#canvas'), ctx = canvas.getContext('2d', {alpha:false});
 const panel = document.querySelector('#panel'), log = document.querySelector('#log');
@@ -36,7 +42,7 @@ const params = new URLSearchParams(location.search), token = params.get('t') || 
 const navigation = document.querySelector('#nav');
 navigation.hidden = params.get('nav') === '0';
 document.documentElement.classList.toggle('no-nav', navigation.hidden);
-for (const button of navigation.querySelectorAll('button')) {
+for (const button of navigation.querySelectorAll('button[data-key]')) {
   let feedbackTimer;
   button.addEventListener('click', () => {
     send({type:'key', key:button.dataset.key, t:performance.now()});
@@ -175,9 +181,53 @@ function makeDecoder() {
   });
 }
 function send(obj) {
-  if (input?.readyState === WebSocket.OPEN && input.bufferedAmount < 65536) input.send(JSON.stringify(obj));
-  else inputDrops++;
+  if (input?.readyState === WebSocket.OPEN && input.bufferedAmount < 65536) {
+    input.send(JSON.stringify(obj)); return true;
+  }
+  inputDrops++; return false;
 }
+const textInput = document.querySelector('#text-input'), keyboard = document.querySelector('#keyboard');
+const viewport = document.querySelector('#viewport');
+function resizeViewport() {
+  if (typeof visualViewport === 'undefined' || !visualViewport) return;
+  for (const [name, value] of Object.entries({
+    height:visualViewport.height, width:visualViewport.width,
+    top:visualViewport.offsetTop, left:visualViewport.offsetLeft,
+  })) viewport.style.setProperty('--view-' + name, value + 'px');
+}
+if (typeof visualViewport !== 'undefined' && visualViewport) {
+  visualViewport.addEventListener('resize', resizeViewport);
+  visualViewport.addEventListener('scroll', resizeViewport);
+}
+resizeViewport();
+keyboard.addEventListener('pointerdown', e => e.preventDefault());
+keyboard.addEventListener('click', () => {
+  if (document.activeElement === textInput) textInput.blur();
+  else textInput.focus({preventScroll:true}); // 不 await：iOS 只允許使用者手勢內叫出鍵盤。
+});
+textInput.addEventListener('focus', () => keyboard.setAttribute('aria-pressed', 'true'));
+textInput.addEventListener('blur', () => keyboard.setAttribute('aria-pressed', 'false'));
+function submitText() {
+  const text = textInput.value;
+  if (!text) return;
+  if (text.length > 4096) { reportError('文字太長，請分成 4096 字元以內送出'); return; }
+  if (send({type:'text', text, t:performance.now()})) textInput.value = '';
+  else reportError('文字尚未送出，請確認連線後再試');
+}
+textInput.addEventListener('keydown', e => {
+  if (e.isComposing || e.keyCode === 229) return;
+  if (e.key === 'Enter') { e.preventDefault(); submitText(); }
+  else if (e.key === 'Backspace' && !textInput.value) {
+    e.preventDefault(); send({type:'key', key:'Backspace', t:performance.now()});
+  }
+});
+// 部分 iOS 軟鍵盤只提供 beforeinput；keydown preventDefault 會取消對應的 beforeinput。
+textInput.addEventListener('beforeinput', e => {
+  if (e.isComposing) return;
+  if (e.inputType === 'deleteContentBackward' && !textInput.value) {
+    e.preventDefault(); send({type:'key', key:'Backspace', t:performance.now()});
+  }
+});
 // input 必須等 video 握手完成，才屬於目前的配對。
 function connectInput() {
   input = new WebSocket(base + '/ws/input' + query);
@@ -274,6 +324,7 @@ function position(e) {
 }
 for(const type of ['pointerdown','pointermove','pointerup','pointercancel']) canvas.addEventListener(type, e => {
   e.preventDefault();
+  if (type === 'pointerdown') textInput.blur();
   const p = position(e);
   if(type === 'pointerdown') {
     if(p.x<0 || p.x>1 || p.y<0 || p.y>1) return;

@@ -1,105 +1,6 @@
-// 真正執行 viewer.html，以假 WebCodecs 與時鐘驗證靜止／恢復；不開 App 或連網。
 const {test} = require('node:test');
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const path = require('node:path');
-const vm = require('node:vm');
-const html = fs.readFileSync(path.join(__dirname, '../../Sources/MirageCore/Resources/remote/viewer.html'), 'utf8');
-const script = html.match(/<script>([\s\S]*?)<\/script>/)[1];
-
-function harness({immediateOutput = false, search = '?t=abc', storage = new Map(), storageFails = false} = {}) {
-  const timers = new Map(), decoders = [], sockets = [];
-  let timerID = 0, now = 0, draws = 0;
-  function element() {
-    const classes = new Set(), listeners = {};
-    return {listeners, hidden: false, setAttribute() {},
-      getContext: () => ({drawImage() { draws++; }}),
-      addEventListener(type, listener) { listeners[type] = listener; },
-      classList: {
-        add: value => classes.add(value), remove: value => classes.delete(value),
-        contains: value => classes.has(value),
-        toggle(value, enabled) { if (enabled) classes.add(value); else classes.delete(value); },
-      },
-    };
-  }
-  const elements = Object.fromEntries(['#canvas', '#panel', '#log', '#nav', 'details', '#stats-toggle', '#error'].map(id => [id, element()]));
-  const buttons = [...html.matchAll(/<button[^>]+data-key="([^"]+)"/g)].map(match =>
-    Object.assign(element(), {dataset: {key: match[1]}}));
-  elements['#nav'].querySelectorAll = () => buttons;
-  elements['#error'].hidden = true;
-  const root = element();
-  class Decoder {
-    constructor(callbacks) {
-      this.callbacks = callbacks;
-      this.state = 'unconfigured';
-      this.decodeQueueSize = 0;
-      this.chunks = [];
-      this.held = [];
-      this.flushes = 0;
-      this.requiresKey = true;
-      decoders.push(this);
-    }
-    configure() { this.state = 'configured'; this.requiresKey = true; }
-    decode(chunk) {
-      if (this.requiresKey && chunk.type !== 'key') throw Error('key required after flush');
-      this.requiresKey = false;
-      this.chunks.push(chunk);
-      if (immediateOutput) this.emit(chunk);
-      else this.held.push(chunk);
-    }
-    emit(chunk) {
-      this.callbacks.output({timestamp: chunk.timestamp, displayWidth: 8, displayHeight: 1, close() {}});
-    }
-    flush() {
-      this.flushes++;
-      this.requiresKey = true; // 規範在呼叫時就設旗標，不是 Promise 完成時。
-      if (this.rejectFlush) return Promise.reject(Error('flush rejected'));
-      for (const chunk of this.held.splice(0)) {
-        this.emit(chunk);
-      }
-      return Promise.resolve();
-    }
-    reset() { this.held = []; this.state = 'unconfigured'; }
-    close() { this.state = 'closed'; }
-  }
-  class Socket {
-    static OPEN = 1;
-    constructor(url) { this.url = url; this.readyState = 1; this.bufferedAmount = 0; this.sent = []; sockets.push(this); }
-    send(text) { this.sent.push(text); }
-  }
-  const context = vm.createContext({
-    document: {querySelector: selector => elements[selector], documentElement: root, addEventListener() {}, visibilityState: 'visible'},
-    location: {search, protocol: 'http:', host: '127.0.0.1'},
-    navigator: {userAgent: 'test'}, screen: {width: 8, height: 1},
-    innerWidth: 8, innerHeight: 1, devicePixelRatio: 1, isSecureContext: true,
-    localStorage: {
-      getItem(key) { if (storageFails) throw Error('denied'); return storage.get(key); },
-      setItem(key, value) { if (storageFails) throw Error('denied'); storage.set(key, value); },
-    },
-    URLSearchParams, WebSocket: Socket, VideoDecoder: Decoder,
-    EncodedVideoChunk: class {constructor(options) { Object.assign(this, options); }},
-    performance: {now: () => now},
-    setTimeout(fn, delay) { timers.set(++timerID, {fn, at: now + delay}); return timerID; },
-    clearTimeout(id) { timers.delete(id); }, setInterval() {},
-  });
-  vm.runInContext(script, context);
-  function receive(sequence, key = true) {
-    vm.runInContext(`{
-      const bytes = new Uint8Array(21), header = new DataView(bytes.buffer);
-      header.setBigUint64(0, 1n); header.setUint32(8, ${sequence}); header.setUint8(12, ${key ? 1 : 0});
-      bytes.set([0, 0, 0, 1, ${key ? 0x67 : 0x41}, 0x42, 0, 0x1f], 13);
-      video.onmessage({data: bytes.buffer});
-    }`, context);
-  }
-  async function advance(ms) {
-    now += ms;
-    for (const [id, timer] of [...timers]) {
-      if (timer.at <= now) { timers.delete(id); await timer.fn(); }
-    }
-  }
-  return {receive, advance, decoders, sockets, timers, elements, buttons, root,
-    run: expression => vm.runInContext(expression, context), draws: () => draws};
-}
+const {harness, html} = require('./remote_viewer_harness.cjs');
 
 test('only a full 2 seconds without chunks flushes and requests a keyframe', async () => {
   const h = harness();
@@ -320,4 +221,77 @@ test('stats=0 hides even the marker, but errors remain visible in every stats mo
     assert.match(h.elements['#error'].textContent, /unsupported codec/);
     assert.equal(h.elements['#panel'].hidden, true);
   }
+});
+
+test('keyboard focus is synchronous in click and toggles off without discarding draft', () => {
+  const h = harness(), field = h.elements['#text-input'], keyboard = h.elements['#keyboard'];
+  keyboard.listeners.click();
+  assert.equal(h.document.activeElement, field);
+  field.value = '草稿';
+  keyboard.listeners.pointerdown({preventDefault() {}});
+  keyboard.listeners.click();
+  assert.equal(h.document.activeElement, null);
+  assert.equal(field.value, '草稿');
+  keyboard.listeners.click();
+  h.elements['#canvas'].getBoundingClientRect = () => ({left:0, top:0, width:100, height:100});
+  h.elements['#canvas'].width = h.elements['#canvas'].height = 100;
+  h.elements['#canvas'].listeners.pointerdown({preventDefault() {}, clientX:50, clientY:50, pointerId:1});
+  assert.equal(h.document.activeElement, null);
+});
+
+test('Return commits final Unicode once; composition and empty Return do not send', () => {
+  const h = harness(), field = h.elements['#text-input'];
+  h.sockets[0].onopen();
+  const input = h.sockets[1], preventDefault = () => {};
+  field.value = '中文🙂é';
+  field.listeners.keydown({key:'Enter', isComposing:true, preventDefault});
+  assert.deepEqual(input.sent, []);
+  field.listeners.keydown({key:'Enter', keyCode:229, preventDefault});
+  assert.deepEqual(input.sent, []);
+  field.listeners.keydown({key:'Enter', isComposing:false, preventDefault});
+  assert.deepEqual(JSON.parse(input.sent[0]), {type:'text', text:'中文🙂é', t:0});
+  assert.equal(field.value, '');
+  field.listeners.keydown({key:'Enter', preventDefault});
+  assert.equal(input.sent.length, 1);
+});
+
+test('empty Backspace forwards a key; local draft deletion and composition stay local', () => {
+  const h = harness(), field = h.elements['#text-input'], preventDefault = () => {};
+  h.sockets[0].onopen();
+  field.value = 'draft';
+  field.listeners.keydown({key:'Backspace', preventDefault});
+  field.value = '';
+  field.listeners.keydown({key:'Backspace', isComposing:true, preventDefault});
+  assert.deepEqual(h.sockets[1].sent, []);
+  field.listeners.keydown({key:'Backspace', preventDefault});
+  assert.deepEqual(JSON.parse(h.sockets[1].sent[0]), {type:'key', key:'Backspace', t:0});
+  field.listeners.beforeinput({inputType:'deleteContentBackward', isComposing:true, preventDefault});
+  assert.equal(h.sockets[1].sent.length, 1);
+  field.listeners.beforeinput({inputType:'deleteContentBackward', preventDefault});
+  assert.equal(h.sockets[1].sent.length, 2);
+});
+
+test('failed or oversized text submissions retain the local draft and show an error', () => {
+  const h = harness(), field = h.elements['#text-input'];
+  for (const text of ['未連線', 'a'.repeat(4097), '🙂'.repeat(2049)]) {
+    field.value = text;
+    field.listeners.keydown({key:'Enter', preventDefault() {}});
+    assert.equal(field.value, text);
+    assert.equal(h.elements['#error'].hidden, false);
+  }
+});
+
+test('visual viewport resize and scroll keep the canvas above the iOS keyboard', () => {
+  const listeners = {}, viewport = {height:800, width:390, offsetTop:0, offsetLeft:0,
+    addEventListener(type, listener) { listeners[type] = listener; }};
+  const h = harness({viewport}), style = h.elements['#viewport'].style;
+  assert.equal(style['--view-height'], '800px');
+  viewport.height = 420; viewport.offsetTop = 20;
+  listeners.resize();
+  assert.equal(style['--view-height'], '420px');
+  assert.equal(style['--view-top'], '20px');
+  viewport.offsetLeft = 5; listeners.scroll();
+  assert.equal(style['--view-left'], '5px');
+  viewport.height = 800; viewport.offsetTop = 0; listeners.resize();
+  assert.equal(style['--view-height'], '800px');
 });

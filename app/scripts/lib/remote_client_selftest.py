@@ -15,6 +15,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import remote_client as rc  # noqa: E402
+from remote_text_verify_selftest import RemoteTextEvidenceTests  # noqa: E402,F401
 
 
 class HeaderTests(unittest.TestCase):
@@ -59,6 +60,14 @@ class TouchMessageTests(unittest.TestCase):
         for key in ("gohome", "Power", "", None):
             with self.assertRaises(ValueError):
                 rc.key_message(key, 1)
+
+    def test_text_protocol_preserves_unicode_and_rejects_invalid_lengths(self):
+        for text in ("中文🙂é", " ", "a" * 4096, "🙂" * 2048):
+            self.assertEqual(json.loads(rc.text_message(text, 42)),
+                             {"type": "text", "text": text, "t": 42})
+        for text in ("", "a" * 4097, "🙂" * 2049, None):
+            with self.assertRaises(ValueError):
+                rc.text_message(text, 42)
 
     def test_urls(self):
         self.assertEqual(rc.video_url("127.0.0.1", 8765, "ab"), "ws://127.0.0.1:8765/ws/video?t=ab")
@@ -116,7 +125,7 @@ class TouchTransportTests(unittest.IsolatedAsyncioTestCase):
                 return '{"type":"ping","t":-1}'
 
         modules = {"websockets.asyncio.client": SimpleNamespace(connect=lambda *a, **k: Socket())}
-        args = SimpleNamespace(host="127.0.0.1", port=8765, token="a", touch=True, key=None)
+        args = SimpleNamespace(host="127.0.0.1", port=8765, token="a", touch=True, key=None, text=None)
         with patch.dict(sys.modules, modules), patch.object(rc, "connect_options", return_value={}), \
                 patch.object(rc, "touch_messages", return_value=['{"type":"down"}']):
             results = {}
@@ -143,7 +152,7 @@ class LoopTransportTests(unittest.IsolatedAsyncioTestCase):
                 yield rc.HEADER.pack(2, 2, 0) + b"\x00\x00\x01\x41"
 
         modules = {"websockets.asyncio.client": SimpleNamespace(connect=lambda *a, **k: Socket())}
-        args = SimpleNamespace(host="127.0.0.1", port=8765, token="a", touch=True, key=None)
+        args = SimpleNamespace(host="127.0.0.1", port=8765, token="a", touch=True, key=None, text=None)
         output = io.StringIO()
         with patch.dict(sys.modules, modules), patch.object(rc, "connect_options", return_value={}), \
                 patch.object(rc.time, "time", side_effect=[100, 101, 102]), \
@@ -156,10 +165,11 @@ class LoopTransportTests(unittest.IsolatedAsyncioTestCase):
 
 
 class PairedConnectionTests(unittest.IsolatedAsyncioTestCase):
-    async def run_client(self, failure=None, key=None):
+    async def run_client(self, failure=None, key=None, text=None):
         events = []
         active = set()
         test = self
+        expected_text = text
 
         class Socket:
             def __init__(self, kind):
@@ -199,13 +209,15 @@ class PairedConnectionTests(unittest.IsolatedAsyncioTestCase):
                 if message["type"] == "key":
                     test.assertEqual(message["key"], key)
                     test.assertIsInstance(message["t"], (float, int))
+                if message["type"] == "text":
+                    test.assertEqual(message["text"], expected_text)
                 events.append(message["type"])
 
         def connect(url, **kwargs):
             return Socket("input" if "/ws/input?" in url else "video")
 
         args = SimpleNamespace(host="127.0.0.1", port=8765, token="a", loop=False,
-                               touch=key is None, key=key, wait_keyframe=60, seconds=10)
+                               touch=key is None and text is None, key=key, text=text, wait_keyframe=60, seconds=10)
         modules = {"websockets.asyncio.client": SimpleNamespace(connect=connect)}
         output = io.StringIO()
         with patch.dict(sys.modules, modules), patch.object(rc, "connect_options", return_value={}), \
@@ -232,6 +244,13 @@ class PairedConnectionTests(unittest.IsolatedAsyncioTestCase):
                 self.assertIn(f"KEY_SENT={key}", output)
                 self.assertIn("TOUCH_SENT=0", output)
 
+    async def test_text_keeps_video_until_echo_without_sending_touch(self):
+        code, events, output = await self.run_client(text="中文🙂 hello")
+        self.assertEqual(code, 0)
+        self.assertEqual(events, ["open video", "open input", "text", "ping", "echo",
+                                  "close input", "close video"])
+        self.assertIn("TEXT_SENT=1", output)
+
     async def test_touch_failure_closes_both_connections(self):
         code, events, _ = await self.run_client("touch")
         self.assertEqual(code, 2)
@@ -254,7 +273,7 @@ class NavigationEvidenceTests(unittest.TestCase):
     def run_evidence(self, mode):
         lib = Path(__file__).resolve().parent
         script = (lib.parent / "verify_remote_mirror.sh").read_text()
-        section = script[script.index("foreground_evidence()"):]
+        section = script[script.index("foreground_evidence()"):].split("# R6：")[0] + 'echo "全部通過"\n'
         cleanup = script[script.index("stop_key_capture()"):script.index("cleanup()")]
         prelude = r"""
 set -uo pipefail

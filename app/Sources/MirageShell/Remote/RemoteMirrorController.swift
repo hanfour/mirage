@@ -88,6 +88,7 @@ final class RemoteMirrorController: @unchecked Sendable {
          secondary: LatestFrameBox,
          inputQueue: InputQueue,
          makeEncoder: (@escaping @Sendable (H264AccessUnit) -> Void) -> any RemoteFrameEncoding,
+         onText: @escaping @Sendable (String) -> Void = { _ in },
          onError: @escaping @Sendable (String) -> Void = { _ in },
          onStateChanged: @escaping @Sendable (RemoteSessionState) -> Void = { _ in })
     {
@@ -104,6 +105,7 @@ final class RemoteMirrorController: @unchecked Sendable {
             configuration: RemoteServerConfiguration(host: configuration.host, port: configuration.port,
                                                      token: configuration.token, viewerPage: configuration.viewerPage),
             onTouches: { inputQueue.touches($0) },
+            onText: onText,
             onKey: { code in
                 inputQueue.key(code, down: true)
                 inputQueue.key(code, down: false)

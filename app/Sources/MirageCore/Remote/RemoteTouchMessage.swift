@@ -26,6 +26,7 @@ public struct RemoteTouchMessage: Sendable, Equatable {
 public enum RemoteInputMessage: Sendable, Equatable {
     case ping
     case key(KeyCode, time: Double)
+    case text(String, time: Double)
     case touch(RemoteTouchMessage)
 }
 
@@ -36,12 +37,14 @@ public enum RemoteInputDecodeError: Error, Equatable {
     case invalidPointerId
     case invalidCoordinate
     case invalidKey
+    case invalidText
     case invalidTime
 }
 
 /// `/ws/input` 文字訊息 → `RemoteInputMessage`。純函式：不 log、不計數、不拋例外，
 /// 由 `RemoteServerCore` 決定怎麼處理失敗（丟棄、計數、節流 log）。
 public enum RemoteTouchMessageDecoder {
+    public static let maximumTextUTF16Length = 4096
     private static let pingType = "ping"
 
     public static func decode(_ text: String) -> Result<RemoteInputMessage, RemoteInputDecodeError> {
@@ -51,6 +54,7 @@ public enum RemoteTouchMessageDecoder {
         else { return .failure(.notJSON) }
         guard let type = fields["type"] as? String else { return .failure(.missingField("type")) }
         if type == pingType { return .success(.ping) }
+        if type == "text" { return textCommit(fields) }
         if type == "key" { return navigationKey(fields) }
         guard let phase = RemoteTouchPhase(rawValue: type) else { return .failure(.unknownType(type)) }
         return pointerId(fields).flatMap { id in
@@ -64,11 +68,22 @@ public enum RemoteTouchMessageDecoder {
         }
     }
 
-    /// 按鍵只開放導覽三鍵；時間為必要的有限 JSON 數字，避免誤收布林或字串。
+    /// 以 UTF-16 單元限制長度，與瀏覽器 String.length 一致，亦限制組合字的負載。
+    private static func textCommit(_ fields: [String: Any]) -> Result<RemoteInputMessage, RemoteInputDecodeError> {
+        guard let raw = fields["text"] else { return .failure(.missingField("text")) }
+        guard let text = raw as? String, !text.isEmpty, text.utf16.count <= maximumTextUTF16Length
+        else { return .failure(.invalidText) }
+        guard let rawTime = fields["t"] else { return .failure(.missingField("t")) }
+        guard let time = number(rawTime) else { return .failure(.invalidTime) }
+        return .success(.text(text, time: time))
+    }
+
+    /// 按鍵只開放導覽三鍵與 Backspace；時間須為有限 JSON 數字，僅 Backspace 可省略。
     private static func navigationKey(_ fields: [String: Any]) -> Result<RemoteInputMessage, RemoteInputDecodeError> {
         guard let raw = fields["key"] else { return .failure(.missingField("key")) }
-        guard let key = raw as? String, ["GoBack", "GoHome", "AppSwitch"].contains(key)
+        guard let key = raw as? String, ["GoBack", "GoHome", "AppSwitch", "Backspace"].contains(key)
         else { return .failure(.invalidKey) }
+        if key == "Backspace", fields["t"] == nil { return .success(.key(.key(key), time: 0)) }
         guard let rawTime = fields["t"] else { return .failure(.missingField("t")) }
         guard let time = number(rawTime) else { return .failure(.invalidTime) }
         return .success(.key(.key(key), time: time))

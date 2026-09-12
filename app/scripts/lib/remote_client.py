@@ -2,7 +2,8 @@
 """手機遙控的 WebSocket 用戶端（活體腳本用，不進產品）。
 
 模仿 viewer.html：連 /ws/video 等第一個 keyframe、追幀序；--touch 時連 /ws/input 送
-一組 down/move/up；--key GoHome 送導覽鍵，並量 ping 往返；輸入完成前保持 video 連線。輸出 KEY=VAL 供 bash 斷言。
+一組 down/move/up；--key GoHome 送按鍵，--text 送整串文字。
+量 ping 往返，輸入完成前保持 video 連線。輸出 KEY=VAL 供 bash 斷言。
 --loop：反覆重連、丟掉收到的幀，只為了讓編碼器有 viewer（驗收線 7 對照用）。
 
 退出碼：0 通過、2 連不上（403／409／refused）、3 等不到 keyframe。
@@ -16,7 +17,7 @@ import struct
 import sys
 import time
 
-NAVIGATION_KEYS = ("GoBack", "GoHome", "AppSwitch")
+NAVIGATION_KEYS = ("GoBack", "GoHome", "AppSwitch", "Backspace")
 
 HEADER = struct.Struct(">QIB")   # 8 bytes monotonic ns、4 bytes seq、1 byte keyframe（spec 第 4 節）
 
@@ -67,6 +68,13 @@ def key_message(key: str, now_ms: float) -> str:
     return json.dumps({"type": "key", "key": key, "t": now_ms})
 
 
+def text_message(text: str, now_ms: float) -> str:
+    """與 Swift／viewer 一致：非空，最多 4096 個 UTF-16 單元。"""
+    if not isinstance(text, str) or not text or len(text.encode("utf-16-le")) // 2 > 4096:
+        raise ValueError("text must contain 1–4096 UTF-16 units")
+    return json.dumps({"type": "text", "text": text, "t": now_ms}, ensure_ascii=False)
+
+
 def video_url(host: str, port: int, token: str) -> str:
     return f"ws://{host}:{port}/ws/video?t={token}"
 
@@ -112,7 +120,7 @@ async def receive_video(args, results):
                 keyframe_at = time.monotonic() - started
             tracker.observe(seq, keyframe)
         # input 只能依附目前的 video 配對；先完成觸控／echo，再離開 video context。
-        if (args.touch or args.key) and keyframe_at is not None:
+        if (args.touch or args.key or args.text is not None) and keyframe_at is not None:
             await send_touch(args, results)
     results["KEYFRAME_SECONDS"] = f"{keyframe_at:.2f}" if keyframe_at is not None else ""
     results["FRAMES"] = tracker.frames
@@ -134,6 +142,9 @@ async def send_touch(args, results):
         if args.key:
             await inbound.send(key_message(args.key, time.monotonic() * 1000))
             results["KEY_SENT"] = args.key
+        if args.text is not None:
+            await inbound.send(text_message(args.text, time.monotonic() * 1000))
+            results["TEXT_SENT"] = 1
         sent = time.monotonic()
         ping = json.dumps({"type": "ping", "t": sent * 1000})
         await inbound.send(ping)
@@ -191,5 +202,6 @@ if __name__ == "__main__":
     parser.add_argument("--seconds", type=float, default=10.0, help="keyframe 之後再收幾秒")
     parser.add_argument("--touch", action="store_true")
     parser.add_argument("--key", choices=NAVIGATION_KEYS, help="送出一組導覽鍵按放")
+    parser.add_argument("--text", help="完整文字經既有剪貼簿提交交易送入 guest")
     parser.add_argument("--loop", action="store_true")
     sys.exit(asyncio.run(main(parser.parse_args())))

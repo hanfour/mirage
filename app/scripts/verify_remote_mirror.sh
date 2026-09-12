@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
-# 手機遙控活體驗證（spec 第 8 節）：五條斷言
+# 手機遙控活體驗證（spec 第 8 節）：六條斷言
 #   R1 手機端（Python 用戶端）60 秒內收到 keyframe
 #   R2 幀序連續（SEQ_GAPS == 0）
 #   R3 送一組 down/move/up 後 guest 的 getevent 出現 ABS_MT_TRACKING_ID，且沒有 slot 卡在 down
 #   R4 GoHome 後前景為 HOME resolver 指定的 launcher
 #   R5 AppSwitch 在 guest evdev 出現 KEY_APPSELECT DOWN 與 UP
+#   R6 遠端文字提交後，設定搜尋欄位的新鮮 UI dump 精確回讀相等
 # 之前先跑兩條 Swift 活體測試：RemoteVideoEncoderLiveTests（硬體編碼器＋SPS 改寫）與
 # RemoteInputLiveTests（server → InputQueue → 真模擬器），並斷言它們是 passed 不是 skipped。
 #
@@ -249,4 +250,9 @@ key_downs=$(grep -Ec ' KEY_APPSELECT +DOWN' "$KEY_EVENT_LOG" || true)
 key_ups=$(grep -Ec ' KEY_APPSELECT +UP' "$KEY_EVENT_LOG" || true)
 assert_at_least "R5 KEY_APPSELECT DOWN" "$key_downs" 1
 assert_at_least "R5 KEY_APPSELECT UP" "$key_ups" 1
+# R6：此段只準備設定搜尋欄位；受測文字全部經 /ws/input 與既有提交交易。
+TEXT_EVIDENCE=$(mktemp -d -t mirage_remote_text) || exit 1
+echo "=== 第六段：遠端文字 → 設定搜尋欄位（證據：${TEXT_EVIDENCE}）==="
+"$PY" "${SCRIPT_DIR}/lib/remote_text_verify.py" --serial "$SERIAL" --port "$REMOTE_PORT" \
+    --token "$TOKEN" --wait-keyframe "$WAIT_KEYFRAME" --evidence "$TEXT_EVIDENCE" || exit 1
 echo "全部通過"

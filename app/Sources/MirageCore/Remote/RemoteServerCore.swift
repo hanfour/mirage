@@ -45,6 +45,7 @@ final class RemoteServerCore: @unchecked Sendable {
     static let invalidLogInterval: Duration = .seconds(1)
 
     let configuration: RemoteServerConfiguration
+    private let onText: @Sendable (String) -> Void
     private let onKey: @Sendable (KeyCode) -> Void
     private let onTouches: @Sendable ([TouchSpec]) -> Void
     private let onKeyframeRequested: @Sendable () -> Void
@@ -73,6 +74,7 @@ final class RemoteServerCore: @unchecked Sendable {
 
     init(configuration: RemoteServerConfiguration,
          onTouches: @escaping @Sendable ([TouchSpec]) -> Void,
+         onText: @escaping @Sendable (String) -> Void = { _ in },
          onKey: @escaping @Sendable (KeyCode) -> Void = { _ in },
          onKeyframeRequested: @escaping @Sendable () -> Void,
          onStateChanged: @escaping @Sendable (RemoteSessionState) -> Void,
@@ -81,6 +83,7 @@ final class RemoteServerCore: @unchecked Sendable {
         self.configuration = configuration
         self.onTouches = onTouches
         self.onKey = onKey
+        self.onText = onText
         self.onKeyframeRequested = onKeyframeRequested
         self.onStateChanged = onStateChanged
         self.now = now
@@ -278,6 +281,12 @@ final class RemoteServerCore: @unchecked Sendable {
         case .success(.ping):
             lock.unlock()
             return text
+        case .success(.text(let text, time: _)):
+            let onText = self.onText
+            pendingEffects.append { onText(text) }
+            lock.unlock()
+            performEffects()
+            return nil
         case .success(.key(let code, time: _)):
             let onKey = self.onKey
             pendingEffects.append { onKey(code) }

@@ -34,12 +34,13 @@ import MirageCore
 private actor IMEShellTransport: InputInjecting, TextCommitTransport {
     var clipboard = ""
     var keys: [String] = []
+    var operations: [String] = []
     func sendTouches(_ touches: [TouchSpec]) async {}
-    func sendKey(_ code: KeyCode, down: Bool) async {}
+    func sendKey(_ code: KeyCode, down: Bool) async { operations.append("key") }
     func sendTap(nx: Double, ny: Double, down: Bool) async {}
-    func writeTextClipboard(_ text: String, timeout: Duration) async throws { clipboard = text }
-    func readTextClipboard(timeout: Duration) async throws -> String { clipboard }
-    func sendTextKey(_ key: String, down: Bool, timeout: Duration) async throws { keys.append("\(key):\(down)") }
+    func writeTextClipboard(_ text: String, timeout: Duration) async throws { operations.append("write"); clipboard = text }
+    func readTextClipboard(timeout: Duration) async throws -> String { operations.append("read"); return clipboard }
+    func sendTextKey(_ key: String, down: Bool, timeout: Duration) async throws { operations.append("paste"); keys.append("\(key):\(down)") }
 }
 
 @MainActor @Suite struct TextInputModeTests {
@@ -73,6 +74,30 @@ private actor IMEShellTransport: InputInjecting, TextCommitTransport {
         #expect(keys == 0)
         #expect(flags == 0)
     }
+    @Test func remoteEnqueueKeepsReadbackPasteAndFollowingKeyInOrder() async throws {
+        let transport = IMEShellTransport()
+        let path = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: path) }
+        let diagnostics = TextInputDiagnostics(path: path.path)
+        let policy = try TextSubmissionPolicy(settleMilliseconds: 1)
+        let queue = InputQueue(injector: transport, textTransport: transport,
+                               textPolicy: .success(policy), textDiagnostics: diagnostics)
+        let state = TextInputPresentation(queue: queue)
+        state.localDraft = "Mac 草稿"
+        await Task.detached {
+            state.enqueue("遠端中文🙂", origin: "remote")
+            queue.key(.key("Backspace"), down: true)
+        }.value
+        await queue.drained()
+        let operations = await transport.operations
+        #expect(operations == ["write", "read", "paste", "paste", "paste", "paste", "key"])
+        #expect(await transport.clipboard == "遠端中文🙂")
+        #expect(state.localDraft == "Mac 草稿")
+        let trace = try String(contentsOf: path, encoding: .utf8)
+        #expect(trace.contains(#""origin":"remote""#))
+        #expect(trace.contains("commit-enqueued"))
+    }
+
     @Test func viewCommitGoesThroughOnePasteAndPolicyRejectRetainsDraft() async throws {
         let transport = IMEShellTransport()
         let queue = InputQueue(injector: transport)

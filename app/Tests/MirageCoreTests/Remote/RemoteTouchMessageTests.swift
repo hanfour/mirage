@@ -1,3 +1,4 @@
+import Foundation
 import Testing
 @testable import MirageCore
 
@@ -112,6 +113,38 @@ import Testing
     ])
     func invalidNavigationKeysAreRejected(text: String, error: RemoteInputDecodeError) {
         #expect(RemoteTouchMessageDecoder.decode(text) == .failure(error))
+    }
+
+    @Test func backspaceAllowsTheCompactKeyMessage() throws {
+        let message = try RemoteTouchMessageDecoder.decode(#"{"type":"key","key":"Backspace"}"#).get()
+        #expect(message == .key(.key("Backspace"), time: 0))
+    }
+
+    @Test(arguments: ["hello", "中文🙂é", " ", String(repeating: "a", count: 4096), String(repeating: "🙂", count: 2048)])
+    func textPreservesUnicodeAndBoundary(_ text: String) throws {
+        let data = try JSONSerialization.data(withJSONObject: ["type": "text", "text": text, "t": 12.5])
+        let json = try #require(String(data: data, encoding: .utf8))
+        let decoded = try RemoteTouchMessageDecoder.decode(json).get()
+        #expect(decoded == .text(text, time: 12.5))
+    }
+
+    @Test(arguments: [
+        (#"{"type":"text","t":1}"#, RemoteInputDecodeError.missingField("text")),
+        (#"{"type":"text","text":"","t":1}"#, RemoteInputDecodeError.invalidText),
+        (#"{"type":"text","text":true,"t":1}"#, RemoteInputDecodeError.invalidText),
+        (#"{"type":"text","text":null,"t":1}"#, RemoteInputDecodeError.invalidText),
+        (#"{"type":"text","text":"hi"}"#, RemoteInputDecodeError.missingField("t")),
+        (#"{"type":"text","text":"hi","t":true}"#, RemoteInputDecodeError.invalidTime),
+    ])
+    func invalidTextIsRejected(json: String, error: RemoteInputDecodeError) {
+        #expect(RemoteTouchMessageDecoder.decode(json) == .failure(error))
+    }
+
+    @Test(arguments: [String(repeating: "a", count: 4097), String(repeating: "🙂", count: 2049)])
+    func oversizedTextIsRejected(_ text: String) throws {
+        let data = try JSONSerialization.data(withJSONObject: ["type": "text", "text": text, "t": 1])
+        let json = try #require(String(data: data, encoding: .utf8))
+        #expect(RemoteTouchMessageDecoder.decode(json) == .failure(.invalidText))
     }
 
 }

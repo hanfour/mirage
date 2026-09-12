@@ -12,7 +12,7 @@ final class TextInputPresentation {
     private(set) var paused = false
     var localDraft = ""
     var localIssue: String?
-    let queue: InputQueue
+    nonisolated let queue: InputQueue
     init(queue: InputQueue) {
         self.queue = queue
         switch queue.textCoordinator.configuredPolicy {
@@ -39,11 +39,15 @@ final class TextInputPresentation {
     }
     func submit(_ text: String, compositionID: UUID? = nil, eventID: UUID? = nil, origin: String = "input-client") {
         localDraft = ""
+        enqueue(text, compositionID: compositionID, eventID: eventID, origin: origin)
+    }
+    /// 同步入既有交易佇列；只有結果顯示切回 MainActor，遠端後續 key/touch 不會超車。
+    nonisolated func enqueue(_ text: String, compositionID: UUID? = nil, eventID: UUID? = nil, origin: String) {
         let commit = TextCommit(text: text, generation: queue.textCoordinator.status.generation)
         queue.textDiagnostics.record("commit-request", ["commitID": commit.id.uuidString,
             "compositionID": compositionID?.uuidString ?? "none", "eventID": eventID?.uuidString ?? "none", "origin": origin])
         let stream = queue.commitText(commit)
-        Task { [weak self] in
+        Task { @MainActor [weak self] in
             for await result in stream { self?.record(result) }
         }
     }

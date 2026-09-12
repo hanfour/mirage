@@ -123,6 +123,7 @@ extension AppModel {
         return RemoteMirrorController(
             configuration: configuration, secondary: secondary, inputQueue: inputQueue,
             makeEncoder: { deliver in makeRemoteEncoder(deliver, fail) },
+            onText: { [textInput] text in textInput.enqueue(text, origin: "remote") },
             onError: fail,
             onStateChanged: { [weak self] _ in
                 Task { @MainActor in self?.remoteSessionChanged(generation: generation) }
