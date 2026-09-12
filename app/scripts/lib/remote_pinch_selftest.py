@@ -18,19 +18,21 @@ def client_evidence(rate=62, transit=10):
     sample = json.dumps({"type": "stats", "intervalMs": 1000,
                          "inputRPCsPerSecond": rate, "inputCoalesced": 60, "transitMs": transit})
     return (f"PINCH_STATS={sample}\nPINCH_STATS={sample}\nPINCH_SECONDS=3.001\n"
-            "PINCH_BATCHES=376\nPOST_PINCH_TAP_SENT_MS=80\nPOST_PINCH_TAP_AT=103.080\n")
+            "PINCH_BATCHES=376\nPOST_PINCH_TAP_SENT_MS=80\n")
 
 
-def event_evidence():
+def event_evidence(gap_ms=100):
+    # 全部邊緣來自 guest 核心時鐘；最後一指於 13.001 秒放開。
+    tap_at = 13.001 + gap_ms / 1000
     return "\n".join([
-        "HOST_RECEIVED=100.010 [ 10.000] EV_ABS ABS_MT_TRACKING_ID 00000040",
-        "HOST_RECEIVED=100.010 [ 10.000] EV_ABS ABS_MT_SLOT 00000001",
-        "HOST_RECEIVED=100.011 [ 10.001] EV_ABS ABS_MT_TRACKING_ID 00000041",
-        "HOST_RECEIVED=103.010 [ 13.000] EV_ABS ABS_MT_TRACKING_ID ffffffff",
-        "HOST_RECEIVED=103.010 [ 13.000] EV_ABS ABS_MT_SLOT 00000000",
-        "HOST_RECEIVED=103.011 [ 13.001] EV_ABS ABS_MT_TRACKING_ID ffffffff",
-        "HOST_RECEIVED=103.100 [ 13.080] EV_ABS ABS_MT_TRACKING_ID 00000040",
-        "HOST_RECEIVED=103.151 [ 13.131] EV_ABS ABS_MT_TRACKING_ID ffffffff",
+        "[ 10.000] EV_ABS ABS_MT_TRACKING_ID 00000040",
+        "[ 10.000] EV_ABS ABS_MT_SLOT 00000001",
+        "[ 10.001] EV_ABS ABS_MT_TRACKING_ID 00000041",
+        "[ 13.000] EV_ABS ABS_MT_TRACKING_ID ffffffff",
+        "[ 13.000] EV_ABS ABS_MT_SLOT 00000000",
+        "[ 13.001] EV_ABS ABS_MT_TRACKING_ID ffffffff",
+        f"[ {tap_at:.3f}] EV_ABS ABS_MT_TRACKING_ID 00000040",
+        f"[ {tap_at + .05:.3f}] EV_ABS ABS_MT_TRACKING_ID ffffffff",
     ])
 
 
@@ -42,9 +44,9 @@ class PinchEvidenceTests(unittest.TestCase):
                       events if events is not None else event_evidence())
         return output.getvalue()
 
-    def test_valid_evidence_prints_rates_transit_slots_and_tap_arrival(self):
+    def test_normal_100ms_guest_gap_passes_and_prints_evidence(self):
         text = self.verify()
-        for evidence in ("[62, 62]", "10.00 ms", "TRACKING_ID", "20.00ms", "3.001s"):
+        for evidence in ("[62, 62]", "10.00 ms", "TRACKING_ID", "最後一指放開 → tap down=100.00ms", "3.001s"):
             self.assertIn(evidence, text)
 
     def test_missing_null_invalid_and_over_limit_stats_fail(self):
@@ -81,19 +83,25 @@ class PinchEvidenceTests(unittest.TestCase):
             with self.subTest(events=case), self.assertRaises(ValueError):
                 self.verify(events=case)
 
-    def test_missing_guest_or_host_timestamps_cannot_pass(self):
-        for events in (event_evidence().replace("[ 10.000]", ""),
-                       event_evidence().replace("HOST_RECEIVED=103.100", "")):
-            with self.subTest(events=events), self.assertRaises(ValueError):
-                self.verify(events=events)
+    def test_missing_guest_timestamp_cannot_pass(self):
+        with self.assertRaisesRegex(ValueError, "guest monotonic"):
+            self.verify(events=event_evidence().replace("[ 10.000]", ""))
 
-    def test_delayed_arrival_fails_even_when_guest_relative_gap_is_small(self):
-        with self.assertRaisesRegex(ValueError, "500ms"):
-            self.verify(events=event_evidence().replace("HOST_RECEIVED=103.100", "HOST_RECEIVED=104.100"))
+    def test_queued_800ms_guest_gap_fails_and_prints_evidence(self):
+        output = io.StringIO()
+        with contextlib.redirect_stdout(output), self.assertRaisesRegex(ValueError, "排隊超過 500ms"):
+            rp.verify(client_evidence(), event_evidence(gap_ms=800))
+        self.assertIn("最後一指放開 → tap down=800.00ms", output.getvalue())
+
+    def test_host_timestamps_do_not_affect_guest_gap_verdict(self):
+        events = "\n".join("HOST_RECEIVED=999999.000 " + line for line in event_evidence().splitlines())
+        text = self.verify(client_evidence() + "POST_PINCH_TAP_AT=1.000\n", events)
+        self.assertIn("最後一指放開 → tap down=100.00ms", text)
+        self.assertNotIn("tap send → host", text)
 
     def test_guest_burst_or_long_gap_fails(self):
         for events in (event_evidence().replace("10.000", "12.500").replace("10.001", "12.501"),
-                       event_evidence().replace("13.080", "13.800").replace("13.131", "13.851")):
+                       event_evidence(gap_ms=800)):
             with self.subTest(events=events), self.assertRaises(ValueError):
                 self.verify(events=events)
 

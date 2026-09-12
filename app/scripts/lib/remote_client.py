@@ -349,16 +349,7 @@ def verify(client_text, event_text):
     guest_duration = min(e[0] for e in ups) - max(e[0] for e in downs)
     gap_ms = (tap[0][0] - max(e[0] for e in ups)) * 1000
     print(f"R7 guest pinch 持續={guest_duration:.3f}s；最後一指放開 → tap down={gap_ms:.2f}ms")
-    arrivals = [float(match[1]) for line in event_text.splitlines()
-                if "ABS_MT_TRACKING_ID" in line
-                for match in [re.search(r"HOST_RECEIVED=(\d+\.\d+)", line)] if match]
-    tap_at = float(values.get("POST_PINCH_TAP_AT", "nan"))
-    if len(arrivals) != 6 or not math.isfinite(tap_at):
-        raise ValueError("缺少 host 接收時間或 tap 發送時間，不能證明未排隊")
-    arrival_ms = (arrivals[4] - tap_at) * 1000
-    print(f"R7 tap send → host 讀到 guest TRACKING_ID={arrival_ms:.2f}ms（含 adb 傳輸）")
-    if not 0 <= arrival_ms <= 500:
-        raise ValueError("tap 送出後未在 500ms 內看到 guest TRACKING_ID")
+    # 只比較 guest 核心同一單調時鐘的邊緣，不以 host／adb 接收時間判定排隊。
     if not 2.5 <= guest_duration <= 3.5 or not 0 <= gap_ms <= 500:
         raise ValueError("guest 縮放時長異常或後續 tap 排隊超過 500ms")
 
