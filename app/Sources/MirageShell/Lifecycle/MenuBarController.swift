@@ -15,6 +15,15 @@ final class MenuBarController: NSObject, NSMenuDelegate {
     private let forceMenu: NSMenu
     /// 「切換模擬器」子選單。內容每次展開前由 `instanceEntries` 重算（探索檔隨模擬器起停而變）。
     private let instanceMenu: NSMenu
+    /// 「手機遙控」子選單。內容每次展開前由 `remoteEntries` 重算（狀態隨連線而變）。
+    private let remoteMenu: NSMenu
+    /// 手機遙控（2026-09-12）：AppModel.setupRemoteMenu() 綁定。`remoteEntries` 在子選單展開前
+    /// 被呼叫；三個動作分別對應「開啟／關閉」「網址列（複製）」「中斷連線」。
+    var remoteEntries: (() -> [RemoteMenuEntry])?
+    var onToggleRemote: (() -> Void)?
+    var onDisconnectRemote: (() -> Void)?
+    var onCopyRemoteURL: ((String) -> Void)?
+
 
     /// Task 6：AppModel.startDetection() 綁定這三個回呼到 setOverride(.disabled/.auto/.force(profile))。
     var onDisable: (() -> Void)?
@@ -56,8 +65,11 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         audioHealthItem.isHidden = true
         forceMenu = NSMenu()
         instanceMenu = NSMenu()
-        instanceMenu.autoenablesItems = false   // 停用與否由 populate 決定，不讓 AppKit 依 action 猜
+        instanceMenu.autoenablesItems = false
+        remoteMenu = NSMenu()
+        remoteMenu.autoenablesItems = false   // 停用與否由 populate 決定，不讓 AppKit 依 action 猜
         super.init()
+        remoteMenu.delegate = self
         forceMenu.delegate = self
         instanceMenu.delegate = self
 
@@ -75,6 +87,10 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         let instanceParent = NSMenuItem(title: "切換模擬器", action: nil, keyEquivalent: "")
         instanceParent.submenu = instanceMenu   // 與「套用 profile」同形：AppKit 自己畫 ▸
         menu.addItem(instanceParent)
+        let remoteParent = NSMenuItem(title: "手機遙控", action: nil, keyEquivalent: "")
+        remoteParent.submenu = remoteMenu   // 與「切換模擬器」同形
+        menu.addItem(remoteParent)
+
         menu.addItem(.separator())
         menu.addItem(withTitle: "返回", action: #selector(backTapped), keyEquivalent: "").target = self
         menu.addItem(withTitle: "主畫面", action: #selector(homeTapped), keyEquivalent: "").target = self
@@ -110,6 +126,15 @@ final class MenuBarController: NSObject, NSMenuDelegate {
     /// 兩個子選單都在展開前重算：「套用 profile」掃 profile 目錄、「切換模擬器」掃探索檔。
     /// 兩者都是「選單即時反映磁碟狀態」，不在 init 建一次。
     func menuNeedsUpdate(_ menu: NSMenu) {
+        if menu === remoteMenu {
+            Self.populate(remoteMenu: remoteMenu, entries: remoteEntries?() ?? RemoteMenu.entries(.off),
+                          target: self, toggleAction: #selector(remoteToggleTapped),
+                          copyAction: #selector(remoteCopyTapped(_:)),
+                          disconnectAction: #selector(remoteDisconnectTapped),
+                          qrImage: { QRCodeImage.make($0, side: RemoteMenu.qrSide) })
+            return
+        }
+
         if menu === instanceMenu {
             Self.populate(instanceMenu: instanceMenu, entries: instanceEntries?() ?? [],
                           target: self, action: #selector(instanceTapped(_:)))
@@ -137,6 +162,51 @@ final class MenuBarController: NSObject, NSMenuDelegate {
     @objc private func forceTapped(_ sender: NSMenuItem) {
         guard let gameId = sender.representedObject as? String else { return }
         onForce?(gameId)
+    }
+
+    @objc private func remoteToggleTapped() { onToggleRemote?() }
+    @objc private func remoteDisconnectTapped() { onDisconnectRemote?() }
+    @objc private func remoteCopyTapped(_ sender: NSMenuItem) {
+        guard let url = sender.representedObject as? String else { return }
+        onCopyRemoteURL?(url)
+    }
+
+    /// 純佈局：entries → NSMenuItem。static 是為了測試（同 `populate(instanceMenu:)` 的理由）。
+    /// QR 放 `NSMenuItem.view`（一個 `NSImageView`），不開視窗：`MirageScene` 是單一 `Window`、
+    /// `AppLifecycle` 掛在 `NSApp.windows.first`，多一個視窗會打破那個不變式。
+    static func populate(remoteMenu menu: NSMenu, entries: [RemoteMenuEntry], target: AnyObject?,
+                         toggleAction: Selector?, copyAction: Selector?, disconnectAction: Selector?,
+                         qrImage: (String) -> NSImage?)
+    {
+        menu.autoenablesItems = false
+        menu.removeAllItems()
+        for entry in entries {
+            let item: NSMenuItem
+            switch entry {
+            case .toggle(let title):
+                item = NSMenuItem(title: title, action: toggleAction, keyEquivalent: "")
+                item.target = target
+            case .status(let text):
+                item = NSMenuItem(title: text, action: nil, keyEquivalent: "")
+                item.isEnabled = false
+            case .url(let url):
+                item = NSMenuItem(title: "網址：\(url)（點一下複製）", action: copyAction, keyEquivalent: "")
+                item.target = target
+                item.representedObject = url
+            case .qr(let url):
+                item = NSMenuItem(title: "", action: nil, keyEquivalent: "")
+                let view = NSImageView(frame: NSRect(x: 0, y: 0, width: RemoteMenu.qrSide, height: RemoteMenu.qrSide))
+                view.image = qrImage(url)
+                view.imageScaling = .scaleNone
+                item.view = view
+            case .disconnect(let enabled):
+                item = NSMenuItem(title: RemoteMenu.disconnectTitle, action: enabled ? disconnectAction : nil,
+                                  keyEquivalent: "")
+                item.target = enabled ? target : nil
+                item.isEnabled = enabled
+            }
+            menu.addItem(item)
+        }
     }
 
     @objc private func instanceTapped(_ sender: NSMenuItem) {
