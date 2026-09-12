@@ -48,7 +48,14 @@ if [ "$NAME" = "$DEFAULT_NAME" ]; then
     NOT_RUNNING="已經沒有在執行"
 fi
 
-ps_lines() { pgrep -fl qemu-system 2>/dev/null; }
+# 接線測試可注入行程清單；有設但為空也代表空清單，不回頭查真實行程。
+ps_lines() {
+  if [ "${MIRAGE_EMU_PS_LINES+x}" = x ]; then
+    printf '%s\n' "$MIRAGE_EMU_PS_LINES"
+  else
+    pgrep -fl qemu-system 2>/dev/null
+  fi
+}
 booted_on() { [ "$("$ADB" -s "$1" shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" = "1" ]; }
 booted() { booted_on "$SERIAL"; }
 running() { emu_is_running "$(ps_lines)" "$PORT"; }
@@ -88,7 +95,8 @@ case "${1:-start}" in
   status)
     LINES=$(emu_running_instances "$(ps_lines)")
     if [ -z "$LINES" ]; then echo "未執行"; exit 1; fi
-    while read -r pid avd port grpc; do
+    # adb 會吃 stdin，不能讓它讀走清單剩下的行；read 專用 fd 3，查詢的 stdin 接 /dev/null。
+    while read -r pid avd port grpc <&3; do
       serial="emulator-${port}"
       if booted_on "$serial"; then st="開機完成"; else st="開機中"; fi
       printf '執行中：%s（%s，AVD %s，pid %s）\n' "$serial" "$st" "$avd" "$pid"
@@ -98,7 +106,7 @@ case "${1:-start}" in
         printf '  gRPC %s 綁定：%s\n' "$grpc" "$(grpc_bind "$grpc")"; warn_if_open "$grpc"
       fi
       printf '  前景：%s\n' "$(foreground_on "$serial")"
-    done <<< "$LINES"
+    done 3<<< "$LINES" < /dev/null
     printf '磁碟可用：%s\n' "$(df -h / | tail -1 | awk '{print $4}')"
     ;;
   *) echo "用法：$0 [-n <實例名稱>] [start|stop|status]" >&2; exit 2 ;;

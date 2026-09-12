@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# emu_instances.sh 的自我測試。**不需要模擬器、不需要 adb**：所有 pgrep 輸出都是假的。
+# emu_instances.sh 與 emu.sh 的自我測試。不需要模擬器或真 adb：行程與 SDK 都用假資料。
 #
 # 假資料的來源（fixtures-must-come-from-real-logs）：
 #   PS_ONE 是 2026-09-12 在開發機上 `pgrep -fl qemu-system` 的實際輸出（路徑原樣保留）。
@@ -131,6 +131,33 @@ check "同一個 AVD 同一個埠 → 不算衝突（1），那是「已在執�
       "$(run_case "emu_avd_conflict '${PS_ONE}' mirage-game 5554")" 1
 check "不同 AVD → 1" "$(run_case "emu_avd_conflict '${PS_ONE}' mirage-poc 5556")" 1
 check "沒有任何 qemu → 1" "$(run_case "emu_avd_conflict '' mirage-game 5554")" 1
+
+echo "--- emu.sh status 接線：adb 吃光 stdin 仍列出兩台 ---"
+SDK_FIXTURE=$(mktemp -d "${TMPDIR:-/tmp}/mirage-emu-selftest.XXXXXX") || exit 1
+trap 'rm -rf "$SDK_FIXTURE"' EXIT
+mkdir -p "${SDK_FIXTURE}/platform-tools" || exit 1
+# 真 adb 會讀 stdin；故意吃光它，才能抓出 status 迴圈共用 stdin 的接線錯誤。
+cat > "${SDK_FIXTURE}/platform-tools/adb" <<'FAKE_ADB'
+#!/usr/bin/env bash
+cat > /dev/null
+case "$*" in
+    *'shell getprop sys.boot_completed') printf '1\n' ;;
+    *'shell dumpsys activity activities')
+        printf '  topResumedActivity=ActivityRecord{123 u0 com.example.game/.MainActivity t1}\n' ;;
+    *) exit 1 ;;
+esac
+FAKE_ADB
+chmod +x "${SDK_FIXTURE}/platform-tools/adb" || exit 1
+STATUS_OUT=$(ANDROID_SDK_ROOT="$SDK_FIXTURE" MIRAGE_EMU_PS_LINES="$PS_TWO" \
+    MIRAGE_INSTANCES='mirage-game:5554:8554 mirage-poc:5556:8556' \
+    MIRAGE_AVD='' MIRAGE_PORT='' MIRAGE_GRPC='' \
+    bash "$(dirname "$0")/../emu.sh" status < /dev/null)
+check "status 接線退出碼" "$?" 0
+printf '%s\n' "$STATUS_OUT"
+for serial in emulator-5554 emulator-5556; do
+    [[ "$STATUS_OUT" == *"執行中：${serial}（開機完成"* ]]
+    check "吃光 stdin 後仍列出 ${serial} 且開機完成" "$?" 0
+done
 
 echo ""
 if [ "$FAILURES" -eq 0 ]; then
