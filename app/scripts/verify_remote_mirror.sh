@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
-# 手機遙控活體驗證（spec 第 8 節）：三條斷言
+# 手機遙控活體驗證（spec 第 8 節）：五條斷言
 #   R1 手機端（Python 用戶端）60 秒內收到 keyframe
 #   R2 幀序連續（SEQ_GAPS == 0）
 #   R3 送一組 down/move/up 後 guest 的 getevent 出現 ABS_MT_TRACKING_ID，且沒有 slot 卡在 down
+#   R4 GoHome 後前景為 HOME resolver 指定的 launcher
+#   R5 AppSwitch 後前景為 recents 或非 launcher（印出活動證據）
 # 之前先跑兩條 Swift 活體測試：RemoteVideoEncoderLiveTests（硬體編碼器＋SPS 改寫）與
 # RemoteInputLiveTests（server → InputQueue → 真模擬器），並斷言它們是 passed 不是 skipped。
 #
@@ -179,4 +181,63 @@ read -r downs ups < <(touch_transition_count < "$EVENT_LOG")
 assert_at_least "R3 guest 收到按下（ABS_MT_TRACKING_ID）" "$downs" 1
 assert_at_least "R3 guest 收到放開" "$ups" 1
 echo "ping 往返：${PING_RTT_MS:-?} ms（loopback，只是工具健康度，不是手機的數字）"
+echo ""
+echo "=== 第五段：遠端導覽鍵 → guest 前景活動 ==="
+# 沿用 emu.sh foreground_on：只看第一條 topResumedActivity，不能把歷史 task 當前景。
+# 解析完整 component，保留套件數字／底線；每次採樣都印出原始證據。
+foreground_evidence() {
+    local dump
+    dump=$("$ADB" -s "$SERIAL" shell dumpsys activity activities 2>&1) || {
+        echo "❌ dumpsys 失敗：$dump" >&2; return 1;
+    }
+    FG_LINE=$(printf '%s\n' "$dump" | grep -m1 topResumedActivity | tr -d '\r')
+    FG_COMPONENT=$(printf '%s\n' "$FG_LINE" | grep -oE '[A-Za-z0-9_.]+/[A-Za-z0-9_.$]+' | head -1)
+    echo "   topResumedActivity 證據：${FG_LINE:-<空>}"
+}
+HOME_RESOLVER=$("$ADB" -s "$SERIAL" shell cmd package resolve-activity --brief \
+    -a android.intent.action.MAIN -c android.intent.category.HOME 2>&1) || exit 1
+echo "   HOME resolver 證據：$HOME_RESOLVER"
+HOME_COMPONENT=$(printf '%s\n' "$HOME_RESOLVER" | tr -d '\r' | grep -E '^[A-Za-z0-9_.]+/[A-Za-z0-9_.$]+$' | tail -1)
+[ -n "$HOME_COMPONENT" ] || { echo "❌ 無法解析 launcher component"; exit 1; }
+HOME_PACKAGE=${HOME_COMPONENT%%/*}
+send_navigation_key() {
+    local key="$1" output rc
+    # 前一組 viewer 的 close 由 server 非同步清理；有限重試僅限 409，未連線不會重送按鍵。
+    for _ in 1 2 3 4 5; do
+        output=$("$PY" "${SCRIPT_DIR}/lib/remote_client.py" --host 127.0.0.1 \
+            --port "$REMOTE_PORT" --token "$TOKEN" --wait-keyframe "$WAIT_KEYFRAME" --seconds 0 --key "$key" 2>&1)
+        rc=$?
+        printf '%s\n' "$output" | tee -a "$CLIENT_LOG"
+        if [ "$rc" -eq 0 ]; then
+            printf '%s\n' "$output" | grep -qx "KEY_SENT=$key" || return 1
+            printf '%s\n' "$output" | grep -qx 'PING_ECHO_OK=1'
+            return $?
+        fi
+        if [ "$rc" -eq 2 ] && [[ "$output" == *"HTTP 409"* ]]; then sleep 0.2; else return "$rc"; fi
+    done
+    return 1
+}
+send_navigation_key GoHome || { echo "❌ GoHome 傳送失敗"; exit 1; }
+HOME_SEEN=0
+for _ in $(seq 1 20); do
+    foreground_evidence || exit 1
+    if [ -n "$FG_COMPONENT" ] && [ "${FG_COMPONENT%%/*}" = "$HOME_PACKAGE" ]; then HOME_SEEN=1; break; fi
+    sleep 0.25
+done
+assert_equals "R4 GoHome 後前景為 launcher $HOME_PACKAGE" "$HOME_SEEN" 1
+send_navigation_key AppSwitch || { echo "❌ AppSwitch 傳送失敗"; exit 1; }
+RECENTS_SEEN=0
+for _ in $(seq 1 20); do
+    foreground_evidence || exit 1
+    if [ -n "$FG_COMPONENT" ]; then
+        case "$FG_COMPONENT" in
+            *[Rr]ecents*|*[Oo]verview*) RECENTS_SEEN=1 ;;
+            *) [ "${FG_COMPONENT%%/*}" != "$HOME_PACKAGE" ] && RECENTS_SEEN=1 ;;
+        esac
+    fi
+    [ "$RECENTS_SEEN" -eq 1 ] && break
+    sleep 0.25
+done
+[ "$RECENTS_SEEN" -eq 1 ] || echo "   無法證明最近任務：若 overview 與 launcher 共用 activity，需另做裝置 UI 驗證。"
+assert_equals "R5 AppSwitch 後前景為 recents 或非 launcher" "$RECENTS_SEEN" 1
 echo "全部通過"

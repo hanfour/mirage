@@ -5,6 +5,8 @@ import contextlib
 import io
 import json
 import struct
+import subprocess
+import tempfile
 import sys
 import unittest
 from unittest.mock import patch
@@ -49,6 +51,14 @@ class TouchMessageTests(unittest.TestCase):
         self.assertTrue(all(m["id"] == 3 for m in messages))
         self.assertTrue(all(0 <= m["x"] <= 1 and 0 <= m["y"] <= 1 for m in messages))   # 夾住
         self.assertEqual([m["t"] for m in messages], [100.0, 140.0, 180.0])
+
+    def test_navigation_key_protocol_and_allowlist(self):
+        for key in rc.NAVIGATION_KEYS:
+            self.assertEqual(json.loads(rc.key_message(key, 12.5)),
+                             {"type": "key", "key": key, "t": 12.5})
+        for key in ("gohome", "Power", "", None):
+            with self.assertRaises(ValueError):
+                rc.key_message(key, 1)
 
     def test_urls(self):
         self.assertEqual(rc.video_url("127.0.0.1", 8765, "ab"), "ws://127.0.0.1:8765/ws/video?t=ab")
@@ -106,7 +116,7 @@ class TouchTransportTests(unittest.IsolatedAsyncioTestCase):
                 return '{"type":"ping","t":-1}'
 
         modules = {"websockets.asyncio.client": SimpleNamespace(connect=lambda *a, **k: Socket())}
-        args = SimpleNamespace(host="127.0.0.1", port=8765, token="a")
+        args = SimpleNamespace(host="127.0.0.1", port=8765, token="a", touch=True, key=None)
         with patch.dict(sys.modules, modules), patch.object(rc, "connect_options", return_value={}), \
                 patch.object(rc, "touch_messages", return_value=['{"type":"down"}']):
             results = {}
@@ -133,7 +143,7 @@ class LoopTransportTests(unittest.IsolatedAsyncioTestCase):
                 yield rc.HEADER.pack(2, 2, 0) + b"\x00\x00\x01\x41"
 
         modules = {"websockets.asyncio.client": SimpleNamespace(connect=lambda *a, **k: Socket())}
-        args = SimpleNamespace(host="127.0.0.1", port=8765, token="a")
+        args = SimpleNamespace(host="127.0.0.1", port=8765, token="a", touch=True, key=None)
         output = io.StringIO()
         with patch.dict(sys.modules, modules), patch.object(rc, "connect_options", return_value={}), \
                 patch.object(rc.time, "time", side_effect=[100, 101, 102]), \
@@ -146,7 +156,7 @@ class LoopTransportTests(unittest.IsolatedAsyncioTestCase):
 
 
 class PairedConnectionTests(unittest.IsolatedAsyncioTestCase):
-    async def run_client(self, failure=None):
+    async def run_client(self, failure=None, key=None):
         events = []
         active = set()
         test = self
@@ -185,13 +195,17 @@ class PairedConnectionTests(unittest.IsolatedAsyncioTestCase):
                 if failure == "touch":
                     raise ConnectionError("touch failed")
                 self.echo = text
-                events.append(json.loads(text)["type"])
+                message = json.loads(text)
+                if message["type"] == "key":
+                    test.assertEqual(message["key"], key)
+                    test.assertIsInstance(message["t"], (float, int))
+                events.append(message["type"])
 
         def connect(url, **kwargs):
             return Socket("input" if "/ws/input?" in url else "video")
 
         args = SimpleNamespace(host="127.0.0.1", port=8765, token="a", loop=False,
-                               touch=True, wait_keyframe=60, seconds=10)
+                               touch=key is None, key=key, wait_keyframe=60, seconds=10)
         modules = {"websockets.asyncio.client": SimpleNamespace(connect=connect)}
         output = io.StringIO()
         with patch.dict(sys.modules, modules), patch.object(rc, "connect_options", return_value={}), \
@@ -208,6 +222,16 @@ class PairedConnectionTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn("TOUCH_SENT=3", output)
         self.assertIn("PING_ECHO_OK=1", output)
 
+    async def test_keys_and_echo_finish_before_video_closes(self):
+        for key in rc.NAVIGATION_KEYS:
+            with self.subTest(key=key):
+                code, events, output = await self.run_client(key=key)
+                self.assertEqual(code, 0)
+                self.assertEqual(events, ["open video", "open input", "key", "ping", "echo",
+                                          "close input", "close video"])
+                self.assertIn(f"KEY_SENT={key}", output)
+                self.assertIn("TOUCH_SENT=0", output)
+
     async def test_touch_failure_closes_both_connections(self):
         code, events, _ = await self.run_client("touch")
         self.assertEqual(code, 2)
@@ -222,6 +246,70 @@ class PairedConnectionTests(unittest.IsolatedAsyncioTestCase):
         code, events, _ = await self.run_client("video")
         self.assertEqual(code, 2)
         self.assertEqual(events, ["open video", "close video"])
+
+
+class NavigationEvidenceTests(unittest.TestCase):
+    """執行活體腳本的 R4/R5 原碼，假 adb／client 不會啟動 Swift 或模擬器。"""
+
+    def run_evidence(self, mode):
+        lib = Path(__file__).resolve().parent
+        script = (lib.parent / "verify_remote_mirror.sh").read_text()
+        section = script[script.index("foreground_evidence()"):]
+        prelude = r"""
+set -uo pipefail
+source "$1/verify_common.sh"
+MODE="$2"
+PHASE_FILE="$3"
+ADB=fake_adb PY=fake_client SERIAL=emulator-5554
+SCRIPT_DIR=/unused REMOTE_PORT=8765 TOKEN=test WAIT_KEYFRAME=1 CLIENT_LOG=/dev/null
+sleep() { :; }
+fake_client() {
+    local key="${!#}"
+    if [ "$MODE" = send_failure ]; then echo CONNECT_ERROR=failed; return 2; fi
+    echo "$key" > "$PHASE_FILE"
+    echo "KEY_SENT=$key"
+    echo PING_ECHO_OK=1
+}
+fake_adb() {
+    if [[ "$*" == *resolve-activity* ]]; then
+        echo com.android.launcher3/.Launcher
+        return
+    fi
+    [ "$MODE" != adb_failure ] || { echo adb_failed; return 1; }
+    local component=com.android.launcher3/.Launcher
+    if [ "$(cat "$PHASE_FILE")" = AppSwitch ]; then
+        case "$MODE" in
+            recents) component=com.android.launcher3/.RecentsActivity ;;
+            non_launcher) component=com.android.systemui/.OtherActivity ;;
+            empty) echo 'topResumedActivity=null'; return ;;
+        esac
+    elif [ "$MODE" = home_noop ]; then
+        component=com.example.game/.GameActivity
+    fi
+    echo "topResumedActivity=ActivityRecord{abc u0 $component t42}"
+    echo "Hist #0: ActivityRecord{old u0 com.android.systemui/.RecentsActivity t1}"
+}
+"""
+        with tempfile.TemporaryDirectory() as directory:
+            return subprocess.run(["bash", "-c", prelude + section, "nav-test", str(lib),
+                                   mode, str(Path(directory) / "phase")],
+                                  capture_output=True, text=True, timeout=10)
+
+    def test_accepts_recents_and_non_launcher_with_evidence(self):
+        for mode in ("recents", "non_launcher"):
+            with self.subTest(mode=mode):
+                result = self.run_evidence(mode)
+                self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+                self.assertIn("HOME resolver 證據", result.stdout)
+                self.assertIn("topResumedActivity 證據", result.stdout)
+                self.assertIn("全部通過", result.stdout)
+
+    def test_rejects_empty_unchanged_foreground_and_transport_failures(self):
+        for mode in ("empty", "unchanged", "home_noop", "adb_failure", "send_failure"):
+            with self.subTest(mode=mode):
+                result = self.run_evidence(mode)
+                self.assertNotEqual(result.returncode, 0, result.stdout + result.stderr)
+                self.assertNotIn("全部通過", result.stdout)
 
 
 if __name__ == "__main__":

@@ -48,7 +48,13 @@ private final class RecordingInjector: InputInjecting, @unchecked Sendable {
     let gate = CountGate()
     func sendTouches(_ touches: [TouchSpec]) async { record(touches) }
     private func record(_ touches: [TouchSpec]) { lock.lock(); stored.append(touches); lock.unlock(); gate.increment() }
-    func sendKey(_ code: KeyCode, down: Bool) async {}
+    private var storedKeys: [(KeyCode, Bool)] = []
+    let keyGate = CountGate()
+    func sendKey(_ code: KeyCode, down: Bool) async { recordKey(code, down: down) }
+    private func recordKey(_ code: KeyCode, down: Bool) {
+        lock.lock(); storedKeys.append((code, down)); lock.unlock(); keyGate.increment()
+    }
+    var keys: [(KeyCode, Bool)] { lock.lock(); defer { lock.unlock() }; return storedKeys }
     func sendTap(nx: Double, ny: Double, down: Bool) async {}
     var touches: [[TouchSpec]] { lock.lock(); defer { lock.unlock() }; return stored }
 }
@@ -283,6 +289,30 @@ private enum TestFailure: Error { case unexpectedMessageKind, encoding }
             input.cancel(with: .normalClosure, reason: nil)
             await h.injector.gate.wait(for: 2)           // 斷線 → allocator 全放開 → up
             #expect(h.injector.touches[1] == [TouchSpec(identifier: 64, point: NormPoint(x: 0.25, y: 0.75), down: false)])
+        }
+    }
+
+    @Test func navigationKeysReachQueueAsOrderedDownUpPairs() async throws {
+        try await withController { h in
+            let video = webSocket(h.port, "/ws/video")
+            defer { video.cancel(with: .normalClosure, reason: nil) }
+            await h.states.wait { $0.contains { $0.hasVideo } }
+            let input = webSocket(h.port, "/ws/input")
+            defer { input.cancel(with: .normalClosure, reason: nil) }
+            let names = ["GoBack", "GoHome", "AppSwitch"]
+            for name in names {
+                try await input.send(.string(#"{"type":"key","key":"\#(name)","t":1}"#))
+            }
+            let ping = #"{"type":"ping","t":2}"#
+            try await input.send(.string(ping))
+            let echo = try await input.receive()
+            guard case .string(let text) = echo else { throw TestFailure.unexpectedMessageKind }
+            #expect(text == ping)
+            await h.injector.keyGate.wait(for: 6)
+            await h.queue.drained()
+            let keys = h.injector.keys
+            #expect(keys.map { $0.0 } == names.flatMap { [KeyCode.key($0), .key($0)] })
+            #expect(keys.map { $0.1 } == [true, false, true, false, true, false])
         }
     }
 

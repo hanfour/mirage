@@ -34,12 +34,13 @@ public final class RemoteServer: @unchecked Sendable {
 
     public init(configuration: RemoteServerConfiguration,
                 onTouches: @escaping @Sendable ([TouchSpec]) -> Void,
+                onKey: @escaping @Sendable (KeyCode) -> Void = { _ in },
                 onKeyframeRequested: @escaping @Sendable () -> Void = {},
                 onStateChanged: @escaping @Sendable (RemoteSessionState) -> Void = { _ in },
                 now: @escaping @Sendable () -> ContinuousClock.Instant = { .now })
     {
         self.configuration = configuration
-        core = RemoteServerCore(configuration: configuration, onTouches: onTouches,
+        core = RemoteServerCore(configuration: configuration, onTouches: onTouches, onKey: onKey,
                                 onKeyframeRequested: onKeyframeRequested, onStateChanged: onStateChanged, now: now)
     }
 

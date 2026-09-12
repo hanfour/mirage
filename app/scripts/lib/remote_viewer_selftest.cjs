@@ -7,10 +7,26 @@ const vm = require('node:vm');
 const html = fs.readFileSync(path.join(__dirname, '../../Sources/MirageCore/Resources/remote/viewer.html'), 'utf8');
 const script = html.match(/<script>([\s\S]*?)<\/script>/)[1];
 
-function harness({immediateOutput = false} = {}) {
+function harness({immediateOutput = false, search = '?t=abc'} = {}) {
   const timers = new Map(), decoders = [], sockets = [];
   let timerID = 0, now = 0, draws = 0;
-  const element = {getContext: () => ({drawImage() { draws++; }}), addEventListener() {}};
+  function element() {
+    const classes = new Set(), listeners = {};
+    return {listeners, hidden: false,
+      getContext: () => ({drawImage() { draws++; }}),
+      addEventListener(type, listener) { listeners[type] = listener; },
+      classList: {
+        add: value => classes.add(value), remove: value => classes.delete(value),
+        contains: value => classes.has(value),
+        toggle(value, enabled) { if (enabled) classes.add(value); else classes.delete(value); },
+      },
+    };
+  }
+  const elements = Object.fromEntries(['#canvas', '#panel', '#log', '#nav', 'details'].map(id => [id, element()]));
+  const buttons = [...html.matchAll(/<button[^>]+data-key="([^"]+)"/g)].map(match =>
+    Object.assign(element(), {dataset: {key: match[1]}}));
+  elements['#nav'].querySelectorAll = () => buttons;
+  const root = element();
   class Decoder {
     constructor(callbacks) {
       this.callbacks = callbacks;
@@ -51,8 +67,8 @@ function harness({immediateOutput = false} = {}) {
     send(text) { this.sent.push(text); }
   }
   const context = vm.createContext({
-    document: {querySelector: () => element, addEventListener() {}, visibilityState: 'visible'},
-    location: {search: '?t=abc', protocol: 'http:', host: '127.0.0.1'},
+    document: {querySelector: selector => elements[selector], documentElement: root, addEventListener() {}, visibilityState: 'visible'},
+    location: {search, protocol: 'http:', host: '127.0.0.1'},
     navigator: {userAgent: 'test'}, screen: {width: 8, height: 1},
     innerWidth: 8, innerHeight: 1, devicePixelRatio: 1, isSecureContext: true,
     URLSearchParams, WebSocket: Socket, VideoDecoder: Decoder,
@@ -76,7 +92,7 @@ function harness({immediateOutput = false} = {}) {
       if (timer.at <= now) { timers.delete(id); await timer.fn(); }
     }
   }
-  return {receive, advance, decoders, sockets, timers,
+  return {receive, advance, decoders, sockets, timers, elements, buttons, root,
     run: expression => vm.runInContext(expression, context), draws: () => draws};
 }
 
@@ -187,4 +203,78 @@ test('reset and disconnect cancel idle timers; closed decoder is never flushed',
     assert.equal(h.decoders[0].flushes, 0);
     assert.deepEqual(h.sockets[0].sent, []);
   }
+});
+
+
+test('navigation clicks send exactly one key each and clear feedback after 180ms', async () => {
+  const h = harness();
+  h.sockets[0].onopen();
+  assert.equal(h.elements['#nav'].hidden, false);
+  assert.equal(h.buttons.length, 3);
+  const input = h.sockets[1];
+  for (const [index, key] of ['GoBack', 'GoHome', 'AppSwitch'].entries()) {
+    const button = h.buttons[index];
+    button.listeners.click();
+    assert.equal(input.sent.length, index + 1);
+    assert.deepEqual(JSON.parse(input.sent[index]), {type: 'key', key, t: index * 180});
+    assert.equal(button.classList.contains('pressed'), true);
+    await h.advance(179);
+    assert.equal(button.classList.contains('pressed'), true);
+    await h.advance(1);
+    assert.equal(button.classList.contains('pressed'), false);
+  }
+  assert.equal(h.run('active.size'), 0);
+});
+
+test('nav=0 hides navigation and restores canvas space independently of stats', () => {
+  for (const suffix of ['', '&stats=0']) {
+    const h = harness({search: '?t=abc&nav=0' + suffix});
+    assert.equal(h.elements['#nav'].hidden, true);
+    assert.equal(h.root.classList.contains('no-nav'), true);
+    assert.equal(h.elements.details.hidden, suffix !== '');
+  }
+  assert.match(html, /:root.no-nav\{--nav-height:0px\}/);
+  assert.match(html, /height:calc\(100% - var\(--nav-height\)\)/);
+  assert.match(html, /bottom:max\(var\(--nav-height\),env\(safe-area-inset-bottom,0px\)\)/);
+});
+
+test('navigation uses input backpressure and disconnected drop accounting', () => {
+  const h = harness();
+  h.buttons[0].listeners.click();
+  assert.equal(h.run('inputDrops'), 1);
+  h.sockets[0].onopen();
+  const input = h.sockets[1];
+  input.bufferedAmount = 65536;
+  h.buttons[1].listeners.click();
+  input.bufferedAmount = 0;
+  input.readyState = 3;
+  h.buttons[2].listeners.click();
+  assert.equal(h.run('inputDrops'), 3);
+  assert.deepEqual(input.sent, []);
+});
+
+test('rapid repeated clicks keep feedback for 180ms after the final click', async () => {
+  const h = harness();
+  h.sockets[0].onopen();
+  const button = h.buttons[0];
+  button.listeners.click();
+  await h.advance(100);
+  button.listeners.click();
+  await h.advance(80);
+  assert.equal(button.classList.contains('pressed'), true);
+  await h.advance(100);
+  assert.equal(button.classList.contains('pressed'), false);
+  assert.equal(h.sockets[1].sent.length, 2);
+});
+
+test('contain coordinates use the canvas rectangle after reserving navigation height', () => {
+  const h = harness();
+  const canvas = h.elements['#canvas'];
+  canvas.width = 1080; canvas.height = 2400;
+  canvas.getBoundingClientRect = () => ({left: 0, top: 0, width: 390, height: 758});
+  assert.equal(h.run('position({clientX:195,clientY:379}).x'), 0.5);
+  assert.equal(h.run('position({clientX:195,clientY:379}).y'), 0.5);
+  assert.equal(h.run('position({clientX:195,clientY:758}).y'), 1);
+  assert.ok(h.run('position({clientX:195,clientY:790}).y') > 1);
+  assert.ok(h.run('position({clientX:0,clientY:379}).x') < 0);
 });

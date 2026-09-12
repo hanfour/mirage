@@ -104,6 +104,10 @@ final class RemoteMirrorController: @unchecked Sendable {
             configuration: RemoteServerConfiguration(host: configuration.host, port: configuration.port,
                                                      token: configuration.token, viewerPage: configuration.viewerPage),
             onTouches: { inputQueue.touches($0) },
+            onKey: { code in
+                inputQueue.key(code, down: true)
+                inputQueue.key(code, down: false)
+            },
             onKeyframeRequested: { relay.request() },
             onStateChanged: { state in
                 continuation.yield(state)

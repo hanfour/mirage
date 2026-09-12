@@ -2,7 +2,7 @@
 """手機遙控的 WebSocket 用戶端（活體腳本用，不進產品）。
 
 模仿 viewer.html：連 /ws/video 等第一個 keyframe、追幀序；--touch 時連 /ws/input 送
-一組 down/move/up 並量 ping 往返；觸控完成前保持 video 連線。輸出 KEY=VAL 供 bash 斷言。
+一組 down/move/up；--key GoHome 送導覽鍵，並量 ping 往返；輸入完成前保持 video 連線。輸出 KEY=VAL 供 bash 斷言。
 --loop：反覆重連、丟掉收到的幀，只為了讓編碼器有 viewer（驗收線 7 對照用）。
 
 退出碼：0 通過、2 連不上（403／409／refused）、3 等不到 keyframe。
@@ -15,6 +15,8 @@ import json
 import struct
 import sys
 import time
+
+NAVIGATION_KEYS = ("GoBack", "GoHome", "AppSwitch")
 
 HEADER = struct.Struct(">QIB")   # 8 bytes monotonic ns、4 bytes seq、1 byte keyframe（spec 第 4 節）
 
@@ -56,6 +58,13 @@ def touch_messages(x: float, y: float, pointer_id: int = 1, now_ms: float = 0.0)
         json.dumps({"t": now_ms + 40, "id": pointer_id, "type": "move", "x": min(1.0, x + 0.05), "y": y}),
         json.dumps({"t": now_ms + 80, "id": pointer_id, "type": "up", "x": min(1.0, x + 0.05), "y": y}),
     ]
+
+
+def key_message(key: str, now_ms: float) -> str:
+    """導覽三鍵白名單，與伺服器協定相同。"""
+    if key not in NAVIGATION_KEYS:
+        raise ValueError(f"unsupported navigation key: {key}")
+    return json.dumps({"type": "key", "key": key, "t": now_ms})
 
 
 def video_url(host: str, port: int, token: str) -> str:
@@ -103,7 +112,7 @@ async def receive_video(args, results):
                 keyframe_at = time.monotonic() - started
             tracker.observe(seq, keyframe)
         # input 只能依附目前的 video 配對；先完成觸控／echo，再離開 video context。
-        if args.touch and keyframe_at is not None:
+        if (args.touch or args.key) and keyframe_at is not None:
             await send_touch(args, results)
     results["KEYFRAME_SECONDS"] = f"{keyframe_at:.2f}" if keyframe_at is not None else ""
     results["FRAMES"] = tracker.frames
@@ -117,10 +126,14 @@ async def send_touch(args, results):
 
     results["TOUCH_SENT"] = 0
     async with connect(input_url(args.host, args.port, args.token), **connect_options()) as inbound:
-        for text in touch_messages(0.5, 0.5, now_ms=time.monotonic() * 1000):
+        messages = touch_messages(0.5, 0.5, now_ms=time.monotonic() * 1000) if args.touch else []
+        for text in messages:
             await inbound.send(text)
             results["TOUCH_SENT"] += 1
             await asyncio.sleep(0.08)
+        if args.key:
+            await inbound.send(key_message(args.key, time.monotonic() * 1000))
+            results["KEY_SENT"] = args.key
         sent = time.monotonic()
         ping = json.dumps({"type": "ping", "t": sent * 1000})
         await inbound.send(ping)
@@ -177,5 +190,6 @@ if __name__ == "__main__":
     parser.add_argument("--wait-keyframe", type=float, default=60.0, help="等第一個 keyframe 的秒數")
     parser.add_argument("--seconds", type=float, default=10.0, help="keyframe 之後再收幾秒")
     parser.add_argument("--touch", action="store_true")
+    parser.add_argument("--key", choices=NAVIGATION_KEYS, help="送出一組導覽鍵按放")
     parser.add_argument("--loop", action="store_true")
     sys.exit(asyncio.run(main(parser.parse_args())))

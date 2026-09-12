@@ -45,6 +45,7 @@ final class RemoteServerCore: @unchecked Sendable {
     static let invalidLogInterval: Duration = .seconds(1)
 
     let configuration: RemoteServerConfiguration
+    private let onKey: @Sendable (KeyCode) -> Void
     private let onTouches: @Sendable ([TouchSpec]) -> Void
     private let onKeyframeRequested: @Sendable () -> Void
     private let onStateChanged: @Sendable (RemoteSessionState) -> Void
@@ -72,12 +73,14 @@ final class RemoteServerCore: @unchecked Sendable {
 
     init(configuration: RemoteServerConfiguration,
          onTouches: @escaping @Sendable ([TouchSpec]) -> Void,
+         onKey: @escaping @Sendable (KeyCode) -> Void = { _ in },
          onKeyframeRequested: @escaping @Sendable () -> Void,
          onStateChanged: @escaping @Sendable (RemoteSessionState) -> Void,
          now: @escaping @Sendable () -> ContinuousClock.Instant)
     {
         self.configuration = configuration
         self.onTouches = onTouches
+        self.onKey = onKey
         self.onKeyframeRequested = onKeyframeRequested
         self.onStateChanged = onStateChanged
         self.now = now
@@ -275,6 +278,12 @@ final class RemoteServerCore: @unchecked Sendable {
         case .success(.ping):
             lock.unlock()
             return text
+        case .success(.key(let code, time: _)):
+            let onKey = self.onKey
+            pendingEffects.append { onKey(code) }
+            lock.unlock()
+            performEffects()
+            return nil
         case .success(.touch(let message)):
             let (next, outcome) = allocator.apply(message)
             allocator = next
@@ -352,6 +361,6 @@ final class RemoteServerCore: @unchecked Sendable {
         let current = now()
         if let last = lastInvalidLog, current - last < Self.invalidLogInterval { return }
         lastInvalidLog = current
-        print("[remote] 無效的觸控訊息：\(reason)（累計 \(invalidInputMessages)）")
+        print("[remote] 無效的輸入訊息：\(reason)（累計 \(invalidInputMessages)）")
     }
 }

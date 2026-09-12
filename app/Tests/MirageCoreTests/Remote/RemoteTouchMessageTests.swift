@@ -90,4 +90,28 @@ import Testing
         #expect(message.time == 0)
     }
 
+    @Test(arguments: ["GoBack", "GoHome", "AppSwitch"])
+    func navigationKeysDecode(_ key: String) throws {
+        let decoded = try RemoteTouchMessageDecoder.decode(
+            #"{"type":"key","key":"\#(key)","t":1234.5}"#).get()
+        #expect(decoded == .key(.key(key), time: 1234.5))
+    }
+
+    @Test(arguments: [
+        (#"{"type":"key","key":"gohome","t":1}"#, RemoteInputDecodeError.invalidKey),
+        (#"{"type":"key","key":"Goback","t":1}"#, RemoteInputDecodeError.invalidKey),
+        (#"{"type":"key","key":"appSwitch","t":1}"#, RemoteInputDecodeError.invalidKey),
+        (#"{"type":"key","key":"Power","t":1}"#, RemoteInputDecodeError.invalidKey),
+        (#"{"type":"key","key":7,"t":1}"#, RemoteInputDecodeError.invalidKey),
+        (#"{"type":"key","key":null,"t":1}"#, RemoteInputDecodeError.invalidKey),
+        (#"{"type":"key","t":1}"#, RemoteInputDecodeError.missingField("key")),
+        (#"{"type":"key","key":"GoHome"}"#, RemoteInputDecodeError.missingField("t")),
+        (#"{"type":"key","key":"GoHome","t":true}"#, RemoteInputDecodeError.invalidTime),
+        (#"{"type":"key","key":"GoHome","t":"1"}"#, RemoteInputDecodeError.invalidTime),
+        (#"{"type":"key","key":"GoHome","t":null}"#, RemoteInputDecodeError.invalidTime),
+    ])
+    func invalidNavigationKeysAreRejected(text: String, error: RemoteInputDecodeError) {
+        #expect(RemoteTouchMessageDecoder.decode(text) == .failure(error))
+    }
+
 }

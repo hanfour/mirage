@@ -25,6 +25,7 @@ public struct RemoteTouchMessage: Sendable, Equatable {
 
 public enum RemoteInputMessage: Sendable, Equatable {
     case ping
+    case key(KeyCode, time: Double)
     case touch(RemoteTouchMessage)
 }
 
@@ -34,6 +35,8 @@ public enum RemoteInputDecodeError: Error, Equatable {
     case unknownType(String)
     case invalidPointerId
     case invalidCoordinate
+    case invalidKey
+    case invalidTime
 }
 
 /// `/ws/input` 文字訊息 → `RemoteInputMessage`。純函式：不 log、不計數、不拋例外，
@@ -48,6 +51,7 @@ public enum RemoteTouchMessageDecoder {
         else { return .failure(.notJSON) }
         guard let type = fields["type"] as? String else { return .failure(.missingField("type")) }
         if type == pingType { return .success(.ping) }
+        if type == "key" { return navigationKey(fields) }
         guard let phase = RemoteTouchPhase(rawValue: type) else { return .failure(.unknownType(type)) }
         return pointerId(fields).flatMap { id in
             coordinate(fields, "x").flatMap { x in
@@ -58,6 +62,16 @@ public enum RemoteTouchMessageDecoder {
                 }
             }
         }
+    }
+
+    /// 按鍵只開放導覽三鍵；時間為必要的有限 JSON 數字，避免誤收布林或字串。
+    private static func navigationKey(_ fields: [String: Any]) -> Result<RemoteInputMessage, RemoteInputDecodeError> {
+        guard let raw = fields["key"] else { return .failure(.missingField("key")) }
+        guard let key = raw as? String, ["GoBack", "GoHome", "AppSwitch"].contains(key)
+        else { return .failure(.invalidKey) }
+        guard let rawTime = fields["t"] else { return .failure(.missingField("t")) }
+        guard let time = number(rawTime) else { return .failure(.invalidTime) }
+        return .success(.key(.key(key), time: time))
     }
 
     private static func pointerId(_ fields: [String: Any]) -> Result<Int, RemoteInputDecodeError> {
