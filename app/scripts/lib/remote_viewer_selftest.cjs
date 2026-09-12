@@ -325,7 +325,7 @@ test('malformed and unknown stats text only logs, then video continues', () => {
 });
 
 
-test('negative Safari pointer IDs map to small reusable wire IDs across all phases', () => {
+test('negative Safari pointer IDs are sent unchanged across all phases', () => {
   const h = harness();
   h.sockets[0].onopen();
   const canvas = h.elements['#canvas'];
@@ -335,7 +335,7 @@ test('negative Safari pointer IDs map to small reusable wire IDs across all phas
   for (const [type, id] of [['pointerdown', -10102172], ['pointerdown', 1807384342],
     ['pointermove', -10102172], ['pointerup', -10102172], ['pointerdown', -42],
     ['pointercancel', 1807384342], ['pointerup', -42]]) fire(type, id);
-  assert.deepEqual(h.sockets[1].sent.map(s => JSON.parse(s).id), [0, 1, 0, 0, 0, 1, 0]);
+  assert.deepEqual(h.sockets[1].sent.map(s => JSON.parse(s).id), [-10102172, 1807384342, -10102172, -10102172, -42, 1807384342, -42]);
   assert.equal(h.run('active.size'), 0);
   fire('pointermove', -10102172);
   assert.equal(h.sockets[1].sent.length, 7);
@@ -346,7 +346,7 @@ test('either socket reconnects the pair with the same token and a fresh decoder 
   for (const closed of [0, 1]) {
     const h = harness({immediateOutput:true});
     h.sockets[0].onopen(); h.sockets[1].onopen(); h.receive(99);
-    h.run('active.set(-10102172, 0)');
+    h.run('active.add(-10102172)');
     const oldMessage = h.sockets[0].onmessage, oldClose = h.sockets[1].onclose;
     h.sockets[closed].onclose(); oldClose();
     assert.equal(h.run('status'), 'reconnecting (1/3)');
@@ -457,4 +457,98 @@ test('old flush completion and output cannot affect a reconnected decoder', asyn
   assert.equal(h.draws(), 0);
   assert.equal(h.sockets[2].sent.length, sent);
   assert.equal(h.run('waiting'), true);
+});
+
+test('visibilitychange and pageshow restart exhausted CLOSED sockets with a fresh budget', () => {
+  for (const event of ['visibilitychange', 'pageshow']) {
+    const h = harness({immediateOutput:true});
+    h.sockets[0].onopen(); h.sockets[1].onopen(); h.receive(1);
+    h.sockets[0].readyState = h.sockets[1].readyState = 3;
+    h.run('reconnectAttempts = 3');
+    h.document.visibilityState = 'visible';
+    (event === 'visibilitychange' ? h.documentListeners : h.windowListeners)[event]();
+    assert.equal(h.sockets.length, 3);
+    assert.equal(h.run('reconnectAttempts'), 0);
+    assert.equal(h.run('status'), 'reconnecting (0/3)');
+    assert.equal(h.decoders[0].state, 'closed');
+    assert.equal(h.decoders[1].state, 'configured');
+    assert.equal(h.run('waiting'), true);
+    assert.equal(h.sockets[2].url, h.sockets[0].url);
+    // The second lifecycle event must not replace an in-flight foreground connection.
+    h.sockets[2].readyState = 0;
+    h.windowListeners.pageshow();
+    assert.equal(h.sockets.length, 3);
+  }
+});
+
+test('background callbacks spend no retries and stale backoff cannot run after foreground restart', async () => {
+  const h = harness();
+  h.sockets[0].onclose();
+  const staleCallbacks = [...h.timers.values()].map(timer => timer.fn);
+  await h.advance(500);
+  h.document.visibilityState = 'hidden'; h.documentListeners.visibilitychange();
+  for (let n = 0; n < 3; n++) {
+    await h.advance(60000);
+    for (const callback of staleCallbacks) await callback();
+    assert.equal(h.sockets.length, 1);
+    assert.equal(h.run('reconnectAttempts'), 0);
+  }
+  h.document.visibilityState = 'visible'; h.documentListeners.visibilitychange();
+  assert.equal(h.sockets.length, 2);
+  for (const callback of staleCallbacks) await callback();
+  assert.equal(h.sockets.length, 2);
+  h.sockets[1].onclose();
+  await h.advance(999); assert.equal(h.sockets.length, 2);
+  await h.advance(1); assert.equal(h.sockets.length, 3);
+  assert.equal(h.run('reconnectAttempts'), 1);
+});
+
+test('connection timeout excludes frozen background time when both sockets remain open', async () => {
+  const h = harness();
+  h.sockets[0].onopen(); h.sockets[1].onopen();
+  await h.advance(1000);
+  h.document.visibilityState = 'hidden'; h.documentListeners.visibilitychange();
+  await h.advance(60000);
+  h.document.visibilityState = 'visible'; h.documentListeners.visibilitychange();
+  await h.advance(3999);
+  assert.equal(h.run('reconnecting'), false);
+  await h.advance(1);
+  assert.equal(h.run('status'), 'reconnecting (1/3)');
+});
+
+test('healthy foreground events keep the existing pair', () => {
+  const h = harness({immediateOutput:true});
+  h.sockets[0].onopen(); h.sockets[1].onopen(); h.receive(1);
+  h.documentListeners.visibilitychange(); h.windowListeners.pageshow();
+  assert.equal(h.sockets.length, 2);
+  assert.equal(h.decoders.length, 1);
+});
+
+test('a dropped up does not alias the next finger to the old wire ID', () => {
+  const h = harness();
+  h.sockets[0].onopen();
+  const canvas = h.elements['#canvas'], input = h.sockets[1];
+  canvas.width = canvas.height = 100;
+  canvas.getBoundingClientRect = () => ({left:0, top:0, width:100, height:100});
+  const fire = (type, pointerId) => canvas.listeners[type]({pointerId, clientX:50, clientY:50, preventDefault() {}});
+  fire('pointerdown', -10102172);
+  input.bufferedAmount = 65536;
+  fire('pointerup', -10102172);
+  input.bufferedAmount = 0;
+  fire('pointerdown', 1807384342);
+  assert.deepEqual(input.sent.map(s => JSON.parse(s).id), [-10102172, 1807384342]);
+  assert.equal(h.run('inputDrops'), 1);
+});
+
+
+test('a new foreground transition replaces a handshake left CONNECTING in the background', () => {
+  const h = harness();
+  h.sockets[0].readyState = 3;
+  h.documentListeners.visibilitychange();
+  h.sockets[1].readyState = 0;
+  h.document.visibilityState = 'hidden'; h.documentListeners.visibilitychange();
+  h.document.visibilityState = 'visible'; h.documentListeners.visibilitychange();
+  assert.equal(h.sockets.length, 3);
+  assert.equal(h.sockets[1].readyState, 3);
+  assert.equal(h.run('reconnectAttempts'), 0);
 });

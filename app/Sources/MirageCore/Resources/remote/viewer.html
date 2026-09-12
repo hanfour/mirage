@@ -109,7 +109,7 @@ function configureDecoder() {
     decoder.configure(config());
     return true;
   } catch (e) {
-    clearTimeout(connectionTimer);
+    clearForegroundTimeout(connectionTimer);
     configurationFailed = true;
     status = `configure failed (${codec}): ${e.message}`;
     reportError(status);
@@ -173,7 +173,7 @@ function recoverDecoder(e) {
   discardDecoder();
   decodeErrors++;
   if (decodeErrors >= 3) {
-    clearTimeout(connectionTimer);
+    clearForegroundTimeout(connectionTimer);
     configurationFailed = true;
     status = 'decoder failed after 3 consecutive errors; reload to reconnect';
     reportError(status);
@@ -187,17 +187,54 @@ function recoverDecoder(e) {
 function connectionHealthy() {
   if (!inputReady || !frameReady || configurationFailed) return;
   if (connectionTimer === null && !reconnecting) return;
-  clearTimeout(connectionTimer);
+  clearForegroundTimeout(connectionTimer);
   connectionTimer = null;
   reconnecting = false;
   reconnectAttempts = 0;
   status = 'streaming';
   errorPanel.hidden = true;
 }
-function reconnect(reason) {
+// Count only visible time: delayed background callbacks must not spend the retry budget.
+let foregroundElapsed = 0;
+let foregroundSince = document.visibilityState === 'visible' ? performance.now() : null;
+const foregroundTimers = new Set();
+function foregroundNow() {
+  return foregroundElapsed + (foregroundSince === null ? 0 : performance.now() - foregroundSince);
+}
+function armForegroundTimer(timer) {
+  clearTimeout(timer.handle);
+  if (document.visibilityState !== 'visible') return;
+  timer.handle = setTimeout(() => {
+    if (!foregroundTimers.has(timer) || document.visibilityState !== 'visible') return;
+    if (foregroundNow() < timer.deadline) { armForegroundTimer(timer); return; }
+    foregroundTimers.delete(timer);
+    timer.callback();
+  }, Math.max(0, timer.deadline - foregroundNow()));
+}
+function setForegroundTimeout(callback, delay) {
+  const timer = {callback, deadline:foregroundNow() + delay, handle:null};
+  foregroundTimers.add(timer);
+  armForegroundTimer(timer);
+  return timer;
+}
+function clearForegroundTimeout(timer) {
+  if (!timer) return;
+  clearTimeout(timer.handle);
+  foregroundTimers.delete(timer);
+}
+function updateForegroundClock() {
+  if (document.visibilityState === 'visible') {
+    if (foregroundSince === null) foregroundSince = performance.now();
+  } else if (foregroundSince !== null) {
+    foregroundElapsed += performance.now() - foregroundSince;
+    foregroundSince = null;
+  }
+  for (const timer of foregroundTimers) armForegroundTimer(timer);
+}
+function reconnect(reason, immediately = false) {
   if (reconnectTimer !== null) return;
   generation++; // Ignore callbacks (including delayed output/flush) from the old pair.
-  clearTimeout(connectionTimer);
+  clearForegroundTimeout(connectionTimer);
   connectionTimer = null;
   for (const socket of [video, input]) {
     if (socket) { socket.onclose = socket.onerror = socket.onmessage = socket.onopen = null; socket.close(); }
@@ -214,14 +251,16 @@ function reconnect(reason) {
     return;
   }
   reconnecting = true;
-  status = `reconnecting (${++reconnectAttempts}/3)`;
+  status = `reconnecting (${immediately ? reconnectAttempts : reconnectAttempts + 1}/3)`;
   panel.textContent = status;
   errorPanel.hidden = true;
   note(`${reason}; ${status}`);
-  reconnectTimer = setTimeout(() => {
+  if (immediately) { start(); return; }
+  reconnectTimer = setForegroundTimeout(() => {
     reconnectTimer = null;
+    reconnectAttempts++;
     start();
-  }, 1000 * 2 ** (reconnectAttempts - 1));
+  }, 1000 * 2 ** reconnectAttempts);
 }
 function makeDecoder() {
   const target = new VideoDecoder({
@@ -319,7 +358,7 @@ async function start() {
   }
   try {
     const current = generation;
-    connectionTimer = setTimeout(() => {
+    connectionTimer = setForegroundTimeout(() => {
       if (current === generation) reconnect('connection timed out');
     }, 5000);
     if (codec && !configurationFailed) { decoder = makeDecoder(); if (!configureDecoder()) return; }
@@ -407,8 +446,8 @@ setInterval(() => {
   }
   send({type:'ping', t:performance.now()});
 }, 1000);
-// iOS Safari pointerId 可為負數；wire id 使用從 0 起、釋放後可重用的小整數。
-const active = new Map();
+// iOS Safari pointerId 可為負數；原樣送出，server 接受整個 signed Int32 範圍。
+const active = new Set();
 function position(e) {
   const r = canvas.getBoundingClientRect(), scale = Math.min(r.width/canvas.width, r.height/canvas.height);
   const w = canvas.width*scale, h = canvas.height*scale;
@@ -420,18 +459,13 @@ for(const type of ['pointerdown','pointermove','pointerup','pointercancel']) can
   const p = position(e);
   if(type === 'pointerdown') {
     if(p.x<0 || p.x>1 || p.y<0 || p.y>1) return;
-    if (!active.has(e.pointerId)) {
-      const used = new Set(active.values());
-      let id = 0;
-      while (used.has(id)) id++;
-      active.set(e.pointerId, id);
-    }
+    active.add(e.pointerId);
     canvas.setPointerCapture(e.pointerId);
     requestWake();
   }
   if(!active.has(e.pointerId)) return;
   lastTouch = `${type.slice(7)} id=${e.pointerId} x=${p.x.toFixed(3)} y=${p.y.toFixed(3)}`;
-  send({t:performance.now(), id:active.get(e.pointerId), type:type.slice(7), x:Math.max(0,Math.min(1,p.x)), y:Math.max(0,Math.min(1,p.y))});
+  send({t:performance.now(), id:e.pointerId, type:type.slice(7), x:Math.max(0,Math.min(1,p.x)), y:Math.max(0,Math.min(1,p.y))});
   if(type === 'pointerup' || type === 'pointercancel') active.delete(e.pointerId);
 }, {passive:false});
 for(const type of ['gesturestart','gesturechange']) document.addEventListener(type, e => e.preventDefault(), {passive:false});
@@ -440,7 +474,24 @@ async function requestWake() {
   try { wake = await navigator.wakeLock.request('screen'); wake.addEventListener('release', () => { wake = null; }); }
   catch(e) { note('wakeLock: ' + e.message); }
 }
-document.addEventListener('visibilitychange', () => { if(document.visibilityState === 'visible') requestWake(); });
+let resumedGeneration = null;
+function resumeForeground() {
+  updateForegroundClock();
+  if (document.visibilityState !== 'visible') { resumedGeneration = null; return; }
+  requestWake();
+  // visibilitychange and pageshow can both describe the same foreground transition.
+  if (resumedGeneration === generation && reconnectAttempts < 3 && connectionTimer !== null &&
+      (video?.readyState === WebSocket.CONNECTING || input?.readyState === WebSocket.CONNECTING)) return;
+  if (video?.readyState !== WebSocket.OPEN || input?.readyState !== WebSocket.OPEN || reconnectAttempts >= 3) {
+    clearForegroundTimeout(reconnectTimer);
+    reconnectTimer = null;
+    reconnectAttempts = 0;
+    reconnect('returned to foreground', true);
+    resumedGeneration = generation;
+  }
+}
+document.addEventListener('visibilitychange', resumeForeground);
+window.addEventListener('pageshow', resumeForeground);
 start();
 requestWake();
 </script></html>

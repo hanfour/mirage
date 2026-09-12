@@ -67,14 +67,17 @@ function harness({immediateOutput = false, search = '?t=abc', storage = new Map(
   }
   class Socket {
     static OPEN = 1;
+    static CONNECTING = 0;
     constructor(url) { this.url = url; this.readyState = 1; this.bufferedAmount = 0; this.sent = []; sockets.push(this); }
     send(text) { this.sent.push(text); }
     close() { this.readyState = 3; this.onclose?.(); }
   }
+  const windowListeners = {}, documentListeners = {};
+  const window = {addEventListener(type, listener) { windowListeners[type] = listener; }};
   const document = {querySelector: selector => elements[selector], documentElement: root,
-    addEventListener() {}, visibilityState: 'visible', activeElement: null};
+    addEventListener(type, listener) { documentListeners[type] = listener; }, visibilityState: 'visible', activeElement: null};
   const context = vm.createContext({
-    document, visualViewport: viewport,
+    document, window, visualViewport: viewport,
     location: {search, protocol: 'http:', host: '127.0.0.1'},
     navigator: {userAgent: 'test'}, screen: {width: 8, height: 1},
     innerWidth: 8, innerHeight: 1, devicePixelRatio: 1, isSecureContext: true,
@@ -104,6 +107,7 @@ function harness({immediateOutput = false, search = '?t=abc', storage = new Map(
     }
   }
   return {receive, advance, decoders, sockets, timers, elements, buttons, root, document,
+    documentListeners, windowListeners,
     run: expression => vm.runInContext(expression, context), draws: () => draws};
 }
 
