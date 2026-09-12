@@ -2,7 +2,7 @@
 """手機遙控的 WebSocket 用戶端（活體腳本用，不進產品）。
 
 模仿 viewer.html：連 /ws/video 等第一個 keyframe、追幀序；--touch 時連 /ws/input 送
-一組 down/move/up 並量 ping 往返。輸出 KEY=VAL 供 bash 斷言。
+一組 down/move/up 並量 ping 往返；觸控完成前保持 video 連線。輸出 KEY=VAL 供 bash 斷言。
 --loop：反覆重連、丟掉收到的幀，只為了讓編碼器有 viewer（驗收線 7 對照用）。
 
 退出碼：0 通過、2 連不上（403／409／refused）、3 等不到 keyframe。
@@ -102,6 +102,9 @@ async def receive_video(args, results):
             if keyframe_at is None:
                 keyframe_at = time.monotonic() - started
             tracker.observe(seq, keyframe)
+        # input 只能依附目前的 video 配對；先完成觸控／echo，再離開 video context。
+        if args.touch and keyframe_at is not None:
+            await send_touch(args, results)
     results["KEYFRAME_SECONDS"] = f"{keyframe_at:.2f}" if keyframe_at is not None else ""
     results["FRAMES"] = tracker.frames
     results["KEYFRAMES"] = tracker.keyframes
@@ -155,8 +158,6 @@ async def main(args) -> int:
     results = {}
     try:
         keyframe = await receive_video(args, results)
-        if args.touch:
-            await send_touch(args, results)
     except (OSError, ConnectionError) as error:
         print(f"CONNECT_ERROR={error}")
         return 2

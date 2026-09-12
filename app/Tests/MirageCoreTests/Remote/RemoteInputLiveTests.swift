@@ -13,17 +13,29 @@ import Testing
         let client = EmulatorClient(host: "127.0.0.1", port: 8554)
         await client.start(box: LatestFrameBox(), width: 540, height: 1200)
         let queue = InputQueue(injector: client)
+        let (states, continuation) = AsyncStream<RemoteSessionState>.makeStream()
+        defer { continuation.finish() }
         let server = RemoteServer(
             configuration: RemoteServerConfiguration(host: "127.0.0.1", port: 0, token: Self.token, viewerPage: Data()),
-            onTouches: { queue.touches($0) })
+            onTouches: { queue.touches($0) },
+            onStateChanged: { continuation.yield($0) })
         do {
             let port = try await server.start()
             // 健康探測填好 guestDisplay 前，sendTouches 會靜默略過注入（KeymapReleaseLiveTests 同一段）。
             try await Task.sleep(for: .seconds(2))
 
             var components = URLComponents()
-            components.scheme = "ws"; components.host = "127.0.0.1"; components.port = port; components.path = "/ws/input"
+            components.scheme = "ws"; components.host = "127.0.0.1"; components.port = port; components.path = "/ws/video"
             components.queryItems = [URLQueryItem(name: "t", value: Self.token.value)]
+            // input 必須依附已配對的 video；保留 video 到觸控與 echo 全部完成。
+            let video = URLSession.shared.webSocketTask(with: components.url!)
+            defer { video.cancel(with: .normalClosure, reason: nil) }
+            video.resume()
+            _ = try await RemoteTestWaits.state(in: states, hasVideo: true, diagnostics: {
+                "state=\(server.sessionState)，video response=\(String(describing: video.response))"
+            })
+            try #require(server.sessionState.hasVideo)
+            components.path = "/ws/input"
             let input = URLSession.shared.webSocketTask(with: components.url!)
             defer { input.cancel(with: .normalClosure, reason: nil) }
             input.resume()

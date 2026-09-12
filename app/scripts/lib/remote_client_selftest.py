@@ -145,5 +145,84 @@ class LoopTransportTests(unittest.IsolatedAsyncioTestCase):
                          ["LOOP_FRAME=100", "LOOP_FRAME=101", "LOOP_DISCONNECTED=102"])
 
 
+class PairedConnectionTests(unittest.IsolatedAsyncioTestCase):
+    async def run_client(self, failure=None):
+        events = []
+        active = set()
+        test = self
+
+        class Socket:
+            def __init__(self, kind):
+                self.kind = kind
+                self.frames = 0
+                self.echo = None
+
+            async def __aenter__(self):
+                if self.kind == "input":
+                    test.assertIn("video", active, "input 握手前必須保留 video")
+                active.add(self.kind)
+                events.append("open " + self.kind)
+                return self
+
+            async def __aexit__(self, *args):
+                active.remove(self.kind)
+                events.append("close " + self.kind)
+
+            async def recv(self):
+                if self.kind == "video":
+                    if failure == "video":
+                        raise ConnectionError("video disconnected")
+                    if self.frames or failure == "timeout":
+                        raise asyncio.TimeoutError()
+                    self.frames += 1
+                    return rc.HEADER.pack(1, 1, 1) + b"\x00\x00\x01\x65"
+                test.assertIn("video", active, "ping echo 前不得關閉 video")
+                events.append("echo")
+                return self.echo
+
+            async def send(self, text):
+                test.assertIn("video", active, "觸控期間不得關閉 video")
+                if failure == "touch":
+                    raise ConnectionError("touch failed")
+                self.echo = text
+                events.append(json.loads(text)["type"])
+
+        def connect(url, **kwargs):
+            return Socket("input" if "/ws/input?" in url else "video")
+
+        args = SimpleNamespace(host="127.0.0.1", port=8765, token="a", loop=False,
+                               touch=True, wait_keyframe=60, seconds=10)
+        modules = {"websockets.asyncio.client": SimpleNamespace(connect=connect)}
+        output = io.StringIO()
+        with patch.dict(sys.modules, modules), patch.object(rc, "connect_options", return_value={}), \
+                contextlib.redirect_stdout(output):
+            code = await rc.main(args)
+        self.assertEqual(active, set(), "所有路徑都必須關閉 WebSocket")
+        return code, events, output.getvalue()
+
+    async def test_input_and_ping_finish_before_video_closes(self):
+        code, events, output = await self.run_client()
+        self.assertEqual(code, 0)
+        self.assertEqual(events, ["open video", "open input", "down", "move", "up", "ping", "echo",
+                                  "close input", "close video"])
+        self.assertIn("TOUCH_SENT=3", output)
+        self.assertIn("PING_ECHO_OK=1", output)
+
+    async def test_touch_failure_closes_both_connections(self):
+        code, events, _ = await self.run_client("touch")
+        self.assertEqual(code, 2)
+        self.assertEqual(events, ["open video", "open input", "close input", "close video"])
+
+    async def test_keyframe_timeout_does_not_open_input(self):
+        code, events, _ = await self.run_client("timeout")
+        self.assertEqual(code, 3)
+        self.assertEqual(events, ["open video", "close video"])
+
+    async def test_video_failure_does_not_open_input(self):
+        code, events, _ = await self.run_client("video")
+        self.assertEqual(code, 2)
+        self.assertEqual(events, ["open video", "close video"])
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)
