@@ -21,9 +21,10 @@ import Testing
 
         #expect(menu.items.map(\.title) == entries.map(\.title))
         #expect(menu.items.map(\.state) == [.on, .off])
-        #expect(menu.items.allSatisfy(\.isEnabled))
+        #expect(menu.items.allSatisfy { $0.isEnabled })
         #expect(menu.items.allSatisfy { $0.target === target && $0.action == action })
-        #expect(try #require(menu.items[1].representedObject as? EmulatorInstance) == poc)
+        let represented = try #require(menu.items[1].representedObject as? EmulatorInstance)
+        #expect(represented == poc)
     }
 
     /// 規格 §3.3：沒有其他實例 → 一個停用項，沒有 action、不打勾。

@@ -13,7 +13,7 @@ import Testing
             InstanceMenuEntry(title: "mirage-game（console 5554／gRPC 8554）", instance: game, isCurrent: true),
             InstanceMenuEntry(title: "mirage-poc（console 5556／gRPC 8556）", instance: poc, isCurrent: false),
         ])
-        #expect(entries.allSatisfy(\.isEnabled))
+        #expect(entries.allSatisfy { $0.isEnabled })
     }
 
     /// 規格 §3.3：沒有其他實例時子選單只有一個停用項。
@@ -38,7 +38,7 @@ import Testing
         let entries = InstanceMenu.entries(instances: [game, poc],
                                            current: EmulatorEndpoint(host: "localhost", port: 8560))
         #expect(entries.map(\.isCurrent) == [false, false])
-        #expect(entries.allSatisfy(\.isEnabled))
+        #expect(entries.allSatisfy { $0.isEnabled })
     }
 
     /// 只看 gRPC 埠、不看 host：探索檔只描述本機實例，host 由 MIRAGE_HOST 決定且切換不改它。
