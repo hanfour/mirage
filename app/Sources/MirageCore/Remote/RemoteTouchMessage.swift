@@ -91,7 +91,7 @@ public enum RemoteTouchMessageDecoder {
 
     private static func pointerId(_ fields: [String: Any]) -> Result<Int, RemoteInputDecodeError> {
         guard let raw = fields["id"] else { return .failure(.missingField("id")) }
-        guard let value = number(raw), value.isFinite, value >= 0,
+        guard let value = number(raw), value.isFinite, value >= Double(Int32.min),
               value == value.rounded(), value <= Double(Int32.max)
         else { return .failure(.invalidPointerId) }
         return .success(Int(value))

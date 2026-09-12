@@ -50,7 +50,7 @@ import Testing
         (#"{"type": 7}"#, RemoteInputDecodeError.missingField("type")),
         (#"{"type": "hover", "id": 1, "x": 0.5, "y": 0.5}"#, RemoteInputDecodeError.unknownType("hover")),
         (#"{"type": "down", "x": 0.5, "y": 0.5}"#, RemoteInputDecodeError.missingField("id")),
-        (#"{"type": "down", "id": -1, "x": 0.5, "y": 0.5}"#, RemoteInputDecodeError.invalidPointerId),
+        (#"{"type": "down", "id": -2147483649, "x": 0.5, "y": 0.5}"#, RemoteInputDecodeError.invalidPointerId),
         (#"{"type": "down", "id": 1.5, "x": 0.5, "y": 0.5}"#, RemoteInputDecodeError.invalidPointerId),
         (#"{"type": "down", "id": "7", "x": 0.5, "y": 0.5}"#, RemoteInputDecodeError.invalidPointerId),
         (#"{"type": "down", "id": 1, "y": 0.5}"#, RemoteInputDecodeError.missingField("x")),
@@ -76,6 +76,12 @@ import Testing
         let y = RemoteTouchMessageDecoder.decode(
             #"{"type":"down","id":1,"x":0.5,"y":\#(boolean)}"#)
         #expect(y == .failure(.invalidCoordinate))
+    }
+
+    @Test(arguments: [-10102172, 1807384342, Int(Int32.min), Int(Int32.max)])
+    func signedPointerIdsDecode(_ id: Int) throws {
+        let message = try touch(#"{"type":"down","id":\#(id),"x":0,"y":1}"#)
+        #expect(message.pointerId == id)
     }
 
     @Test func pointerIdUpperBoundIsCheckedBeforeIntegerConversion() throws {

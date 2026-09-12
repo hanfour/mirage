@@ -6,6 +6,18 @@ import Testing
         RemoteTouchMessage(pointerId: id, phase: phase, point: NormPoint(x: x, y: y), time: 0)
     }
 
+    @Test func negativePointerKeyMovesReleasesAndReusesIdentifier() {
+        let (down, _) = RemoteTouchIdentifierAllocator().apply(message(-10102172, .down))
+        let (moved, move) = down.apply(message(-10102172, .move, x: 0.3))
+        #expect(move == .emit(TouchSpec(identifier: 64, point: NormPoint(x: 0.3, y: 0.5), down: true)))
+        #expect(moved.active[-10102172]?.identifier == 64)
+        let (up, outcome) = moved.apply(message(-10102172, .up))
+        #expect(outcome == .emit(TouchSpec(identifier: 64, point: NormPoint(x: 0.5, y: 0.5), down: false)))
+        #expect(up.active.isEmpty)
+        let (reused, _) = up.apply(message(1807384342, .down))
+        #expect(reused.active[1807384342]?.identifier == 64)
+    }
+
     @Test func downAllocatesLowestFreeIdentifierAndUpReleasesIt() {
         let (a1, o1) = RemoteTouchIdentifierAllocator().apply(message(7, .down, x: 0.1, y: 0.2))
         #expect(o1 == .emit(TouchSpec(identifier: 64, point: NormPoint(x: 0.1, y: 0.2), down: true)))
