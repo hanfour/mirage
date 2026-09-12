@@ -153,4 +153,51 @@ import Testing
         #expect(RemoteTouchMessageDecoder.decode(json) == .failure(.invalidText))
     }
 
+    @Test func batchDecodesClampsAndAllocatesAtomically() throws {
+        let decoded = try RemoteTouchMessageDecoder.decode(#"{"type":"touches","t":12,"points":[{"id":-7,"phase":"down","x":-1,"y":2},{"id":8,"phase":"down","x":0.8,"y":0.5}]}"#).get()
+        guard case .touches(let messages) = decoded else { throw RemoteInputDecodeError.invalidPoints }
+        #expect(messages.count == 2)
+        #expect(messages[0].point == NormPoint(x: 0, y: 1))
+        #expect(messages[0].time == 12)
+        let allocator = RemoteTouchIdentifierAllocator()
+        let batch = try allocator.applyBatch(messages).get()
+        #expect(batch.specs.map(\.identifier) == [64, 65])
+        let bad = RemoteTouchMessage(pointerId: 99, phase: .move, point: .clamped(x: 0.5, y: 0.5), time: 12)
+        if case .failure(let reason) = allocator.applyBatch([messages[0], bad]) {
+            #expect(reason == .unknownPointer)
+        } else { Issue.record("部分失敗批次不可成功") }
+        #expect(allocator.active.isEmpty)
+        let retry = try allocator.applyBatch([messages[1]]).get()
+        #expect(retry.specs[0].identifier == 64)
+    }
+
+    @Test(arguments: [
+        #"{"type":"touches","t":1,"points":[]}"#,
+        #"{"type":"touches","t":true,"points":[{"id":1,"phase":"down","x":0,"y":0}]}"#,
+        #"{"type":"touches","t":1,"points":[{"id":1,"phase":"down","x":0,"y":0},{"id":2,"phase":"move","x":true,"y":0}]}"#,
+        #"{"type":"touches","t":1,"points":[{"id":1,"phase":"down","x":0,"y":0},{"id":1,"phase":"up","x":0,"y":0}]}"#
+    ])
+    func invalidBatchIsRejected(_ json: String) {
+        if case .success = RemoteTouchMessageDecoder.decode(json) { Issue.record("整批必須拒絕") }
+    }
+
+    @Test func batchLimitAndExplicitSingleTouchCompatibility() throws {
+        let explicit = try touch(#"{"type":"touch","phase":"cancel","id":-7,"x":0.5,"y":0.5}"#)
+        #expect(explicit.phase == .cancel)
+        #expect(!explicit.isDown)
+        let points: [[String: Any]] = (0..<11).map { ["id": $0, "phase": "down", "x": 0.5, "y": 0.5] }
+        let data = try JSONSerialization.data(withJSONObject: ["type": "touches", "t": 1, "points": points])
+        let json = try #require(String(data: data, encoding: .utf8))
+        #expect(RemoteTouchMessageDecoder.decode(json) == .failure(.invalidPoints))
+        let down = RemoteTouchMessage(pointerId: 1, phase: .down, point: .clamped(x: 0.2, y: 0.3), time: 1)
+        let pressed = try RemoteTouchIdentifierAllocator().applyBatch([down]).get()
+        let move = RemoteTouchMessage(pointerId: 1, phase: .move, point: .clamped(x: 0.8, y: 0.9), time: 2)
+        let moved = try pressed.allocator.applyBatch([move]).get()
+        #expect(moved.specs[0].isRemoteMove)
+        #expect(!pressed.specs[0].isRemoteMove)
+        let released = moved.allocator.releaseAll()
+        #expect(released.released[0].point == move.point)
+        #expect(!released.released[0].down)
+    }
+
 }

@@ -91,8 +91,6 @@ final class RemoteServerCore: @unchecked Sendable {
         queue = RemoteVideoQueue(limit: configuration.queueLimit)
     }
 
-    // MARK: - 查詢
-
     var sessionState: RemoteSessionState {
         lock.lock(); defer { lock.unlock() }
         return session
@@ -105,8 +103,6 @@ final class RemoteServerCore: @unchecked Sendable {
                                  rejectedForbidden: rejectedForbidden, rejectedBusy: rejectedBusy,
                                  invalidInputMessages: invalidInputMessages, touchesForwarded: touchesForwarded)
     }
-
-    // MARK: - 連線生命週期
 
     func route(method: String, uri: String) -> RemoteRoute {
         lock.lock(); defer { lock.unlock() }
@@ -219,8 +215,6 @@ final class RemoteServerCore: @unchecked Sendable {
         performEffects()
     }
 
-    // MARK: - 影像
-
     /// 沒有 viewer 時只計數。有 viewer 但寫出迴圈還沒 attach（升級回應還在路上）時照樣入列，
     /// `attachVideoWakeups()` 會立刻 yield 一次把它們送出去。
     func offer(accessUnit: Data, keyframe: Bool, sequence: UInt32) {
@@ -290,8 +284,6 @@ final class RemoteServerCore: @unchecked Sendable {
         lock.lock(); framesSent += 1; lock.unlock()
     }
 
-    // MARK: - 輸入
-
     /// 回傳值非 nil 代表要原封 echo 回去（只有 ping）。
     func handleInputText(_ text: String, channelID: ObjectIdentifier) -> String? {
         let decoded = RemoteTouchMessageDecoder.decode(text)
@@ -312,6 +304,20 @@ final class RemoteServerCore: @unchecked Sendable {
             pendingEffects.append { onKey(code) }
             lock.unlock()
             performEffects()
+            return nil
+        case .success(.touches(let messages)):
+            switch allocator.applyBatch(messages) {
+            case .success(let batch):
+                allocator = batch.allocator
+                touchesForwarded += 1
+                let onTouches = self.onTouches
+                pendingEffects.append { onTouches(batch.specs) }
+                lock.unlock()
+                performEffects()
+            case .failure(let reason):
+                noteInvalidLocked("觸控批次被拒：\(reason)")
+                lock.unlock()
+            }
             return nil
         case .success(.touch(let message)):
             let (next, outcome) = allocator.apply(message)
@@ -334,8 +340,6 @@ final class RemoteServerCore: @unchecked Sendable {
             return nil
         }
     }
-
-    // MARK: - 私有
 
     /// 只在鎖內呼叫。回傳要在鎖外執行的效果（含狀態變更通知）。
     private func applyLocked(_ event: RemoteSessionEvent) -> [@Sendable () -> Void] {

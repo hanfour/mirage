@@ -4,6 +4,15 @@ public struct TouchSpec: Sendable, Equatable {
     public let identifier: Int
     public let point: NormPoint
     public let down: Bool
+    /// 僅遠端批次的 move 設定；本機快照沒有 phase，不能推測為 move。
+    public let isRemoteMove: Bool
+
+    public init(identifier: Int, point: NormPoint, down: Bool, isRemoteMove: Bool = false) {
+        self.identifier = identifier
+        self.point = point
+        self.down = down
+        self.isRemoteMove = isRemoteMove
+    }
 }
 
 public struct TouchFrame: Sendable, Equatable {

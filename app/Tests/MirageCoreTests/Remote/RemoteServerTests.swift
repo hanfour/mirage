@@ -229,14 +229,20 @@ import Testing
             let forwarded = await h.touches.items
             #expect(forwarded == [[TouchSpec(identifier: 64, point: NormPoint(x: 0.25, y: 0.75), down: true)]])
 
+            try await input.send(.string(#"{"type":"touches","t":2,"points":[{"id":7,"phase":"up","x":0.2,"y":0.3},{"id":9,"phase":"move","x":0.4,"y":0.5}]}"#))
+            try await input.send(.string(#"{"type":"touches","t":3,"points":[{"id":8,"phase":"down","x":0.2,"y":0.3},{"id":9,"phase":"down","x":0.4,"y":0.5}]}"#))
+            await h.touches.wait { $0.count == 2 }
+            let batches = await h.touches.items
+            #expect(batches[1].map(\.identifier) == [65, 66])
+            #expect(batches.count == 2)
             try await input.send(.string("nope"))
             try await input.send(.string(#"{"type":"move","id":99,"x":0.5,"y":0.5}"#))   // 未知 pointer
             try await input.send(.string(Self.ping))                                      // 同一條連線依序處理，echo 回來代表前兩則已處理
             let secondEcho = try await receiveText(input)
             #expect(secondEcho == Self.ping)
             let stats = h.server.stats()
-            #expect(stats.invalidInputMessages == 2)
-            #expect(stats.touchesForwarded == 1)
+            #expect(stats.invalidInputMessages == 3)
+            #expect(stats.touchesForwarded == 2)
             input.cancel(with: .normalClosure, reason: nil)
             await h.server.stop()
         }

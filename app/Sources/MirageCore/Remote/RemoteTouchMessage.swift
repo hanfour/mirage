@@ -28,6 +28,7 @@ public enum RemoteInputMessage: Sendable, Equatable {
     case key(KeyCode, time: Double)
     case text(String, time: Double)
     case touch(RemoteTouchMessage)
+    case touches([RemoteTouchMessage])
 }
 
 public enum RemoteInputDecodeError: Error, Equatable {
@@ -39,6 +40,7 @@ public enum RemoteInputDecodeError: Error, Equatable {
     case invalidKey
     case invalidText
     case invalidTime
+    case invalidPoints
 }
 
 /// `/ws/input` 文字訊息 → `RemoteInputMessage`。純函式：不 log、不計數、不拋例外，
@@ -56,7 +58,9 @@ public enum RemoteTouchMessageDecoder {
         if type == pingType { return .success(.ping) }
         if type == "text" { return textCommit(fields) }
         if type == "key" { return navigationKey(fields) }
-        guard let phase = RemoteTouchPhase(rawValue: type) else { return .failure(.unknownType(type)) }
+        if type == "touches" { return batch(fields) }
+        let phaseName = type == "touch" ? (fields["phase"] as? String ?? "") : type
+        guard let phase = RemoteTouchPhase(rawValue: phaseName) else { return .failure(.unknownType(type)) }
         return pointerId(fields).flatMap { id in
             coordinate(fields, "x").flatMap { x in
                 coordinate(fields, "y").map { y in
@@ -66,6 +70,29 @@ public enum RemoteTouchMessageDecoder {
                 }
             }
         }
+    }
+
+    private static func batch(_ fields: [String: Any]) -> Result<RemoteInputMessage, RemoteInputDecodeError> {
+        guard let time = number(fields["t"]) else { return .failure(.invalidTime) }
+        guard let points = fields["points"] as? [[String: Any]], !points.isEmpty,
+              points.count <= RemoteTouchIdentifierAllocator.maxActive else { return .failure(.invalidPoints) }
+        var messages: [RemoteTouchMessage] = []
+        var ids = Set<Int>()
+        for point in points {
+            var single = point
+            single["type"] = "touch"
+            single["t"] = time
+            guard let data = try? JSONSerialization.data(withJSONObject: single),
+                  let text = String(data: data, encoding: .utf8) else { return .failure(.invalidPoints) }
+            switch decode(text) {
+            case .success(.touch(let message)):
+                guard ids.insert(message.pointerId).inserted else { return .failure(.invalidPoints) }
+                messages.append(message)
+            case .failure(let error): return .failure(error)
+            default: return .failure(.invalidPoints)
+            }
+        }
+        return .success(.touches(messages))
     }
 
     /// 以 UTF-16 單元限制長度，與瀏覽器 String.length 一致，亦限制組合字的負載。

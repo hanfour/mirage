@@ -8,7 +8,7 @@ public struct RemoteActiveTouch: Sendable, Equatable {
     }
 }
 
-public enum RemoteTouchRejection: Sendable, Equatable {
+public enum RemoteTouchRejection: Error, Sendable, Equatable {
     case tooManyFingers
     case unknownPointer
 }
@@ -49,6 +49,24 @@ public struct RemoteTouchIdentifierAllocator: Sendable, Equatable {
             return (self, .rejected(.tooManyFingers))
         }
         return update(pointerId: message.pointerId, identifier: identifier, message: message)
+    }
+
+    /// 交易式配置：任何一點失敗都回復原 allocator，不洩漏識別碼或部分按下。
+    public func applyBatch(_ messages: [RemoteTouchMessage])
+        -> Result<(allocator: Self, specs: [TouchSpec]), RemoteTouchRejection> {
+        var next = self
+        var specs: [TouchSpec] = []
+        for message in messages {
+            let (candidate, outcome) = next.apply(message)
+            switch outcome {
+            case .rejected(let reason): return .failure(reason)
+            case .emit(let spec):
+                specs.append(TouchSpec(identifier: spec.identifier, point: spec.point,
+                                       down: spec.down, isRemoteMove: message.phase == .move))
+                next = candidate
+            }
+        }
+        return .success((next, specs))
     }
 
     public func releaseAll() -> (allocator: RemoteTouchIdentifierAllocator, released: [TouchSpec]) {
