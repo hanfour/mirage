@@ -30,7 +30,7 @@ import Testing
         #expect(menu.items[0].target === target)
         #expect(menu.items[1].title == "狀態：已連線")
         #expect(!menu.items[1].isEnabled)
-        #expect(menu.items[2].title == "拉取率：30 fps")
+        #expect(menu.items[2].title == "拉取率上限：30 fps")
         #expect(!menu.items[2].isEnabled)
         #expect(menu.items[2].action == nil)
         #expect(menu.items[3].title == "網址：\(url)（點一下複製）")

@@ -8,7 +8,7 @@ import Testing
     @Test(arguments: [5, 30, 60]) func showsActualPullRate(_ fps: Int) {
         let entries = RemoteMenu.entries(.on(urls: urls, session: .initial),
                                          pullInterval: .nanoseconds(1_000_000_000 / Int64(fps)))
-        #expect(entries.contains(.status("拉取率：\(fps) fps")))
+        #expect(entries.contains(.status("拉取率上限：\(fps) fps")))
     }
 
     @Test func offShowsEnableAndStatus() {
@@ -28,7 +28,7 @@ import Testing
         #expect(waiting == [
             .toggle(title: RemoteMenu.disableTitle),
             .status("狀態：等待配對"),
-            .status("拉取率：30 fps"),
+            .status("拉取率上限：30 fps"),
             .url(urls[0]), .url(urls[1]),
             .qr(urls[0]),
             .disconnect(enabled: false),
@@ -45,7 +45,7 @@ import Testing
         #expect(RemoteMenu.entries(.on(urls: [], session: .initial)) == [
             .toggle(title: RemoteMenu.disableTitle),
             .status("狀態：等待配對"),
-            .status("拉取率：30 fps"),
+            .status("拉取率上限：30 fps"),
             .status("找不到本機 IPv4 位址，請確認 Wi-Fi 或 Tailscale"),
             .disconnect(enabled: false),
         ])

@@ -11,6 +11,7 @@ struct RemoteLaunchOptions: Equatable, Sendable {
     static let tokenKey = "MIRAGE_REMOTE_TOKEN"
     private static let portRange = 1...65535
 
+    /// 新幀事件驅動編碼的速率上限，不再是輪詢頻率。
     let pullFPS: Int
     var pullInterval: Duration { .nanoseconds(1_000_000_000 / Int64(pullFPS)) }
 

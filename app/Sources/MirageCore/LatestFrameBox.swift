@@ -17,6 +17,7 @@ public struct FrameCounterSnapshot: Sendable, Equatable {
 public final class LatestFrameBox: @unchecked Sendable {
     private let lock = NSLock()
     private var latest: Frame?
+    private var onPut: (@Sendable () -> Void)?
     private var arrived = 0
     private var dropped = 0
     private var rejected = 0
@@ -32,7 +33,14 @@ public final class LatestFrameBox: @unchecked Sendable {
         arrived += 1
         if latest != nil { dropped += 1 }
         latest = frame
+        let notify = onPut
         lock.unlock()
+        notify?()
+    }
+
+    /// 單一通知消費者；鎖外回呼，允許通知端同步讀取同一個信箱。
+    func notifyAfterPut(_ notify: @escaping @Sendable () -> Void) {
+        lock.lock(); onPut = notify; lock.unlock()
     }
 
     public func takeLatest() -> Frame? {

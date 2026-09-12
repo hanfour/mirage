@@ -46,7 +46,7 @@ enum RemoteMenu {
         let c = interval.components
         let seconds = Double(c.seconds) + Double(c.attoseconds) / 1e18
         let fps = seconds > 0 ? (1 / seconds).rounded() : 0
-        return "拉取率：\(String(format: "%.0f", fps)) fps"
+        return "拉取率上限：\(String(format: "%.0f", fps)) fps"
     }
 
     static func statusText(_ session: RemoteSessionState) -> String {

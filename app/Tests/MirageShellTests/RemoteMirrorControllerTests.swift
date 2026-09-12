@@ -3,62 +3,6 @@ import Testing
 @testable import MirageCore
 @testable import MirageShell
 
-/// 假編碼器：每次 `encode` 同步吐一個存取單元；第一幀或被要求時是 keyframe。
-private final class FakeEncoder: RemoteFrameEncoding, @unchecked Sendable {
-    static let sps = Data([0x27, 0x42, 0x00, 0x32, 0xab, 0x40, 0x22, 0x00, 0x96, 0xf2, 0xe8])
-    static let pps = Data([0x28, 0xce, 0x3c, 0x80])
-    private let lock = NSLock()
-    private let failEncoding: Bool
-    private var forceKeyframe = true
-    private var timestamps: [ContinuousClock.Instant] = []
-    private(set) var encodeCalls = 0
-    private(set) var keyframeRequests = 0
-    private(set) var invalidated = false
-
-    init(failEncoding: Bool = false) {
-        self.failEncoding = failEncoding
-    }
-
-    func encode(_ frame: Frame, onAccessUnit: @escaping @Sendable (H264AccessUnit) -> Void) throws {
-        if failEncoding { throw TestFailure.encoding }
-        lock.lock()
-        encodeCalls += 1
-        timestamps.append(frame.receivedAt)
-        let key = forceKeyframe
-        forceKeyframe = false
-        lock.unlock()
-        let slice = Data([key ? 0x65 : 0x41, UInt8(truncatingIfNeeded: frame.width)])
-        onAccessUnit(H264AccessUnit(nals: key ? [Self.sps, Self.pps, slice] : [slice], isKeyframe: key))
-    }
-
-    func requestKeyframe() { lock.lock(); keyframeRequests += 1; forceKeyframe = true; lock.unlock() }
-    func invalidate() { lock.lock(); invalidated = true; lock.unlock() }
-    var presentationTimes: [ContinuousClock.Instant] { lock.lock(); defer { lock.unlock() }; return timestamps }
-    var calls: Int { lock.lock(); defer { lock.unlock() }; return encodeCalls }
-    var requests: Int { lock.lock(); defer { lock.unlock() }; return keyframeRequests }
-    var wasInvalidated: Bool { lock.lock(); defer { lock.unlock() }; return invalidated }
-}
-
-/// 記錄 `InputQueue` 送出的觸控；證明遠端觸控走的是 `inputQueue.touches`，不是別條路。
-private final class RecordingInjector: InputInjecting, @unchecked Sendable {
-    private let lock = NSLock()
-    private var stored: [[TouchSpec]] = []
-    let gate = CountGate()
-    func sendTouches(_ touches: [TouchSpec]) async { record(touches) }
-    private func record(_ touches: [TouchSpec]) { lock.lock(); stored.append(touches); lock.unlock(); gate.increment() }
-    private var storedKeys: [(KeyCode, Bool)] = []
-    let keyGate = CountGate()
-    func sendKey(_ code: KeyCode, down: Bool) async { recordKey(code, down: down) }
-    private func recordKey(_ code: KeyCode, down: Bool) {
-        lock.lock(); storedKeys.append((code, down)); lock.unlock(); keyGate.increment()
-    }
-    var keys: [(KeyCode, Bool)] { lock.lock(); defer { lock.unlock() }; return storedKeys }
-    func sendTap(nx: Double, ny: Double, down: Bool) async {}
-    var touches: [[TouchSpec]] { lock.lock(); defer { lock.unlock() }; return stored }
-}
-
-private enum TestFailure: Error { case unexpectedMessageKind, encoding }
-
 @Suite(.serialized, .timeLimit(.minutes(1))) struct RemoteMirrorControllerTests {
     private static let token = PairingToken(value: "00112233445566778899aabbccddeeff")!
     private static let page = Data("<!doctype html>viewer".utf8)
@@ -66,8 +10,8 @@ private enum TestFailure: Error { case unexpectedMessageKind, encoding }
     private struct Harness {
         let controller: RemoteMirrorController
         let port: Int
-        let encoder: FakeEncoder
-        let injector: RecordingInjector
+        let encoder: RemoteMirrorFakeEncoder
+        let injector: RemoteMirrorRecordingInjector
         let queue: InputQueue
         let errors: StateRecorder<String>
         let states: StateRecorder<RemoteSessionState>
@@ -81,15 +25,15 @@ private enum TestFailure: Error { case unexpectedMessageKind, encoding }
         configuration.port = 0
         configuration.pullInterval = pullInterval
         configuration.heartbeatInterval = heartbeatInterval
-        let injector = RecordingInjector()
+        let injector = RemoteMirrorRecordingInjector()
         let queue = InputQueue(injector: injector)
         let states = StateRecorder<RemoteSessionState>()
         let errors = StateRecorder<String>()
-        let box = FakeEncoderBox()
+        let box = RemoteMirrorFakeEncoderBox()
         let controller = RemoteMirrorController(
             configuration: configuration, secondary: LatestFrameBox(), inputQueue: queue,
             makeEncoder: {
-                let encoder = FakeEncoder(failEncoding: failEncoding)
+                let encoder = RemoteMirrorFakeEncoder(failEncoding: failEncoding)
                 box.encoder = encoder
                 return encoder
             },
@@ -101,7 +45,7 @@ private enum TestFailure: Error { case unexpectedMessageKind, encoding }
     }
 
     /// `makeEncoder` 是非逃逸閉包，用一個盒子把建好的假件帶出來。
-    private final class FakeEncoderBox: @unchecked Sendable { var encoder: FakeEncoder? }
+    private final class RemoteMirrorFakeEncoderBox: @unchecked Sendable { var encoder: RemoteMirrorFakeEncoder? }
 
     private func webSocket(_ port: Int, _ path: String) -> URLSessionWebSocketTask {
         var c = URLComponents()
@@ -119,7 +63,7 @@ private enum TestFailure: Error { case unexpectedMessageKind, encoding }
             case .string(let text):
                 let summary = try JSONDecoder().decode(RemoteLatencySummary.self, from: Data(text.utf8))
                 #expect(summary.type == "stats")
-            @unknown default: throw TestFailure.unexpectedMessageKind
+            @unknown default: throw RemoteMirrorTestFailure.unexpectedMessageKind
             }
         }
     }
@@ -166,7 +110,7 @@ private enum TestFailure: Error { case unexpectedMessageKind, encoding }
             let video = webSocket(h.port, "/ws/video")
             defer { video.cancel(with: .normalClosure, reason: nil) }
             let message = try await video.receive()
-            guard case .string(let text) = message else { throw TestFailure.unexpectedMessageKind }
+            guard case .string(let text) = message else { throw RemoteMirrorTestFailure.unexpectedMessageKind }
             let stats = try JSONDecoder().decode(RemoteLatencySummary.self, from: Data(text.utf8))
             #expect(stats.newFrames == 0)
             #expect(stats.heartbeatFrames == 0)
@@ -201,7 +145,7 @@ private enum TestFailure: Error { case unexpectedMessageKind, encoding }
             let first = try #require(RemoteVideoMessage.decode(firstData))
             #expect(first.sequence == 1)
             #expect(first.isKeyframe)
-            #expect(first.accessUnit == H264Nal.join([FakeEncoder.sps, FakeEncoder.pps, Data([0x65, 8])]))
+            #expect(first.accessUnit == H264Nal.join([RemoteMirrorFakeEncoder.sps, RemoteMirrorFakeEncoder.pps, Data([0x65, 8])]))
 
             h.controller.secondary.put(frame(9))
             let secondData = try await receiveData(video)
@@ -229,22 +173,73 @@ private enum TestFailure: Error { case unexpectedMessageKind, encoding }
             _ = try await receiveData(video)
             let initialRequests = h.encoder.requests
             #expect(initialRequests == 1) // 初連只要求一次 IDR
-            try await Task.sleep(for: .seconds(1))
-            let calls = h.encoder.calls
-            #expect((4...5).contains(calls))
+            let started = ContinuousClock.now
+            for _ in 0..<4 { _ = try await receiveData(video) }
+            #expect(h.encoder.calls == 5) // 初幀一次，250/500/750/1000 ms 各一次心跳
+            #expect(ContinuousClock.now - started < .seconds(2))
             #expect(h.encoder.requests - initialRequests == 0) // 心跳不另要求 keyframe
             #expect(h.controller.stats().framesPulled == 1)
             let times = h.encoder.presentationTimes
             #expect(zip(times, times.dropFirst()).allSatisfy { pair in pair.0 < pair.1 })
-            let heartbeatData = try await receiveData(video)
-            let heartbeat = try #require(RemoteVideoMessage.decode(heartbeatData))
-            #expect(heartbeat.sequence == 2)
-            #expect(!heartbeat.isKeyframe)
             video.cancel(with: .normalClosure, reason: nil)
             while h.controller.sessionState.hasVideo { await Task.yield() }
             let stoppedCalls = h.encoder.calls
             try await Task.sleep(for: .milliseconds(600))
-            #expect(h.encoder.calls == stoppedCalls) // 有快取、有 tick 也不得再送心跳
+            #expect(h.encoder.calls == stoppedCalls) // 有快取、有截止計時器也不得再送心跳
+        }
+    }
+
+    @Test func threeFramesWithinRateLimitEncodeOnlyLatest() async throws {
+        try await withController(pullInterval: .nanoseconds(1_000_000_000 / 30),
+                                 heartbeatInterval: .seconds(10)) { h in
+            let video = webSocket(h.port, "/ws/video")
+            defer { video.cancel(with: .normalClosure, reason: nil) }
+            h.controller.secondary.put(frame(8))
+            await h.encoder.encoded.wait(for: 1)
+            // 限速區間內三幀相隔 1 ms；沒有先前編碼時第一幀應立即送，不能 debounce。
+            for width in 9...11 {
+                h.controller.secondary.put(frame(width))
+                try await Task.sleep(for: .milliseconds(1))
+            }
+            _ = try await receiveData(video)
+            let data = try await receiveData(video)
+            let message = try #require(RemoteVideoMessage.decode(data))
+            #expect(message.accessUnit == H264Nal.join([Data([0x41, 11])]))
+            try await Task.sleep(for: .milliseconds(40))
+            #expect(h.encoder.calls == 2) // 初幀 + 三幀合併成一次
+            #expect(h.controller.stats().framesPulled == 2)
+            let times = h.encoder.encodingStarts
+            #expect(times[1] - times[0] >= h.controller.pullInterval)
+        }
+    }
+
+    @Test func firstFrameAfterSubscriptionDoesNotWaitForRatePeriod() async throws {
+        try await withController(pullInterval: .seconds(1), heartbeatInterval: .seconds(10)) { h in
+            let video = webSocket(h.port, "/ws/video")
+            defer { video.cancel(with: .normalClosure, reason: nil) }
+            while h.encoder.requests < 1 { await Task.yield() }
+            try await Task.sleep(for: .milliseconds(50)) // 連線請求已處理，但當時沒有幀
+            #expect(h.encoder.calls == 0)
+            let arrived = ContinuousClock.now
+            h.controller.secondary.put(frame(8))
+            _ = try await receiveData(video)
+            #expect(ContinuousClock.now - arrived < .milliseconds(200))
+            #expect(h.encoder.calls == 1)
+        }
+    }
+
+    @Test func framesFortyMillisecondsApartEachEncodeImmediately() async throws {
+        try await withController(pullInterval: .nanoseconds(1_000_000_000 / 30),
+                                 heartbeatInterval: .seconds(10)) { h in
+            let video = webSocket(h.port, "/ws/video")
+            defer { video.cancel(with: .normalClosure, reason: nil) }
+            for width in 8...10 {
+                h.controller.secondary.put(frame(width))
+                _ = try await receiveData(video)
+                #expect(h.encoder.calls == width - 7)
+                try await Task.sleep(for: .milliseconds(40))
+            }
+            #expect(h.controller.stats().framesPulled == 3)
         }
     }
 
@@ -275,9 +270,9 @@ private enum TestFailure: Error { case unexpectedMessageKind, encoding }
         }
     }
 
-    /// 拉取 tick 刻意設成十秒：初連與重連都必須在 tick 前送出 keyframe。
+    /// 不依賴新幀通知：連線時直接取信箱或最後快取，立即要求 keyframe。
     @Test func viewerImmediatelyGetsCachedKeyframeAndDisconnectStopsHeartbeats() async throws {
-        try await withController(pullInterval: .seconds(10)) { h in
+        try await withController(pullInterval: .nanoseconds(1_000_000_000 / 30), heartbeatInterval: .seconds(10)) { h in
             h.controller.secondary.put(frame(8))
             let firstViewer = webSocket(h.port, "/ws/video")
             _ = try await receiveData(firstViewer)
@@ -351,7 +346,7 @@ private enum TestFailure: Error { case unexpectedMessageKind, encoding }
             let ping = #"{"type":"ping","t":2}"#
             try await input.send(.string(ping))
             let echo = try await input.receive()
-            guard case .string(let text) = echo else { throw TestFailure.unexpectedMessageKind }
+            guard case .string(let text) = echo else { throw RemoteMirrorTestFailure.unexpectedMessageKind }
             #expect(text == ping)
             await h.injector.keyGate.wait(for: 6)
             await h.queue.drained()
