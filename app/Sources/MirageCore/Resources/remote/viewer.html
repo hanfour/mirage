@@ -329,7 +329,8 @@ setInterval(() => {
   }
   send({type:'ping', t:performance.now()});
 }, 1000);
-const active = new Set();
+// iOS Safari pointerId 可為負數；wire id 使用從 0 起、釋放後可重用的小整數。
+const active = new Map();
 function position(e) {
   const r = canvas.getBoundingClientRect(), scale = Math.min(r.width/canvas.width, r.height/canvas.height);
   const w = canvas.width*scale, h = canvas.height*scale;
@@ -341,12 +342,18 @@ for(const type of ['pointerdown','pointermove','pointerup','pointercancel']) can
   const p = position(e);
   if(type === 'pointerdown') {
     if(p.x<0 || p.x>1 || p.y<0 || p.y>1) return;
-    active.add(e.pointerId); canvas.setPointerCapture(e.pointerId);
+    if (!active.has(e.pointerId)) {
+      const used = new Set(active.values());
+      let id = 0;
+      while (used.has(id)) id++;
+      active.set(e.pointerId, id);
+    }
+    canvas.setPointerCapture(e.pointerId);
     requestWake();
   }
   if(!active.has(e.pointerId)) return;
   lastTouch = `${type.slice(7)} id=${e.pointerId} x=${p.x.toFixed(3)} y=${p.y.toFixed(3)}`;
-  send({t:performance.now(), id:e.pointerId, type:type.slice(7), x:Math.max(0,Math.min(1,p.x)), y:Math.max(0,Math.min(1,p.y))});
+  send({t:performance.now(), id:active.get(e.pointerId), type:type.slice(7), x:Math.max(0,Math.min(1,p.x)), y:Math.max(0,Math.min(1,p.y))});
   if(type === 'pointerup' || type === 'pointercancel') active.delete(e.pointerId);
 }, {passive:false});
 for(const type of ['gesturestart','gesturechange']) document.addEventListener(type, e => e.preventDefault(), {passive:false});

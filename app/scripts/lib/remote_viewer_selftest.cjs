@@ -323,3 +323,20 @@ test('malformed and unknown stats text only logs, then video continues', () => {
   assert.equal(h.run('configurationFailed'), false);
   assert.equal(h.run('localDrops'), 0);
 });
+
+
+test('negative Safari pointer IDs map to small reusable wire IDs across all phases', () => {
+  const h = harness();
+  h.sockets[0].onopen();
+  const canvas = h.elements['#canvas'];
+  canvas.width = canvas.height = 100;
+  canvas.getBoundingClientRect = () => ({left:0, top:0, width:100, height:100});
+  const fire = (type, pointerId) => canvas.listeners[type]({pointerId, clientX:50, clientY:50, preventDefault() {}});
+  for (const [type, id] of [['pointerdown', -10102172], ['pointerdown', 1807384342],
+    ['pointermove', -10102172], ['pointerup', -10102172], ['pointerdown', -42],
+    ['pointercancel', 1807384342], ['pointerup', -42]]) fire(type, id);
+  assert.deepEqual(h.sockets[1].sent.map(s => JSON.parse(s).id), [0, 1, 0, 0, 0, 1, 0]);
+  assert.equal(h.run('active.size'), 0);
+  fire('pointermove', -10102172);
+  assert.equal(h.sockets[1].sent.length, 7);
+});
