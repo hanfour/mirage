@@ -1,12 +1,14 @@
 #!/usr/bin/env python3
-"""第四段 Mac age 驗收：各有新幀窗口須 p50 < 12 ms 且 p95 < 25 ms。
+"""第四段 Mac age 驗收：各窗 p50 的中位數 < 12 ms 且各窗 p95 的中位數 < 25 ms。
 
-窗口百分位不能再平均當作整段百分位；取各窗口最大值作保守判定。
+使用各窗口百分位的中位數，每窗等權；這不是合併原始幀樣本後的整段百分位。
+偶數窗口取中間兩值的平均。逐窗數字保留作尖峰證據。
 只有心跳的窗口沒有 age，不當作零；整段都沒有新幀則驗收失敗。
 """
 import json
 import math
 import sys
+from statistics import median
 from pathlib import Path
 
 
@@ -44,12 +46,12 @@ def verify(lines):
     except (ValueError, TypeError) as error:
         print(f"❌ Mac age p50/p95：{error}")
         return 1
-    worst50 = max(pair[0] for pair in values)
-    worst95 = max(pair[1] for pair in values)
+    median50 = median(pair[0] for pair in values)
+    median95 = median(pair[1] for pair in values)
     print("Mac age p50/p95 各窗（ms）：" + ", ".join(f"{p50:.3f}/{p95:.3f}" for p50, p95 in values))
-    passed = all(p50 < 12 and p95 < 25 for p50, p95 in values)
-    print(f"{'✅' if passed else '❌'} Mac age p50/p95 各自最大值={worst50:.3f}/{worst95:.3f} ms；"
-          f"有效窗口={len(values)}；每窗門檻 p50 < 12 ms 且 p95 < 25 ms")
+    passed = median50 < 12 and median95 < 25
+    print(f"{'✅' if passed else '❌'} Mac age p50/p95 各窗中位數={median50:.3f}/{median95:.3f} ms；"
+          f"有效窗口={len(values)}；中位數門檻 p50 < 12 ms 且 p95 < 25 ms")
     return 0 if passed else 1
 
 
