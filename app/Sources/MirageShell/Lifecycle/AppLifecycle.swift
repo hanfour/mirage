@@ -6,10 +6,12 @@ import ObjectiveC
 @MainActor
 final class AppLifecycle: NSObject, NSWindowDelegate {
     private let client: EmulatorClient
+    private let hasActiveRemoteViewer: () -> Bool
     private var policy = LifecyclePolicy()
 
-    init(client: EmulatorClient) {
+    init(client: EmulatorClient, hasActiveRemoteViewer: @escaping () -> Bool = { false }) {
         self.client = client
+        self.hasActiveRemoteViewer = hasActiveRemoteViewer
         super.init()
         if ProcessInfo.processInfo.environment["MIRAGE_CONN_LOG"] == "1" {
             NotificationCenter.default.addObserver(
@@ -66,11 +68,15 @@ final class AppLifecycle: NSObject, NSWindowDelegate {
     }
 
     /// 視窗即將關閉 → 觸發休眠而非退出（回傳 false 阻止關閉，改為隱藏）。
+    /// 手機連著時只隱藏不休眠：畫面要繼續送到手機（spec 第 6 節）。
     func windowShouldClose(_ sender: NSWindow) -> Bool {
-        Self.diagnose("windowShouldClose", window: sender, result: "false", action: "suspend")
+        let remoteActive = hasActiveRemoteViewer()
+        Self.diagnose("windowShouldClose", window: sender, result: "false",
+                      action: remoteActive ? "hide-only(remote)" : "suspend")
         sender.orderOut(nil)                 // 隱藏視窗，app 續存（選單列常駐）
-        policy.didHide()
-        Task { await client.suspend() }
+        if policy.didHide(remoteViewerActive: remoteActive) {
+            Task { await client.suspend() }
+        }
         return false
     }
 
