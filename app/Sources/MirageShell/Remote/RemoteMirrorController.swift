@@ -44,8 +44,14 @@ private final class RemoteAccessUnitSequencer: @unchecked Sendable {
     private var sequence: UInt32 = 0
     private var window = RemoteLatencyWindow()
     private var windowStarted = ContinuousClock.now
+    private let inputStatistics: InputStatistics
+    private var previousInput: InputStatistics.Snapshot
 
-    init(server: RemoteServer) { self.server = server }
+    init(server: RemoteServer, inputStatistics: InputStatistics) {
+        self.server = server
+        self.inputStatistics = inputStatistics
+        self.previousInput = inputStatistics.snapshot()
+    }
 
     func recordPull(age: Duration, transitMs: Double?, heartbeat: Bool) {
         lock.lock(); defer { lock.unlock() }
@@ -56,7 +62,11 @@ private final class RemoteAccessUnitSequencer: @unchecked Sendable {
         lock.lock()
         let interval = now - windowStarted
         guard interval >= .seconds(1) else { lock.unlock(); return }
-        let summary = window.drain(interval: interval)
+        var summary = window.drain(interval: interval)
+        let input = inputStatistics.snapshot()
+        summary.inputRPCsPerSecond = input.rpcsPerSecond(since: previousInput, interval: interval)
+        summary.inputCoalesced = input.coalesced - previousInput.coalesced
+        previousInput = input
         windowStarted = now
         lock.unlock()
         do { server.sendStats(try JSONEncoder().encode(summary)) }
@@ -142,7 +152,7 @@ final class RemoteMirrorController: @unchecked Sendable {
                 onStateChanged(state)
             })
         self.server = server
-        self.sequencer = RemoteAccessUnitSequencer(server: server)
+        self.sequencer = RemoteAccessUnitSequencer(server: server, inputStatistics: inputQueue.inputStatistics)
         self.encoder = makeEncoder()
         relay.attach(self)
     }

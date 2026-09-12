@@ -145,7 +145,7 @@ let macStats = null;
 function macStatsText() {
   const ms = value => Number.isFinite(value) ? value.toFixed(1) : '—';
   const pair = value => `${ms(value?.p50)}/${ms(value?.p95)}`;
-  return `Mac: age ${pair(macStats?.age)} · encode ${pair(macStats?.encode)} · send ${pair(macStats?.send)} · transit ${ms(macStats?.transitMs)} ms\nframes/s new=${macStats?.newFrames ?? '—'} heartbeat=${macStats?.heartbeatFrames ?? '—'}`;
+  return `Mac: age ${pair(macStats?.age)} · encode ${pair(macStats?.encode)} · send ${pair(macStats?.send)} · transit ${ms(macStats?.transitMs)} ms\nframes/s new=${macStats?.newFrames ?? '—'} heartbeat=${macStats?.heartbeatFrames ?? '—'}\ninput RPC/s=${macStats?.inputRPCsPerSecond?.toFixed(1) ?? '—'} coalesced=${macStats?.inputCoalesced ?? '—'}`;
 }
 function percentile(a, p) { return a.length ? a[Math.min(a.length-1, Math.ceil(a.length*p)-1)].toFixed(1) : '—'; }
 setInterval(() => {

@@ -50,6 +50,7 @@ public final class InputQueue: Sendable {
 
     private let cont: InputCommandBuffer<Command>
     private let latencyEnabled: Bool
+    public let inputStatistics: InputStatistics
     public let textDiagnostics: TextInputDiagnostics
     public let textCoordinator: TextClipboardCoordinator
     private let textTransport: (any TextCommitTransport)?
@@ -71,6 +72,8 @@ public final class InputQueue: Sendable {
                 textPolicy: Result<TextSubmissionPolicy, TextCommitIssue>,
                 textClock: TextCommitClock = .continuous, latencyEnabled: Bool = false,
                 textDiagnostics: TextInputDiagnostics = TextInputDiagnostics()) {
+        let inputStatistics = InputStatistics()
+        self.inputStatistics = inputStatistics
         let coordinator = TextClipboardCoordinator(policy: textPolicy, clock: textClock)
         self.textDiagnostics = textDiagnostics
         self.textCoordinator = coordinator
@@ -102,57 +105,58 @@ public final class InputQueue: Sendable {
             }
             defer { timer?.cancel() }
             for await _ in cont.wakeups {
-              while true {
-                // 遠端 120 Hz 壓測也走這裡；每個消費週期收集約一幀的 move。
-                // 本機快照與所有邊緣不主動等待，亦不以 down=true 猜測 move。
-                if cont.firstIsMove { try? await Task.sleep(for: .milliseconds(16)) }
-                guard let entry = cont.pop() else { break }
-                let command = entry.command
-                let queuedAt: ContinuousClock.Instant?
-                switch command {
-                case .text(let commit, let admission, let receipt):
-                    // 同一 consumer 等到 settle 或具名失敗才繼續，禁止另開傳輸 Task。
-                    do {
-                        let result: TextCommitResult
-                        if let stopped = coordinator.begin(commit, admission: admission) { result = stopped }
-                        else if let textTransport {
-                            result = await TextCommitExecutor(transport: textTransport, clock: textClock)
-                                .execute(commit, policy: admission.policy,
-                                         validity: { coordinator.validity(commit) },
-                                         willWrite: { coordinator.rememberOwnWrite($0) },
-                                         phaseChanged: {
-                                             coordinator.phase($0, for: commit)
-                                             textDiagnostics.record("phase", ["commitID": commit.id.uuidString, "phase": String(describing: $0)])
-                                         })
-                        } else { result = TextCommitResult(commit: commit, outcome: .failedBeforePaste(.transport("unsupported"))) }
-                        textDiagnostics.record("result", ["commitID": commit.id.uuidString, "outcome": String(describing: result.outcome)])
-                        receipt.yield(coordinator.finish(result)); receipt.finish()
+                while true {
+                    // 遠端 120 Hz 壓測也走這裡；每個消費週期收集約一幀的 move。
+                    // 本機快照與所有邊緣不主動等待，亦不以 down=true 猜測 move。
+                    if cont.firstIsMove { try? await Task.sleep(for: .milliseconds(16)) }
+                    guard let entry = cont.pop() else { break }
+                    let command = entry.command
+                    let queuedAt: ContinuousClock.Instant?
+                    switch command {
+                    case .text(let commit, let admission, let receipt):
+                        // 同一 consumer 等到 settle 或具名失敗才繼續，禁止另開傳輸 Task。
+                        do {
+                            let result: TextCommitResult
+                            if let stopped = coordinator.begin(commit, admission: admission) { result = stopped }
+                            else if let textTransport {
+                                result = await TextCommitExecutor(transport: textTransport, clock: textClock)
+                                    .execute(commit, policy: admission.policy,
+                                             validity: { coordinator.validity(commit) },
+                                             willWrite: { coordinator.rememberOwnWrite($0) },
+                                             phaseChanged: {
+                                                 coordinator.phase($0, for: commit)
+                                                 textDiagnostics.record("phase", ["commitID": commit.id.uuidString, "phase": String(describing: $0)])
+                                             })
+                            } else { result = TextCommitResult(commit: commit, outcome: .failedBeforePaste(.transport("unsupported"))) }
+                            textDiagnostics.record("result", ["commitID": commit.id.uuidString, "outcome": String(describing: result.outcome)])
+                            receipt.yield(coordinator.finish(result)); receipt.finish()
+                        }
+                        continue
+                    case .clipboard(let revision):
+                        if let value = coordinator.hostValue(for: revision), let textTransport {
+                            coordinator.rememberOwnWrite(value)
+                            do { try await textTransport.writeTextClipboard(value, timeout: .seconds(2)) }
+                            catch { coordinator.clipboardWriteFailed(.transport(String(describing: error)), revision: revision, value: value) }
+                        }
+                        continue
+                    case .barrier(let receipt):
+                        receipt.yield(()); receipt.finish(); continue
+                    case .key(let code, let down, let time):
+                        queuedAt = time
+                        textDiagnostics.record("guest-key-dispatch", ["key": Self.diagnosticKey(code), "down": String(down)])
+                        await injector.sendKey(code, down: down)
+                    case .touches(let specs, let time):
+                        queuedAt = time
+                        inputStatistics.recordRPC(coalesced: entry.coalesced)
+                        await injector.sendTouches(specs)
+                    case .tap(let nx, let ny, let down, let time):
+                        queuedAt = time
+                        await injector.sendTap(nx: nx, ny: ny, down: down)
                     }
-                    continue
-                case .clipboard(let revision):
-                    if let value = coordinator.hostValue(for: revision), let textTransport {
-                        coordinator.rememberOwnWrite(value)
-                        do { try await textTransport.writeTextClipboard(value, timeout: .seconds(2)) }
-                        catch { coordinator.clipboardWriteFailed(.transport(String(describing: error)), revision: revision, value: value) }
+                    if let queuedAt {
+                        recorder?.record(ContinuousClock.now - queuedAt)
                     }
-                    continue
-                case .barrier(let receipt):
-                    receipt.yield(()); receipt.finish(); continue
-                case .key(let code, let down, let time):
-                    queuedAt = time
-                    textDiagnostics.record("guest-key-dispatch", ["key": Self.diagnosticKey(code), "down": String(down)])
-                    await injector.sendKey(code, down: down)
-                case .touches(let specs, let time):
-                    queuedAt = time
-                    await injector.sendTouches(specs)
-                case .tap(let nx, let ny, let down, let time):
-                    queuedAt = time
-                    await injector.sendTap(nx: nx, ny: ny, down: down)
                 }
-                if let queuedAt {
-                    recorder?.record(ContinuousClock.now - queuedAt)
-                }
-              }
             }
         }
     }
@@ -278,5 +282,33 @@ final class InputCommandBuffer<Command: Sendable>: @unchecked Sendable {
         let command = pending[index]
         pending.removeFirst(index + 1)
         return (command, index)
+    }
+}
+
+/// 累計實際 consumer 呼叫 sendTouches 的次數；每個 stats 訂閱者自行取差值，互不 reset。
+public final class InputStatistics: @unchecked Sendable {
+    public struct Snapshot: Sendable, Equatable {
+        public let rpcs: Int
+        public let coalesced: Int
+
+        public func rpcsPerSecond(since previous: Self, interval: Duration) -> Double {
+            let parts = interval.components
+            let seconds = Double(parts.seconds) + Double(parts.attoseconds) / 1e18
+            return seconds > 0 ? Double(rpcs - previous.rpcs) / seconds : 0
+        }
+    }
+    private let lock = NSLock()
+    private var rpcs = 0
+    private var coalesced = 0
+
+    func recordRPC(coalesced count: Int) {
+        lock.lock(); defer { lock.unlock() }
+        rpcs += 1
+        coalesced += count
+    }
+
+    public func snapshot() -> Snapshot {
+        lock.lock(); defer { lock.unlock() }
+        return Snapshot(rpcs: rpcs, coalesced: coalesced)
     }
 }

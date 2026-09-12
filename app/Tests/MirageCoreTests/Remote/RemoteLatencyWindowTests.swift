@@ -9,7 +9,9 @@ import Testing
             window.recordPull(age: .milliseconds(value), transitMs: Double(value * 2), heartbeat: false)
             window.recordCompletion(encode: .milliseconds(value * 3), send: .microseconds(value * 100))
         }
-        let summary = window.drain(interval: .milliseconds(1020))
+        var summary = window.drain(interval: .milliseconds(1020))
+        summary.inputRPCsPerSecond = 60.5
+        summary.inputCoalesced = 64
         #expect(summary.type == "stats")
         #expect(summary.intervalMs == 1020)
         #expect(summary.newFrames == 20)
@@ -21,6 +23,8 @@ import Testing
         let data = try JSONEncoder().encode(summary)
         let decoded = try JSONDecoder().decode(RemoteLatencySummary.self, from: data)
         #expect(decoded == summary)
+        #expect(decoded.inputRPCsPerSecond == 60.5)
+        #expect(decoded.inputCoalesced == 64)
     }
 
     @Test func heartbeatExcludesCachedAgeAndTransitButMeasuresEncoding() {

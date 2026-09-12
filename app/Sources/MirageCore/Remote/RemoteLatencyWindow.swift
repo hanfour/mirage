@@ -17,6 +17,8 @@ public struct RemoteLatencySummary: Codable, Sendable, Equatable {
     public let transitMs: Double?
     public let newFrames: Int
     public let heartbeatFrames: Int
+    public var inputRPCsPerSecond: Double = 0
+    public var inputCoalesced: Int = 0
 }
 
 /// 沿用 LatencyWindow 的 nearest-rank 百分位及 TransitWindow 的無效值過濾。

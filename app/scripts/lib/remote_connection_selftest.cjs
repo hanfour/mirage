@@ -281,3 +281,9 @@ test('backpressure retains edges until send succeeds', async () => {
   await h.advance(16); await h.advance(16);
   assert.deepEqual(batches().map(b => b.points[0].phase), ['down', 'up']);
 });
+
+test('viewer displays actual RPC rate and coalesced batches', () => {
+  const h = harness();
+  h.sockets[0].onmessage({data:JSON.stringify({type:'stats', inputRPCsPerSecond:62.51, inputCoalesced:59})});
+  assert.match(h.run('macStatsText()'), /input RPC\/s=62.5 coalesced=59/);
+});

@@ -143,6 +143,18 @@ private final class ProbeInjector: InputInjecting, @unchecked Sendable {
 }
 
 @Suite(.timeLimit(.minutes(1))) struct InputMoveCoalescingTests {
+    @Test func statisticsUseElapsedSecondsAndDoNotResetOtherReaders() {
+        let statistics = InputStatistics()
+        let before = statistics.snapshot()
+        statistics.recordRPC(coalesced: 2)
+        statistics.recordRPC(coalesced: 3)
+        let after = statistics.snapshot()
+        #expect(after.rpcsPerSecond(since: before, interval: .milliseconds(500)) == 4)
+        #expect(after.coalesced == 5)
+        #expect(statistics.snapshot() == after)
+        #expect(after.rpcsPerSecond(since: after, interval: .seconds(1)) == 0)
+    }
+
     @Test func keepsOnlyLatestConsecutiveMoves() {
         let both: Set<Int> = [64, 65]
         #expect(InputMoveCoalescing.retainedIndices([both, both, both]) == [2])
@@ -174,7 +186,7 @@ private final class ProbeInjector: InputInjecting, @unchecked Sendable {
         let last = try #require(buffer.pop())
         #expect(last.command == 5)
         #expect(last.coalesced == 1)
-        #expect(buffer.pop() == nil)
+        #expect(buffer.pop()?.command == nil)
         buffer.finish()
     }
 
@@ -197,6 +209,9 @@ private final class ProbeInjector: InputInjecting, @unchecked Sendable {
         queue.tap(nx: 0.8, ny: 0.5, down: true)
         injector.release()
         await queue.drained()
+        let stats = queue.inputStatistics.snapshot()
+        #expect(stats.rpcs == 5)
+        #expect(stats.coalesced == 2)
         #expect(injector.events == ["touch:0.1:true", "touch:0.4:true", "key", "touch:0.5:true",
                                    "touch:0.6:true", "touch:0.7:false", "tap"])
     }
