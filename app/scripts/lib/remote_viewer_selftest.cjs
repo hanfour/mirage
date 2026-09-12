@@ -7,12 +7,12 @@ const vm = require('node:vm');
 const html = fs.readFileSync(path.join(__dirname, '../../Sources/MirageCore/Resources/remote/viewer.html'), 'utf8');
 const script = html.match(/<script>([\s\S]*?)<\/script>/)[1];
 
-function harness({immediateOutput = false, search = '?t=abc'} = {}) {
+function harness({immediateOutput = false, search = '?t=abc', storage = new Map(), storageFails = false} = {}) {
   const timers = new Map(), decoders = [], sockets = [];
   let timerID = 0, now = 0, draws = 0;
   function element() {
     const classes = new Set(), listeners = {};
-    return {listeners, hidden: false,
+    return {listeners, hidden: false, setAttribute() {},
       getContext: () => ({drawImage() { draws++; }}),
       addEventListener(type, listener) { listeners[type] = listener; },
       classList: {
@@ -22,10 +22,11 @@ function harness({immediateOutput = false, search = '?t=abc'} = {}) {
       },
     };
   }
-  const elements = Object.fromEntries(['#canvas', '#panel', '#log', '#nav', 'details'].map(id => [id, element()]));
+  const elements = Object.fromEntries(['#canvas', '#panel', '#log', '#nav', 'details', '#stats-toggle', '#error'].map(id => [id, element()]));
   const buttons = [...html.matchAll(/<button[^>]+data-key="([^"]+)"/g)].map(match =>
     Object.assign(element(), {dataset: {key: match[1]}}));
   elements['#nav'].querySelectorAll = () => buttons;
+  elements['#error'].hidden = true;
   const root = element();
   class Decoder {
     constructor(callbacks) {
@@ -71,6 +72,10 @@ function harness({immediateOutput = false, search = '?t=abc'} = {}) {
     location: {search, protocol: 'http:', host: '127.0.0.1'},
     navigator: {userAgent: 'test'}, screen: {width: 8, height: 1},
     innerWidth: 8, innerHeight: 1, devicePixelRatio: 1, isSecureContext: true,
+    localStorage: {
+      getItem(key) { if (storageFails) throw Error('denied'); return storage.get(key); },
+      setItem(key, value) { if (storageFails) throw Error('denied'); storage.set(key, value); },
+    },
     URLSearchParams, WebSocket: Socket, VideoDecoder: Decoder,
     EncodedVideoChunk: class {constructor(options) { Object.assign(this, options); }},
     performance: {now: () => now},
@@ -277,4 +282,42 @@ test('contain coordinates use the canvas rectangle after reserving navigation he
   assert.equal(h.run('position({clientX:195,clientY:758}).y'), 1);
   assert.ok(h.run('position({clientX:195,clientY:790}).y') > 1);
   assert.ok(h.run('position({clientX:0,clientY:379}).x') < 0);
+});
+
+test('stats collapse both overlays, persist, and expand from the corner marker', () => {
+  const storage = new Map(), h = harness({storage});
+  assert.equal(h.elements['#panel'].hidden, false);
+  h.elements['#panel'].listeners.click();
+  assert.equal(h.elements['#panel'].hidden, true);
+  assert.equal(h.elements.details.hidden, true);
+  assert.equal(h.elements['#stats-toggle'].textContent, 'ⓘ');
+  const restored = harness({storage});
+  assert.equal(restored.elements['#panel'].hidden, true);
+  restored.elements['#stats-toggle'].listeners.click();
+  assert.equal(restored.elements['#panel'].hidden, false);
+  assert.equal(restored.elements.details.hidden, false);
+  assert.equal(storage.get('mirage.statsCollapsed'), '0');
+});
+
+test('storage failures default to expanded and do not prevent toggling', () => {
+  const h = harness({storageFails: true});
+  assert.equal(h.elements['#panel'].hidden, false);
+  h.elements['#stats-toggle'].listeners.click();
+  assert.equal(h.elements['#panel'].hidden, true);
+});
+
+test('stats=0 hides even the marker, but errors remain visible in every stats mode', () => {
+  for (const search of ['?t=abc', '?t=abc&stats=0']) {
+    const h = harness({search, storage: new Map([['mirage.statsCollapsed', '1']])});
+    assert.equal(h.elements['#panel'].hidden, true);
+    assert.equal(h.elements['#stats-toggle'].hidden, search.includes('stats=0'));
+    h.sockets[0].onerror();
+    assert.equal(h.elements['#error'].hidden, false);
+    assert.match(h.elements['#error'].textContent, /WebSocket error/);
+    h.receive(1);
+    h.decoders[0].configure = () => { throw Error('unsupported codec'); };
+    h.run('configureDecoder()');
+    assert.match(h.elements['#error'].textContent, /unsupported codec/);
+    assert.equal(h.elements['#panel'].hidden, true);
+  }
 });

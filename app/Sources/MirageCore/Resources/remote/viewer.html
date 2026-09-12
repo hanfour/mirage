@@ -12,10 +12,13 @@ canvas{position:fixed;inset:0 0 var(--nav-height);width:100%;height:calc(100% - 
 #nav button{flex:1;min-width:0;border:0;border-radius:8px;margin:4px;color:#fff;background:#27272a;font:inherit;touch-action:manipulation;user-select:none}
 #nav button:active,#nav button.pressed{background:#2563eb}
 #nav[hidden]{display:none}
-#panel{position:fixed;top:env(safe-area-inset-top,0px);left:0;max-width:96vw;max-height:calc(100% - var(--nav-height) - env(safe-area-inset-top,0px));overflow:hidden;background:#000b;padding:8px;pointer-events:none;white-space:pre-wrap}
+#panel{position:fixed;top:env(safe-area-inset-top,0px);left:0;max-width:96vw;max-height:calc(100% - var(--nav-height) - env(safe-area-inset-top,0px));overflow:hidden;background:#000b;padding:8px;white-space:pre-wrap;cursor:pointer}
 details{position:fixed;bottom:max(var(--nav-height),env(safe-area-inset-bottom,0px));left:0;width:100%;background:#000c}
 summary{padding:8px}#log{height:24vh;overflow:auto;touch-action:pan-y;white-space:pre-wrap;overflow-wrap:anywhere;margin:0;padding:8px}
-#panel[hidden],details[hidden]{display:none}
+#panel{top:calc(env(safe-area-inset-top,0px) + 30px)}
+#stats-toggle{position:fixed;top:env(safe-area-inset-top,0px);left:0;border:0;background:#000b;color:#fff;padding:5px 8px;touch-action:manipulation}
+#error{position:fixed;top:env(safe-area-inset-top,0px);right:0;max-width:75vw;padding:8px;background:#7f1d1d;pointer-events:none;white-space:pre-wrap}
+#panel[hidden],details[hidden],#stats-toggle[hidden],#error[hidden]{display:none}
 </style>
 <canvas id="canvas" width="1080" height="2400"></canvas>
 <nav id="nav" aria-label="Android 導覽">
@@ -23,6 +26,8 @@ summary{padding:8px}#log{height:24vh;overflow:auto;touch-action:pan-y;white-spac
 <button type="button" data-key="GoHome">○ 主畫面</button>
 <button type="button" data-key="AppSwitch">□ 最近任務</button>
 </nav>
+<button id="stats-toggle" type="button" aria-label="收合統計">ⓘ</button>
+<div id="error" role="alert" hidden></div>
 <div id="panel">Initializing…</div><details><summary>統計 / 診斷紀錄（展開可捲動）</summary><pre id="log"></pre></details>
 <script>
 const canvas = document.querySelector('#canvas'), ctx = canvas.getContext('2d', {alpha:false});
@@ -42,8 +47,30 @@ for (const button of navigation.querySelectorAll('button')) {
   });
 }
 const showStats = params.get('stats') !== '0';
-panel.hidden = !showStats;
-document.querySelector('details').hidden = !showStats;
+const statsToggle = document.querySelector('#stats-toggle'), diagnostics = document.querySelector('details');
+const errorPanel = document.querySelector('#error');
+let statsCollapsed = false;
+try { statsCollapsed = localStorage.getItem('mirage.statsCollapsed') === '1'; } catch {}
+function renderStats() {
+  panel.hidden = diagnostics.hidden = !showStats || statsCollapsed;
+  statsToggle.hidden = !showStats;
+  statsToggle.textContent = statsCollapsed ? 'ⓘ' : 'ⓘ 收合';
+  statsToggle.setAttribute('aria-expanded', String(!statsCollapsed));
+  statsToggle.setAttribute('aria-label', statsCollapsed ? '展開統計' : '收合統計');
+}
+function toggleStats() {
+  statsCollapsed = !statsCollapsed;
+  try { localStorage.setItem('mirage.statsCollapsed', statsCollapsed ? '1' : '0'); } catch {}
+  renderStats();
+}
+statsToggle.addEventListener('click', toggleStats);
+panel.addEventListener('click', toggleStats);
+function reportError(message) {
+  errorPanel.textContent = message;
+  errorPanel.hidden = false;
+  note(message);
+}
+renderStats();
 const query = `?t=${encodeURIComponent(token)}`;
 const hw = 'no-preference';
 let codec = null, configurationFailed = false;
@@ -76,9 +103,7 @@ function configureDecoder() {
   } catch (e) {
     configurationFailed = true;
     status = `configure failed (${codec}): ${e.message}`;
-    panel.hidden = false;
-    panel.textContent = status;
-    note(status);
+    reportError(status);
     return false;
   }
 }
@@ -141,7 +166,7 @@ function makeDecoder() {
     error(e) {
       cancelIdleFlush();
       status = `decoder error (${codec}): ${e.message}`;
-      note(status);
+      reportError(status);
       dropReasons.error += pending.size;
       localDrops += pending.size;
       pending.clear();
@@ -157,8 +182,8 @@ function send(obj) {
 function connectInput() {
   input = new WebSocket(base + '/ws/input' + query);
   input.onopen = () => note('input connected');
-  input.onclose = () => note('input disconnected; reload to reconnect');
-  input.onerror = () => note('input WebSocket error');
+  input.onclose = () => reportError('input disconnected; reload to reconnect');
+  input.onerror = () => reportError('input WebSocket error');
   input.onmessage = event => {
     try {
       const obj = JSON.parse(event.data);
@@ -170,7 +195,7 @@ async function start() {
   note(`VideoDecoder=${typeof VideoDecoder}; secure=${isSecureContext}; UA=${navigator.userAgent}`);
   note(`screen=${screen.width}x${screen.height}; viewport=${innerWidth}x${innerHeight}; DPR=${devicePixelRatio}; codec=${codec}; hw=${hw}`);
   if (typeof VideoDecoder === 'undefined') { status = '這個瀏覽器沒有 VideoDecoder';
-    note(status);
+    reportError(status);
     return;
   }
   try {
@@ -181,9 +206,9 @@ async function start() {
       note(status);
     };
     video.onclose = () => { cancelIdleFlush(); status = 'video disconnected; reload to reconnect';
-      note(status);
+      reportError(status);
     };
-    video.onerror = () => note('video WebSocket error');
+    video.onerror = () => reportError('video WebSocket error');
     video.onmessage = event => {
       cancelIdleFlush();
       if (configurationFailed) return;
@@ -223,11 +248,11 @@ async function start() {
         decoder.decode(new EncodedVideoChunk({type:key ? 'key' : 'delta', timestamp, data:new Uint8Array(data, 13)}));
         scheduleIdleFlush();
         status = 'streaming';
-      } catch(e) { status = 'video error: ' + e.message; reset(status); }
+      } catch(e) { status = 'video error: ' + e.message; reset(status); reportError(status); }
     };
   } catch(e) {
     status = e.message;
-    note(status);
+    reportError(status);
   }
 }
 function percentile(a, p) { return a.length ? a[Math.min(a.length-1, Math.ceil(a.length*p)-1)].toFixed(1) : '—'; }
