@@ -426,3 +426,39 @@ extension）、`AppDelegate`、`KeymapController`、`AdbClient`、`GameDetector`
 [人工清單](../docs/testing/2026-09-11-host-ime-human-checklist.md)，
 實作／故障／未驗項見 [Task 5–8 結果](RESULTS-ime-tasks-5-8.md)。
 尚不能以離線測試或 Task 4 通道結果宣稱真 Mac IME 問題已驗收修復。
+
+## 模擬器多開（可切換）
+
+多台模擬器各自開機，Mirage 同一時間只接一台；切換時停止舊連線、換端點再啟動連線，
+舊模擬器維持開機。M1 16GB 的雙台同時遊玩量測見
+[量測結果](RESULTS-multi-instance.md)。目前提供單視窗切換；設計見
+[多實例規格](../docs/specs/2026-09-12-multi-instance-design.md)。
+
+- **啟停**：`./scripts/emu.sh -n <名稱> start|stop|status`。名稱就是 AVD 名稱，每台需要
+  各自的 AVD（用 `tools/provision` 建立）；同一 AVD 在其他埠執行時，`start` 會拒絕重開。
+  預設實例表在 `scripts/lib/emu_instances.sh`：
+  `mirage-game:5554:8554 mirage-poc:5556:8556`（名稱:console 埠:gRPC 埠）。
+  `MIRAGE_INSTANCES` 可整份覆寫；不帶 `-n` 時選第一台並套用既有的
+  `MIRAGE_AVD`／`MIRAGE_PORT`／`MIRAGE_GRPC` 覆寫。
+  `status` 列出所有執行中的實例與 gRPC 綁定位址；`stop` 只停指定那台。
+- **切換**：選單列 🪞 →「切換模擬器 ▸」，列出探索檔
+  `~/Library/Caches/TemporaryItems/avd/running/pid_*.ini` 裡活著的實例，目前那台打勾；
+  沒有其他實例時顯示停用項「沒有其他模擬器」。切換期間顯示既有的連線橫幅。
+  `MIRAGE_HOST` 保持不變，App 的 `MIRAGE_PORT` 只決定啟動時的 gRPC 埠。
+  鍵位 profile 跟著遊戲偵測走。
+- **活體驗證**：先由使用者啟動兩台，再執行以下指令（工作目錄為 `app/`）：
+
+  ```bash
+  ./scripts/emu.sh -n mirage-game start
+  ./scripts/emu.sh -n mirage-poc start
+  ./scripts/verify_instance_switch.sh
+  ```
+
+  驗證腳本只連接已啟動的兩台，結束後兩台保持執行；開頭用 `require_grpc` 檢查兩個埠，
+  缺少監聽時印出對應啟動指令並失敗退出。預設對 5554→5556→5554 依序執行
+  `verify_keyboard.sh`（會跑 Swift 活體測試），以 guest `getevent` 判定鍵是否送達，
+  每段再確認另一台 `sys.boot_completed` 仍為 1。可用 `MIRAGE_FIRST`／`MIRAGE_SECOND`
+  選擇實例；若覆寫 `MIRAGE_INSTANCES`，啟動與驗證須使用同一份表。
+  退出碼 0 代表上述三段判定通過；腳本未驅動 GUI 選單，也未驗證同一個 App client 的
+  端點切換。選單勾選、畫面切換與按鍵送至新目標仍需人工端到端驗收。
+  實例純函式自我測試在 `scripts/lib/emu_selftest.sh`（`ci.sh` 閘門 7）。
