@@ -1,0 +1,208 @@
+<!doctype html>
+<html lang="zh-Hant"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Mirage 遙控</title>
+<style>
+*{box-sizing:border-box;touch-action:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;overscroll-behavior:none}
+html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#000;color:#fff;font:13px/1.4 monospace}
+canvas{position:fixed;inset:0;width:100%;height:100%;object-fit:contain}
+#panel{position:fixed;top:env(safe-area-inset-top,0px);left:0;max-width:96vw;background:#000b;padding:8px;pointer-events:none;white-space:pre-wrap}
+details{position:fixed;bottom:env(safe-area-inset-bottom,0px);left:0;width:100%;background:#000c}
+summary{padding:8px}#log{height:24vh;overflow:auto;touch-action:pan-y;white-space:pre-wrap;overflow-wrap:anywhere;margin:0;padding:8px}
+#panel[hidden],details[hidden]{display:none}
+</style>
+<canvas id="canvas" width="1080" height="2400"></canvas>
+<div id="panel">Initializing…</div><details><summary>統計 / 診斷紀錄（展開可捲動）</summary><pre id="log"></pre></details>
+<script>
+const canvas = document.querySelector('#canvas'), ctx = canvas.getContext('2d', {alpha:false});
+const panel = document.querySelector('#panel'), log = document.querySelector('#log');
+const params = new URLSearchParams(location.search), token = params.get('t') || '';
+const showStats = params.get('stats') !== '0';
+panel.hidden = !showStats;
+document.querySelector('details').hidden = !showStats;
+const query = `?t=${encodeURIComponent(token)}`;
+const hw = 'no-preference';
+let codec = null, configurationFailed = false;
+const dropReasons = {gap:0, backlog:0, error:0, waitIDR:0};
+const base = `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}`;
+let decoder, video, input, wake, decoded = 0, lastDecoded = 0, received = 0, gaps = 0, localDrops = 0;
+let lastSeq = null, waiting = true, rtt = NaN, samples = [], pending = new Map(), tick = performance.now();
+let status = 'initializing', lastTouch = 'none', inputDrops = 0;
+const lines = [];
+function note(s) { lines.push(`${new Date().toISOString()} ${s}`); if(lines.length > 180) lines.shift(); log.textContent = lines.join('\n'); log.scrollTop = log.scrollHeight; }
+// Annex-B 的三／四位元組起始碼都可找到 SPS；略過 NAL header 後取 PPCCLL。
+function codecFromAccessUnit(bytes) {
+  for (let i = 0; i + 6 < bytes.length; i++) {
+    if (bytes[i] === 0 && bytes[i + 1] === 0 && bytes[i + 2] === 1) {
+      if ((bytes[i + 3] & 0x1f) === 7) {
+        return 'avc1.' + [bytes[i + 4], bytes[i + 5], bytes[i + 6]]
+          .map(b => b.toString(16).padStart(2, '0').toUpperCase()).join('');
+      }
+      i += 2;
+    }
+  }
+  return null;
+}
+// configure 失敗後鎖住解碼；重新整理才重試，錯誤即使 stats=0 也可見。
+function configureDecoder() {
+  try {
+    decoder.configure(config());
+    return true;
+  } catch (e) {
+    configurationFailed = true;
+    status = `configure failed (${codec}): ${e.message}`;
+    panel.hidden = false;
+    panel.textContent = status;
+    note(status);
+    return false;
+  }
+}
+function config() { return {codec, optimizeForLatency:true, hardwareAcceleration:hw}; }
+function reset(reason, category = 'error') {
+  dropReasons[category] += pending.size;
+  localDrops += pending.size;
+  pending.clear();
+  waiting = true;
+  if (decoder && decoder.state !== 'closed' && codec && !configurationFailed) {
+    decoder.reset(); configureDecoder();
+  }
+  note(`${reason}; drops=${JSON.stringify(dropReasons)}`);
+}
+function makeDecoder() {
+  return new VideoDecoder({
+    output(frame) {
+      const now = performance.now(), arrived = pending.get(frame.timestamp);
+      if (arrived !== undefined) {
+        samples.push(now - arrived);
+        pending.delete(frame.timestamp);
+      }
+      try {
+        if(canvas.width !== frame.displayWidth || canvas.height !== frame.displayHeight) {
+          canvas.width = frame.displayWidth; canvas.height = frame.displayHeight;
+        }
+        ctx.drawImage(frame, 0, 0, canvas.width, canvas.height); decoded++;
+      } finally { frame.close(); }
+    },
+    error(e) {
+      status = `decoder error (${codec}): ${e.message}`;
+      note(status);
+      dropReasons.error += pending.size;
+      localDrops += pending.size;
+      pending.clear();
+      waiting = true;
+    }
+  });
+}
+function send(obj) {
+  if (input?.readyState === WebSocket.OPEN && input.bufferedAmount < 65536) input.send(JSON.stringify(obj));
+  else inputDrops++;
+}
+async function start() {
+  note(`VideoDecoder=${typeof VideoDecoder}; secure=${isSecureContext}; UA=${navigator.userAgent}`);
+  note(`screen=${screen.width}x${screen.height}; viewport=${innerWidth}x${innerHeight}; DPR=${devicePixelRatio}; codec=${codec}; hw=${hw}`);
+  input = new WebSocket(base + '/ws/input' + query);
+  input.onopen = () => note('input connected');
+  input.onclose = () => note('input disconnected; reload to reconnect');
+  input.onerror = () => note('input WebSocket error');
+  input.onmessage = event => {
+    try {
+      const obj = JSON.parse(event.data);
+      if(obj.type === 'ping') rtt = performance.now() - obj.t;
+    } catch(e) { note('input echo error: ' + e.message); }
+  };
+  if (typeof VideoDecoder === 'undefined') { status = '這個瀏覽器沒有 VideoDecoder';
+    note(status);
+    return;
+  }
+  try {
+    // codec 必須等首個 keyframe 裡的 SPS，不能預先猜測。
+    video = new WebSocket(base + '/ws/video' + query); video.binaryType = 'arraybuffer';
+    video.onopen = () => { status = 'waiting for IDR';
+      note(status);
+    };
+    video.onclose = () => { status = 'video disconnected; reload to reconnect';
+      note(status);
+    };
+    video.onerror = () => note('video WebSocket error');
+    video.onmessage = event => {
+      if (configurationFailed) return;
+      const arrival = performance.now();
+      try {
+        const data = event.data, header = new DataView(data);
+        if(data.byteLength <= 13) throw Error('short video message');
+        const sentNs = header.getBigUint64(0, false); // Different clock domain: never subtract from performance.now().
+        const seq = header.getUint32(8, false), key = header.getUint8(12) === 1;
+        if(header.getUint8(12) > 1 || sentNs === 0n) throw Error('bad header');
+        received++;
+        if(lastSeq !== null) {
+          const missing = (seq - lastSeq - 1) >>> 0;
+          if(missing) { gaps += missing; reset('sequence gap: ' + missing, 'gap'); }
+        }
+        lastSeq = seq;
+        const bytes = new Uint8Array(data, 13);
+        const found = key ? codecFromAccessUnit(bytes) : null;
+        if (found && (found !== codec || !decoder || decoder.state === 'closed')) {
+          if (decoder && decoder.state !== 'closed') decoder.close();
+          localDrops += pending.size;
+          pending.clear();
+          waiting = true;
+          codec = found;
+          decoder = makeDecoder();
+          if (!configureDecoder()) return;
+        }
+        if (!decoder || decoder.state !== 'configured') { localDrops++; return; }
+        if(decoder.decodeQueueSize > 8 || pending.size > 120) reset(`browser backlog: queue=${decoder.decodeQueueSize} pending=${pending.size}; discard through next IDR`, 'backlog');
+        if (configurationFailed) return;
+        if(waiting && !key) { dropReasons.waitIDR++; localDrops++; return; }
+        waiting = false;
+        // Unique local timestamp identifies output; no server/browser clock synchronization assumed.
+        const timestamp = received * 16667;
+        pending.set(timestamp, arrival);
+        decoder.decode(new EncodedVideoChunk({type:key ? 'key' : 'delta', timestamp, data:new Uint8Array(data, 13)}));
+        status = 'streaming';
+      } catch(e) { status = 'video error: ' + e.message; reset(status); }
+    };
+  } catch(e) {
+    status = e.message;
+    note(status);
+  }
+}
+function percentile(a, p) { return a.length ? a[Math.min(a.length-1, Math.ceil(a.length*p)-1)].toFixed(1) : '—'; }
+setInterval(() => {
+  const now = performance.now(), fps = (decoded-lastDecoded)*1000/(now-tick);
+  lastDecoded = decoded; tick = now;
+  const a = samples.sort((x,y)=>x-y); samples = [];
+  const text = `${status}\n${codec}; hw=${hw}; secure=${isSecureContext}\ndecode fps=${fps.toFixed(1)} queue=${decoder?.decodeQueueSize ?? '—'} pending=${pending.size}\narrival→output p50/p95=${percentile(a,.5)}/${percentile(a,.95)} ms (n=${a.length})\nWS RTT=${Number.isFinite(rtt)?rtt.toFixed(1):'—'} ms\ndropped: seq=${gaps} local=${localDrops}; recv=${received}\nlocal reasons=${JSON.stringify(dropReasons)}\ninput unsent=${inputDrops}\n${lastTouch}`;
+  if (showStats && !configurationFailed) { panel.textContent = text;
+    note(text);
+  }
+  send({type:'ping', t:performance.now()});
+}, 1000);
+const active = new Set();
+function position(e) {
+  const r = canvas.getBoundingClientRect(), scale = Math.min(r.width/canvas.width, r.height/canvas.height);
+  const w = canvas.width*scale, h = canvas.height*scale;
+  return {x:(e.clientX-r.left-(r.width-w)/2)/w, y:(e.clientY-r.top-(r.height-h)/2)/h};
+}
+for(const type of ['pointerdown','pointermove','pointerup','pointercancel']) canvas.addEventListener(type, e => {
+  e.preventDefault();
+  const p = position(e);
+  if(type === 'pointerdown') {
+    if(p.x<0 || p.x>1 || p.y<0 || p.y>1) return;
+    active.add(e.pointerId); canvas.setPointerCapture(e.pointerId);
+    requestWake();
+  }
+  if(!active.has(e.pointerId)) return;
+  lastTouch = `${type.slice(7)} id=${e.pointerId} x=${p.x.toFixed(3)} y=${p.y.toFixed(3)}`;
+  send({t:performance.now(), id:e.pointerId, type:type.slice(7), x:Math.max(0,Math.min(1,p.x)), y:Math.max(0,Math.min(1,p.y))});
+  if(type === 'pointerup' || type === 'pointercancel') active.delete(e.pointerId);
+}, {passive:false});
+for(const type of ['gesturestart','gesturechange']) document.addEventListener(type, e => e.preventDefault(), {passive:false});
+async function requestWake() {
+  if(!navigator.wakeLock || wake || document.visibilityState !== 'visible') return;
+  try { wake = await navigator.wakeLock.request('screen'); wake.addEventListener('release', () => { wake = null; }); }
+  catch(e) { note('wakeLock: ' + e.message); }
+}
+document.addEventListener('visibilitychange', () => { if(document.visibilityState === 'visible') requestWake(); });
+start();
+requestWake();
+</script></html>

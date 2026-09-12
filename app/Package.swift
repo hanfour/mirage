@@ -35,7 +35,7 @@ let package = Package(
             // 這個宣告在 2026-07-29 之前**不存在**，所以 `app/Resources/profiles/` 裡那個
             // 檔案對建置系統而言不存在——它永遠到不了使用者的 Application Support 目錄。
             // 那就是債務 D4 的本體。
-            resources: [.copy("Resources/profiles")],
+            resources: [.copy("Resources/profiles"), .copy("Resources/remote")],
             swiftSettings: strict
         ),
         .target(
