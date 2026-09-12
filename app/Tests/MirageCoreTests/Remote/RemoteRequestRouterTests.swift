@@ -31,11 +31,18 @@ import Testing
 
     @Test func upgradesDependOnSessionState() {
         #expect(route("/ws/video" + good) == .upgradeVideo)
-        #expect(route("/ws/input" + good) == .upgradeInput)
+        #expect(route("/ws/input" + good) == .videoRequired)
         #expect(route("/ws/video" + good, state: videoOnly) == .busy)
         #expect(route("/ws/input" + good, state: videoOnly) == .upgradeInput)
         #expect(route("/ws/video" + good, state: full) == .busy)
         #expect(route("/ws/input" + good, state: full) == .busy)
+    }
+
+    @Test func inputRequiresVideoAfterDisconnectAndStillChecksTokenFirst() {
+        let disconnected = RemoteSessionState(phase: .disconnected, hasVideo: false, hasInput: false)
+        #expect(route("/ws/input" + good, state: disconnected) == .videoRequired)
+        #expect(route("/ws/input?t=nope") == .forbidden)
+        #expect(route("/ws/input", state: disconnected) == .forbidden)
     }
 
     @Test func wrongTokenIsForbiddenEvenWhenBusyOrUnknownPath() {

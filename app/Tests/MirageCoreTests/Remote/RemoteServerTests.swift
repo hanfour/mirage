@@ -23,21 +23,27 @@ import Testing
         let server: RemoteServer
         let port: Int
         let touches: StateRecorder<[TouchSpec]>
+        let touchCalls: CountGate
         let states: StateRecorder<RemoteSessionState>
         let keyframes: CountGate
     }
 
     private func start() async throws -> Harness {
         let touches = StateRecorder<[TouchSpec]>()
+        let touchCalls = CountGate()
         let states = StateRecorder<RemoteSessionState>()
         let keyframes = CountGate()
         let server = RemoteServer(
             configuration: RemoteServerConfiguration(host: "127.0.0.1", port: 0, token: Self.token, viewerPage: Self.page),
-            onTouches: { specs in Task { await touches.record(specs) } },
+            onTouches: { specs in
+                touchCalls.increment()
+                Task { await touches.record(specs) }
+            },
             onKeyframeRequested: { keyframes.increment() },
             onStateChanged: { state in Task { await states.record(state) } })
         let port = try await server.start()
-        return Harness(server: server, port: port, touches: touches, states: states, keyframes: keyframes)
+        return Harness(server: server, port: port, touches: touches, touchCalls: touchCalls,
+                       states: states, keyframes: keyframes)
     }
 
     private func url(_ port: Int, _ path: String, token: String? = RemoteServerTests.token.value, scheme: String = "http") -> URL {
@@ -180,6 +186,9 @@ import Testing
 
     @Test func inputEchoesPingVerbatimAndForwardsTouches() async throws {
         try await withServer { h in
+            let video = webSocket(h.port, "/ws/video")
+            defer { video.cancel(with: .normalClosure, reason: nil) }
+            await h.keyframes.wait(for: 1)
             let input = webSocket(h.port, "/ws/input")
             try await input.send(.string(Self.ping))
             let echo = try await receiveText(input)
@@ -210,6 +219,9 @@ import Testing
 
     @Test func closingInputReleasesActiveTouches() async throws {
         try await withServer { h in
+            let video = webSocket(h.port, "/ws/video")
+            defer { video.cancel(with: .normalClosure, reason: nil) }
+            await h.keyframes.wait(for: 1)
             let input = webSocket(h.port, "/ws/input")
             try await input.send(.string(Self.down))
             await h.touches.wait { $0.count == 1 }
@@ -217,7 +229,7 @@ import Testing
             await h.touches.wait { $0.count == 2 }
             let released = await h.touches.items[1]
             #expect(released == [TouchSpec(identifier: 64, point: NormPoint(x: 0.25, y: 0.75), down: false)])
-            await h.states.wait { $0.contains { $0.phase == .disconnected } }
+            #expect(h.server.sessionState == RemoteSessionState(phase: .connected, hasVideo: true, hasInput: false))
             #expect(h.server.stats().touchesForwarded == 2)
             await h.server.stop()
         }
@@ -226,6 +238,7 @@ import Testing
     @Test func stopClosesViewerReleasesTouchesAndReportsDisconnected() async throws {
         try await withServer { h in
             let video = webSocket(h.port, "/ws/video")
+            await h.keyframes.wait(for: 1)
             let input = webSocket(h.port, "/ws/input")
             try await input.send(.string(Self.down))
             await h.touches.wait { $0.count == 1 }
@@ -241,6 +254,45 @@ import Testing
             #expect(h.server.stats().framesOffered == 1)
             #expect(h.server.stats().framesSent == 0)
             input.cancel(with: .normalClosure, reason: nil)
+        }
+    }
+
+    @Test func inputWithoutVideoIs409AndCannotForwardTouches() async throws {
+        try await withServer { h in
+            let input = webSocket(h.port, "/ws/input")
+            _ = try? await input.send(.string(Self.down))
+            let status = await handshakeStatus(input)
+            #expect(status == 409)
+            #expect(h.server.sessionState == .initial)
+            let stats = h.server.stats()
+            #expect(stats.rejectedBusy == 1)
+            #expect(stats.rejectedForbidden == 0)
+            #expect(stats.touchesForwarded == 0)
+            #expect(stats.invalidInputMessages == 0)
+            #expect(h.touchCalls.current == 0)
+            #expect(h.keyframes.current == 0)
+            let forwarded = await h.touches.items
+            #expect(forwarded.isEmpty)
+        }
+    }
+
+    @Test func closingVideoClosesInputAndReleasesActiveTouches() async throws {
+        try await withServer { h in
+            let video = webSocket(h.port, "/ws/video")
+            await h.keyframes.wait(for: 1)
+            let input = webSocket(h.port, "/ws/input")
+            try await input.send(.string(Self.down))
+            await h.touches.wait { $0.count == 1 }
+
+            video.cancel(with: .normalClosure, reason: nil)
+            await #expect(throws: (any Error).self) { _ = try await input.receive() }
+            await h.touches.wait { $0.count == 2 }
+            #expect(h.server.sessionState == RemoteSessionState(phase: .disconnected, hasVideo: false, hasInput: false))
+            let released = await h.touches.items[1]
+            #expect(released == [TouchSpec(identifier: 64, point: NormPoint(x: 0.25, y: 0.75), down: false)])
+            await h.server.stop()
+            #expect(h.server.stats().touchesForwarded == 2)
+            #expect(h.touchCalls.current == 2)
         }
     }
 

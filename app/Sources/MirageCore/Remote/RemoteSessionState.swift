@@ -22,7 +22,7 @@ public struct RemoteSessionState: Sendable, Equatable {
 
     public var isViewerConnected: Bool { phase == .connected }
 
-    /// 任一條 socket 在就是 connected；都不在就是 disconnected（從未連過的 waiting 只出現在 initial）。
+    /// video 是配對的必要連線；正常事件不會產生僅有 input 的狀態。
     fileprivate func with(video: Bool, input: Bool) -> RemoteSessionState {
         RemoteSessionState(phase: video || input ? .connected : .disconnected, hasVideo: video, hasInput: input)
     }
@@ -52,11 +52,13 @@ public enum RemoteSessionReducer {
             guard !state.hasVideo else { return (state, .rejectBusy) }
             return (state.with(video: true, input: state.hasInput), .requestKeyframe)
         case .inputOpened:
-            guard !state.hasInput else { return (state, .rejectBusy) }
+            guard state.hasVideo, !state.hasInput else { return (state, .rejectBusy) }
             return (state.with(video: state.hasVideo, input: true), .none)
         case .videoClosed:
             guard state.hasVideo else { return (state, .none) }
-            return (state.with(video: false, input: state.hasInput), .none)
+            // 沿用 inputClosed 的釋放效果；video 關閉時整組配對失效。
+            let (_, effect) = reduce(state, .inputClosed)
+            return (state.with(video: false, input: false), effect)
         case .inputClosed:
             guard state.hasInput else { return (state, .none) }
             return (state.with(video: state.hasVideo, input: false), .releaseTouches)

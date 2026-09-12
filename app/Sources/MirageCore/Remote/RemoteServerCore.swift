@@ -162,10 +162,21 @@ final class RemoteServerCore: @unchecked Sendable {
         channels[id] = nil
         pendingRejections[id] = nil
         guard let kind = kinds.removeValue(forKey: id) else { lock.unlock(); return }
-        if kind == .video { wakeup?.finish(); wakeup = nil }
+        var pairedInputs: [any Channel] = []
+        if kind == .video {
+            wakeup?.finish(); wakeup = nil
+            // 鎖內撤銷舊 input 的資格，再關 socket，阻止緩衝中的觸控繼續轉發。
+            // 移除 kind 也避免其延遲 closeFuture 釋放新一組配對的觸控。
+            let inputIDs = kinds.filter { $0.value == .input }.map { $0.key }
+            for inputID in inputIDs {
+                kinds.removeValue(forKey: inputID)
+                if let channel = channels[inputID] { pairedInputs.append(channel) }
+            }
+        }
         let effects = applyLocked(kind == .video ? .videoClosed : .inputClosed)
         pendingEffects.append(contentsOf: effects)
         lock.unlock()
+        for channel in pairedInputs { channel.close(promise: nil) }
         performEffects()
     }
 
@@ -178,7 +189,7 @@ final class RemoteServerCore: @unchecked Sendable {
     private func recordHTTPLocked(_ route: RemoteRoute) {
         switch route {
         case .forbidden: rejectedForbidden += 1
-        case .busy: rejectedBusy += 1
+        case .busy, .videoRequired: rejectedBusy += 1
         default: break
         }
     }

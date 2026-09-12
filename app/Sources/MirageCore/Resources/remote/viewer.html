@@ -96,9 +96,8 @@ function send(obj) {
   if (input?.readyState === WebSocket.OPEN && input.bufferedAmount < 65536) input.send(JSON.stringify(obj));
   else inputDrops++;
 }
-async function start() {
-  note(`VideoDecoder=${typeof VideoDecoder}; secure=${isSecureContext}; UA=${navigator.userAgent}`);
-  note(`screen=${screen.width}x${screen.height}; viewport=${innerWidth}x${innerHeight}; DPR=${devicePixelRatio}; codec=${codec}; hw=${hw}`);
+// input 必須等 video 握手完成，才屬於目前的配對。
+function connectInput() {
   input = new WebSocket(base + '/ws/input' + query);
   input.onopen = () => note('input connected');
   input.onclose = () => note('input disconnected; reload to reconnect');
@@ -109,6 +108,10 @@ async function start() {
       if(obj.type === 'ping') rtt = performance.now() - obj.t;
     } catch(e) { note('input echo error: ' + e.message); }
   };
+}
+async function start() {
+  note(`VideoDecoder=${typeof VideoDecoder}; secure=${isSecureContext}; UA=${navigator.userAgent}`);
+  note(`screen=${screen.width}x${screen.height}; viewport=${innerWidth}x${innerHeight}; DPR=${devicePixelRatio}; codec=${codec}; hw=${hw}`);
   if (typeof VideoDecoder === 'undefined') { status = '這個瀏覽器沒有 VideoDecoder';
     note(status);
     return;
@@ -117,6 +120,7 @@ async function start() {
     // codec 必須等首個 keyframe 裡的 SPS，不能預先猜測。
     video = new WebSocket(base + '/ws/video' + query); video.binaryType = 'arraybuffer';
     video.onopen = () => { status = 'waiting for IDR';
+      connectInput();
       note(status);
     };
     video.onclose = () => { status = 'video disconnected; reload to reconnect';

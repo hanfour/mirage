@@ -6,6 +6,7 @@ public enum RemoteRoute: Sendable, Equatable {
     case upgradeInput
     case forbidden
     case busy
+    case videoRequired
     case notFound
     case methodNotAllowed
 }
@@ -33,7 +34,9 @@ public enum RemoteRequestRouter {
         switch path(fromURI: uri) {
         case viewerPath: return .viewer
         case videoPath: return state.hasVideo ? .busy : .upgradeVideo
-        case inputPath: return state.hasInput ? .busy : .upgradeInput
+        case inputPath:
+            guard state.hasVideo else { return .videoRequired }
+            return state.hasInput ? .busy : .upgradeInput
         default: return .notFound
         }
     }

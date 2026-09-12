@@ -55,6 +55,8 @@ enum RemoteHTTPConnection {
             return (.forbidden, Data("forbidden\n".utf8), textType)
         case .busy:
             return (.conflict, Data("a viewer is already connected\n".utf8), textType)
+        case .videoRequired:
+            return (.conflict, Data("connect /ws/video before /ws/input\n".utf8), textType)
         case .notFound:
             return (.notFound, Data("not found\n".utf8), textType)
         case .methodNotAllowed:

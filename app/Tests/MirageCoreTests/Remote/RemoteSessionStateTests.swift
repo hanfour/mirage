@@ -21,10 +21,12 @@ import Testing
         #expect(e2 == .none)
     }
 
-    @Test func inputMayOpenBeforeVideo() {
-        let (s, e) = RemoteSessionReducer.reduce(.initial, .inputOpened)
-        #expect(s == state(.connected, video: false, input: true))
-        #expect(e == .none)
+    @Test func inputRequiresVideo() {
+        for from in [RemoteSessionState.initial, state(.disconnected, video: false, input: false)] {
+            let (s, e) = RemoteSessionReducer.reduce(from, .inputOpened)
+            #expect(s == from)
+            #expect(e == .rejectBusy)
+        }
     }
 
     @Test func secondSocketOnSamePathIsBusy() {
@@ -33,10 +35,12 @@ import Testing
         #expect(RemoteSessionReducer.reduce(full, .inputOpened) == (full, .rejectBusy))
     }
 
-    @Test func closingVideoKeepsSessionWhileInputRemains() {
+    @Test func closingVideoDisconnectsPairAndReleasesTouchesOnce() {
         let (s, e) = RemoteSessionReducer.reduce(state(.connected, video: true, input: true), .videoClosed)
-        #expect(s == state(.connected, video: false, input: true))
-        #expect(e == .none)
+        #expect(s == state(.disconnected, video: false, input: false))
+        #expect(e == .releaseTouches)
+        #expect(RemoteSessionReducer.reduce(s, .inputClosed) == (s, .none))
+        #expect(RemoteSessionReducer.reduce(s, .videoClosed) == (s, .none))
     }
 
     @Test func closingLastSocketDisconnects() {
