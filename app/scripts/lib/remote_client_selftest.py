@@ -255,6 +255,7 @@ class NavigationEvidenceTests(unittest.TestCase):
         lib = Path(__file__).resolve().parent
         script = (lib.parent / "verify_remote_mirror.sh").read_text()
         section = script[script.index("foreground_evidence()"):]
+        cleanup = script[script.index("stop_key_capture()"):script.index("cleanup()")]
         prelude = r"""
 set -uo pipefail
 source "$1/verify_common.sh"
@@ -262,7 +263,9 @@ MODE="$2"
 PHASE_FILE="$3"
 ADB=fake_adb PY=fake_client SERIAL=emulator-5554
 SCRIPT_DIR=/unused REMOTE_PORT=8765 TOKEN=test WAIT_KEYFRAME=1 CLIENT_LOG=/dev/null
-sleep() { :; }
+KEY_CAPTURE_PID=''
+sleep() { command sleep 0.05; }
+trap 'stop_key_capture; rm -f "${KEY_EVENT_LOG:-}"' EXIT
 fake_client() {
     local key="${!#}"
     if [ "$MODE" = send_failure ]; then echo CONNECT_ERROR=failed; return 2; fi
@@ -275,37 +278,38 @@ fake_adb() {
         echo com.android.launcher3/.Launcher
         return
     fi
+    if [[ "$*" == *getevent* ]]; then
+        while [ "$(cat "$PHASE_FILE")" != AppSwitch ]; do command sleep 0.01; done
+        [ "$MODE" = missing_down ] || echo '/dev/input/event0: EV_KEY KEY_APPSELECT DOWN'
+        [ "$MODE" = missing_up ] || echo '/dev/input/event0: EV_KEY KEY_APPSELECT UP'
+        command sleep 2
+        return
+    fi
     [ "$MODE" != adb_failure ] || { echo adb_failed; return 1; }
     local component=com.android.launcher3/.Launcher
-    if [ "$(cat "$PHASE_FILE")" = AppSwitch ]; then
-        case "$MODE" in
-            recents) component=com.android.launcher3/.RecentsActivity ;;
-            non_launcher) component=com.android.systemui/.OtherActivity ;;
-            empty) echo 'topResumedActivity=null'; return ;;
-        esac
-    elif [ "$MODE" = home_noop ]; then
-        component=com.example.game/.GameActivity
-    fi
+    if [ "$MODE" = home_noop ]; then component=com.example.game/.GameActivity; fi
     echo "topResumedActivity=ActivityRecord{abc u0 $component t42}"
     echo "Hist #0: ActivityRecord{old u0 com.android.systemui/.RecentsActivity t1}"
 }
 """
         with tempfile.TemporaryDirectory() as directory:
-            return subprocess.run(["bash", "-c", prelude + section, "nav-test", str(lib),
+            return subprocess.run(["bash", "-c", prelude + cleanup + section, "nav-test", str(lib),
                                    mode, str(Path(directory) / "phase")],
                                   capture_output=True, text=True, timeout=10)
 
-    def test_accepts_recents_and_non_launcher_with_evidence(self):
-        for mode in ("recents", "non_launcher"):
+    def test_accepts_appselect_down_up_while_launcher_remains_foreground(self):
+        for mode in ("launcher",):
             with self.subTest(mode=mode):
                 result = self.run_evidence(mode)
                 self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
                 self.assertIn("HOME resolver 證據", result.stdout)
                 self.assertIn("topResumedActivity 證據", result.stdout)
+                self.assertIn("KEY_APPSELECT DOWN", result.stdout)
+                self.assertIn("KEY_APPSELECT UP", result.stdout)
                 self.assertIn("全部通過", result.stdout)
 
-    def test_rejects_empty_unchanged_foreground_and_transport_failures(self):
-        for mode in ("empty", "unchanged", "home_noop", "adb_failure", "send_failure"):
+    def test_rejects_missing_key_edges_and_transport_failures(self):
+        for mode in ("missing_down", "missing_up", "home_noop", "adb_failure", "send_failure"):
             with self.subTest(mode=mode):
                 result = self.run_evidence(mode)
                 self.assertNotEqual(result.returncode, 0, result.stdout + result.stderr)

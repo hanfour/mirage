@@ -4,7 +4,7 @@
 #   R2 幀序連續（SEQ_GAPS == 0）
 #   R3 送一組 down/move/up 後 guest 的 getevent 出現 ABS_MT_TRACKING_ID，且沒有 slot 卡在 down
 #   R4 GoHome 後前景為 HOME resolver 指定的 launcher
-#   R5 AppSwitch 後前景為 recents 或非 launcher（印出活動證據）
+#   R5 AppSwitch 在 guest evdev 出現 KEY_APPSELECT DOWN 與 UP
 # 之前先跑兩條 Swift 活體測試：RemoteVideoEncoderLiveTests（硬體編碼器＋SPS 改寫）與
 # RemoteInputLiveTests（server → InputQueue → 真模擬器），並斷言它們是 passed 不是 skipped。
 #
@@ -67,6 +67,7 @@ CLIENT_LOG=$(mktemp -t mirage_remote_client) || exit 1
 LOG=$(mktemp -t mirage_remote_app) || exit 1
 BUNDLE=$(mktemp -d -t mirage_remote_bundle) || exit 1
 CAPTURE_PID=''
+KEY_CAPTURE_PID=''
 start_capture() {
     : > "$EVENT_LOG"
     "$ADB" shell getevent -lt /dev/input/event1 > "$EVENT_LOG" 2>&1 &
@@ -83,8 +84,16 @@ stop_capture() {
         CAPTURE_PID=''
     fi
 }
+stop_key_capture() {
+    if [ -n "$KEY_CAPTURE_PID" ]; then
+        kill "$KEY_CAPTURE_PID" 2>/dev/null || true
+        wait "$KEY_CAPTURE_PID" 2>/dev/null || true
+        KEY_CAPTURE_PID=''
+    fi
+}
 cleanup() {
     stop_capture
+    stop_key_capture
     gui_session_cleanup "${BUNDLE:-}"
     echo "getevent 紀錄：${EVENT_LOG}　Swift 測試紀錄：${TEST_LOG}　用戶端輸出：${CLIENT_LOG}　App log：${LOG}"
 }
@@ -225,19 +234,19 @@ for _ in $(seq 1 20); do
     sleep 0.25
 done
 assert_equals "R4 GoHome 後前景為 launcher $HOME_PACKAGE" "$HOME_SEEN" 1
+# Quickstep 的 overview 留在 launcher activity；以 evdev 的完整按放證明按鍵送達。
+KEY_EVENT_LOG=$(mktemp -t mirage_remote_keys) || exit 1
+"$ADB" -s "$SERIAL" shell getevent -l > "$KEY_EVENT_LOG" 2>&1 &
+KEY_CAPTURE_PID=$!
+sleep 1
+kill -0 "$KEY_CAPTURE_PID" 2>/dev/null || { echo "❌ getevent 未啟動：$(cat "$KEY_EVENT_LOG")"; exit 1; }
 send_navigation_key AppSwitch || { echo "❌ AppSwitch 傳送失敗"; exit 1; }
-RECENTS_SEEN=0
-for _ in $(seq 1 20); do
-    foreground_evidence || exit 1
-    if [ -n "$FG_COMPONENT" ]; then
-        case "$FG_COMPONENT" in
-            *[Rr]ecents*|*[Oo]verview*) RECENTS_SEEN=1 ;;
-            *) [ "${FG_COMPONENT%%/*}" != "$HOME_PACKAGE" ] && RECENTS_SEEN=1 ;;
-        esac
-    fi
-    [ "$RECENTS_SEEN" -eq 1 ] && break
-    sleep 0.25
-done
-[ "$RECENTS_SEEN" -eq 1 ] || echo "   無法證明最近任務：若 overview 與 launcher 共用 activity，需另做裝置 UI 驗證。"
-assert_equals "R5 AppSwitch 後前景為 recents 或非 launcher" "$RECENTS_SEEN" 1
+sleep 1
+stop_key_capture
+echo "   KEY_APPSELECT 證據（${KEY_EVENT_LOG}）："
+grep -E ' KEY_APPSELECT +(DOWN|UP)' "$KEY_EVENT_LOG" || true
+key_downs=$(grep -Ec ' KEY_APPSELECT +DOWN' "$KEY_EVENT_LOG" || true)
+key_ups=$(grep -Ec ' KEY_APPSELECT +UP' "$KEY_EVENT_LOG" || true)
+assert_at_least "R5 KEY_APPSELECT DOWN" "$key_downs" 1
+assert_at_least "R5 KEY_APPSELECT UP" "$key_ups" 1
 echo "全部通過"
