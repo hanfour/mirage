@@ -159,7 +159,7 @@ echo ""
 echo "=== 第四段：Python 用戶端連線，等 keyframe（上限 ${WAIT_KEYFRAME}s）、收 ${DURATION}s、送觸控 ==="
 start_capture
 "$PY" "${SCRIPT_DIR}/lib/remote_client.py" --host 127.0.0.1 --port "$REMOTE_PORT" --token "$TOKEN" \
-    --wait-keyframe "$WAIT_KEYFRAME" --seconds "$DURATION" --touch 2>&1 | tee "$CLIENT_LOG"
+    --wait-keyframe "$WAIT_KEYFRAME" --seconds "$DURATION" --touch --pointer-id -10102172 2>&1 | tee "$CLIENT_LOG"
 CLIENT_RC=${PIPESTATUS[0]}
 sleep 1
 stop_capture

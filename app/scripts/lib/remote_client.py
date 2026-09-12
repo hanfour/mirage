@@ -150,7 +150,7 @@ async def send_touch(args, results):
 
     results["TOUCH_SENT"] = 0
     async with connect(input_url(args.host, args.port, args.token), **connect_options()) as inbound:
-        messages = touch_messages(0.5, 0.5, now_ms=time.monotonic() * 1000) if args.touch else []
+        messages = touch_messages(0.5, 0.5, pointer_id=args.pointer_id, now_ms=time.monotonic() * 1000) if args.touch else []
         for text in messages:
             await inbound.send(text)
             results["TOUCH_SENT"] += 1
@@ -211,7 +211,7 @@ async def main(args) -> int:
     return 0 if keyframe else 3
 
 
-if __name__ == "__main__":
+def parse_args(argv=None):
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=8765)
@@ -219,7 +219,12 @@ if __name__ == "__main__":
     parser.add_argument("--wait-keyframe", type=float, default=60.0, help="等第一個 keyframe 的秒數")
     parser.add_argument("--seconds", type=float, default=10.0, help="keyframe 之後再收幾秒")
     parser.add_argument("--touch", action="store_true")
+    parser.add_argument("--pointer-id", type=int, default=1, help="觸控識別碼（可為 iOS Safari 的負數）")
     parser.add_argument("--key", choices=NAVIGATION_KEYS, help="送出一組導覽鍵按放")
     parser.add_argument("--text", help="完整文字經既有剪貼簿提交交易送入 guest")
     parser.add_argument("--loop", action="store_true")
-    sys.exit(asyncio.run(main(parser.parse_args())))
+    return parser.parse_args(argv)
+
+
+if __name__ == "__main__":
+    sys.exit(asyncio.run(main(parse_args())))

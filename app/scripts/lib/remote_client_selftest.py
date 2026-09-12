@@ -61,6 +61,13 @@ class SequenceTests(unittest.TestCase):
 
 
 class TouchMessageTests(unittest.TestCase):
+    def test_pointer_id_cli_default_and_negative_safari_value(self):
+        self.assertEqual(rc.parse_args(["--token", "a"]).pointer_id, 1)
+        args = rc.parse_args(["--token", "a", "--touch", "--pointer-id", "-10102172"])
+        self.assertEqual(args.pointer_id, -10102172)
+        self.assertEqual([json.loads(m)["id"] for m in rc.touch_messages(0.5, 0.5, args.pointer_id)],
+                         [-10102172] * 3)
+
     def test_down_move_up_have_viewer_shape(self):
         messages = [json.loads(m) for m in rc.touch_messages(0.98, 0.5, pointer_id=3, now_ms=100.0)]
         self.assertEqual([m["type"] for m in messages], ["down", "move", "up"])
@@ -140,7 +147,7 @@ class TouchTransportTests(unittest.IsolatedAsyncioTestCase):
                 return '{"type":"ping","t":-1}'
 
         modules = {"websockets.asyncio.client": SimpleNamespace(connect=lambda *a, **k: Socket())}
-        args = SimpleNamespace(host="127.0.0.1", port=8765, token="a", touch=True, key=None, text=None)
+        args = SimpleNamespace(host="127.0.0.1", port=8765, token="a", touch=True, pointer_id=1, key=None, text=None)
         with patch.dict(sys.modules, modules), patch.object(rc, "connect_options", return_value={}), \
                 patch.object(rc, "touch_messages", return_value=['{"type":"down"}']):
             results = {}
@@ -167,7 +174,7 @@ class LoopTransportTests(unittest.IsolatedAsyncioTestCase):
                 yield rc.HEADER.pack(2, 2, 0) + b"\x00\x00\x01\x41"
 
         modules = {"websockets.asyncio.client": SimpleNamespace(connect=lambda *a, **k: Socket())}
-        args = SimpleNamespace(host="127.0.0.1", port=8765, token="a", touch=True, key=None, text=None)
+        args = SimpleNamespace(host="127.0.0.1", port=8765, token="a", touch=True, pointer_id=1, key=None, text=None)
         output = io.StringIO()
         with patch.dict(sys.modules, modules), patch.object(rc, "connect_options", return_value={}), \
                 patch.object(rc.time, "time", side_effect=[100, 101, 102]), \
@@ -180,7 +187,7 @@ class LoopTransportTests(unittest.IsolatedAsyncioTestCase):
 
 
 class PairedConnectionTests(unittest.IsolatedAsyncioTestCase):
-    async def run_client(self, failure=None, key=None, text=None):
+    async def run_client(self, failure=None, key=None, text=None, pointer_id=1):
         events = []
         active = set()
         test = self
@@ -225,6 +232,8 @@ class PairedConnectionTests(unittest.IsolatedAsyncioTestCase):
                     raise ConnectionError("touch failed")
                 self.echo = text
                 message = json.loads(text)
+                if message["type"] in ("down", "move", "up"):
+                    test.assertEqual(message["id"], pointer_id)
                 if message["type"] == "key":
                     test.assertEqual(message["key"], key)
                     test.assertIsInstance(message["t"], (float, int))
@@ -236,7 +245,7 @@ class PairedConnectionTests(unittest.IsolatedAsyncioTestCase):
             return Socket("input" if "/ws/input?" in url else "video")
 
         args = SimpleNamespace(host="127.0.0.1", port=8765, token="a", loop=False,
-                               touch=key is None and text is None, key=key, text=text, wait_keyframe=60, seconds=10)
+                               touch=key is None and text is None, pointer_id=pointer_id, key=key, text=text, wait_keyframe=60, seconds=10)
         modules = {"websockets.asyncio.client": SimpleNamespace(connect=connect)}
         output = io.StringIO()
         with patch.dict(sys.modules, modules), patch.object(rc, "connect_options", return_value={}), \
@@ -255,6 +264,13 @@ class PairedConnectionTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn("MAC_STATS_LAST=", output)
         self.assertIn("FRAMES=1", output)
         self.assertIn("SEQ_GAPS=0", output)
+        self.assertIn("TOUCH_SENT=3", output)
+        self.assertIn("PING_ECHO_OK=1", output)
+
+    async def test_negative_pointer_id_reaches_input_transport(self):
+        code, events, output = await self.run_client(pointer_id=-10102172)
+        self.assertEqual(code, 0)
+        self.assertIn("up", events)
         self.assertIn("TOUCH_SENT=3", output)
         self.assertIn("PING_ECHO_OK=1", output)
 
