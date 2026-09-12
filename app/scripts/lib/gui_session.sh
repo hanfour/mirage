@@ -50,7 +50,7 @@ gui_session_start() {
     local env_args=()
     local kv
     for kv in "$@"; do env_args+=(--env "$kv"); done
-    open -a "$bundle/Mirage.app" --stdout "$log" --stderr "$log" "${env_args[@]}"
+    open -n -a "$bundle/Mirage.app" --stdout "$log" --stderr "$log" ${env_args[@]+"${env_args[@]}"} || return 1
     sleep 6
     # 視窗要在前景才會被合成。取不到就繼續——量測本身仍可能成功，而 fps_summary
     # 的診斷分辨得出來。

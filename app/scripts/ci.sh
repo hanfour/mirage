@@ -413,6 +413,12 @@ if python3 ./scripts/lib/host_ime_acceptance_test.py; then
 else
     fail "host IME 精確欄位驗收器負對照失敗"
 fi
+# 標頭解析與幀序統計決定 R1／R2，不需 websockets 或模擬器。
+if python3 -m unittest discover -s scripts/lib -p remote_client_selftest.py; then
+    ok "remote_client.py 純函式自我測試通過"
+else
+    fail "remote_client.py 純函式自我測試失敗"
+fi
 HARNESS_PY="../phase0/harness/.venv-d45/bin/python"
 if [ ! -x "${HARNESS_PY}" ]; then
     fail "找不到 phase0/harness/.venv-d45/bin/python，不能 skip 閘門 8"

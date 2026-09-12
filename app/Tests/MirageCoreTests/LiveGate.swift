@@ -27,6 +27,9 @@ enum LiveGate {
     /// 理由見 `AudioLiveTests` 的原註解與 `scripts/verify_audio.sh`。
     static let audio = live && ProcessInfo.processInfo.environment["MIRAGE_LIVE_AUDIO"] == "1"
 
+    /// 手機遙控活體測試，僅由 verify_remote_mirror.sh 明確啟用。
+    static let remote = live && ProcessInfo.processInfo.environment["MIRAGE_LIVE_REMOTE"] == "1"
+
     /// NIO 執行緒收斂稽核。獨立成一道閘門不是因為它慢，是因為它讀行程級的執行緒數，
     /// 與其他測試並行會讀到別人的執行緒。見 `ChannelTeardownTests`。
     static let threadAudit = ProcessInfo.processInfo.environment["MIRAGE_THREAD_AUDIT"] == "1"
