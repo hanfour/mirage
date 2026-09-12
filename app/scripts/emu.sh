@@ -13,50 +13,93 @@
 # ⚠️ 埠號刻意用 5554／8554：`app/scripts/` 底下多數 verify_* 預設這組。
 # `tools/probe/lib/targets.py` 的 `game` 用的是 5556／8556，兩套慣例並存，
 # 用 probe 時要自己覆寫。
+# -n 指定表格中的實例；未指定時選第一台並套用 MIRAGE_AVD／PORT／GRPC。
+# 所有實例共用啟停邏輯，running 一律依 console 埠判斷，status 列出全部。
 set -uo pipefail
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+source "${SCRIPT_DIR}/lib/emu_instances.sh"
 SDK="${ANDROID_SDK_ROOT:-$HOME/Library/Android/sdk}"
 EMULATOR="$SDK/emulator/emulator"
 ADB="$SDK/platform-tools/adb"
-AVD="${MIRAGE_AVD:-mirage-game}"
-PORT="${MIRAGE_PORT:-5554}"
-GRPC="${MIRAGE_GRPC:-8554}"
-SERIAL="emulator-${PORT}"
 
-booted() { [ "$("$ADB" -s "$SERIAL" shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" = "1" ]; }
-running() { pgrep -f "qemu-system.*${AVD}" >/dev/null 2>&1 || pgrep -f qemu-system >/dev/null 2>&1; }
+NAME=""
+if [ "${1:-}" = "-n" ]; then
+    NAME="${2:-}"
+    if [ -z "$NAME" ]; then echo "❌ -n 後面要接實例名稱" >&2; exit 2; fi
+    shift 2
+    if [ "${MIRAGE_AVD+x}${MIRAGE_PORT+x}${MIRAGE_GRPC+x}" != "" ]; then
+        echo "⚠️ 已指定 -n，忽略 MIRAGE_AVD／MIRAGE_PORT／MIRAGE_GRPC 環境變數覆寫。" >&2
+    fi
+fi
+TABLE="${MIRAGE_INSTANCES:-$EMU_DEFAULT_INSTANCES}"
+DEFAULT_TRIPLET=$(emu_select_triplet "" "$TABLE") || exit 2
+read -r DEFAULT_NAME DEFAULT_PORT DEFAULT_GRPC <<< "$DEFAULT_TRIPLET"
+TRIPLET=$(emu_select_triplet "$NAME" "$TABLE" "${MIRAGE_AVD:-}" "${MIRAGE_PORT:-}" "${MIRAGE_GRPC:-}") || exit 2
+NAME="${NAME:-$DEFAULT_NAME}"
+read -r AVD PORT GRPC <<< "$TRIPLET"
+SERIAL="emulator-${PORT}"
+# 第一台保留原有 log 與 stop 訊息（含其 MIRAGE_* 覆寫）；其他實例附上 serial。
+LOG="${TMPDIR:-/tmp}/mirage-emu-${PORT}.log"
+STOPPED="✅ 已停止（${SERIAL}，未寫快照）"
+NOT_RUNNING="已經沒有在執行（${SERIAL}）"
+if [ "$NAME" = "$DEFAULT_NAME" ]; then
+    LOG="${TMPDIR:-/tmp}/mirage-emu.log"
+    STOPPED="✅ 已停止（未寫快照）"
+    NOT_RUNNING="已經沒有在執行"
+fi
+
+ps_lines() { pgrep -fl qemu-system 2>/dev/null; }
+booted_on() { [ "$("$ADB" -s "$1" shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" = "1" ]; }
+booted() { booted_on "$SERIAL"; }
+running() { emu_is_running "$(ps_lines)" "$PORT"; }
 # gRPC 綁在哪個位址：`*` 表示對整個區域網路開放（沒用 -grpc-use-token 啟動的舊實例）。
-grpc_bind() { lsof -nP -iTCP:"$GRPC" -sTCP:LISTEN 2>/dev/null | awk 'NR==2 {print $9}'; }
+grpc_bind() { lsof -nP -iTCP:"$1" -sTCP:LISTEN 2>/dev/null | awk 'NR==2 {print $9}'; }
 warn_if_open() {
-  case "$(grpc_bind)" in
-    \*:*) echo "⚠️ gRPC 綁在 $(grpc_bind)，對區域網路開放且沒有驗證。請 stop 後重新 start。" >&2 ;;
+  case "$(grpc_bind "$1")" in
+    \*:*) echo "⚠️ gRPC 綁在 $(grpc_bind "$1")，對區域網路開放且沒有驗證。請 stop 後重新 start。" >&2 ;;
   esac
+}
+foreground_on() {
+  "$ADB" -s "$1" shell dumpsys activity activities 2>/dev/null | grep -m1 topResumedActivity | grep -oE '[a-z][a-z.]+/[A-Za-z.]+' | head -1
 }
 
 case "${1:-start}" in
   start)
-    if running && booted; then echo "✅ 已在執行且開機完成（${SERIAL}，gRPC ${GRPC}）"; warn_if_open; exit 0; fi
+    if running && booted; then echo "✅ 已在執行且開機完成（${SERIAL}，gRPC ${GRPC}）"; warn_if_open "$GRPC"; exit 0; fi
     if running; then echo "⏳ 已在執行，等待開機完成…"; else
+      if other=$(emu_avd_conflict "$(ps_lines)" "$AVD" "$PORT"); then
+        echo "❌ AVD ${AVD} 已在 console 埠 ${other} 上執行。同一個 AVD 不能開第二台——每台要各自一個 AVD（規格 §3.1），用 tools/provision 加一台再以 -n 指定。" >&2
+        exit 1
+      fi
       echo "▶︎ 啟動 ${AVD}（port ${PORT}／gRPC ${GRPC}，冷開機、離開不存快照）"
       nohup "$EMULATOR" -avd "$AVD" -no-snapshot -port "$PORT" -grpc "$GRPC" -grpc-use-token \
-        < /dev/null > "${TMPDIR:-/tmp}/mirage-emu.log" 2>&1 &
+        < /dev/null > "$LOG" 2>&1 &
       sleep 8
     fi
     for _ in $(seq 1 60); do booted && { echo "✅ 開機完成（${SERIAL}）"; exit 0; }; sleep 3; done
-    echo "❌ 90 秒內未開機完成，log：${TMPDIR:-/tmp}/mirage-emu.log" >&2; exit 1
+    echo "❌ 90 秒內未開機完成，log：${LOG}" >&2; exit 1
     ;;
   stop)
-    running || { echo "已經沒有在執行"; exit 0; }
+    running || { echo "$NOT_RUNNING"; exit 0; }
     "$ADB" -s "$SERIAL" emu kill >/dev/null 2>&1
-    for _ in $(seq 1 30); do running || { echo "✅ 已停止（未寫快照）"; exit 0; }; sleep 2; done
+    for _ in $(seq 1 30); do running || { echo "$STOPPED"; exit 0; }; sleep 2; done
     echo "⚠️ 30 秒內沒停下來。**不要用 kill -9**（會留孤兒行程），再等或手動關視窗。" >&2; exit 1
     ;;
   status)
-    if ! running; then echo "未執行"; exit 1; fi
-    booted && st="開機完成" || st="開機中"
-    printf '執行中：%s（%s）\n' "$SERIAL" "$st"
-    printf '  gRPC 綁定：%s\n' "$(grpc_bind)"; warn_if_open
-    printf '  磁碟可用：%s\n' "$(df -h / | tail -1 | awk '{print $4}')"
-    printf '  前景：%s\n' "$("$ADB" -s "$SERIAL" shell dumpsys activity activities 2>/dev/null | grep -m1 topResumedActivity | grep -oE '[a-z][a-z.]+/[A-Za-z.]+' | head -1)"
+    LINES=$(emu_running_instances "$(ps_lines)")
+    if [ -z "$LINES" ]; then echo "未執行"; exit 1; fi
+    while read -r pid avd port grpc; do
+      serial="emulator-${port}"
+      if booted_on "$serial"; then st="開機完成"; else st="開機中"; fi
+      printf '執行中：%s（%s，AVD %s，pid %s）\n' "$serial" "$st" "$avd" "$pid"
+      if [ "$grpc" = "?" ]; then
+        printf '  gRPC：未指定 -grpc，隨機埠，Mirage 連不上\n'
+      else
+        printf '  gRPC %s 綁定：%s\n' "$grpc" "$(grpc_bind "$grpc")"; warn_if_open "$grpc"
+      fi
+      printf '  前景：%s\n' "$(foreground_on "$serial")"
+    done <<< "$LINES"
+    printf '磁碟可用：%s\n' "$(df -h / | tail -1 | awk '{print $4}')"
     ;;
-  *) echo "用法：$0 [start|stop|status]" >&2; exit 2 ;;
+  *) echo "用法：$0 [-n <實例名稱>] [start|stop|status]" >&2; exit 2 ;;
 esac

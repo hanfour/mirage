@@ -68,6 +68,23 @@ check "gRPC 埠不是數字 → 1" \
       "$(run_case 'emu_resolve bad "bad:5554:x"')" 1
 check "少一欄 → 1" "$(run_case 'emu_resolve bad "bad:5554"')" 1
 
+echo "--- emu_select_triplet ---"
+check "沒有 -n → 預設三元組" \
+      "$(run_out 'emu_select_triplet ""')" "mirage-game 5554 8554"
+check "沒有 -n → MIRAGE_PORT 覆寫生效" \
+      "$(run_out 'emu_select_triplet "" "$EMU_DEFAULT_INSTANCES" "" 5558 ""')" "mirage-game 5558 8554"
+check "沒有 -n → 三個覆寫皆生效" \
+      "$(run_out 'emu_select_triplet "" "$EMU_DEFAULT_INSTANCES" custom 5558 8558')" "custom 5558 8558"
+check "沒有 -n → 採用表格第一台" \
+      "$(run_out 'emu_select_triplet "" "alt:5560:8560 mirage-game:5554:8554"')" "alt 5560 8560"
+check "有 -n → 忽略三個覆寫" \
+      "$(run_out 'emu_select_triplet mirage-poc "$EMU_DEFAULT_INSTANCES" custom 5558 8558')" "mirage-poc 5556 8556"
+check "選取未知名稱 → 1" "$(run_case 'emu_select_triplet nope')" 1
+check "選取重複表格 → 1" "$(run_case 'emu_select_triplet "" "a:5554:8554 a:5556:8556"')" 1
+check "無效 console 覆寫 → 1" \
+      "$(run_case 'emu_select_triplet "" "$EMU_DEFAULT_INSTANCES" "" 5555')" 1
+check "純空白表格 → 1" "$(run_case 'emu_select_triplet "" " "')" 1
+
 echo "--- emu_table_check ---"
 check "預設表格通過" "$(run_case 'emu_table_check')" 0
 check "同一個 AVD 出現兩次 → 1" \

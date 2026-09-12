@@ -51,6 +51,28 @@ emu_resolve() {
     return 1
 }
 
+# emu_select_triplet <名稱或空字串> [表格] [AVD覆寫] [console覆寫] [gRPC覆寫]
+# 空名稱代表未帶 -n：選第一台，再套用非空覆寫；具名時只使用表格。
+# 不讀環境，呼叫端負責傳 MIRAGE_* 並提醒被忽略的覆寫。失敗回 1。
+emu_select_triplet() {
+    local name="${1:-}" table="${2:-$EMU_DEFAULT_INSTANCES}" entry triplet avd port grpc
+    emu_table_check "$table" || return 1
+    if [ -n "$name" ]; then
+        emu_resolve "$name" "$table"
+        return $?
+    fi
+    for entry in $table; do
+        name="${entry%%:*}"
+        break
+    done
+    if [ -z "$name" ]; then echo "❌ 實例表不能是空白" >&2; return 1; fi
+    triplet=$(emu_resolve "$name" "$table") || return 1
+    read -r avd port grpc <<< "$triplet"
+    avd="${3:-$avd}"; port="${4:-$port}"; grpc="${5:-$grpc}"
+    emu_validate_triplet "$avd" "$port" "$grpc" || return 1
+    printf '%s %s %s\n' "$avd" "$port" "$grpc"
+}
+
 # 列出表格裡的名稱（給錯誤訊息用）。
 emu_names() {
     local entry names=""
