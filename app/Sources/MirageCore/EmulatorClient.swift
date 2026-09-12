@@ -4,29 +4,30 @@ import SwiftProtobuf
 
 /// 門面 actor：連線生命週期（reducer + 健康探測迴圈驅動）、串流掛載、輸入注入、狀態發布。
 public actor EmulatorClient {
-    private let host: String
-    private let port: Int
-    private let makeTransport: @Sendable (GrpcChannelBox) -> DisplayTransport
-    private let makeHealthProbe: @Sendable (GrpcChannelBox) -> HealthProbe
-    private let makeAudioTransport: @Sendable (GrpcChannelBox) -> AudioTransport
+    // 連線迴圈拆在 EmulatorClient+Connection.swift；共用狀態維持 internal、由同一 actor 隔離。
+    /// 連線目標。切換模擬器時由 `setEndpoint` 改寫；`ensureChannel()` 每次重建 channel 都讀它。
+    var endpoint: EmulatorEndpoint
+    let makeTransport: @Sendable (GrpcChannelBox) -> DisplayTransport
+    let makeHealthProbe: @Sendable (GrpcChannelBox) -> HealthProbe
+    let makeAudioTransport: @Sendable (GrpcChannelBox) -> AudioTransport
     /// MMAP primary transport 的工廠——與 makeTransport（raw RGBA）對稱的注入點，讓
     /// makeDisplayTransport() 的版本選路可以在單元測試中被驗證，不必碰真 channel。
-    private let makeMmapTransport: @Sendable (GrpcChannelBox) -> DisplayTransport
-    private let backoff: BackoffPolicy
-    private let sleeper: @Sendable (Duration) async throws -> Void
-    private let randomSource: @Sendable () -> Double
-    private let probeTimeout: Duration
+    let makeMmapTransport: @Sendable (GrpcChannelBox) -> DisplayTransport
+    let backoff: BackoffPolicy
+    let sleeper: @Sendable (Duration) async throws -> Void
+    let randomSource: @Sendable () -> Double
+    let probeTimeout: Duration
 
-    private var state: ConnState = .disconnected
+    var state: ConnState = .disconnected
     // 非 private：EmulatorClient+Input.swift（同模組不同檔）的 sendTouches/sendKey 需要讀取
     // channelBox?.client。Swift 的 `private` 是檔案級（含同檔 extension 特例），跨檔 extension
     // 存取需要至少 internal（仍非 public，模組外不可見）。
     var channelBox: GrpcChannelBox?
-    private var transport: DisplayTransport?
-    private var probe: HealthProbe?
+    var transport: DisplayTransport?
+    var probe: HealthProbe?
     /// 最近一次健康探測回報的 emulator 版本字串；決定要建哪種 display transport。
     /// 空字串代表未知 → MmapVersionGate 會拒絕 → 走 raw RGBA（保守）。
-    private var emulatorVersion = ""
+    var emulatorVersion = ""
     /// 同一次探測帶出的 guest 實體螢幕解析度，觸控座標換算的唯一權威。
     /// nil = 探測沒帶出可用的 hw.lcd.*，此時觸控注入一律放棄（見 sendTap）。
     ///
@@ -35,22 +36,23 @@ public actor EmulatorClient {
     var guestDisplay: (w: Int, h: Int)?
     // P1-e 音訊：與 transport/pump 對稱——audioTransport 隨 channel 建立與拆除，
     // audioTask 是消費 task，audioRing 是 App 端提供的 sink（nil = 不掛載）。
-    private var audioTransport: AudioTransport?
-    private var audioTask: Task<Void, Never>?
-    private var audioRing: AudioRingBuffer?
-    private let pump = FramePump()
-    private var box: (any FrameSink)?
-    private var streamSize = (w: 540, h: 1200)
-    private var running = false
+    var audioTransport: AudioTransport?
+    var audioTask: Task<Void, Never>?
+    var audioRing: AudioRingBuffer?
+    let pump = FramePump()
+    var box: (any FrameSink)?
+    var streamSize = (w: 540, h: 1200)
+    var running = false
     private var loopTask: Task<Void, Never>?
-    private var breakCont: AsyncStream<Void>.Continuation?
-    private var power: PowerState = .active
+    private var stopTask: Task<Void, Never>?
+    var breakCont: AsyncStream<Void>.Continuation?
+    var power: PowerState = .active
 
     /// 連線路徑診斷。這條路徑先前沒有任何可觀測性——App 層唯一的訊號是
     /// `MIRAGE_FPS_LOG` 的 `fps=`，而它同時受渲染與收幀影響，兩者都沒發生時
     /// 分不出是「沒連上」「連上但沒拉幀」還是「拉到幀但沒畫」。P1-a 到 P1-e
     /// 三個階段都卡在這個盲區（見 RESULTS-p1a.md「pending-unlock」）。
-    private let connLog = ProcessInfo.processInfo.environment["MIRAGE_CONN_LOG"] == "1"
+    let connLog = ProcessInfo.processInfo.environment["MIRAGE_CONN_LOG"] == "1"
     // 非 private（同理見上方 channelBox 的說明）：EmulatorClient+Lifecycle.swift 的
     // startClipboardStream() 需要讀寫 clipboardTask/clipboardCall，讀取 guestClipCont。
     var clipboardTask: Task<Void, Never>?
@@ -59,7 +61,7 @@ public actor EmulatorClient {
     >?
 
     public nonisolated let states: AsyncStream<ConnState>
-    private let stateCont: AsyncStream<ConnState>.Continuation
+    let stateCont: AsyncStream<ConnState>.Continuation
     public nonisolated let powerStates: AsyncStream<PowerState>
     private let powerCont: AsyncStream<PowerState>.Continuation
     public nonisolated let guestClipboard: AsyncStream<String>
@@ -102,8 +104,7 @@ public actor EmulatorClient {
                 randomSource: @escaping @Sendable () -> Double
                     = { Double.random(in: 0..<1) },
                 probeTimeout: Duration = .seconds(1)) {
-        self.host = host
-        self.port = port
+        self.endpoint = EmulatorEndpoint(host: host, port: port)
         self.makeTransport = makeTransport
         self.makeHealthProbe = makeHealthProbe
         self.makeAudioTransport = makeAudioTransport
@@ -144,7 +145,7 @@ public actor EmulatorClient {
     /// 發生，而一旦發生就代表有人重新引入了多重啟動——靜默忽略會讓那件事再一次
     /// 沒有訊號，而「沒有訊號」正是 D30 能藏這麼久的原因。
     public func start(box: any FrameSink, width: Int, height: Int) async {
-        guard !running else {
+        guard !running, stopTask == nil else {
             print("[conn] start() 重複呼叫，已忽略（已有連線迴圈在跑）——上游不該走到這裡，見 D30")
             return
         }
@@ -167,14 +168,37 @@ public actor EmulatorClient {
     }
 
     public func stop() async {
+        if let stopTask {
+            await stopTask.value
+            return
+        }
         running = false
+        let task = Task { await self.finishStopping() }
+        stopTask = task
+        await task.value
+    }
+
+    /// 等待期間 actor 可重入；共用 stopTask 讓重複 stop 等同一輪清理，並擋住 start / setEndpoint。
+    private func finishStopping() async {
         breakCont?.yield()          // 喚醒卡在 connectedRun 的迴圈
         loopTask?.cancel()          // 喚醒卡在 sleeper/probe 的迴圈
+        // **等舊迴圈真的結束**（2026-09-12，模擬器切換）。原本這裡不等：迴圈若正卡在
+        // `probe(timeout:)`，stop() 回來、緊接的 start() 把 running 設回 true 之後它才醒來，
+        // runConnectionLoop 的 `if !running { break }` 看到的是 true，接著 dropChannel()
+        // 拆掉的是**新迴圈**剛建好的 channel，然後兩條迴圈同時跑。單台時 stop 之後從來
+        // 沒有立刻 start 過，所以沒踩到；切換會每次都踩。迴圈的每個 await 之後都檢查
+        // running，上面兩行保證它最多再等一次 probeTimeout 就走到那個檢查。
+        await loopTask?.value
+        loopTask = nil
         await pump.detach()
         detachAudio()
         _ = step(.stopRequested)    // → .disconnected
         dropChannel()
-        loopTask = nil
+        // 停下來的 client 不知道任何 guest 的事：下一台的解析度與版本要等它自己的探測。
+        // 留著舊值，sendTap 會在新 channel 建好、探測還沒回來的那一秒用舊解析度換算座標。
+        guestDisplay = nil
+        emulatorVersion = ""
+        stopTask = nil
     }
 
     /// 直接注入單點觸控，座標為**正規化的 0–1**（左上原點）。
@@ -201,6 +225,29 @@ public actor EmulatorClient {
     /// guest 的實體螢幕解析度（健康探測帶出）。供 App 層在需要真實尺寸時查詢——
     /// 但**觸控注入不需要它**，換算已收進 sendTap/sendTouches。
     public var displaySize: (w: Int, h: Int)? { guestDisplay }
+
+    /// 目前的連線目標。切換模擬器時由 `setEndpoint` 改寫。
+    public var currentEndpoint: EmulatorEndpoint { endpoint }
+
+    /// 連線迴圈是否在跑（`start()` 之後、`stop()` 之前）。
+    public var isRunning: Bool { running }
+
+    /// 最近一次要求的串流尺寸（`start` 或 `setStreamSize` 設的）。切換模擬器後重新 `start`
+    /// 要沿用它——全螢幕下 MirrorView 已把尺寸換成內容矩形，退回預設會讓畫面糊掉且沒有訊號。
+    public var requestedStreamSize: (w: Int, h: Int) { streamSize }
+
+    /// 換連線目標。**只在停下來時允許。** 迴圈在跑時換，舊 channel 會用到下一次重連才換——
+    /// 那是「狀態說已切換、畫面還是舊那台」的無訊號故障。回 false 表示沒換；印出來的
+    /// 理由與 `start()` 對重複呼叫的處理相同：上游不該走到這裡，走到了要有訊號。
+    @discardableResult
+    public func setEndpoint(_ target: EmulatorEndpoint) -> Bool {
+        guard !running, stopTask == nil else {
+            print("[conn] setEndpoint(\(target.host):\(target.port)) 被忽略：連線迴圈在跑或停止中，先等 stop() 再換")
+            return false
+        }
+        endpoint = target
+        return true
+    }
 
     public func setGuestClipboard(_ text: String) async {
         guard let client = channelBox?.client else { return }
@@ -245,225 +292,4 @@ public actor EmulatorClient {
         powerCont.yield(p)
     }
 
-    // MARK: - 純轉移（reducer 語意不變，只發布狀態、回傳 effect）
-
-    private func step(_ event: ConnEvent) -> ConnEffect {
-        let (next, effect) = ConnReducer.reduce(state, event)
-        if connLog { print("[conn] \(state) --\(event)--> \(next)") }
-        state = next
-        stateCont.yield(next)
-        return effect
-    }
-
-    // MARK: - 重連迴圈（非遞迴：消除 P1-a 終審 Minor #7 的 async frame 堆積）
-
-    private func runConnectionLoop() async {
-        _ = step(.connectRequested)                 // → .connecting
-        while running {
-            let ready = ensureChannel()
-            let result: HealthResult = ready ? await (probe?.probe(timeout: probeTimeout) ?? .failed) : .failed
-            if connLog { print("[conn] ensureChannel=\(ready) probe=\(result)") }
-            if !running { break }
-            if case .healthy(let info) = result {
-                emulatorVersion = info.version      // transport 選路用
-                guestDisplay = info.display         // 觸控座標換算用
-                makeDisplayTransport()
-                _ = step(.connectSucceeded)         // → .connected（gate：只有健康才連上）
-                startClipboardStream()
-                await connectedRun()                // 阻塞到串流斷或 stop
-                guard running else { break }
-                await pump.detach()
-                detachAudio()
-                dropChannel()                       // 斷線先 drop 舊 channel（spec §4.1）
-                let effect = step(.streamBroken)    // → .reconnecting(0)
-                await backoffDelay(effect)
-            } else {
-                await pump.detach()
-                detachAudio()
-                dropChannel()                       // 探測失敗也 drop，下一圈重建
-                let effect = step(.connectFailed)   // → .reconnecting(n)（attempt 由 reducer 遞增）
-                await backoffDelay(effect)
-            }
-        }
-    }
-
-    /// 確保 channel/probe 存在；斷線後 channelBox 已被 dropChannel 清空，此處重建。
-    ///
-    /// **transport 刻意不在這裡建立**：要建哪種（MMAP 或 raw RGBA）取決於 emulator 版本，
-    /// 而版本要等健康探測回報才知道。改由 makeDisplayTransport() 在探測成功後建立。
-    private func ensureChannel() -> Bool {
-        if channelBox == nil {
-            do {
-                let boxCh = try GrpcChannelBox(host: host, port: port)
-                channelBox = boxCh
-                probe = makeHealthProbe(boxCh)
-                audioTransport = makeAudioTransport(boxCh)
-            } catch {
-                return false
-            }
-        }
-        return probe != nil
-    }
-
-    /// 依探測回報的 emulator 版本與 `MIRAGE_TRANSPORT` 環境變數決定 display transport，
-    /// 並印一次性觀測訊息。
-    ///
-    /// 「該選哪一種」交給 `DisplayTransportSelector.choose(...)`（純函式，逐行單元測試
-    /// 窮舉覆蓋，見 DisplayTransportSelectorTests）；這裡只剩下「讀環境變數 + 選出來之後
-    /// 怎麼建構」，退化成一個純 switch，肉眼即可驗證，不需要再為了測選路而建真 channel。
-    /// 環境變數在此讀取（而非傳給選擇器內部讀取）是刻意的：讓 `choose` 保持純函式、
-    /// 可窮舉測試，副作用留在呼叫端。
-    ///
-    /// MMAP 預設關閉，需同時滿足兩個條件（見 DisplayTransportSelector 上的裁決說明）：
-    /// `MIRAGE_TRANSPORT=mmap`（使用者主動選擇加入）**且**版本 ≥37（36.x 收到 MMAP 請求
-    /// 會 SIGSEGV 弄死使用者的 VM，見 MmapVersionGate）。過關就用 FallbackTransport
-    /// 包起來——MMAP 若實際不寫入（前 3 幀全零）會自動無縫降級到 raw RGBA。
-    ///
-    /// **執行緒安全前提**：`EmulatorClient` 是 actor，本方法與 `attachStream()`（唯一讀取
-    /// `transport` 並呼叫 `frames()` 的地方）皆在 actor 隔離下序列執行——`transport` 不會
-    /// 被並發讀寫，`frames()` 也不會被並發呼叫。`FallbackTransport.frames()` 內部「是否已
-    /// 降級」的檢查在串流閉包外、非鎖保護，僅在「單一訂閱者」的使用契約下才無害；
-    /// 若未來有呼叫端脫離這條 actor 序列，需要重新檢視那個檢查。
-    private func makeDisplayTransport() {
-        guard let boxCh = channelBox else { return }
-        let mmapOptIn = ProcessInfo.processInfo.environment["MIRAGE_TRANSPORT"] == "mmap"
-        switch DisplayTransportSelector.choose(emulatorVersion: emulatorVersion, mmapOptIn: mmapOptIn) {
-        case .mmapWithRawFallback:
-            transport = FallbackTransport(primary: makeMmapTransport(boxCh),
-                                          secondary: makeTransport(boxCh))
-            print("[transport] mmap enabled (experimental, emulator \(emulatorVersion))")
-        case .rawOnly:
-            transport = makeTransport(boxCh)
-            if mmapOptIn {
-                let v = emulatorVersion.isEmpty ? "unknown" : emulatorVersion
-                print("[transport] raw rgba (emulator \(v) < 37, mmap unavailable)")
-            } else {
-                print("[transport] raw rgba (default; set MIRAGE_TRANSPORT=mmap to try mmap)")
-            }
-        }
-    }
-
-    /// connected 期間：掛串流並阻塞到第一個斷線訊號（或 stop）。setStreamSize 換源共用同一 breakCont。
-    private func connectedRun() async {
-        let (signal, cont) = AsyncStream<Void>.makeStream()
-        breakCont = cont
-        attachStream()
-        attachAudio()
-        for await _ in signal { break }
-        breakCont = nil
-    }
-
-    private func attachStream() {
-        // 休眠期間不拉幀（即使底層重連）。防禦性 guard：目前碼庫中「休眠期間斷線觸發重連」
-        // 這條路徑其實不可達——suspend() 呼叫 pump.detach() 後，FramePump 沒有存活的
-        // consumer task，其 onEnd（唯一會 yield breakCont 的來源，見 signalBreak()）
-        // 因此永不觸發，connectedRun() 會一直卡在 suspended 期間收不到斷線訊號。仍保留
-        // 此 guard 作為未來重構的安全網。
-        guard power != .suspended, power != .suspending else {
-            if connLog { print("[conn] attachStream 略過：power=\(power)") }
-            return
-        }
-        guard let transport, let box else {
-            if connLog { print("[conn] attachStream 略過：transport=\(transport == nil ? "nil" : "有") box=\(box == nil ? "nil" : "有")") }
-            return
-        }
-        if connLog { print("[conn] attachStream 掛上，請求 \(streamSize.w)x\(streamSize.h)") }
-        let stream = transport.frames(width: streamSize.w, height: streamSize.h)
-        Task {
-            await pump.attach(stream, into: box) { [weak self] err in
-                guard err != nil else { return }    // 換源正常結束不算斷
-                Task { await self?.signalBreak() }
-            }
-        }
-    }
-
-    private func signalBreak() { breakCont?.yield() }
-
-    /// 與 attachStream 對稱：休眠期間不掛載；無 sink（App 未接 AudioPlayer）時靜默不掛。
-    private func attachAudio() {
-        guard power != .suspended, power != .suspending else { return }
-        guard let audioTransport, let audioRing else { return }
-        // 先卸再掛（呼叫 detachAudio 而非只 audioTask?.cancel()）：只取消 Swift Task
-        // 中斷不了已 in-flight 的底層 gRPC next() ——guest 靜音時它會無限阻塞，若不顯式
-        // cancelStream() 就疊上第二個訂閱，舊 call 會被孤兒化（Task 6 審查發現的缺口，
-        // GrpcAudioTransport.packets() 已在 transport 層加了重入保護；這裡加第二層防禦）。
-        detachAudio()
-        // 終審 Minor 6（SPSC 單一生產者不變式，僅加註解不改碼）：AudioRingBuffer 是
-        // SPSC（單生產者單消費者），但「單一生產者」在這裡是靠時序維持，不是靠結構
-        // 保證——上面的 detachAudio() 只取消了「舊」Task（`audioTask?.cancel()`），
-        // Swift 的 Task 取消是協作式的：舊 Task 內部 `for try await chunk in stream`
-        // 迴圈要等下一次掛起點才會真正結束，理論上舊 Task 尾聲的 write() 可以跟下面
-        // 新建 Task 第一次的 write() 在時間上重疊，讓兩個生產者同時寫同一個 ring。
-        // 這在實務上不可達：舊 Task 停止寫入的時機是它自己的 gRPC stream 迭代器
-        // 收到取消訊號那一刻（µs 等級的 CPU 排程延遲），而新 Task 第一次 write()
-        // 之前必須先完成一次全新的 streamAudio RPC 往返（一次網路 RTT，數 ms 以上）；
-        // 兩個時間尺度差了至少三個數量級，經驗上不會重疊。維持這個不變式不需要額外
-        // 同步機制——但這是「靠時序」而非「靠結構」，值得對照它為何成立。
-        let stream = audioTransport.packets(format: .standard)
-        audioTask = Task { [audioRing] in
-            do {
-                for try await chunk in stream {
-                    if Task.isCancelled { return }
-                    audioRing.write(chunk.samples, rawByteCount: chunk.rawByteCount)
-                }
-            } catch {
-                // 終審 Important 2：診斷訊號——若音訊 RPC 單獨失敗而連線本身仍健康
-                // （health probe 不會因此觸發重連），少了這行音訊會永久靜默且沒有任何
-                // 除錯線索（MIRAGE_AUDIO_LOG 只會印 pkt=0，跟 guest 本來就靜音無法區分）。
-                // 刻意不在此自行重連——維持 spec 決策，重連只由畫面串流路徑驅動。
-                print("[audio] stream ended: \(error)")
-                // 串流斷屬正常（連線斷）；重連由既有連線迴圈負責，此處不自行重連。
-                // 注意：**無封包 ≠ 斷線**——guest 靜音時本來就沒有封包，
-                // 健康探測仍由 HealthProbe 獨佔負責。
-            }
-        }
-    }
-
-    /// 先取消 Swift Task，再顯式取消底層 RPC。後者不可省略：guest 靜音時
-    /// streamAudio 會無限阻塞，Task.cancel() 中斷不了已 in-flight 的 next()。
-    private func detachAudio() {
-        audioTask?.cancel()
-        audioTask = nil
-        audioTransport?.cancelStream()
-    }
-
-    // startClipboardStream() 搬到 EmulatorClient+Lifecycle.swift（終審 Minor 3：檔案行數約束）。
-
-    private func backoffDelay(_ effect: ConnEffect) async {
-        guard case .scheduleReconnect(let attempt) = effect, running else { return }
-        let delay = backoff.delay(attempt: attempt, random: randomSource())
-        try? await sleeper(delay)
-    }
-
-    // ADAPTATION (found during Task 5 verification, see task-5-report.md): the brief's
-    // snippet appends `clipboardTask?.cancel(); clipboardTask = nil` AFTER `channelBox = nil`.
-    // That order lets `channelBox`'s deinit (`group.syncShutdownGracefully()`) tear down the
-    // NIO EventLoopGroup synchronously while the clipboard stream's in-flight promise on that
-    // same group may still be unresolved — a real race that intermittently (~1-in-8 runs,
-    // reproduced empirically) trips NIO's "leaking promise created" fatal precondition and
-    // crashes the whole process. Cancelling `clipboardCall` (the real RPC, not just the Swift
-    // Task — see startClipboardStream's ADAPTATION note above) BEFORE releasing the channel
-    // resolves that promise synchronously up front, so the group's graceful shutdown has
-    // nothing left dangling. dropChannel stays synchronous — no call-site changes needed.
-    private func dropChannel() {
-        detachAudio()               // 必須在 channelBox = nil 之前：先解決 in-flight
-                                     // promise，NIO group 才不會帶著未解決 promise 關閉
-                                     // （P1-b 實證約 1/8 機率觸發 leaking promise 致命錯誤）
-        audioTransport = nil
-        clipboardCall?.cancel()
-        clipboardTask?.cancel()
-        clipboardTask = nil
-        clipboardCall = nil
-        // 顯示串流的顯式取消。音訊（detachAudio）與剪貼簿（clipboardCall?.cancel()）
-        // 早就有這一步，唯獨**預設開啟**的這條沒有——`pump.detach()` 只取消 Swift Task，
-        // 而 Task 取消中斷不了已 in-flight 的 `next()`（見 DisplayTransport.cancelStream 的說明）。
-        transport?.cancelStream()
-        transport = nil
-        probe = nil
-        // 顯式、非阻塞地拆連線。舊碼靠 `channelBox = nil` 觸發 deinit 裡的**阻塞式**
-        // syncShutdownGracefully()，而這裡跑在 cooperative 執行緒上——8 核就是 8 條，
-        // 佔滿即全域死鎖（2026-07-29 實測 5 跑 3 卡）。shutdown() 冪等，之後的 deinit 是 no-op。
-        channelBox?.shutdown()
-        channelBox = nil
-    }
 }
