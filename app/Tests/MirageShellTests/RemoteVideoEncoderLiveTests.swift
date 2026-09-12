@@ -1,5 +1,6 @@
 import Foundation
 import Testing
+import VideoToolbox
 @testable import MirageCore
 @testable import MirageShell
 
@@ -73,6 +74,10 @@ private final class AccessUnitRecorder: @unchecked Sendable {
         #expect(units[0].nals.contains { H264Nal.type(of: $0) == .idrSlice })
         let stats = encoder.stats()
         #expect(stats.sessionsCreated == 2)
+        // PM 的 Apple Silicon 主機實測：MaxFrameDelayCount 不支援，但仍應產出含 VUI 的 SPS。
+        #expect(encoder.skippedProperties.contains {
+            $0.0 == "MaxFrameDelayCount" && $0.1 == kVTPropertyNotSupportedErr
+        })
         #expect(stats.framesSubmitted == 9)
         #expect(stats.accessUnitsEmitted == 9)
         #expect(stats.spsRewriteFailures == 0)

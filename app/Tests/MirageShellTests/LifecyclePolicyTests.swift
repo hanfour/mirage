@@ -55,4 +55,37 @@ struct LifecyclePolicyTests {
         #expect(policy.suspended)
     }
 
+    @Test func hiddenWindowSuspendsWhenRemoteDisconnectsOnlyOnce() {
+        var policy = LifecyclePolicy()
+        let initial = policy.didHide(remoteViewerActive: true)
+        #expect(!initial)
+        #expect(policy.isHidden)
+        let disconnected = policy.remoteViewerDisconnected()
+        #expect(disconnected)
+        #expect(policy.suspended)
+        let duplicate = policy.remoteViewerDisconnected()
+        #expect(!duplicate)
+        let resumed = policy.consumeResume()
+        #expect(resumed)
+        #expect(!policy.isHidden)
+    }
+
+    @Test func visibleWindowDoesNotSuspendWhenRemoteDisconnects() {
+        var policy = LifecyclePolicy()
+        let disconnected = policy.remoteViewerDisconnected()
+        #expect(!disconnected)
+        #expect(!policy.suspended)
+        #expect(!policy.isHidden)
+    }
+
+    @Test func showingHiddenWindowBeforeDisconnectPreventsSuspension() {
+        var policy = LifecyclePolicy()
+        policy.didHide(remoteViewerActive: true)
+        let resumed = policy.consumeResume()
+        #expect(!resumed)
+        let disconnected = policy.remoteViewerDisconnected()
+        #expect(!disconnected)
+        #expect(!policy.suspended)
+    }
+
 }

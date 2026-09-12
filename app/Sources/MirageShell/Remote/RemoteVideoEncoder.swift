@@ -61,6 +61,7 @@ final class RemoteVideoEncoder: RemoteFrameEncoding, @unchecked Sendable {
     private var sessionsCreated = 0
     private var framesDroppedByEncoder = 0
     private var spsRewriteFailures = 0
+    private var skippedPropertyStorage: [(String, OSStatus)] = []
 
     init(settings: RemoteVideoEncoderSettings = .init(),
          onError: @escaping @Sendable (String) -> Void = { _ in },
@@ -76,6 +77,12 @@ final class RemoteVideoEncoder: RemoteFrameEncoding, @unchecked Sendable {
         return RemoteVideoEncoderStats(framesSubmitted: framesSubmitted, accessUnitsEmitted: accessUnitsEmitted,
                                        sessionsCreated: sessionsCreated, framesDroppedByEncoder: framesDroppedByEncoder,
                                        spsRewriteFailures: spsRewriteFailures)
+    }
+
+    /// 累計每次 session 建立時被硬體拒絕的可選設定（含尺寸重建）。
+    var skippedProperties: [(String, OSStatus)] {
+        lock.lock(); defer { lock.unlock() }
+        return skippedPropertyStorage
     }
 
     func requestKeyframe() {
@@ -147,19 +154,19 @@ final class RemoteVideoEncoder: RemoteFrameEncoding, @unchecked Sendable {
             compressionSessionOut: &created)
         guard status == noErr, let new = created else { throw RemoteVideoEncoderError.sessionCreation(status) }
         do {
-            // spec 第 3 節的低延遲設定。
-            try set(new, key: kVTCompressionPropertyKey_RealTime, value: kCFBooleanTrue)
-            try set(new, key: kVTCompressionPropertyKey_AllowFrameReordering, value: kCFBooleanFalse)
-            try set(new, key: kVTCompressionPropertyKey_MaxFrameDelayCount, value: 0 as CFNumber)
-            try set(new, key: kVTCompressionPropertyKey_PrioritizeEncodingSpeedOverQuality, value: kCFBooleanTrue)
-            try set(new, key: kVTCompressionPropertyKey_ProfileLevel, value: kVTProfileLevel_H264_Baseline_AutoLevel)
-            try set(new, key: kVTCompressionPropertyKey_MaxKeyFrameInterval, value: settings.maxKeyFrameInterval as CFNumber)
-            try set(new, key: kVTCompressionPropertyKey_AverageBitRate, value: settings.averageBitRate as CFNumber)
-            try set(new, key: kVTCompressionPropertyKey_ExpectedFrameRate, value: settings.expectedFrameRate as CFNumber)
+            // 硬體、即時、不重排及 baseline 是必要條件；其餘屬性依硬體支援盡力設定。
+            try setRequired(new, key: kVTCompressionPropertyKey_RealTime, value: kCFBooleanTrue)
+            try setRequired(new, key: kVTCompressionPropertyKey_AllowFrameReordering, value: kCFBooleanFalse)
+            try setRequired(new, key: kVTCompressionPropertyKey_ProfileLevel, value: kVTProfileLevel_H264_Baseline_AutoLevel)
         } catch {
             VTCompressionSessionInvalidate(new)
             throw error
         }
+        setOptional(new, key: kVTCompressionPropertyKey_MaxFrameDelayCount, value: 0 as CFNumber)
+        setOptional(new, key: kVTCompressionPropertyKey_PrioritizeEncodingSpeedOverQuality, value: kCFBooleanTrue)
+        setOptional(new, key: kVTCompressionPropertyKey_MaxKeyFrameInterval, value: settings.maxKeyFrameInterval as CFNumber)
+        setOptional(new, key: kVTCompressionPropertyKey_AverageBitRate, value: settings.averageBitRate as CFNumber)
+        setOptional(new, key: kVTCompressionPropertyKey_ExpectedFrameRate, value: settings.expectedFrameRate as CFNumber)
         let prepared = VTCompressionSessionPrepareToEncodeFrames(new)
         guard prepared == noErr else {
             VTCompressionSessionInvalidate(new)
@@ -175,9 +182,17 @@ final class RemoteVideoEncoder: RemoteFrameEncoding, @unchecked Sendable {
         return new
     }
 
-    private func set(_ session: VTCompressionSession, key: CFString, value: CFTypeRef) throws {
+    private func setRequired(_ session: VTCompressionSession, key: CFString, value: CFTypeRef) throws {
         let status = VTSessionSetProperty(session, key: key, value: value)
         guard status == noErr else { throw RemoteVideoEncoderError.property(key as String, status) }
+    }
+
+    private func setOptional(_ session: VTCompressionSession, key: CFString, value: CFTypeRef) {
+        let status = VTSessionSetProperty(session, key: key, value: value)
+        guard status != noErr else { return }
+        lock.lock()
+        skippedPropertyStorage.append((key as String, status))
+        lock.unlock()
     }
 
     // MARK: - 輸出

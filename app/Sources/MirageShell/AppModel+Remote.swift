@@ -60,6 +60,7 @@ extension AppModel {
         await inputQueue.drained()
         _ = controller.secondary.takeLatest() // 新配對不要送出停服前的殘留幀。
         await startRemote(host: controller.host, port: port, token: PairingToken.generate())
+        if !hasActiveRemoteViewer { lifecycle?.remoteViewerDisconnected() }
     }
 
     // MARK: - 轉移內部（呼叫者持有 remoteTransitionInProgress）
@@ -80,7 +81,7 @@ extension AppModel {
             remote = controller
             let urls = RemoteURL.all(addresses: HostAddresses.current(), port: bound, token: controller.token)
             remoteMenuState = .on(urls: urls, session: controller.sessionState)
-            print("[remote] listening port=\(bound) url=\(urls.first ?? "（找不到本機 IPv4 位址）")")
+            print("[remote] listening port=\(bound) 已可連線")
         } catch {
             remoteGeneration = UUID()
             await controller.stop()
@@ -103,6 +104,7 @@ extension AppModel {
         // server.stop 發出的 release 必須在重啟 emulator 連線前送完。
         await inputQueue.drained()
         await switchSink(to: box)
+        lifecycle?.remoteViewerDisconnected()
     }
 
     private func makeRemoteController(host: String, port: Int, token: PairingToken, page: Data,
@@ -149,9 +151,14 @@ extension AppModel {
 
     private func remoteSessionChanged(generation: UUID) {
         guard generation == remoteGeneration, let remote,
-              case .on(let urls, _) = remoteMenuState else { return }
+              case .on(let urls, let previous) = remoteMenuState else { return }
         // Task 投遞順序未必等於 server callback 順序，因此讀目前快照。
-        remoteMenuState = .on(urls: urls, session: remote.sessionState)
+        let state = remote.sessionState
+        remoteMenuState = .on(urls: urls, session: state)
+        // 通常是 true → false；若 MainActor 合併了快速開關的通知，隱藏狀態仍可補休眠。
+        if !state.hasVideo, previous.hasVideo || lifecycle?.isWindowHidden == true {
+            lifecycle?.remoteViewerDisconnected()
+        }
     }
 
     /// 與模擬器切換共用任務鏈。等前一個 stop/start 完成後才看 isRunning，

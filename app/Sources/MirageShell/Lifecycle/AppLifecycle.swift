@@ -74,10 +74,25 @@ final class AppLifecycle: NSObject, NSWindowDelegate {
         Self.diagnose("windowShouldClose", window: sender, result: "false",
                       action: remoteActive ? "hide-only(remote)" : "suspend")
         sender.orderOut(nil)                 // 隱藏視窗，app 續存（選單列常駐）
-        if policy.didHide(remoteViewerActive: remoteActive) {
-            Task { await client.suspend() }
-        }
+        didHideWindow()
         return false
+    }
+
+    /// windowShouldClose 的邏輯入口；獨立於 NSWindow，headless 測試走同一條路。
+    func didHideWindow() {
+        suspendIfNeeded(policy.didHide(remoteViewerActive: hasActiveRemoteViewer()))
+    }
+
+    var isWindowHidden: Bool { policy.isHidden }
+
+    func remoteViewerDisconnected() {
+        suspendIfNeeded(policy.remoteViewerDisconnected())
+    }
+
+    /// 關視窗與最後一條 video 斷線共用；policy 保證重複通知只觸發一次休眠。
+    private func suspendIfNeeded(_ needed: Bool) {
+        guard needed else { return }
+        Task { await client.suspend() }
     }
 
     func wake(showing window: NSWindow?) {

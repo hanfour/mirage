@@ -256,4 +256,55 @@ private final class RemotePortBlocker {
         }
     }
 
+    @Test func hiddenWindowSuspendsAfterViewerDisconnects() async throws {
+        try await withModel("remote-hidden-disconnect") { model in
+            let lifecycle = AppLifecycle(client: model.client, hasActiveRemoteViewer: { [weak model] in
+                model?.hasActiveRemoteViewer ?? false
+            })
+            model.lifecycle = lifecycle
+            await model.enableRemote(host: "127.0.0.1", port: 0)
+            let controller = try #require(model.remote)
+            let port = try #require(controller.boundPort)
+            let url = try #require(URL(string: "ws://127.0.0.1:\(port)/ws/video?t=\(controller.token.value)"))
+            #expect(!(await model.client.isRunning)) // listener 不依賴 emulator client.start。
+            let probe = RemoteHandshakeProbe()
+            let queue = OperationQueue()
+            queue.maxConcurrentOperationCount = 1
+            let configuration = URLSessionConfiguration.ephemeral
+            configuration.timeoutIntervalForRequest = 10
+            configuration.timeoutIntervalForResource = 10
+            let session = URLSession(configuration: configuration, delegate: probe, delegateQueue: queue)
+            defer { session.invalidateAndCancel() }
+            let video = session.webSocketTask(with: url)
+            let diagnostics: @Sendable () -> String = {
+                "port=\(port)，state=\(controller.sessionState)，stats=\(controller.stats())"
+            }
+            defer { video.cancel(with: .normalClosure, reason: nil) }
+            video.resume()
+            try await probe.wait(diagnostics: diagnostics)
+            let connected = try await RemoteTestWaits.state(in: controller.states, hasVideo: true,
+                                                           diagnostics: diagnostics)
+            #expect(connected.hasVideo)
+            #expect(model.hasActiveRemoteViewer)
+            lifecycle.didHideWindow() // windowShouldClose 呼叫的同一入口，不建立 NSWindow。
+            #expect(lifecycle.isWindowHidden)
+            #expect(await model.client.power == .active)
+            video.cancel(with: .normalClosure, reason: nil)
+            let disconnected = try await RemoteTestWaits.state(in: controller.states, hasVideo: false,
+                                                              diagnostics: diagnostics)
+            #expect(!disconnected.hasVideo)
+            #expect(!model.hasActiveRemoteViewer)
+            let powerStates = model.client.powerStates
+            let power = try await RemoteTestWaits.withDeadline("隱藏視窗手機斷線後休眠") {
+                for await state in powerStates {
+                    if state == .suspended { return state }
+                }
+                try Task.checkCancellation()
+                throw RemoteTestWaitError.ended("client.powerStates")
+            }
+            #expect(power == .suspended)
+            #expect(await model.client.power == .suspended)
+        }
+    }
+
 }
