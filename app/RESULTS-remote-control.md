@@ -34,3 +34,13 @@
 - glass-to-glass 延遲未量（要第三台裝置同框拍）。手機端內部 5 ms、往返約 50 ms（Tailscale）；Wi-Fi 直連未量。
 - macOS 防火牆對每次重新打包的 ad-hoc 簽署 app 都會問一次「允許傳入連線」，不按允許就只有本機能連。腳本一律連 127.0.0.1。
 - 驗收線 7 的絕對值 55 這天沒達到（遙控關閉時也只有 46），對照只證明開關差距在容許範圍內。
+
+## 5. 2026-09-12 追加：導覽鍵、文字輸入、疊層收合
+
+iPhone 實測回報畫面、點擊、滑動、雙指縮放都正常，但回主畫面、切換 app、打字做不到，統計疊層一直在。原因與處理：
+
+- Android 手勢導覽要從螢幕邊緣滑，iOS 自己先攔走邊緣手勢（底邊回 iOS 主畫面、頂邊控制中心），網頁收不到。手機頁面底部加「返回／主畫面／最近任務」三顆鍵，經 `/ws/input` 的 `{"type":"key"}` 訊息走 Mac 端既有的 `InputQueue.key` 路徑（down 再 up）。`?nav=0` 可隱藏。
+- 文字：頁面加「⌨︎」鍵叫出 iOS 鍵盤，Return 把整串以 `{"type":"text"}` 送出，接到既有的文字提交路徑（`TextInputPresentation.enqueue`，`origin: "remote"`，與 Mac IME 共用剪貼簿＋Paste 交易與互斥）；上限 4096 個 UTF-16 單元；輸入框為空時 Backspace 送按鍵事件；鍵盤彈出時用 `visualViewport` 縮畫面。
+- 統計疊層點一下收合，狀態存 localStorage；收合時錯誤仍顯示；`?stats=0` 維持完全不顯示。
+
+`verify_remote_mirror.sh` 加三段：R4 送 `GoHome` 後前景是 launcher；R5 送 `AppSwitch` 後 getevent 出現 `KEY_APPSELECT` DOWN／UP（Pixel 的最近任務由 launcher activity 自己畫，前景不會變，第一版用前景判是錯的）；R6 送 `Mirage remote 中文🙂 hello` 到設定搜尋欄位（`com.google.android.settings.intelligence/.modules.search.SearchActivity`）後 uiautomator 回讀逐碼位相等。六段全過。
