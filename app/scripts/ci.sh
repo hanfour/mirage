@@ -317,7 +317,7 @@ else
 fi
 
 echo ""
-echo "=== 閘門 7：十支共用函式庫的自我測試 ==="
+echo "=== 閘門 7：共用函式庫的自我測試 ==="
 if /bin/bash ./scripts/lib/wake_selftest.sh; then
     ok "wake 輪詢與五條故障注入通過"
 else
@@ -407,6 +407,13 @@ else
 fi
 
 echo ""
+if /bin/bash ./scripts/lib/remote_fps_stats_selftest.sh; then
+    ok "remote_fps_stats.sh 摘要、值域與 viewer 窗口自我測試通過"
+else
+    fail "remote_fps_stats.sh 純函式自我測試失敗"
+fi
+
+echo ""
 echo "=== 閘門 8：Python 測試（phase0/harness 與 tools/probe）==="
 if python3 ./scripts/lib/host_ime_acceptance_test.py; then
     ok "host IME 精確欄位驗收器負對照通過"
@@ -450,7 +457,7 @@ fi
 echo ""
 echo "======================================"
 if [ "$FAILURES" -eq 0 ]; then
-    echo "全部通過（$RUNS 次跑次、0 行 NIO ERROR、無假 skip、無全形標點陷阱、無永不紅的 #expect、provision 測試綠、十支共用函式庫自我測試（verify_common／audio_stats／load_sentinel／guest_fps／gui_session／backpressure／input_latency／wake／getevent_touch／emu_instances）皆綠、phase0/harness 與 tools/probe pytest 綠、閘門 9 async Tu context 大小一致）"
+    echo "全部通過（$RUNS 次跑次、0 行 NIO ERROR、無假 skip、無全形標點陷阱、無永不紅的 #expect、provision 測試綠、共用函式庫自我測試（remote_fps_stats／verify_common／audio_stats／load_sentinel／guest_fps／gui_session／backpressure／input_latency／wake／getevent_touch／emu_instances）皆綠、remote_client unittest、phase0/harness 與 tools/probe pytest 綠、閘門 9 async Tu context 大小一致）"
     exit 0
 fi
 echo "$FAILURES 項失敗"

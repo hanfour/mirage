@@ -18,9 +18,10 @@
 # 模擬器在這個畫面下本來就到不了 55。
 #
 # 用法：
-#   ./scripts/verify_fps_fullscreen.sh                       # 預設 5556/8556/Pixel Flow，3 輪各 20 秒
+#   ./scripts/verify_fps_fullscreen.sh                       # 預設 5554/8554/Pixel Flow，5 輪各 20 秒
 #   ./scripts/verify_fps_fullscreen.sh -r 5 -d 30
 #   ./scripts/verify_fps_fullscreen.sh -q 2                  # 啟用深度 2 幀佇列
+#   ./scripts/verify_fps_fullscreen.sh -E MIRAGE_REMOTE=1   # 可重複 -E KEY=VAL
 #   ./scripts/verify_fps_fullscreen.sh -A                   # latest 與 queue2 交錯量測
 #
 # 前置：
@@ -39,9 +40,10 @@ source "$(dirname "$0")/lib/verify_common.sh"
 source "$(dirname "$0")/lib/gui_session.sh"
 source "$(dirname "$0")/lib/load_sentinel.sh"
 source "$(dirname "$0")/lib/guest_fps.sh"
+source "$(dirname "$0")/lib/remote_fps_stats.sh"
 
-SERIAL="emulator-5556"
-GRPC_PORT="8556"
+SERIAL="emulator-5554"
+GRPC_PORT="8554"
 PACKAGE="com.loomgames.pixelflow"
 # D56：預設從 3 提到 5。guest 門檻會淘汰掉一部分輪次（那些輪次的 emulator 本來就
 # 沒產出足夠的幀，量到的 Mirage 數字對驗收線 7 沒有鑑別力），所以要多備幾輪才湊得到
@@ -88,9 +90,11 @@ FULLSCREEN_MIN_WIDTH="${FULLSCREEN_MIN_WIDTH:-$FULLSCREEN_CALIBRATED_MIN_WIDTH}"
 FULLSCREEN_CALIBRATED_MARGIN=$((FULLSCREEN_CALIBRATED_MAX_WIDTH - FULLSCREEN_CALIBRATED_WINDOW_MAX_WIDTH))
 
 QUEUE_DEPTH=""
+# bash 3.2／set -u：空陣列使用條件展開。
+EXTRA_ENV=()
 AB_MODE=0
 
-while getopts "s:p:g:r:d:l:F:hq:A" opt; do
+while getopts "s:p:g:r:d:l:F:hq:AE:" opt; do
   case "$opt" in
     s) SERIAL="$OPTARG" ;;
     p) GRPC_PORT="$OPTARG" ;;
@@ -99,10 +103,11 @@ while getopts "s:p:g:r:d:l:F:hq:A" opt; do
     d) DURATION="$OPTARG" ;;
     l) LOAD_LIMIT="$OPTARG" ;;
     F) FOREIGN_LIMIT="$OPTARG" ;;
+    E) EXTRA_ENV+=("$OPTARG") ;;
     q) QUEUE_DEPTH="$OPTARG" ;;
     A) AB_MODE=1 ;;
     h) sed -n '2,25p' "$0"; exit 0 ;;
-    *) echo "用法：$0 [-s serial] [-p port] [-g package] [-r rounds] [-d seconds] [-l load上限] [-F 外來CPU上限] [-q depth] [-A]" >&2; exit 2 ;;
+    *) echo "用法：$0 [-s serial] [-p port] [-g package] [-r rounds] [-d seconds] [-l load上限] [-F 外來CPU上限] [-E KEY=VAL] [-q depth] [-A]" >&2; exit 2 ;;
   esac
 done
 
@@ -413,13 +418,15 @@ run_ab_sink() {
         if [ "$sink" = "queue2" ]; then
             if ! gui_session_start "$log" "$bundle" "" \
                     "MIRAGE_PORT=$GRPC_PORT" "MIRAGE_FPS_LOG=1" "MIRAGE_CONN_LOG=1" \
-                    "MIRAGE_FRAME_QUEUE=2" "MIRAGE_LATENCY_LOG=1"; then
+                    "MIRAGE_FRAME_QUEUE=2" "MIRAGE_LATENCY_LOG=1" \
+                    ${EXTRA_ENV[@]+"${EXTRA_ENV[@]}"}; then
                 gui_session_cleanup "$bundle"; rm -f "$log"; exit 1
             fi
         else
             if ! gui_session_start "$log" "$bundle" "" \
                     "MIRAGE_PORT=$GRPC_PORT" "MIRAGE_FPS_LOG=1" "MIRAGE_CONN_LOG=1" \
-                    "MIRAGE_LATENCY_LOG=1"; then
+                    "MIRAGE_LATENCY_LOG=1" \
+                    ${EXTRA_ENV[@]+"${EXTRA_ENV[@]}"}; then
                 gui_session_cleanup "$bundle"; rm -f "$log"; exit 1
             fi
         fi
@@ -693,12 +700,14 @@ for round in $(seq 1 "$ROUNDS"); do
         if [ -n "$QUEUE_DEPTH" ]; then
             if ! gui_session_start "$LOG" "$BUNDLE" "" \
                     "MIRAGE_PORT=$GRPC_PORT" "MIRAGE_FPS_LOG=1" "MIRAGE_CONN_LOG=1" \
-                    "MIRAGE_FRAME_QUEUE=$QUEUE_DEPTH" "MIRAGE_LATENCY_LOG=1"; then
+                    "MIRAGE_FRAME_QUEUE=$QUEUE_DEPTH" "MIRAGE_LATENCY_LOG=1" \
+                    ${EXTRA_ENV[@]+"${EXTRA_ENV[@]}"}; then
                 gui_session_cleanup "$BUNDLE"; rm -f "$LOG"; exit 1
             fi
         else
             if ! gui_session_start "$LOG" "$BUNDLE" "" \
-                    "MIRAGE_PORT=$GRPC_PORT" "MIRAGE_FPS_LOG=1" "MIRAGE_CONN_LOG=1"; then
+                    "MIRAGE_PORT=$GRPC_PORT" "MIRAGE_FPS_LOG=1" "MIRAGE_CONN_LOG=1" \
+                    ${EXTRA_ENV[@]+"${EXTRA_ENV[@]}"}; then
                 gui_session_cleanup "$BUNDLE"; rm -f "$LOG"; exit 1
             fi
         fi
@@ -732,6 +741,19 @@ for round in $(seq 1 "$ROUNDS"); do
     # **guest 的量測窗口必須與這裡的擷取窗口是同一段**（D56／D48 限制）。前一版把
     # timestats 開在整個跑次外層，量到的 241 秒窗口涵蓋三輪＋輪次間隔＋App 啟動＋
     # 一次 65.83 秒的重編——那個平均值不能與任何單輪的 Mirage 數字比較。
+    # 由 verify_remote_fps.sh 開啟；必須先看到 viewer 持續收幀才開始窗口。
+    if [ -n "${REMOTE_VIEWER_LOG:-}" ]; then
+        VIEWER_READY=0
+        for viewer_poll in $(seq 1 20); do
+            VIEWER_NOW=$(date +%s)
+            if remote_viewer_window_ok "$((VIEWER_NOW - 2))" "$VIEWER_NOW" < "$REMOTE_VIEWER_LOG"; then
+                VIEWER_READY=1; break
+            fi
+            sleep 1
+        done
+        [ "$VIEWER_READY" -eq 1 ] || { echo "❌ viewer 未持續收幀：${REMOTE_VIEWER_LOG}"; gui_session_cleanup "$BUNDLE"; exit 1; }
+    fi
+    if [ -n "${REMOTE_VIEWER_LOG:-}" ]; then REMOTE_WINDOW_START=$(date +%s); fi
     BEFORE=$(fps_samples "$LOG")
     guest_window_start "$SERIAL"
     # D50：擷取窗口內每 2 秒取樣一次 load average，回報峰值。
@@ -740,6 +762,12 @@ for round in $(seq 1 "$ROUNDS"); do
     # 當時是靠人工比對既有基準才被識別的。
     WINDOW_PEAK=$(load_watch_sleep "$DURATION" 2)
     GUEST_RAW=$(guest_window_end "$SERIAL" "$PACKAGE") || GUEST_RAW=""
+    if [ -n "${REMOTE_VIEWER_LOG:-}" ]; then
+        REMOTE_WINDOW_END=$(date +%s)
+        remote_viewer_window_ok "$REMOTE_WINDOW_START" "$REMOTE_WINDOW_END" < "$REMOTE_VIEWER_LOG" || {
+            echo "❌ viewer 沒有覆蓋整個量測窗口：${REMOTE_VIEWER_LOG}"; gui_session_cleanup "$BUNDLE"; exit 1;
+        }
+    fi
     # `mirage=M` 的取樣母體含全螢幕收斂期。既有 `fps_median` 沒有跳過參數，這是既有
     # 行為，本任務不動判定；`arrived`、`dropped`、`presented` 只含量測窗口。
     # 兩者不是同一個窗口，逐輪不能直接相減。

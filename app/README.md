@@ -462,3 +462,63 @@ extension）、`AppDelegate`、`KeymapController`、`AdbClient`、`GameDetector`
   退出碼 0 代表上述三段判定通過；腳本未驅動 GUI 選單，也未驗證同一個 App client 的
   端點切換。選單勾選、畫面切換與按鍵送至新目標仍需人工端到端驗收。
   實例純函式自我測試在 `scripts/lib/emu_selftest.sh`（`ci.sh` 閘門 7）。
+
+## 手機遙控（區域網路）
+
+iPhone Safari 可作為 Mirage 的觸控第二螢幕：Mac 用 VideoToolbox 硬體編碼 H.264，
+經 WebSocket 送到手機的 `VideoDecoder`，觸控經既有 `InputQueue` 注入。
+見[設計文件](../docs/specs/2026-09-12-lan-remote-control-design.md)。第一版以 iPhone 為目標；
+Android Chrome 需要 HTTPS。
+
+- **開啟與配對**：選單列 🪞 →「手機遙控」→「開啟手機遙控」，手機掃描子選單 QR
+  或輸入顯示的網址（點網址可複製）。「中斷連線」會作廢 token 並產生新網址；
+  「關閉手機遙控」恢復原本幀路徑。開啟／關閉會重連 emulator，中斷手機連線不會。
+- **關閉 Mac 視窗**：有手機連線時只隱藏視窗，串流繼續。
+- **錯誤**：埠被佔用或硬體編碼器建立失敗時，選單顯示錯誤，不退回軟體編碼。
+- **腳本環境變數**：`MIRAGE_REMOTE=1` 啟動即開、`MIRAGE_REMOTE_PORT` 預設 8765、
+  `MIRAGE_REMOTE_TOKEN` 為 32 個小寫十六進位字元（不合法時另產生 token）。
+  stdout 印 `[remote] listening port=<n> 已可連線`，不印 token；腳本自行產生並傳入 token。
+
+在 `app/` 執行，兩支遙控腳本僅接受已啟動的 `emulator-5554`／gRPC `8554`（mirage-game），
+不啟停模擬器。遊戲須處於持續變動的畫面、Mac 螢幕未鎖定。
+腳本透過 `package_app.sh` 與 `gui_session_start` 打包、以 `open -n --env ... --stdout ...` 啟動。
+重新打包的 ad-hoc 簽署 App 可能觸發防火牆詢問；腳本固定連 **127.0.0.1**。
+手機從 LAN 連入時則需允許 App 的傳入連線。
+
+```bash
+# 活體：Swift 編碼器／觸控路徑測試，接著驗 keyframe、幀序與 guest 觸控
+./scripts/verify_remote_mirror.sh
+./scripts/verify_remote_mirror.sh -P 8770 -w 60 -d 10
+
+# fps：關、開、關、開，每次預設 2 輪、每輪 20 秒
+./scripts/verify_remote_fps.sh
+./scripts/verify_remote_fps.sh -P 8770 -r 4 -d 20
+
+# 底層 fps 腳本可重複傳入 App 環境變數（本例開啟遙控；viewer 另行連線）
+./scripts/verify_fps_fullscreen.sh -s emulator-5554 -p 8554 -E MIRAGE_REMOTE=1 -E MIRAGE_REMOTE_PORT=8770
+
+# 純函式測試（不需要 websockets、App 或模擬器）
+python3 -m unittest discover -s scripts/lib -p remote_client_selftest.py
+/bin/bash scripts/lib/remote_fps_stats_selftest.sh
+```
+
+`remote_venv.sh` 首次執行以 `/usr/bin/python3 -m venv` 建 `scripts/.venv-remote`，安裝
+`websockets>=15,<16`；既有 `.venv*/` 忽略規則已涵蓋。Python 程式相容 3.9／3.11 與
+websockets 13／15，純函式測試納入 CI 閘門 8；shell 摘要、值域及 viewer 窗口測試納入閘門 7。
+
+活體腳本先確認 Swift 測試真正 passed，再分別用 `getevent_touch.sh` 檢查 Swift 與 GUI 路徑的
+`ABS_MT_TRACKING_ID` 按下／放開且無卡住 slot。Python 用戶端須在 60 秒內收到 keyframe，
+幀序無缺口、實際送出三則 down/move/up，且 ping 原封 echo。stdout 會列出 App、Swift、
+getevent 與 Python 紀錄位置（Swift 的 getevent 副本為該路徑加 `.swift`）。
+可依計畫暫將 `touch_messages` 改為只回 down，確認 R3 紅燈後還原、重跑。
+
+fps 對照每臂取得兩次有效摘要，取兩個中位數的較低者，比較 **ON_MEDIAN ≥ OFF_MEDIAN − 3**；
+兩臂各需至少 2 個有效輪次。保留四次 log 並印 `OFF_VALUES`／`ON_VALUES` 與值域。
+底層的絕對 55 fps 門檻另行解讀，但尺寸未收斂、無有效摘要、異常退出不採計。
+開啟臂由 `remote_client.py --loop` 重連；每秒收幀紀錄須涵蓋每個量測窗口（端點容許 2 秒、
+內部間隔最多 3 秒，窗口中斷線即失敗），避免 viewer 未工作時得到假對照。
+兩臂值域交集大於 3 fps 會警告，請加 `-r 4` 重跑；通過只代表該次抽樣。
+
+**驗證狀態（2026-09-12）**：本次僅執行純函式測試、shell 語法檢查與閘門 4 的兩段 lint。
+Swift 編譯、新增的觸控活體測試、兩次 GUI 活體、活體故障注入、fps 對照及完整 CI 由 PM 外部執行；
+尚無本次 OFF_VALUES／ON_VALUES 實測數字。階段 E 的 iPhone glass-to-glass 人工量測（門檻 50 ms）亦未做。

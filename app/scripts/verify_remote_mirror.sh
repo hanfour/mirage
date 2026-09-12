@@ -36,7 +36,7 @@ while getopts "s:p:g:P:w:d:h" opt; do
     P) REMOTE_PORT="$OPTARG" ;;
     w) WAIT_KEYFRAME="$OPTARG" ;;
     d) DURATION="$OPTARG" ;;
-    h) sed -n '2,17p' "$0"; exit 0 ;;
+    h) sed -n '2,/^set /{ /^#/p; }' "$0"; exit 0 ;;
     *) echo "用法：$0 [-s serial] [-p grpc_port] [-g package] [-P remote_port] [-w keyframe_wait] [-d seconds]" >&2; exit 2 ;;
   esac
 done

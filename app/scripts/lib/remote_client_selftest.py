@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
 """remote_client.py 純函式的自我測試：不需要 websockets、不需要模擬器（ci.sh 閘門 8）。"""
+import asyncio
+import contextlib
+import io
 import json
 import struct
 import sys
@@ -110,6 +113,36 @@ class TouchTransportTests(unittest.IsolatedAsyncioTestCase):
             await rc.send_touch(args, results)
         self.assertEqual(results["TOUCH_SENT"], 1)
         self.assertEqual(results["PING_ECHO_OK"], 0)
+
+
+class LoopTransportTests(unittest.IsolatedAsyncioTestCase):
+    async def test_loop_records_valid_frames_and_disconnect_without_touch(self):
+        class Socket:
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, *args):
+                pass
+
+            def __aiter__(self):
+                return self.messages()
+
+            async def messages(self):
+                yield "ignored text"
+                yield rc.HEADER.pack(1, 1, 1) + b"\x00\x00\x01\x65"
+                yield rc.HEADER.pack(2, 2, 0) + b"\x00\x00\x01\x41"
+
+        modules = {"websockets.asyncio.client": SimpleNamespace(connect=lambda *a, **k: Socket())}
+        args = SimpleNamespace(host="127.0.0.1", port=8765, token="a")
+        output = io.StringIO()
+        with patch.dict(sys.modules, modules), patch.object(rc, "connect_options", return_value={}), \
+                patch.object(rc.time, "time", side_effect=[100, 101, 102]), \
+                patch.object(rc.asyncio, "sleep", side_effect=asyncio.CancelledError), \
+                contextlib.redirect_stdout(output):
+            with self.assertRaises(asyncio.CancelledError):
+                await rc.loop_forever(args)
+        self.assertEqual(output.getvalue().splitlines(),
+                         ["LOOP_FRAME=100", "LOOP_FRAME=101", "LOOP_DISCONNECTED=102"])
 
 
 if __name__ == "__main__":

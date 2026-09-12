@@ -129,13 +129,23 @@ async def send_touch(args, results):
 async def loop_forever(args):
     from websockets.asyncio.client import connect
 
+    last_report = -1
     while True:
         try:
             async with connect(video_url(args.host, args.port, args.token), max_size=None, **connect_options()) as video:
-                async for _ in video:
-                    pass
-        except Exception:                      # App 重啟中：等一下再連
-            await asyncio.sleep(0.5)
+                async for message in video:
+                    if not isinstance(message, bytes):
+                        continue
+                    parse_header(message)
+                    second = int(time.time())
+                    if second != last_report:
+                        print(f"LOOP_FRAME={second}", flush=True)
+                        last_report = second
+            print(f"LOOP_DISCONNECTED={int(time.time())}", flush=True)
+        except Exception as error:             # App 重啟中：等一下再連
+            print(f"LOOP_DISCONNECTED={int(time.time())}", flush=True)
+            print(f"viewer reconnect: {type(error).__name__}", file=sys.stderr, flush=True)
+        await asyncio.sleep(0.5)
 
 
 async def main(args) -> int:
