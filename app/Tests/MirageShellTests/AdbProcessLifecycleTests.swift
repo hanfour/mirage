@@ -49,8 +49,17 @@ struct AdbProcessLifecycleTests {
             try await Task.sleep(for: .milliseconds(10))
         }
         #expect(drains.value == 20)
-        let pairs = try fixture.processPairs()
-        #expect(pairs.count == 20) // 防止 fixture 根本沒啟動也被當成逾時通過。
+        let pairsWaitStart = ContinuousClock.now
+        let pairsDeadline = pairsWaitStart.advanced(by: .seconds(2))
+        var pairs = try fixture.processPairs()
+        while pairs.count < 20 && ContinuousClock.now < pairsDeadline {
+            try await Task.sleep(for: .milliseconds(10))
+            pairs = try fixture.processPairs()
+        }
+        let waited = pairsWaitStart.duration(to: .now)
+        let waitedSeconds = Double(waited.components.seconds) + Double(waited.components.attoseconds) / 1e18
+        // 防止 fixture 根本沒啟動也被當成逾時通過；等待到期仍保留失敗。
+        #expect(pairs.count == 20, "fixture PID 記錄實際 \(pairs.count)/20，已等待 \(waitedSeconds) 秒（上限 2 秒）")
         // writer 仍存活時就量 fd，不能先清理 fixture 讓 EOF 幫忙收尾。
         for pair in pairs { #expect(Darwin.kill(pair.child, 0) == 0) }
         let after = try openFDCount()
