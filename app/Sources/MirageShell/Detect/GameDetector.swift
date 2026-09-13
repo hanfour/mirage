@@ -3,6 +3,24 @@ import AppKit
 /// 偵測器只需要前景查詢能力，行程執行由實作負責。
 protocol ForegroundPackageProviding: Sendable {
     func dumpsysForegroundPackage(timeout: Duration) async -> String?
+    func foregroundResult(timeout: Duration) async -> ForegroundResult
+}
+
+enum ForegroundResult: Sendable {
+    case success(String?)
+    case timeout
+    case failure
+
+    var package: String? {
+        if case .success(let package) = self { return package }
+        return nil
+    }
+}
+
+extension ForegroundPackageProviding {
+    func foregroundResult(timeout: Duration) async -> ForegroundResult {
+        .success(await dumpsysForegroundPackage(timeout: timeout))
+    }
 }
 
 extension AdbClient: ForegroundPackageProviding {}
@@ -16,6 +34,9 @@ final class GameDetector {
     private var timer: Timer?
     private var last: String??            // 尚未偵測=nil；已偵測=Optional(package/nil)
     private var polling = false
+    private(set) var consecutiveTimeouts = 0
+    var scheduledPollingInterval: TimeInterval? { timer?.timeInterval }
+    var pollingInterval: TimeInterval { consecutiveTimeouts >= 3 ? max(interval, 10) : interval }
 
     init(adb: any ForegroundPackageProviding, interval: Duration = .milliseconds(1500),
          onChange: @escaping (String?) -> Void) {
@@ -26,6 +47,12 @@ final class GameDetector {
 
     func start() {
         stop()
+        scheduleTimer()
+    }
+
+    private func scheduleTimer() {
+        timer?.invalidate()
+        let interval = pollingInterval
         // ADAPTATION (-strict-concurrency=complete): 同 P1-b ClipboardWatcher——Timer 的
         // block 參數是 `@escaping @Sendable (Timer) -> Void`，但 tick() 是 @MainActor
         // 隔離且會變動非 Sendable 狀態（polling/timer/last）。閉包只捕捉 weak self（跨界
@@ -46,9 +73,24 @@ final class GameDetector {
         polling = true
         let adb = self.adb
         return Task { @MainActor [weak self] in
-            let pkg = await adb.dumpsysForegroundPackage(timeout: .seconds(2))
+            let result = await adb.foregroundResult(timeout: .seconds(2))
             defer { self?.polling = false }
             guard let self else { return }
+            let previousInterval = self.pollingInterval
+            let previousTimeouts = self.consecutiveTimeouts
+            switch result {
+            case .timeout:
+                self.consecutiveTimeouts = min(self.consecutiveTimeouts + 1, 3)
+                if self.consecutiveTimeouts == 3 && previousTimeouts < 3 {
+                    NSLog("[adb] 連續三次逾時，前景輪詢間隔調整為 %.1f 秒", self.pollingInterval)
+                }
+            case .success: self.consecutiveTimeouts = 0
+            case .failure:
+                // 一般失敗不算逾時；已進入退避則等成功才恢復。
+                if self.consecutiveTimeouts < 3 { self.consecutiveTimeouts = 0 }
+            }
+            if previousInterval != self.pollingInterval && self.timer != nil { self.scheduleTimer() }
+            let pkg = result.package
             if self.last == nil || self.last! != pkg {   // 首次或變動
                 self.last = pkg
                 self.onChange(pkg)
