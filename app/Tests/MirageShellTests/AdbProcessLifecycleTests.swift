@@ -32,8 +32,10 @@ struct AdbProcessLifecycleTests {
         )
         #expect(warmup?.exit == 0)
         let before = try openFDCount()
-        let timeout: Duration = .milliseconds(200)
-        for _ in 0..<20 {
+        // 200 ms 在冷啟動並行負載下 shell 來不及登記 PID，實測第 1 跑次 18/20。
+        // 放寬為一秒並改跑十次；每次約洩漏三個 fd，仍遠超 fd 差 < 10 的門檻。
+        let timeout: Duration = .seconds(1)
+        for _ in 0..<10 {
             let start = ContinuousClock.now
             let result = await AdbClient.runProcess(
                 fixture.executable, [fixture.pids.path], timeout, true,
@@ -45,21 +47,21 @@ struct AdbProcessLifecycleTests {
             #expect(elapsed < timeout + .seconds(1))
         }
         let deadline = ContinuousClock.now.advanced(by: .seconds(1))
-        while drains.value < 20 && ContinuousClock.now < deadline {
+        while drains.value < 10 && ContinuousClock.now < deadline {
             try await Task.sleep(for: .milliseconds(10))
         }
-        #expect(drains.value == 20)
+        #expect(drains.value == 10)
         let pairsWaitStart = ContinuousClock.now
         let pairsDeadline = pairsWaitStart.advanced(by: .seconds(10))
         var pairs = try fixture.processPairs()
-        while pairs.count < 20 && ContinuousClock.now < pairsDeadline {
+        while pairs.count < 10 && ContinuousClock.now < pairsDeadline {
             try await Task.sleep(for: .milliseconds(10))
             pairs = try fixture.processPairs()
         }
         let waited = pairsWaitStart.duration(to: .now)
         let waitedSeconds = Double(waited.components.seconds) + Double(waited.components.attoseconds) / 1e18
         // 防止 fixture 根本沒啟動也被當成逾時通過；等待到期仍保留失敗。
-        #expect(pairs.count == 20, "fixture PID 記錄實際 \(pairs.count)/20，已等待 \(waitedSeconds) 秒（上限 10 秒）")
+        #expect(pairs.count == 10, "fixture PID 記錄實際 \(pairs.count)/10，已等待 \(waitedSeconds) 秒（上限 10 秒）")
         // writer 仍存活時就量 fd，不能先清理 fixture 讓 EOF 幫忙收尾。
         for pair in pairs { #expect(Darwin.kill(pair.child, 0) == 0) }
         let after = try openFDCount()
