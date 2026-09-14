@@ -314,3 +314,38 @@ test('stats interval stops after either socket exhausts retries and restarts exa
     assert.ok(h.sockets[3].sent.some(s => JSON.parse(s).type === 'ping'));
   }
 });
+
+test('client stats report measured RTT, total drops and elapsed decode FPS even with stats hidden', async () => {
+  const h = harness({immediateOutput:true, search:'?t=abc&stats=0'});
+  h.sockets[0].onopen(); h.sockets[1].onopen();
+  const input = h.sockets[1];
+  const reports = () => input.sent.map(JSON.parse).filter(x => x.type === 'client-stats');
+  h.receive(1);
+  await h.advance(1000);
+  assert.equal(reports().length, 0); // 尚無 RTT 時不送 null／NaN。
+  const ping = input.sent.map(JSON.parse).find(x => x.type === 'ping');
+  await h.advance(15);
+  input.onmessage({data:JSON.stringify(ping)});
+  h.receive(4); // 序號 2、3 在網路途中遺失。
+  h.run('localDrops = 2');
+  await h.advance(985);
+  assert.deepEqual(reports(), [{type:'client-stats', rtt:15, dropped:4, decodeFps:1}]);
+  await h.advance(1000);
+  assert.equal(reports()[1].decodeFps, 0);
+  input.bufferedAmount = 65536;
+  await h.advance(1000);
+  assert.equal(reports().length, 2);
+});
+
+test('a new socket pair waits for its own RTT before reporting client stats', async () => {
+  const h = harness({immediateOutput:true});
+  h.sockets[0].onopen(); h.sockets[1].onopen(); h.receive(1);
+  h.run('rtt = 42; reconnectAttempts = 3');
+  h.sockets[0].onclose();
+  h.windowListeners.pageshow();
+  h.sockets[2].onopen(); h.sockets[3].onopen(); h.receive(1);
+  await h.advance(1000);
+  const messages = h.sockets[3].sent.map(JSON.parse);
+  assert.ok(messages.some(x => x.type === 'ping'));
+  assert.ok(messages.every(x => x.type !== 'client-stats'));
+});

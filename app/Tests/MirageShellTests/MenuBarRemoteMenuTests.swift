@@ -24,7 +24,7 @@ import Testing
         let session = RemoteSessionState(phase: .connected, hasVideo: true, hasInput: true)
         populate(menu, RemoteMenu.entries(.on(urls: [url], session: session)), target: target)
 
-        #expect(menu.items.count == 6)
+        #expect(menu.items.count == 7)
         #expect(menu.items[0].title == RemoteMenu.disableTitle)
         #expect(menu.items[0].action == toggle)
         #expect(menu.items[0].target === target)
@@ -33,16 +33,35 @@ import Testing
         #expect(menu.items[2].title == "拉取率上限：30 fps")
         #expect(!menu.items[2].isEnabled)
         #expect(menu.items[2].action == nil)
-        #expect(menu.items[3].title == "網址：\(url)（點一下複製）")
-        #expect(menu.items[3].action == copy)
-        let represented = try #require(menu.items[3].representedObject as? String)
+        #expect(menu.items[3].title == "連線：等待手機回報")
+        #expect(!menu.items[3].isEnabled)
+        #expect(menu.items[3].action == nil)
+        #expect(menu.items[4].title == "網址：\(url)（點一下複製）")
+        #expect(menu.items[4].action == copy)
+        let represented = try #require(menu.items[4].representedObject as? String)
         #expect(represented == url)
-        let view = try #require(menu.items[4].view as? NSImageView)
+        let view = try #require(menu.items[5].view as? NSImageView)
         #expect(view.frame.size == NSSize(width: RemoteMenu.qrSide, height: RemoteMenu.qrSide))
         #expect(view.image != nil)
-        #expect(menu.items[5].title == RemoteMenu.disconnectTitle)
-        #expect(menu.items[5].isEnabled)
-        #expect(menu.items[5].action == disconnect)
+        #expect(menu.items[6].title == RemoteMenu.disconnectTitle)
+        #expect(menu.items[6].isEnabled)
+        #expect(menu.items[6].action == disconnect)
+    }
+
+    @Test func rebuildingMenuReplacesReadOnlyQualityWithLatestReport() throws {
+        let menu = NSMenu(), target = NSObject()
+        let state = RemoteMenuState.on(urls: [], session: .init(phase: .connected, hasVideo: true, hasInput: true))
+        populate(menu, RemoteMenu.entries(state), target: target)
+        for rtt in [15.0, 42.0] {
+            let stats = RemoteClientStats(rtt: rtt, dropped: 2, decodeFps: 30)
+            populate(menu, RemoteMenu.entries(state, clientStats: stats), target: target)
+            let rows = menu.items.filter { $0.title.hasPrefix("連線：") }
+            #expect(rows.count == 1)
+            let row = try #require(rows.first)
+            #expect(row.title == RemoteMenu.connectionText(stats))
+            #expect(!row.isEnabled)
+            #expect(row.action == nil)
+        }
     }
 
     @Test func disabledDisconnectHasNoActionAndOffMenuHasTwoItems() {

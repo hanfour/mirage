@@ -25,11 +25,16 @@ struct RemoteMirrorStats: Sendable, Equatable {
 }
 
 /// server 在 controller 初始化完成前就要綁回呼；弱參照避免循環持有。
-private final class RemoteKeyframeRelay: @unchecked Sendable {
+private final class RemoteControllerRelay: @unchecked Sendable {
     private let lock = NSLock()
     private weak var target: RemoteMirrorController?
 
     func attach(_ controller: RemoteMirrorController) { lock.lock(); target = controller; lock.unlock() }
+
+    func record(_ stats: RemoteClientStats?) {
+        lock.lock(); let controller = target; lock.unlock()
+        controller?.recordClientStats(stats)
+    }
 
     func request() {
         lock.lock(); let controller = target; lock.unlock()
@@ -118,6 +123,7 @@ final class RemoteMirrorController: @unchecked Sendable {
     private var framesPulled = 0
     private var framesEncoded = 0
     private var encodeFailures = 0
+    private var clientStats: RemoteClientStats?
 
     init(configuration: RemoteMirrorConfiguration,
          secondary: LatestFrameBox,
@@ -136,7 +142,7 @@ final class RemoteMirrorController: @unchecked Sendable {
         self.states = states
         self.stateContinuation = continuation
         continuation.yield(.initial)
-        let relay = RemoteKeyframeRelay()
+        let relay = RemoteControllerRelay()
         let server = RemoteServer(
             configuration: RemoteServerConfiguration(host: configuration.host, port: configuration.port,
                                                      token: configuration.token, viewerPage: configuration.viewerPage),
@@ -146,8 +152,10 @@ final class RemoteMirrorController: @unchecked Sendable {
                 inputQueue.key(code, down: true)
                 inputQueue.key(code, down: false)
             },
+            onClientStats: { relay.record($0) },
             onKeyframeRequested: { relay.request() },
             onStateChanged: { state in
+                if !state.hasInput { relay.record(nil) }
                 continuation.yield(state)
                 onStateChanged(state)
             })
@@ -155,6 +163,16 @@ final class RemoteMirrorController: @unchecked Sendable {
         self.sequencer = RemoteAccessUnitSequencer(server: server, inputStatistics: inputQueue.inputStatistics)
         self.encoder = makeEncoder()
         relay.attach(self)
+    }
+
+    var latestClientStats: RemoteClientStats? {
+        lock.lock(); defer { lock.unlock() }
+        return clientStats
+    }
+
+    fileprivate func recordClientStats(_ stats: RemoteClientStats?) {
+        lock.lock(); defer { lock.unlock() }
+        clientStats = stats
     }
 
     var sessionState: RemoteSessionState { server.sessionState }

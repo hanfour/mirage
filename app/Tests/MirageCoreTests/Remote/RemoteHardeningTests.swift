@@ -49,6 +49,33 @@ import Testing
         await server.stop()
     }
 
+    @Test func decodesClientStatsWithoutTouchTimestamp() throws {
+        let result = RemoteTouchMessageDecoder.decode(#"{"type":"client-stats","rtt":15.25,"dropped":2,"decodeFps":29.5}"#)
+        let decoded = try result.get()
+        #expect(decoded == .clientStats(.init(rtt: 15.25, dropped: 2, decodeFps: 29.5)))
+        let zero = RemoteTouchMessageDecoder.decode(#"{"type":"client-stats","rtt":0,"dropped":0,"decodeFps":0}"#)
+        #expect(zero == .success(.clientStats(.init(rtt: 0, dropped: 0, decodeFps: 0))))
+    }
+
+    @Test(arguments: [
+        #"{"type":"client-stats"}"#,
+        #"{"type":"client-stats","rtt":true,"dropped":0,"decodeFps":30}"#,
+        #"{"type":"client-stats","rtt":null,"dropped":0,"decodeFps":30}"#,
+        #"{"type":"client-stats","rtt":"15","dropped":0,"decodeFps":30}"#,
+        #"{"type":"client-stats","rtt":-1,"dropped":0,"decodeFps":30}"#,
+        #"{"type":"client-stats","rtt":15,"dropped":-1,"decodeFps":30}"#,
+        #"{"type":"client-stats","rtt":15,"dropped":0.5,"decodeFps":30}"#,
+        #"{"type":"client-stats","rtt":15,"dropped":true,"decodeFps":30}"#,
+        #"{"type":"client-stats","rtt":15,"dropped":9007199254740992,"decodeFps":30}"#,
+        #"{"type":"client-stats","rtt":15,"dropped":0,"decodeFps":-1}"#,
+        #"{"type":"client-stats","rtt":15,"dropped":0,"decodeFps":false}"#,
+        #"{"type":"client-stats","rtt":1e999,"dropped":0,"decodeFps":30}"#,
+    ]) func rejectsInvalidClientStats(_ text: String) {
+        let decoded = RemoteTouchMessageDecoder.decode(text)
+        if case .failure = decoded { /* 預期：不產生任何輸入效果。 */ }
+        else { Issue.record("非法品質回報被接受：\(text)") }
+    }
+
     private func ping(_ socket: URLSessionWebSocketTask) async throws {
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, any Error>) in
             socket.sendPing { error in

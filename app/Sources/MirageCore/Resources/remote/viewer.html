@@ -241,6 +241,7 @@ function reconnect(reason, immediately = false) {
     if (socket) { socket.onclose = socket.onerror = socket.onmessage = socket.onopen = null; socket.close(); }
   }
   video = input = null;
+  rtt = NaN;
   inputReady = frameReady = false;
   active.clear();
   discardDecoder();

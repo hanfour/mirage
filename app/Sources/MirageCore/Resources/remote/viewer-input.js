@@ -159,13 +159,14 @@ function stopStatsTimer() {
   statsTimer = null;
 }
 function updateStats() {
-  const now = performance.now(), fps = (decoded-lastDecoded)*1000/(now-tick);
+  const now = performance.now(), fps = now > tick ? (decoded-lastDecoded)*1000/(now-tick) : 0;
   lastDecoded = decoded; tick = now;
   const a = samples.sort((x,y)=>x-y); samples = [];
   const text = `${status}\n${codec}; hw=${hw}; secure=${isSecureContext}\ndecode fps=${fps.toFixed(1)} queue=${decoder?.decodeQueueSize ?? '—'} pending=${pending.size}\narrival→output p50/p95=${percentile(a,.5)}/${percentile(a,.95)} ms (n=${a.length})\n${macStatsText()}\nWS RTT=${Number.isFinite(rtt)?rtt.toFixed(1):'—'} ms\ndropped: seq=${gaps} local=${localDrops}; recv=${received}\nlocal reasons=${JSON.stringify(dropReasons)}\ninput unsent=${inputDrops}\n${lastTouch}`;
   if (showStats && !configurationFailed) { panel.textContent = text;
     note(text);
   }
+  if (Number.isFinite(rtt)) send({type:'client-stats', rtt, dropped:gaps + localDrops, decodeFps:fps});
   send({type:'ping', t:performance.now()});
 }
 startStatsTimer();

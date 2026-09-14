@@ -26,7 +26,8 @@ enum RemoteMenu {
     static let qrSide: CGFloat = 176
 
     static func entries(_ state: RemoteMenuState,
-                        pullInterval: Duration = .nanoseconds(1_000_000_000 / 30)) -> [RemoteMenuEntry] {
+                        pullInterval: Duration = .nanoseconds(1_000_000_000 / 30),
+                        clientStats: RemoteClientStats? = nil) -> [RemoteMenuEntry] {
         switch state {
         case .off:
             return [.toggle(title: enableTitle), .status("狀態：未開啟")]
@@ -37,9 +38,15 @@ enum RemoteMenu {
                 ? [.status(noAddressText)]
                 : urls.map { .url($0) } + [.qr(urls[0])]
             return [.toggle(title: disableTitle), .status(statusText(session)), .status(pullRateText(pullInterval))]
+                + (session.isViewerConnected ? [.status(connectionText(clientStats))] : [])
                 + addresses
                 + [.disconnect(enabled: session.isViewerConnected)]
         }
+    }
+
+    static func connectionText(_ stats: RemoteClientStats?) -> String {
+        guard let stats else { return "連線：等待手機回報" }
+        return "連線：RTT \(String(format: "%.0f", stats.rtt)) ms · 丟幀 \(stats.dropped) · \(String(format: "%.0f", stats.decodeFps)) fps"
     }
 
     static func pullRateText(_ interval: Duration) -> String {

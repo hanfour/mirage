@@ -123,8 +123,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         audioHealthItem.isHidden = state != .degraded
     }
 
-    /// 兩個子選單都在展開前重算：「套用 profile」掃 profile 目錄、「切換模擬器」掃探索檔。
-    /// 兩者都是「選單即時反映磁碟狀態」，不在 init 建一次。
+    /// 子選單展開前重算：profile／模擬器讀磁碟，手機遙控讀目前狀態與最新品質回報。
     func menuNeedsUpdate(_ menu: NSMenu) {
         if menu === remoteMenu {
             Self.populate(remoteMenu: remoteMenu, entries: remoteEntries?() ?? RemoteMenu.entries(.off),

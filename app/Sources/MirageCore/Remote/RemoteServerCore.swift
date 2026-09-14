@@ -17,6 +17,7 @@ final class RemoteServerCore: @unchecked Sendable {
     private let onText: @Sendable (String) -> Void
     private let onKey: @Sendable (KeyCode) -> Void
     private let onTouches: @Sendable ([TouchSpec]) -> Void
+    private let onClientStats: @Sendable (RemoteClientStats) -> Void
     private let onKeyframeRequested: @Sendable () -> Void
     private let onStateChanged: @Sendable (RemoteSessionState) -> Void
     private let now: @Sendable () -> ContinuousClock.Instant
@@ -48,11 +49,13 @@ final class RemoteServerCore: @unchecked Sendable {
          onTouches: @escaping @Sendable ([TouchSpec]) -> Void,
          onText: @escaping @Sendable (String) -> Void = { _ in },
          onKey: @escaping @Sendable (KeyCode) -> Void = { _ in },
+         onClientStats: @escaping @Sendable (RemoteClientStats) -> Void = { _ in },
          onKeyframeRequested: @escaping @Sendable () -> Void,
          onStateChanged: @escaping @Sendable (RemoteSessionState) -> Void,
          now: @escaping @Sendable () -> ContinuousClock.Instant)
     {
         self.configuration = configuration
+        self.onClientStats = onClientStats
         self.onTouches = onTouches
         self.onKey = onKey
         self.onText = onText
@@ -274,6 +277,12 @@ final class RemoteServerCore: @unchecked Sendable {
         lock.lock()
         guard !stopped, kinds[channelID] == .input else { lock.unlock(); return nil }
         switch decoded {
+        case .success(.clientStats(let stats)):
+            let onClientStats = self.onClientStats
+            pendingEffects.append { onClientStats(stats) }
+            lock.unlock()
+            performEffects()
+            return nil
         case .success(.ping):
             lock.unlock()
             return text

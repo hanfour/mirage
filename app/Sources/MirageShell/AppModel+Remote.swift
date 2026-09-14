@@ -14,7 +14,8 @@ extension AppModel {
     func setupRemoteMenu() {
         menuBar?.remoteEntries = { [weak self] in
             RemoteMenu.entries(self?.remoteMenuState ?? .off,
-                               pullInterval: self?.remote?.pullInterval ?? .nanoseconds(1_000_000_000 / 30))
+                               pullInterval: self?.remote?.pullInterval ?? .nanoseconds(1_000_000_000 / 30),
+                               clientStats: self?.remote?.latestClientStats)
         }
         menuBar?.onToggleRemote = { [weak self] in Task { @MainActor in await self?.toggleRemote() } }
         menuBar?.onDisconnectRemote = { [weak self] in Task { @MainActor in await self?.disconnectRemoteViewer() } }

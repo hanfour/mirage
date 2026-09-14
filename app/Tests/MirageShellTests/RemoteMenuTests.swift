@@ -5,6 +5,17 @@ import Testing
 @Suite struct RemoteMenuTests {
     private let urls = ["http://192.168.1.61:8765/?t=aa", "http://100.1.1.1:8765/?t=aa"]
 
+    @Test func connectionQualityUsesLatestReportOnlyWhileConnected() {
+        let connected = RemoteSessionState(phase: .connected, hasVideo: true, hasInput: true)
+        let state = RemoteMenuState.on(urls: urls, session: connected)
+        #expect(RemoteMenu.entries(state).contains(.status("連線：等待手機回報")))
+        let stats = RemoteClientStats(rtt: 15.2, dropped: 0, decodeFps: 29.8)
+        #expect(RemoteMenu.entries(state, clientStats: stats).contains(.status("連線：RTT 15 ms · 丟幀 0 · 30 fps")))
+        let idle = RemoteMenu.entries(.on(urls: urls, session: .initial), clientStats: stats)
+        #expect(!idle.contains(.status(RemoteMenu.connectionText(stats))))
+        #expect(RemoteMenu.connectionText(.init(rtt: 0, dropped: 12, decodeFps: 0)) == "連線：RTT 0 ms · 丟幀 12 · 0 fps")
+    }
+
     @Test(arguments: [5, 30, 60]) func showsActualPullRate(_ fps: Int) {
         let entries = RemoteMenu.entries(.on(urls: urls, session: .initial),
                                          pullInterval: .nanoseconds(1_000_000_000 / Int64(fps)))

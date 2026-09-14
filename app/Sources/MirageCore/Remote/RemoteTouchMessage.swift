@@ -23,8 +23,22 @@ public struct RemoteTouchMessage: Sendable, Equatable {
     public var isDown: Bool { phase == .down || phase == .move }
 }
 
+/// viewer 每秒回報的連線品質；RTT 為毫秒，丟幀為此頁面累積的 seq＋local。
+public struct RemoteClientStats: Sendable, Equatable {
+    public let rtt: Double
+    public let dropped: Int
+    public let decodeFps: Double
+
+    public init(rtt: Double, dropped: Int, decodeFps: Double) {
+        self.rtt = rtt
+        self.dropped = dropped
+        self.decodeFps = decodeFps
+    }
+}
+
 public enum RemoteInputMessage: Sendable, Equatable {
     case ping
+    case clientStats(RemoteClientStats)
     case key(KeyCode, time: Double)
     case text(String, time: Double)
     case touch(RemoteTouchMessage)
@@ -41,6 +55,7 @@ public enum RemoteInputDecodeError: Error, Equatable {
     case invalidText
     case invalidTime
     case invalidPoints
+    case invalidClientStats
 }
 
 /// `/ws/input` 文字訊息 → `RemoteInputMessage`。純函式：不 log、不計數、不拋例外，
@@ -55,6 +70,7 @@ public enum RemoteTouchMessageDecoder {
               let fields = object as? [String: Any]
         else { return .failure(.notJSON) }
         guard let type = fields["type"] as? String else { return .failure(.missingField("type")) }
+        if type == "client-stats" { return clientStats(fields) }
         if type == pingType { return .success(.ping) }
         if type == "text" { return textCommit(fields) }
         if type == "key" { return navigationKey(fields) }
@@ -70,6 +86,16 @@ public enum RemoteTouchMessageDecoder {
                 }
             }
         }
+    }
+
+    /// 排除 bool、字串、負值與非有限數；丟幀須為 JavaScript 安全整數，轉 Int 不溢位。
+    private static func clientStats(_ fields: [String: Any]) -> Result<RemoteInputMessage, RemoteInputDecodeError> {
+        guard let rtt = number(fields["rtt"]), rtt >= 0,
+              let dropped = number(fields["dropped"]), dropped >= 0,
+              dropped <= 9_007_199_254_740_991, dropped == dropped.rounded(),
+              let fps = number(fields["decodeFps"]), fps >= 0
+        else { return .failure(.invalidClientStats) }
+        return .success(.clientStats(RemoteClientStats(rtt: rtt, dropped: Int(dropped), decodeFps: fps)))
     }
 
     private static func batch(_ fields: [String: Any]) -> Result<RemoteInputMessage, RemoteInputDecodeError> {
