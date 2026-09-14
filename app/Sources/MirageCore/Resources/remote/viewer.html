@@ -9,11 +9,12 @@ html,body,#viewport,#nav{touch-action:manipulation}
 #text-input{position:absolute;bottom:var(--nav-height);left:50%;width:1px;height:1px;opacity:0;font-size:16px;padding:0;border:0;user-select:text;-webkit-user-select:text;touch-action:manipulation}
 :root{--nav-height:calc(52px + env(safe-area-inset-bottom,0px))}
 :root.no-nav{--nav-height:0px}
-canvas{position:absolute;inset:0 0 var(--nav-height);width:100%;height:calc(100% - var(--nav-height));object-fit:contain}
-#nav{position:absolute;bottom:0;left:0;width:100%;height:var(--nav-height);display:flex;background:#18181b;padding:0 env(safe-area-inset-right,0px) env(safe-area-inset-bottom,0px) env(safe-area-inset-left,0px)}
+canvas{position:absolute;top:0;left:0;width:100%;height:100%;object-fit:contain}
+#nav{position:absolute;bottom:0;left:0;width:100%;height:var(--nav-height);display:flex;z-index:2;background:#18181bbd;padding:0 env(safe-area-inset-right,0px) env(safe-area-inset-bottom,0px) env(safe-area-inset-left,0px)}
 #nav button{flex:1;min-width:0;border:0;border-radius:8px;margin:4px;color:#fff;background:#27272a;font:inherit;touch-action:manipulation;user-select:none}
 #nav button:active,#nav button.pressed{background:#2563eb}
-#nav[hidden]{display:none}
+#nav[hidden],#nav-handle[hidden]{display:none}
+#nav-handle{position:absolute;bottom:0;left:0;width:100%;height:24px;padding:0;border:0;background:transparent;z-index:2;touch-action:none}
 #panel{position:absolute;top:env(safe-area-inset-top,0px);left:0;max-width:96vw;max-height:calc(100% - var(--nav-height) - env(safe-area-inset-top,0px) - 30px);overflow:hidden;background:#000b;padding:8px;white-space:pre-wrap;cursor:pointer}
 details{position:absolute;bottom:max(var(--nav-height),env(safe-area-inset-bottom,0px));left:0;width:100%;background:#000c}
 summary{padding:8px}#log{height:24vh;overflow:auto;touch-action:pan-y;white-space:pre-wrap;overflow-wrap:anywhere;margin:0;padding:8px}
@@ -31,6 +32,7 @@ summary{padding:8px}#log{height:24vh;overflow:auto;touch-action:pan-y;white-spac
 <button type="button" data-key="AppSwitch">□ 最近任務</button>
 <button id="keyboard" type="button" aria-label="開關文字輸入" aria-pressed="false">⌨︎</button>
 </nav>
+<button id="nav-handle" type="button" aria-label="顯示導覽列" hidden></button>
 <button id="stats-toggle" type="button" aria-label="收合統計">ⓘ</button>
 <div id="error" role="alert" hidden></div>
 <div id="panel">Initializing…</div><details><summary>統計 / 診斷紀錄（展開可捲動）</summary><pre id="log"></pre></details>
@@ -40,8 +42,41 @@ const canvas = document.querySelector('#canvas'), ctx = canvas.getContext('2d', 
 const panel = document.querySelector('#panel'), log = document.querySelector('#log');
 const params = new URLSearchParams(location.search), token = params.get('t') || '';
 const navigation = document.querySelector('#nav');
-navigation.hidden = params.get('nav') === '0';
+const navDisabled = params.get('nav') === '0';
+const navHandle = document.querySelector('#nav-handle');
+navigation.hidden = navDisabled;
 document.documentElement.classList.toggle('no-nav', navigation.hidden);
+let navTimer;
+function resetNavigationTimer() {
+  clearTimeout(navTimer);
+  if (navDisabled || navigation.hidden) return;
+  navTimer = setTimeout(() => {
+    navigation.hidden = true;
+    navHandle.hidden = false;
+  }, 3000);
+}
+function showNavigation() {
+  if (navDisabled) return;
+  navigation.hidden = false;
+  navHandle.hidden = true;
+  resetNavigationTimer();
+}
+navHandle.addEventListener('click', showNavigation);
+let handleStartY = null;
+for (const type of ['pointerdown', 'pointermove', 'pointerup', 'pointercancel']) {
+  navigation.addEventListener(type, e => { e.stopPropagation(); resetNavigationTimer(); });
+  navHandle.addEventListener(type, e => {
+    e.preventDefault(); e.stopPropagation();
+    if (type === 'pointerdown') { handleStartY = e.clientY; navHandle.setPointerCapture(e.pointerId); }
+    if (type === 'pointerup' || (type === 'pointermove' && handleStartY !== null && handleStartY - e.clientY >= 8)) showNavigation();
+    if (type === 'pointerup' || type === 'pointercancel') handleStartY = null;
+  });
+}
+// Canvas、文字輸入與浮層的互動都延後收合；隱藏後只有把手會叫回。
+for (const type of ['pointerdown', 'pointermove', 'pointerup', 'click', 'keydown', 'input']) {
+  document.addEventListener(type, resetNavigationTimer);
+}
+resetNavigationTimer();
 for (const button of navigation.querySelectorAll('button[data-key]')) {
   let feedbackTimer;
   button.addEventListener('click', () => {

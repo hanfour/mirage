@@ -133,15 +133,16 @@ test('navigation clicks send exactly one key each and clear feedback after 180ms
   assert.equal(h.run('active.size'), 0);
 });
 
-test('nav=0 hides navigation and restores canvas space independently of stats', () => {
+test('nav=0 hides navigation and handle independently of stats', () => {
   for (const suffix of ['', '&stats=0']) {
     const h = harness({search: '?t=abc&nav=0' + suffix});
     assert.equal(h.elements['#nav'].hidden, true);
+    assert.equal(h.elements['#nav-handle'].hidden, true);
     assert.equal(h.root.classList.contains('no-nav'), true);
     assert.equal(h.elements.details.hidden, suffix !== '');
   }
   assert.match(html, /:root.no-nav\{--nav-height:0px\}/);
-  assert.match(html, /height:calc\(100% - var\(--nav-height\)\)/);
+  assert.match(html, /canvas\{[^}]*height:100%/);
   assert.match(html, /bottom:max\(var\(--nav-height\),env\(safe-area-inset-bottom,0px\)\)/);
 });
 
@@ -174,7 +175,7 @@ test('rapid repeated clicks keep feedback for 180ms after the final click', asyn
   assert.equal(h.sockets[1].sent.length, 2);
 });
 
-test('contain coordinates use the canvas rectangle after reserving navigation height', () => {
+test('contain coordinates use the canvas rectangle including contain letterboxing', () => {
   const h = harness();
   const canvas = h.elements['#canvas'];
   canvas.width = 1080; canvas.height = 2400;
@@ -323,4 +324,33 @@ test('malformed and unknown stats text only logs, then video continues', () => {
   assert.equal(h.draws(), 2);
   assert.equal(h.run('configurationFailed'), false);
   assert.equal(h.run('localDrops'), 0);
+});
+
+
+test('navigation hides after idle, resets on interaction and returns by tap or swipe', async () => {
+  const h = harness(), nav = h.elements['#nav'], handle = h.elements['#nav-handle'];
+  await h.advance(2999);
+  assert.equal(nav.hidden, false);
+  h.documentListeners.pointerdown();
+  await h.advance(2999);
+  assert.equal(nav.hidden, false);
+  await h.advance(1);
+  assert.equal(nav.hidden, true);
+  assert.equal(handle.hidden, false);
+  handle.listeners.click();
+  assert.equal(nav.hidden, false);
+  await h.advance(3000);
+  let stopped = 0;
+  const event = {clientY:800, pointerId:1, preventDefault() {}, stopPropagation() { stopped++; }};
+  handle.listeners.pointerdown(event);
+  handle.listeners.pointermove({...event, clientY:790});
+  assert.equal(nav.hidden, false);
+  for (const type of ['pointerdown', 'pointermove', 'pointerup', 'pointercancel']) nav.listeners[type](event);
+  assert.equal(stopped, 6);
+  assert.equal(h.run('active.size'), 0);
+  const disabled = harness({search:'?nav=0'});
+  disabled.elements['#nav-handle'].listeners.click();
+  await disabled.advance(3000);
+  assert.equal(disabled.elements['#nav'].hidden, true);
+  assert.equal(disabled.elements['#nav-handle'].hidden, true);
 });
