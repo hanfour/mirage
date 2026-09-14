@@ -4,6 +4,38 @@ import NIOHTTP1
 import NIOPosix
 import NIOWebSocket
 
+public struct RemoteServerConfiguration: Sendable {
+    public static let defaultPort = 8765
+    public static let allInterfaces = "0.0.0.0"
+
+    public let host: String
+    public let port: Int
+    public let token: PairingToken
+    public let viewerPage: Data
+    public let queueLimit: Int
+
+    public init(host: String = allInterfaces, port: Int = defaultPort, token: PairingToken, viewerPage: Data,
+                queueLimit: Int = RemoteVideoQueue.defaultLimit)
+    {
+        self.host = host
+        self.port = port
+        self.token = token
+        self.viewerPage = viewerPage
+        self.queueLimit = queueLimit
+    }
+}
+
+public struct RemoteServerStats: Sendable, Equatable {
+    public let framesOffered: Int
+    public let framesSent: Int
+    public let framesDropped: Int
+    public let rejectedForbidden: Int
+    public let rejectedBusy: Int
+    public let invalidInputMessages: Int
+    public let keyframeRequestsThrottled: Int
+    public let touchesForwarded: Int
+}
+
 public enum RemoteServerError: Error, Equatable {
     case alreadyStarted
     case noLocalAddress

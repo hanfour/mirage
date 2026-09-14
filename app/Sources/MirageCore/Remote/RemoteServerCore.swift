@@ -1,37 +1,6 @@
 import Foundation
 import NIOCore
 
-public struct RemoteServerConfiguration: Sendable {
-    public static let defaultPort = 8765
-    public static let allInterfaces = "0.0.0.0"
-
-    public let host: String
-    public let port: Int
-    public let token: PairingToken
-    public let viewerPage: Data
-    public let queueLimit: Int
-
-    public init(host: String = allInterfaces, port: Int = defaultPort, token: PairingToken, viewerPage: Data,
-                queueLimit: Int = RemoteVideoQueue.defaultLimit)
-    {
-        self.host = host
-        self.port = port
-        self.token = token
-        self.viewerPage = viewerPage
-        self.queueLimit = queueLimit
-    }
-}
-
-public struct RemoteServerStats: Sendable, Equatable {
-    public let framesOffered: Int
-    public let framesSent: Int
-    public let framesDropped: Int
-    public let rejectedForbidden: Int
-    public let rejectedBusy: Int
-    public let invalidInputMessages: Int
-    public let touchesForwarded: Int
-}
-
 enum RemoteUpgradeKind: Sendable {
     case video
     case input
@@ -71,6 +40,8 @@ final class RemoteServerCore: @unchecked Sendable {
     private var rejectedBusy = 0
     private var invalidInputMessages = 0
     private var touchesForwarded = 0
+    private var keyframeRequestsThrottled = 0
+    private var lastKeyframeRequest: ContinuousClock.Instant?
     private var lastInvalidLog: ContinuousClock.Instant?
 
     init(configuration: RemoteServerConfiguration,
@@ -101,7 +72,8 @@ final class RemoteServerCore: @unchecked Sendable {
         return RemoteServerStats(framesOffered: framesOffered, framesSent: framesSent,
                                  framesDropped: framesDroppedBeforeReset + queue.dropped,
                                  rejectedForbidden: rejectedForbidden, rejectedBusy: rejectedBusy,
-                                 invalidInputMessages: invalidInputMessages, touchesForwarded: touchesForwarded)
+                                 invalidInputMessages: invalidInputMessages,
+                                 keyframeRequestsThrottled: keyframeRequestsThrottled, touchesForwarded: touchesForwarded)
     }
 
     func route(method: String, uri: String) -> RemoteRoute {
@@ -233,9 +205,21 @@ final class RemoteServerCore: @unchecked Sendable {
     func requestVideoKeyframe(channelID: ObjectIdentifier) {
         lock.lock()
         guard !stopped, kinds[channelID] == .video else { lock.unlock(); return }
+        let current = now()
+        guard Self.allowsKeyframe(lastRequest: lastKeyframeRequest, now: current) else {
+            keyframeRequestsThrottled += 1
+            lock.unlock()
+            return
+        }
+        lastKeyframeRequest = current
         pendingEffects.append(onKeyframeRequested)
         lock.unlock()
         performEffects()
+    }
+
+    /// 純決策：被拒的請求不移動時間窗，500 ms 邊界包含在可放行範圍內。
+    static func allowsKeyframe(lastRequest: ContinuousClock.Instant?, now: ContinuousClock.Instant) -> Bool {
+        lastRequest.map { now - $0 >= .milliseconds(500) } ?? true
     }
 
     /// 寫出迴圈在連線建立後呼叫。回傳的 stream 每收到一個值代表「佇列有東西」；
