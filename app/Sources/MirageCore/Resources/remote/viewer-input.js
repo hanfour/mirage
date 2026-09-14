@@ -148,7 +148,17 @@ function macStatsText() {
   return `Mac: age ${pair(macStats?.age)} · encode ${pair(macStats?.encode)} · send ${pair(macStats?.send)} · transit ${ms(macStats?.transitMs)} ms\nframes/s new=${macStats?.newFrames ?? '—'} heartbeat=${macStats?.heartbeatFrames ?? '—'}\ninput RPC/s=${macStats?.inputRPCsPerSecond?.toFixed(1) ?? '—'} coalesced=${macStats?.inputCoalesced ?? '—'}`;
 }
 function percentile(a, p) { return a.length ? a[Math.min(a.length-1, Math.ceil(a.length*p)-1)].toFixed(1) : '—'; }
-setInterval(() => {
+let statsTimer = null;
+function startStatsTimer() {
+  if (statsTimer !== null) return;
+  tick = performance.now(); lastDecoded = decoded;
+  statsTimer = setInterval(updateStats, 1000);
+}
+function stopStatsTimer() {
+  clearInterval(statsTimer);
+  statsTimer = null;
+}
+function updateStats() {
   const now = performance.now(), fps = (decoded-lastDecoded)*1000/(now-tick);
   lastDecoded = decoded; tick = now;
   const a = samples.sort((x,y)=>x-y); samples = [];
@@ -157,7 +167,8 @@ setInterval(() => {
     note(text);
   }
   send({type:'ping', t:performance.now()});
-}, 1000);
+}
+startStatsTimer();
 // iOS Safari pointerId 可為負數；原樣送出，server 接受整個 signed Int32 範圍。
 const active = new Map();
 let touchFrame = null, touchTimer = null;

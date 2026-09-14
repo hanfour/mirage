@@ -192,6 +192,7 @@ function connectionHealthy() {
   reconnecting = false;
   reconnectAttempts = 0;
   status = 'streaming';
+  startStatsTimer();
   errorPanel.hidden = true;
 }
 // Count only visible time: delayed background callbacks must not spend the retry budget.
@@ -245,6 +246,7 @@ function reconnect(reason, immediately = false) {
   discardDecoder();
   lastSeq = null;
   if (reconnectAttempts >= 3) {
+    stopStatsTimer();
     reconnecting = false;
     status = `${reason}; reload to reconnect`;
     reportError(status);

@@ -287,3 +287,30 @@ test('viewer displays actual RPC rate and coalesced batches', () => {
   h.sockets[0].onmessage({data:JSON.stringify({type:'stats', inputRPCsPerSecond:62.51, inputCoalesced:59})});
   assert.match(h.run('macStatsText()'), /input RPC\/s=62.5 coalesced=59/);
 });
+
+test('stats interval stops after either socket exhausts retries and restarts exactly once when healthy', async () => {
+  for (const failed of [0, 1]) {
+    const h = harness({immediateOutput:true});
+    h.sockets[0].onopen(); h.sockets[1].onopen(); h.receive(1);
+    const intervals = () => [...h.timers.values()].filter(t => t.interval).length;
+    assert.equal(intervals(), 1);
+    h.run('reconnectAttempts = 3');
+    h.sockets[failed].onerror();
+    assert.equal(intervals(), 0);
+    assert.ok(h.sockets.every(s => s.readyState === 3));
+    const log = h.elements['#log'].textContent, panel = h.elements['#panel'].textContent;
+    const drops = h.run('inputDrops');
+    await h.advance(10000);
+    assert.equal(h.elements['#log'].textContent, log);
+    assert.equal(h.elements['#panel'].textContent, panel);
+    assert.equal(h.run('inputDrops'), drops);
+    h.windowListeners.pageshow();
+    assert.equal(intervals(), 0);
+    h.sockets[2].onopen(); h.sockets[3].onopen(); h.receive(1);
+    assert.equal(intervals(), 1);
+    h.receive(2); h.windowListeners.pageshow();
+    assert.equal(intervals(), 1);
+    await h.advance(1000);
+    assert.ok(h.sockets[3].sent.some(s => JSON.parse(s).type === 'ping'));
+  }
+});

@@ -93,7 +93,9 @@ function harness({immediateOutput = false, search = '?t=abc', storage = new Map(
     setTimeout(fn, delay) { timers.set(++timerID, {fn, at: now + delay}); return timerID; },
     requestAnimationFrame(fn) { timers.set(++timerID, {fn, at:now + 16, frame:true}); return timerID; },
     cancelAnimationFrame(id) { timers.delete(id); },
-    clearTimeout(id) { timers.delete(id); }, setInterval() {},
+    clearTimeout(id) { timers.delete(id); },
+    setInterval(fn, delay) { timers.set(++timerID, {fn, at:now + delay, interval:delay}); return timerID; },
+    clearInterval(id) { timers.delete(id); },
   });
   vm.runInContext(script, context);
   function receive(sequence, key = true) {
@@ -107,7 +109,10 @@ function harness({immediateOutput = false, search = '?t=abc', storage = new Map(
   async function advance(ms) {
     now += ms;
     for (const [id, timer] of [...timers]) {
-      if (timer.at <= now && (!timer.frame || document.visibilityState === 'visible')) { timers.delete(id); await timer.fn(); }
+      if (timer.at <= now && (!timer.frame || document.visibilityState === 'visible')) { if (timer.interval) timer.at = now + timer.interval;
+        else timers.delete(id);
+        const result = timer.fn();
+        if (result?.then) await result; }
     }
   }
   return {receive, advance, decoders, sockets, timers, elements, buttons, root, document,
