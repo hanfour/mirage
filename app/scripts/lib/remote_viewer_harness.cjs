@@ -31,6 +31,7 @@ function harness({immediateOutput = false, search = '?t=abc', storage = new Map(
   const buttons = [...html.matchAll(/<button[^>]+data-key="([^"]+)"/g)].map(match =>
     Object.assign(element(), {dataset: {key: match[1]}}));
   elements['#nav'].querySelectorAll = () => buttons;
+  elements['#canvas'].width = 1080; elements['#canvas'].height = 2400;
   elements['#error'].hidden = true;
   elements['#nav-handle'].hidden = true;
   const root = element();

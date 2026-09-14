@@ -354,3 +354,43 @@ test('navigation hides after idle, resets on interaction and returns by tap or s
   assert.equal(disabled.elements['#nav'].hidden, true);
   assert.equal(disabled.elements['#nav-handle'].hidden, true);
 });
+
+
+test('keyboard crops a full-width canvas and visible touches map into its lower half', () => {
+  const listeners = {}, viewport = {height:874, width:402, offsetTop:0, offsetLeft:0,
+    addEventListener(type, listener) { listeners[type] = listener; }};
+  const h = harness({viewport}), canvas = h.elements['#canvas'];
+  h.elements['#keyboard'].listeners.click();
+  viewport.height = 330; viewport.offsetTop = 20;
+  listeners.resize();
+  const fullHeight = 402 * 2400 / 1080;
+  assert.equal(canvas.style.width, '402px');
+  assert.equal(canvas.style.height, fullHeight + 'px');
+  assert.equal(canvas.style.transform, `translateY(${330 - fullHeight}px)`);
+  // 模擬瀏覽器回傳包含 transform 與被裁切部分的完整矩形。
+  canvas.getBoundingClientRect = () => ({left:0, top:20 + 330 - fullHeight, width:402, height:fullHeight});
+  const y = h.run('position({clientX:201,clientY:185}).y');
+  assert.ok(Math.abs(y - (1 - 165 / fullHeight)) < 1e-9);
+  assert.ok(y > 0.5);
+  h.sockets[0].onopen();
+  canvas.listeners.pointerdown({clientX:201, clientY:185, pointerId:1, preventDefault() {}});
+  h.run('flushTouches()');
+  assert.equal(JSON.parse(h.sockets[1].sent[0]).points[0].y, y);
+  viewport.height = 874; viewport.offsetTop = 0; listeners.resize();
+  assert.equal(canvas.style.transform, 'translateY(0px)');
+  assert.equal(canvas.style.height, '874px');
+});
+
+test('toolbar changes do not enable keyboard cropping and fallback resizes without visualViewport', () => {
+  const listeners = {}, viewport = {height:874, width:402, offsetTop:0, offsetLeft:0,
+    addEventListener(type, listener) { listeners[type] = listener; }};
+  const h = harness({viewport});
+  h.elements['#keyboard'].listeners.click();
+  viewport.height = 790; listeners.resize();
+  assert.equal(h.elements['#canvas'].style.transform, 'translateY(0px)');
+  const fallback = harness();
+  fallback.run('innerWidth = 402; innerHeight = 874');
+  fallback.windowListeners.resize();
+  assert.equal(fallback.elements['#canvas'].style.height, '874px');
+  assert.equal(fallback.elements['#viewport'].style['--view-width'], '402px');
+});

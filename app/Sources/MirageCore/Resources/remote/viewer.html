@@ -315,6 +315,7 @@ function makeDecoder() {
       try {
         if(canvas.width !== frame.displayWidth || canvas.height !== frame.displayHeight) {
           canvas.width = frame.displayWidth; canvas.height = frame.displayHeight;
+          resizeViewport();
         }
         ctx.drawImage(frame, 0, 0, canvas.width, canvas.height); decoded++;
       } finally { frame.close(); }

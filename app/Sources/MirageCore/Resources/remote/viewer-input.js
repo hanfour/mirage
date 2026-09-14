@@ -6,24 +6,37 @@ function send(obj) {
 }
 const textInput = document.querySelector('#text-input'), keyboard = document.querySelector('#keyboard');
 const viewport = document.querySelector('#viewport');
+let viewportBaseline = 0, baselineWidth = 0, keyboardOpen = false;
 function resizeViewport() {
-  if (typeof visualViewport === 'undefined' || !visualViewport) return;
+  const view = typeof visualViewport !== 'undefined' && visualViewport;
+  const width = view ? view.width : innerWidth, height = view ? view.height : innerHeight;
+  if (width !== baselineWidth) {
+    baselineWidth = width;
+    viewportBaseline = Math.max(height, innerHeight);
+  }
+  // 120px 門檻避免 Safari 工具列伸縮被當成鍵盤；保留收鍵盤動畫中的裁切。
+  if (document.activeElement !== textInput && !keyboardOpen) viewportBaseline = Math.max(viewportBaseline, height);
+  keyboardOpen = (document.activeElement === textInput || keyboardOpen) && viewportBaseline - height > 120;
   for (const [name, value] of Object.entries({
-    height:visualViewport.height, width:visualViewport.width,
-    top:visualViewport.offsetTop, left:visualViewport.offsetLeft,
+    height, width, top:view ? view.offsetTop : 0, left:view ? view.offsetLeft : 0,
   })) viewport.style.setProperty('--view-' + name, value + 'px');
+  const canvasHeight = keyboardOpen ? width * canvas.height / canvas.width : height;
+  canvas.style.setProperty('width', width + 'px');
+  canvas.style.setProperty('height', canvasHeight + 'px');
+  canvas.style.setProperty('transform', `translateY(${keyboardOpen ? height - canvasHeight : 0}px)`);
 }
 if (typeof visualViewport !== 'undefined' && visualViewport) {
   visualViewport.addEventListener('resize', resizeViewport);
   visualViewport.addEventListener('scroll', resizeViewport);
 }
+window.addEventListener('resize', resizeViewport);
 resizeViewport();
 keyboard.addEventListener('pointerdown', e => e.preventDefault());
 keyboard.addEventListener('click', () => {
   if (document.activeElement === textInput) textInput.blur();
   else textInput.focus({preventScroll:true}); // 不 await：iOS 只允許使用者手勢內叫出鍵盤。
 });
-textInput.addEventListener('focus', () => keyboard.setAttribute('aria-pressed', 'true'));
+textInput.addEventListener('focus', () => { keyboard.setAttribute('aria-pressed', 'true'); resizeViewport(); });
 textInput.addEventListener('blur', () => keyboard.setAttribute('aria-pressed', 'false'));
 function submitText() {
   const text = textInput.value;
@@ -204,8 +217,8 @@ function position(e) {
 }
 for(const type of ['pointerdown','pointermove','pointerup','pointercancel']) canvas.addEventListener(type, e => {
   e.preventDefault();
+  const p = position(e); // 先讀位移後的矩形，再收鍵盤，避免焦點事件改動座標。
   if (type === 'pointerdown') textInput.blur();
-  const p = position(e);
   if(type === 'pointerdown') {
     if(p.x<0 || p.x>1 || p.y<0 || p.y>1) return;
     if (!active.has(e.pointerId)) active.set(e.pointerId, {queue:[], ended:false});
