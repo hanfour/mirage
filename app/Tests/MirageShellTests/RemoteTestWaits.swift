@@ -38,6 +38,39 @@ enum RemoteTestWaits {
         }
     }
 
+    /// Foundation/NIO 的 await 不一定回應 Task.cancel；不能直接放入 deadline task group。
+    /// 以可取消的 stream 等結果，逾時取消 worker 與底層 socket，絕不再 await worker.value。
+    /// 呼叫者仍須用獨立清理預算 stop server/controller，且所有操作共用同一個真實截止時間。
+    static func boundedOperation<T: Sendable>(
+        _ stage: String, until deadline: ContinuousClock.Instant,
+        diagnostics: @escaping @Sendable () -> String,
+        cancel: @escaping @Sendable () -> Void = {},
+        operation: @escaping @Sendable () async throws -> T
+    ) async throws -> T {
+        try Task.checkCancellation()
+        let remaining = deadline - ContinuousClock.now
+        guard remaining > .zero else { throw RemoteTestWaitError.timedOut("\(stage) \(diagnostics())") }
+        let (results, continuation) = AsyncThrowingStream<T, any Error>.makeStream()
+        let worker = Task {
+            do {
+                let value = try await operation()
+                continuation.yield(value)
+                continuation.finish()
+            } catch { continuation.finish(throwing: error) }
+        }
+        defer { worker.cancel(); continuation.finish() }
+        do {
+            return try await withDeadline(stage, timeout: remaining, diagnostics: diagnostics) {
+                for try await value in results { return value }
+                try Task.checkCancellation()
+                throw RemoteTestWaitError.ended(stage)
+            }
+        } catch {
+            cancel()
+            throw error
+        }
+    }
+
     static func state(in states: AsyncStream<RemoteSessionState>, hasVideo: Bool,
                       diagnostics: @escaping @Sendable () -> String) async throws -> RemoteSessionState {
         try await withDeadline("server hasVideo=\(hasVideo)", diagnostics: diagnostics) {
