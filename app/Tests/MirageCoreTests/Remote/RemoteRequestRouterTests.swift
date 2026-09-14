@@ -1,3 +1,4 @@
+import Foundation
 import Testing
 @testable import MirageCore
 
@@ -27,6 +28,27 @@ import Testing
         #expect(route("/") == .forbidden)
         #expect(route("/?t=00112233445566778899aabbccddeefe") == .forbidden)
         #expect(route("/?t=") == .forbidden)
+    }
+
+    @Test func manifestRequiresPairingAndOnlyAcceptsGet() {
+        #expect(route("/manifest.webmanifest" + good) == .manifest)
+        #expect(route("/manifest.webmanifest" + good, state: full) == .manifest)
+        #expect(route("/manifest.webmanifest") == .forbidden)
+        #expect(route("/manifest.webmanifest?t=nope") == .forbidden)
+        #expect(route("/manifest.webmanifest" + good, method: "POST") == .methodNotAllowed)
+        #expect(route("/manifest.webmanifest/" + good) == .notFound)
+    }
+
+    @Test func manifestResponseLoadsBundledStandaloneConfiguration() throws {
+        let response = RemoteHTTPConnection.response(for: .manifest, viewerPage: Data())
+        #expect(response.status.code == 200)
+        #expect(response.contentType == "application/manifest+json; charset=utf-8")
+        let manifest = try #require(JSONSerialization.jsonObject(with: response.body) as? [String: String])
+        #expect(manifest["name"] == "Mirage")
+        #expect(manifest["display"] == "standalone")
+        #expect(manifest["orientation"] == "portrait")
+        #expect(manifest["background_color"] == "#000000")
+        #expect(manifest["start_url"] == nil)
     }
 
     @Test func upgradesDependOnSessionState() {

@@ -237,6 +237,8 @@ for(const type of ['pointerdown','pointermove','pointerup','pointercancel']) can
   scheduleTouches();
 }, {passive:false});
 for(const type of ['gesturestart','gesturechange']) document.addEventListener(type, e => e.preventDefault(), {passive:false});
+// iOS 18.4 前，standalone 主畫面 Web App 的 Wake Lock 有已知問題。
+// https://webkit.org/blog/16574/webkit-features-in-safari-18-4/
 async function requestWake() {
   if(!navigator.wakeLock || wake || document.visibilityState !== 'visible') return;
   try { wake = await navigator.wakeLock.request('screen'); wake.addEventListener('release', () => { wake = null; }); }

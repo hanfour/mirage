@@ -1,5 +1,9 @@
 <!doctype html>
 <html lang="zh-Hant"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#000000">
+<link id="manifest" rel="manifest">
 <title>Mirage 遙控</title>
 <style>
 *{box-sizing:border-box;touch-action:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;overscroll-behavior:none}
@@ -19,7 +23,7 @@ canvas{position:absolute;top:0;left:0;width:100%;height:100%;object-fit:contain}
 details{position:absolute;bottom:max(var(--nav-height),env(safe-area-inset-bottom,0px));left:0;width:100%;background:#000c}
 summary{padding:8px}#log{height:24vh;overflow:auto;touch-action:pan-y;white-space:pre-wrap;overflow-wrap:anywhere;margin:0;padding:8px}
 #panel{top:calc(env(safe-area-inset-top,0px) + 30px)}
-#stats-toggle{position:absolute;top:env(safe-area-inset-top,0px);left:0;border:0;background:#000b;color:#fff;padding:5px 8px;touch-action:manipulation}
+#stats-toggle{position:absolute;top:env(safe-area-inset-top,0px);left:0;border:0;background:#000b;color:#fff;width:28px;height:28px;padding:0;touch-action:manipulation}
 #error{position:absolute;top:env(safe-area-inset-top,0px);right:0;max-width:75vw;padding:8px;background:#7f1d1d;pointer-events:none;white-space:pre-wrap}
 #panel[hidden],details[hidden],#stats-toggle[hidden],#error[hidden]{display:none}
 </style>
@@ -90,12 +94,12 @@ for (const button of navigation.querySelectorAll('button[data-key]')) {
 const showStats = params.get('stats') !== '0';
 const statsToggle = document.querySelector('#stats-toggle'), diagnostics = document.querySelector('details');
 const errorPanel = document.querySelector('#error');
-let statsCollapsed = false;
-try { statsCollapsed = localStorage.getItem('mirage.statsCollapsed') === '1'; } catch {}
+let statsCollapsed = true;
+try { statsCollapsed = localStorage.getItem('mirage.statsCollapsed') !== '0'; } catch {}
 function renderStats() {
   panel.hidden = diagnostics.hidden = !showStats || statsCollapsed;
   statsToggle.hidden = !showStats;
-  statsToggle.textContent = statsCollapsed ? 'ⓘ' : 'ⓘ 收合';
+  statsToggle.textContent = 'ⓘ';
   statsToggle.setAttribute('aria-expanded', String(!statsCollapsed));
   statsToggle.setAttribute('aria-label', statsCollapsed ? '展開統計' : '收合統計');
 }
@@ -113,6 +117,8 @@ function reportError(message) {
 }
 renderStats();
 const query = `?t=${encodeURIComponent(token)}`;
+// 保留配對驗證；manifest 不指定 start_url，安裝時使用目前含 token 的文件網址。
+document.querySelector('#manifest').setAttribute('href', '/manifest.webmanifest' + query);
 const hw = 'no-preference';
 let codec = null, configurationFailed = false;
 const dropReasons = {gap:0, backlog:0, error:0, waitIDR:0};

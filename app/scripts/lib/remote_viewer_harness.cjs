@@ -27,7 +27,7 @@ function harness({immediateOutput = false, search = '?t=abc', storage = new Map(
       },
     };
   }
-  const elements = Object.fromEntries(['#canvas', '#panel', '#log', '#nav', 'details', '#stats-toggle', '#error', '#text-input', '#keyboard', '#viewport', '#nav-handle'].map(id => [id, element()]));
+  const elements = Object.fromEntries(['#canvas', '#panel', '#log', '#nav', 'details', '#stats-toggle', '#error', '#text-input', '#keyboard', '#viewport', '#nav-handle', '#manifest'].map(id => [id, element()]));
   const buttons = [...html.matchAll(/<button[^>]+data-key="([^"]+)"/g)].map(match =>
     Object.assign(element(), {dataset: {key: match[1]}}));
   elements['#nav'].querySelectorAll = () => buttons;

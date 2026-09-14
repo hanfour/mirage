@@ -135,7 +135,7 @@ test('navigation clicks send exactly one key each and clear feedback after 180ms
 
 test('nav=0 hides navigation and handle independently of stats', () => {
   for (const suffix of ['', '&stats=0']) {
-    const h = harness({search: '?t=abc&nav=0' + suffix});
+    const h = harness({search: '?t=abc&nav=0' + suffix, storage:new Map([['mirage.statsCollapsed', '0']])});
     assert.equal(h.elements['#nav'].hidden, true);
     assert.equal(h.elements['#nav-handle'].hidden, true);
     assert.equal(h.root.classList.contains('no-nav'), true);
@@ -188,7 +188,7 @@ test('contain coordinates use the canvas rectangle including contain letterboxin
 });
 
 test('stats collapse both overlays, persist, and expand from the corner marker', () => {
-  const storage = new Map(), h = harness({storage});
+  const storage = new Map([['mirage.statsCollapsed', '0']]), h = harness({storage});
   assert.equal(h.elements['#panel'].hidden, false);
   h.elements['#panel'].listeners.click();
   assert.equal(h.elements['#panel'].hidden, true);
@@ -202,11 +202,11 @@ test('stats collapse both overlays, persist, and expand from the corner marker',
   assert.equal(storage.get('mirage.statsCollapsed'), '0');
 });
 
-test('storage failures default to expanded and do not prevent toggling', () => {
+test('storage failures default to collapsed and do not prevent toggling', () => {
   const h = harness({storageFails: true});
-  assert.equal(h.elements['#panel'].hidden, false);
-  h.elements['#stats-toggle'].listeners.click();
   assert.equal(h.elements['#panel'].hidden, true);
+  h.elements['#stats-toggle'].listeners.click();
+  assert.equal(h.elements['#panel'].hidden, false);
 });
 
 test('stats=0 hides even the marker, but errors remain visible in every stats mode', () => {
@@ -299,7 +299,7 @@ test('visual viewport resize and scroll keep the canvas above the iOS keyboard',
 });
 
 test('stats text renders Mac stages without touching video decoding or idle flush', async () => {
-  const h = harness({immediateOutput: true});
+  const h = harness({immediateOutput: true, storage:new Map([['mirage.statsCollapsed', '0']])});
   h.receive(1);
   const stats = {type: 'stats', age: {p50: 2, p95: 9}, encode: {p50: 3, p95: 7},
     send: {p50: 0.1, p95: 0.4}, transitMs: null, newFrames: 30, heartbeatFrames: 4};
@@ -393,4 +393,24 @@ test('toolbar changes do not enable keyboard cropping and fallback resizes witho
   fallback.windowListeners.resize();
   assert.equal(fallback.elements['#canvas'].style.height, '874px');
   assert.equal(fallback.elements['#viewport'].style['--view-width'], '402px');
+});
+
+
+test('fresh installs show only the small stats marker and link an authenticated manifest', () => {
+  const h = harness();
+  assert.equal(h.elements['#panel'].hidden, true);
+  assert.equal(h.elements.details.hidden, true);
+  assert.equal(h.elements['#stats-toggle'].textContent, 'ⓘ');
+  assert.equal(h.elements['#stats-toggle'].hidden, false);
+  assert.equal(h.elements['#manifest'].attributes.href, '/manifest.webmanifest?t=abc');
+  const manifest = JSON.parse(require('node:fs').readFileSync(require('node:path').join(__dirname,
+    '../../Sources/MirageCore/Resources/remote/manifest.webmanifest'), 'utf8'));
+  assert.equal(manifest.display, 'standalone');
+  assert.equal(manifest.orientation, 'portrait');
+  assert.equal(manifest.name, 'Mirage');
+  assert.equal(manifest.background_color, '#000000');
+  assert.equal(manifest.start_url, undefined);
+  assert.match(html, /viewport-fit=cover/);
+  assert.match(html, /apple-mobile-web-app-capable" content="yes"/);
+  assert.match(html, /apple-mobile-web-app-status-bar-style" content="black-translucent"/);
 });

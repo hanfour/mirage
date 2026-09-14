@@ -2,6 +2,7 @@ import Foundation
 
 public enum RemoteRoute: Sendable, Equatable {
     case viewer
+    case manifest
     case upgradeVideo
     case upgradeInput
     case forbidden
@@ -14,6 +15,7 @@ public enum RemoteRoute: Sendable, Equatable {
 /// `GET /`、`/ws/video`、`/ws/input` 的路由決定（spec 第 5 節）。純函式，NIO 的
 /// `shouldUpgrade` 與 HTTP 回應路徑都呼叫它，403／409 的判定只寫在這一處。
 public enum RemoteRequestRouter {
+    public static let manifestPath = "/manifest.webmanifest"
     public static let viewerPath = "/"
     public static let videoPath = "/ws/video"
     public static let inputPath = "/ws/input"
@@ -33,6 +35,7 @@ public enum RemoteRequestRouter {
         guard token.matches(Self.token(fromURI: uri)) else { return .forbidden }
         switch path(fromURI: uri) {
         case viewerPath: return .viewer
+        case manifestPath: return .manifest
         case videoPath: return state.hasVideo ? .busy : .upgradeVideo
         case inputPath:
             guard state.hasVideo else { return .videoRequired }

@@ -51,6 +51,12 @@ enum RemoteHTTPConnection {
         switch route {
         case .viewer:
             return (.ok, viewerPage, htmlType)
+        case .manifest:
+            guard let url = Bundle.module.url(forResource: "manifest", withExtension: "webmanifest", subdirectory: "remote"),
+                  let data = try? Data(contentsOf: url) else {
+                return (.notFound, Data("manifest not found\n".utf8), textType)
+            }
+            return (.ok, data, "application/manifest+json; charset=utf-8")
         case .forbidden:
             return (.forbidden, Data("forbidden\n".utf8), textType)
         case .busy:

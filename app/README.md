@@ -469,6 +469,7 @@ iPhone Safari 可作為 Mirage 的觸控第二螢幕：Mac 用 VideoToolbox 硬�
 經 WebSocket 送到手機的 `VideoDecoder`，觸控經既有 `InputQueue` 注入。
 見[設計文件](../docs/specs/2026-09-12-lan-remote-control-design.md)。第一版以 iPhone 為目標；
 Android Chrome 需要 HTTPS。
+iPhone 建議加入主畫面後開啟，可去掉 Safari 工具列。
 
 - **開啟與配對**：選單列 🪞 →「手機遙控」→「開啟手機遙控」，手機掃描子選單 QR
   或輸入顯示的網址（點網址可複製）。「中斷連線」會作廢 token 並產生新網址；
