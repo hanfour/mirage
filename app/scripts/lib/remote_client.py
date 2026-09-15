@@ -88,6 +88,15 @@ def connect_options():
     import websockets
     return {"proxy": None} if int(websockets.__version__.split(".")[0]) >= 15 else {}
 
+def transit_text(stats):
+    """與 viewer 相同：門檻按本窗口新幀數計，不含 heartbeat。"""
+    count = stats.get("newFrames")
+    if not finite_number(count) or count < 10:
+        return f"－（樣本 {count if count is not None else '－'}）"
+    value = stats.get("transitMs")
+    return f"{value:.1f} ms" if finite_number(value) else "— ms"
+
+
 def report_stats(message, results):
     """文字只作診斷，不干擾幀序、keyframe 期限或二進位解碼。"""
     try:
@@ -99,6 +108,7 @@ def report_stats(message, results):
         return
     encoded = json.dumps(stats, ensure_ascii=False, separators=(",", ":"))
     print(f"MAC_STATS={encoded}", flush=True)
+    print(f"transit {transit_text(stats)}", flush=True)
     results["MAC_STATS_WINDOWS"] = results.get("MAC_STATS_WINDOWS", 0) + 1
     results["MAC_STATS_LAST"] = encoded
     if contained_stats(stats, results, time.monotonic()):

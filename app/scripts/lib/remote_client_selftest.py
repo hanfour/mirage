@@ -21,6 +21,15 @@ from remote_text_verify_selftest import RemoteTextEvidenceTests  # noqa: E402,F4
 
 
 class StatsTests(unittest.TestCase):
+    def test_transit_sample_threshold(self):
+        for count in [0, 4, 9, 10, 11]:
+            with self.subTest(count=count):
+                stats = {"newFrames": count, "heartbeatFrames": 100, "transitMs": 478.6}
+                expected = f"－（樣本 {count}）" if count < 10 else "478.6 ms"
+                self.assertEqual(rc.transit_text(stats), expected)
+        self.assertEqual(rc.transit_text({"newFrames": 10}), "— ms")
+        self.assertEqual(rc.transit_text({}), "－（樣本 －）")
+
     def test_reports_stats_and_keeps_last_window(self):
         results = {}
         output = io.StringIO()
@@ -30,7 +39,7 @@ class StatsTests(unittest.TestCase):
                 rc.report_stats(text, results)
         self.assertEqual(results["MAC_STATS_WINDOWS"], 2)
         self.assertEqual(json.loads(results["MAC_STATS_LAST"])["newFrames"], 0)
-        self.assertEqual(len(output.getvalue().splitlines()), 2)
+        self.assertEqual(len(output.getvalue().splitlines()), 4)
         self.assertIn("stats JSON error", errors.getvalue())
 
 

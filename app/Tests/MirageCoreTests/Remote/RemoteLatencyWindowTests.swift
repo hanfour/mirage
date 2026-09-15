@@ -38,26 +38,46 @@ import Testing
         #expect(summary.newFrames == 1)
         #expect(summary.heartbeatFrames == 4)
         #expect(summary.age == .init(p50: 5, p95: 5, count: 1))
-        #expect(summary.transitMs == 8)
+        #expect(summary.transitMs == nil)
         #expect(summary.encode?.count == 4)
         #expect(summary.send?.p50 == 0.5)
     }
 
     @Test func unavailableAndInvalidTransitDoNotBecomeZero() throws {
         var window = RemoteLatencyWindow()
-        for transit in [nil, Double.nan, Double.infinity, -1] as [Double?] {
+        for transit in [nil, Double.nan, Double.infinity, -1, nil, nil, nil, nil, nil, nil] as [Double?] {
             window.recordPull(age: .zero, transitMs: transit, heartbeat: false)
         }
         let summary = window.drain(interval: .seconds(1))
         #expect(summary.transitMs == nil)
-        #expect(summary.newFrames == 4)
+        #expect(summary.newFrames == 10)
         #expect(summary.age?.p50 == 0)
         #expect(summary.encode == nil)
         let data = try JSONEncoder().encode(summary)
         #expect(!data.isEmpty)
-        window.recordPull(age: .zero, transitMs: 0, heartbeat: false)
+        for _ in 0..<10 {
+            window.recordPull(age: .zero, transitMs: 0, heartbeat: false)
+        }
         let valid = window.drain(interval: .seconds(1))
         #expect(valid.transitMs == 0)
+    }
+
+    @Test(arguments: [0, 4, 9, 10, 11])
+    func transitRequiresTenNewFrames(count: Int) {
+        var window = RemoteLatencyWindow()
+        for _ in 0..<count {
+            window.recordPull(age: .milliseconds(2), transitMs: 12, heartbeat: false)
+        }
+        for _ in 0..<10 {
+            window.recordPull(age: .seconds(1), transitMs: 999, heartbeat: true)
+        }
+        let summary = window.drain(interval: .seconds(1))
+        #expect(summary.newFrames == count)
+        #expect(summary.heartbeatFrames == 10)
+        #expect(summary.transitMs == (count >= 10 ? 12 : nil))
+        // 門檻每窗重算，不累積前一窗的新幀。
+        window.recordPull(age: .zero, transitMs: 12, heartbeat: false)
+        #expect(window.drain(interval: .seconds(1)).transitMs == nil)
     }
 
     @Test func drainResetsAllStagesAndCounts() {

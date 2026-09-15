@@ -15,7 +15,8 @@ public struct Frame: Sendable, Equatable {
     /// 抵達時刻只是量測用的旁註。讓它參與比較會讓既有測試（例如
     /// `LatestFrameBoxTests` 比對取出的幀）無故失敗。
     public let receivedAt: ContinuousClock.Instant
-    /// 傳輸層以 Unix 時間與 emulator 時間戳計算一次傳輸毫秒數。
+    /// Mirage 收到時的 Unix 時間減去 emulator 估計幀產生時間（毫秒）。
+    /// 包含來源複製／轉換與等待，不是純網路傳輸；來源時間戳陳舊時也會變大。
     /// timestampUs 不可與 receivedAt 相減，ContinuousClock 是單調時鐘，並非 Unix 時間。
     /// nil 表示無法量測，負值表示時鐘樣本無效；量測資訊不參與相等比較。
     /// gRPC 的 timestampUs 為 0 代表缺少時間戳，傳 nil 以免巨大的正值污染統計。

@@ -99,7 +99,7 @@ import Testing
             #expect(stats.heartbeatFrames > 0)
             #expect(stats.age?.count == 1)
             #expect((stats.age?.p50 ?? 0) >= 50)
-            #expect(stats.transitMs == 7)
+            #expect(stats.transitMs == nil)
             #expect((stats.encode?.count ?? 0) > 0)
             #expect(stats.send?.count == stats.encode?.count)
         }

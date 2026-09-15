@@ -1,6 +1,6 @@
 import Foundation
 
-/// 一秒區間的統計；nil 代表沒有有效樣本，不能當成零毫秒。
+/// 一秒區間的統計；nil 代表沒有有效樣本或未達門檻，不能當成零毫秒。
 /// 計數點是提交編碼；encode/send 則只計成功產生 access unit 的回呼。
 public struct RemoteLatencySummary: Codable, Sendable, Equatable {
     public struct Percentiles: Codable, Sendable, Equatable {
@@ -14,6 +14,7 @@ public struct RemoteLatencySummary: Codable, Sendable, Equatable {
     public let age: Percentiles?
     public let encode: Percentiles?
     public let send: Percentiles?
+    /// 新幀數至少 10 才提供有效 transit 樣本的 p50；heartbeat 不計入門檻。
     public let transitMs: Double?
     public let newFrames: Int
     public let heartbeatFrames: Int
@@ -52,7 +53,7 @@ public struct RemoteLatencyWindow: Sendable {
         let result = RemoteLatencySummary(
             type: "stats", intervalMs: Self.milliseconds(interval),
             age: Self.percentiles(age), encode: Self.percentiles(encode), send: Self.percentiles(send),
-            transitMs: transit.latency.summary()?.p50, newFrames: newFrames, heartbeatFrames: heartbeatFrames)
+            transitMs: newFrames >= 10 ? transit.latency.summary()?.p50 : nil, newFrames: newFrames, heartbeatFrames: heartbeatFrames)
         self = RemoteLatencyWindow()
         return result
     }

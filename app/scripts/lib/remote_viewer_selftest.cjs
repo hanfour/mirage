@@ -414,3 +414,15 @@ test('fresh installs show only the small stats marker and link an authenticated 
   assert.match(html, /apple-mobile-web-app-capable" content="yes"/);
   assert.match(html, /apple-mobile-web-app-status-bar-style" content="black-translucent"/);
 });
+
+
+test('transit requires ten new frames, regardless of heartbeat count', () => {
+  const h = harness();
+  for (const count of [0, 4, 9, 10, 11]) {
+    h.run(`macStats = {newFrames: ${count}, heartbeatFrames: 100, transitMs: 478.6}`);
+    const text = h.run('macStatsText()');
+    assert.ok(text.includes(count < 10 ? `transit －（樣本 ${count}）` : 'transit 478.6 ms'));
+  }
+  h.run('macStats = {newFrames: 10}');
+  assert.ok(h.run('macStatsText()').includes('transit — ms'));
+});

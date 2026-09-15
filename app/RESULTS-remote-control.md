@@ -71,3 +71,16 @@ iPhone 雙指縮放圖片時疊層顯示 `transit 326.7 ms`（平常 10）、`fr
 | `8e1438f`（遙控全部合併、功能關閉） | 51 52 53 54 | 52 | 51.8 到 57.9 |
 
 差 2 fps，在同一天同一 build 曾量到 31 到 58 的變異內，且對照組跑時外來 CPU 較高（floor 0 為 84%，現版 33%）。兩邊都沒達到驗收線 7 的 55。判定：沒有證據顯示遙控程式碼拖慢本機路徑；55 這條線在這台機器今天的狀態下對照組也沒過。
+
+
+## 靜止畫面的 transit 定義與樣本門檻（2026-09-15）
+
+iPhone 回報靜止時 `transit 478.6 ms`、`frames/s new=4`，動態時約 10 ms。
+`GrpcStreamTransport.frames` 計算 `Date().timeIntervalSince1970 * 1000 - Image.timestampUs / 1000`，存入 `Frame.transitMs`。
+repo 的 `phase0/harness/protos/emulator_controller.proto`（Image.timestampUs）定義它是 emulator **估計幀產生時刻**的 Unix 微秒值，早於複製與轉換；因此此差值包含產生到 Mirage 收到間的處理／等待，不是純網路傳輸，也不含手機解碼與呈現。
+
+`RemoteMirrorController` 的 new 是拉到新的 transport 幀，不保證像素內容改變；自身重送 cached frame 的 heartbeat 已由 `RemoteLatencyWindow.recordPull` 排除。原本 4 個新幀也會產生 nearest-rank p50（排序後第 2 個有效樣本，若四個都有效），不能據此判定網路壅塞。
+是否 emulator 在靜止時重送同一張畫面、重用上次合成時間戳：**原因未查，先標示**。本次未取得逐幀 timestampUs／seq／像素比對的實測紀錄，也未成功取得上游實作，不能把舊時間戳假說當成已證實的原因。後續需同步記錄來源時間戳、接收時間與內容變化來區分。
+
+現在每個統計窗口只有 `newFrames >= 10` 才提供 transit 的有效樣本 p50；不足時 transitMs 為 nil（JSON 省略），viewer 與 Python 用戶端顯示 `－（樣本 N）`，N 是該窗新幀數，不含 heartbeat。有效值過濾仍保留；達門檻但沒有有效 transit 時仍顯示缺值，不當成 0。Python 的 MAC_STATS／PINCH_STATS JSON 保持原始數值格式，另印人可讀的 transit 行。
+這是低樣本窗口的顯示門檻，並未修正來源時間戳；靜止畫面下不應把這個數字解讀成傳輸延遲，達到門檻也不證明來源時間戳新鮮。
