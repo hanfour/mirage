@@ -23,6 +23,24 @@ import Testing
         #expect(RemoteRequestRouter.path(fromURI: "/") == "/")
     }
 
+    @Test func forbiddenResponseExplainsRepairWithoutRevealingSessionOrToken() {
+        let expected = RemoteHTTPConnection.response(for: .forbidden, viewerPage: Data())
+        #expect(expected.status.code == 403)
+        #expect(expected.contentType == "text/html; charset=utf-8")
+        let html = String(decoding: expected.body, as: UTF8.self)
+        #expect(html.contains("配對碼不符。請在 Mac 的選單列「手機遙控」重新掃描 QR 或複製網址。"))
+        #expect(html.contains("charset=\"utf-8\""))
+        #expect(!html.contains(token.value))
+        for state in [idle, videoOnly, full] {
+            for uri in ["/", "/?t=wrong", "/ws/video?t=wrong", "/ws/input?t=wrong"] {
+                let response = RemoteHTTPConnection.response(for: route(uri, state: state), viewerPage: Data())
+                #expect(response.status.code == 403)
+                #expect(response.body == expected.body)
+                #expect(response.contentType == expected.contentType)
+            }
+        }
+    }
+
     @Test func viewerNeedsExactToken() {
         #expect(route("/" + good) == .viewer)
         #expect(route("/") == .forbidden)

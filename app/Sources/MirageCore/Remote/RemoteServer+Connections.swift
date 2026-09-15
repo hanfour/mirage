@@ -58,7 +58,14 @@ enum RemoteHTTPConnection {
             }
             return (.ok, data, "application/manifest+json; charset=utf-8")
         case .forbidden:
-            return (.forbidden, Data("forbidden\n".utf8), textType)
+            let page = """
+            <!doctype html>
+            <html lang="zh-Hant"><meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1">
+            <title>Mirage 配對</title>
+            <body><p>配對碼不符。請在 Mac 的選單列「手機遙控」重新掃描 QR 或複製網址。</p></body></html>
+            """
+            return (.forbidden, Data(page.utf8), htmlType)
         case .busy:
             return (.conflict, Data("a viewer is already connected\n".utf8), textType)
         case .videoRequired:
