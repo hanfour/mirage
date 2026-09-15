@@ -309,6 +309,20 @@ private final class RemotePortBlocker {
             }
             #expect(power == .suspended)
             #expect(await model.client.power == .suspended)
+            // 同一 listener 重連：走 AppModel → lifecycle 的產品回呼，不直接呼叫 wake。
+            let nextVideo = session.webSocketTask(with: url)
+            defer { nextVideo.cancel(with: .normalClosure, reason: nil) }
+            nextVideo.resume()
+            let resumed = try await RemoteTestWaits.withDeadline("隱藏視窗手機重連後喚醒") {
+                for await state in powerStates {
+                    if state == .active { return state }
+                }
+                try Task.checkCancellation()
+                throw RemoteTestWaitError.ended("client.powerStates")
+            }
+            #expect(resumed == .active)
+            #expect(lifecycle.isWindowHidden)
+            #expect(model.hasActiveRemoteViewer)
         }
     }
 

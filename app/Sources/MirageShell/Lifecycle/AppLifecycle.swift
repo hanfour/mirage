@@ -8,6 +8,7 @@ final class AppLifecycle: NSObject, NSWindowDelegate {
     private let client: EmulatorClient
     private let hasActiveRemoteViewer: () -> Bool
     private var policy = LifecyclePolicy()
+    private var powerTask: Task<Void, Never>?
 
     init(client: EmulatorClient, hasActiveRemoteViewer: @escaping () -> Bool = { false }) {
         self.client = client
@@ -92,7 +93,22 @@ final class AppLifecycle: NSObject, NSWindowDelegate {
     /// 關視窗與最後一條 video 斷線共用；policy 保證重複通知只觸發一次休眠。
     private func suspendIfNeeded(_ needed: Bool) {
         guard needed else { return }
-        Task { await client.suspend() }
+        enqueuePowerChange(resuming: false)
+    }
+
+    /// 不顯示視窗或啟用 App；完成恢復後，呼叫端再要求 keyframe。
+    func remoteViewerConnected() async {
+        if policy.remoteViewerConnected() { enqueuePowerChange(resuming: true) }
+        await powerTask?.value
+    }
+
+    // suspend 會 await pump.detach；必須等它完成才 wake，避免落在 .suspending 而被忽略。
+    private func enqueuePowerChange(resuming: Bool) {
+        let previous = powerTask
+        powerTask = Task { [client] in
+            await previous?.value
+            if resuming { await client.wake() } else { await client.suspend() }
+        }
     }
 
     func wake(showing window: NSWindow?) {
@@ -104,7 +120,7 @@ final class AppLifecycle: NSObject, NSWindowDelegate {
         NSApp.activate(ignoringOtherApps: true)
         Self.diagnose("wake-after-activate", window: window)
         guard shouldResume else { return }
-        Task { await client.wake() }
+        enqueuePowerChange(resuming: true)
     }
 }
 

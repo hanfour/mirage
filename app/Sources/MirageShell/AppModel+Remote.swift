@@ -162,6 +162,14 @@ extension AppModel {
         // Task 投遞順序未必等於 server callback 順序，因此讀目前快照。
         let state = remote.sessionState
         remoteMenuState = .on(urls: urls, session: state)
+        if state.hasVideo, !previous.hasVideo {
+            Task { @MainActor [weak self] in
+                guard let self, generation == self.remoteGeneration, remote.sessionState.hasVideo else { return }
+                await self.lifecycle?.remoteViewerConnected()
+                guard generation == self.remoteGeneration, remote.sessionState.hasVideo else { return }
+                remote.requestKeyframe()
+            }
+        }
         // 通常是 true → false；若 MainActor 合併了快速開關的通知，隱藏狀態仍可補休眠。
         if !state.hasVideo, previous.hasVideo || lifecycle?.isWindowHidden == true {
             lifecycle?.remoteViewerDisconnected()

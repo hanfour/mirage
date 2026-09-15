@@ -24,8 +24,14 @@ struct LifecyclePolicy {
         return true
     }
 
-    mutating func consumeResume() -> Bool {
-        isHidden = false
+    /// 遠端恢復保留隱藏狀態，最後一位 viewer 離線時才會再次休眠。
+    mutating func remoteViewerConnected() -> Bool {
+        guard isHidden else { return false }
+        return consumeResume(showingWindow: false)
+    }
+
+    mutating func consumeResume(showingWindow: Bool = true) -> Bool {
+        if showingWindow { isHidden = false }
         let resume = suspended
         suspended = false
         return resume
