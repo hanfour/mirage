@@ -71,3 +71,17 @@
 結論：在這台 M1 上「兩台同時可玩」不成立，兩個可調的變數都讓它更糟。多開要做，只能做「多台各自存在、同一時間只有一台接 Mirage」。
 
 限制：量測窗口因 `dumpsys` 在負載下極慢而變成 23–50 秒（fps 是除以實際 displayOnTime，不受影響）；每組間有 ANR 對話框被按掉；量測腳本與每組原始輸出在 session scratchpad，未進 repo。
+
+## 2026-09-15 更正：`-no-window` 不慢，視窗縮小或被蓋住也不影響
+
+同一顆 AVD、同一款遊戲關卡內、主機安靜（外來 CPU 63 到 112%），每個條件兩到三輪 20 秒：
+
+| 條件 | guest fps |
+|---|---|
+| 有視窗、可見 | 59.90／59.80 |
+| 視窗縮到 Dock | 59.90／59.88（還原後 59.88） |
+| 視窗被其他視窗完全蓋住 | 59.92／59.96 |
+| `-no-window`（`qemu-system-aarch64-headless`） | 59.65／59.94／59.92 |
+| `-no-window`＋Mac 端 Mirage 全螢幕串流（`verify_game_fps.sh` 30 秒） | Mirage 平均 55.5（最低 31、最高 60） |
+
+§2 記的「`-no-window` 只有 29 到 32」沒有重現。那次的外來 CPU 是 141 到 278%，而且這款遊戲在 Loading 畫面會自己向系統請求 30 Hz（`dumpsys display` 的 `frameRateOverride {uid=10207 frameRateHz=30.000002}`），進關卡才回 60 Hz；當時的 32.23 很可能是負載加上 Loading 畫面。有視窗與無視窗的 guest 端更新率、vsync、GPU 設定逐項相同。結論改為：模擬器可以不開視窗，也可以縮到 Dock，guest 出幀率不受影響。
