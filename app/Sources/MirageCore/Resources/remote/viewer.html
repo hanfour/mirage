@@ -19,11 +19,13 @@ canvas{position:absolute;top:0;left:0;width:100%;height:100%;object-fit:contain}
 #nav button:active,#nav button.pressed{background:#2563eb}
 #nav[hidden],#nav-handle[hidden]{display:none}
 #nav-handle{position:absolute;bottom:0;left:0;width:100%;height:calc(24px + env(safe-area-inset-bottom,0px));padding:0 0 env(safe-area-inset-bottom,0px);border:0;background:transparent;z-index:2;touch-action:none}
-#panel{position:absolute;top:env(safe-area-inset-top,0px);left:0;max-width:96vw;max-height:calc(100% - var(--nav-height) - env(safe-area-inset-top,0px) - 30px);overflow:hidden;background:#000b;padding:8px;white-space:pre-wrap;cursor:pointer}
-details{position:absolute;bottom:max(var(--nav-height),env(safe-area-inset-bottom,0px));left:0;width:100%;background:#000c}
-summary{padding:8px}#log{height:24vh;overflow:auto;touch-action:pan-y;white-space:pre-wrap;overflow-wrap:anywhere;margin:0;padding:8px}
-#panel{top:calc(env(safe-area-inset-top,0px) + 30px)}
-#stats-toggle{position:absolute;top:env(safe-area-inset-top,0px);left:0;border:0;background:#000b;color:#fff;width:28px;height:28px;padding:0;touch-action:manipulation}
+#stats-text{position:absolute;top:calc(env(safe-area-inset-top,0px) + 30px);left:0;width:96%;max-height:40%;overflow:auto;background:#000b}
+#stats-text,#stats-text *{pointer-events:none}
+#stats-text[hidden]{display:none}
+#panel{padding:8px;white-space:pre-wrap;overflow-wrap:anywhere}
+details{background:#000c}summary{padding:8px}
+#log{white-space:pre-wrap;overflow-wrap:anywhere;margin:0;padding:8px}
+#stats-toggle{pointer-events:auto;position:absolute;top:env(safe-area-inset-top,0px);left:0;border:0;background:#000b;color:#fff;width:28px;height:28px;padding:0;touch-action:none}
 #frame-warning{position:absolute;top:calc(env(safe-area-inset-top,0px) + 36px);left:50%;transform:translateX(-50%);z-index:3;max-width:90%;padding:12px 16px;border:0;border-radius:6px;background:#b91c1c;color:#fff;font:600 15px/1.5 sans-serif;touch-action:manipulation}
 #frame-warning[hidden]{display:none}
 #error{position:absolute;top:env(safe-area-inset-top,0px);right:0;max-width:75vw;padding:8px;background:#7f1d1d;pointer-events:none;white-space:pre-wrap}
@@ -42,7 +44,7 @@ summary{padding:8px}#log{height:24vh;overflow:auto;touch-action:pan-y;white-spac
 <button id="stats-toggle" type="button" aria-label="收合統計">ⓘ</button>
 <button id="frame-warning" type="button" role="status" aria-label="收起畫面停止通知" hidden></button>
 <div id="error" role="alert" hidden></div>
-<div id="panel">Initializing…</div><details><summary>統計 / 診斷紀錄（展開可捲動）</summary><pre id="log"></pre></details>
+<div id="stats-text"><div id="panel">Initializing…</div><details open><summary>診斷紀錄（在 ⓘ 上滑動可捲動）</summary><pre id="log"></pre></details></div>
 </div>
 <script>
 const canvas = document.querySelector('#canvas'), ctx = canvas.getContext('2d', {alpha:false});
@@ -97,22 +99,46 @@ for (const button of navigation.querySelectorAll('button[data-key]')) {
 const showStats = params.get('stats') !== '0';
 const statsToggle = document.querySelector('#stats-toggle'), diagnostics = document.querySelector('details');
 const errorPanel = document.querySelector('#error');
+const statsText = document.querySelector('#stats-text');
 let statsCollapsed = true;
 try { statsCollapsed = localStorage.getItem('mirage.statsCollapsed') !== '0'; } catch {}
 function renderStats() {
-  panel.hidden = diagnostics.hidden = !showStats || statsCollapsed;
+  statsText.hidden = panel.hidden = diagnostics.hidden = !showStats || statsCollapsed;
   statsToggle.hidden = !showStats;
   statsToggle.textContent = 'ⓘ';
   statsToggle.setAttribute('aria-expanded', String(!statsCollapsed));
-  statsToggle.setAttribute('aria-label', statsCollapsed ? '展開統計' : '收合統計');
+  statsToggle.setAttribute('aria-label', statsCollapsed ? '展開統計' : '收合統計；可滑動或用方向鍵捲動');
 }
 function toggleStats() {
   statsCollapsed = !statsCollapsed;
   try { localStorage.setItem('mirage.statsCollapsed', statsCollapsed ? '1' : '0'); } catch {}
   renderStats();
 }
-statsToggle.addEventListener('click', toggleStats);
-panel.addEventListener('click', toggleStats);
+// 文字穿透觸控；僅 ⓘ 按鈕接受拖曳、滾輪與鍵盤捲動。
+let statsDragY = null, statsDragged = false;
+statsToggle.addEventListener('pointerdown', e => {
+  statsDragY = e.clientY; statsDragged = false;
+  statsToggle.setPointerCapture(e.pointerId);
+});
+statsToggle.addEventListener('pointermove', e => {
+  if (statsDragY === null || statsCollapsed) return;
+  const delta = statsDragY - e.clientY;
+  if (!statsDragged && Math.abs(delta) < 4) return;
+  statsDragged = true;
+  statsText.scrollTop += delta;
+  statsDragY = e.clientY;
+});
+for (const type of ['pointerup', 'pointercancel']) statsToggle.addEventListener(type, () => { statsDragY = null; });
+statsToggle.addEventListener('wheel', e => {
+  if (statsCollapsed) return;
+  e.preventDefault(); statsText.scrollTop += e.deltaY;
+}, {passive:false});
+statsToggle.addEventListener('keydown', e => {
+  const delta = {ArrowDown:40, ArrowUp:-40, PageDown:200, PageUp:-200}[e.key];
+  if (statsCollapsed || delta === undefined) return;
+  e.preventDefault(); statsText.scrollTop += delta;
+});
+statsToggle.addEventListener('click', () => { if (!statsDragged) toggleStats(); statsDragged = false; });
 function reportError(message) {
   errorPanel.textContent = message;
   errorPanel.hidden = false;

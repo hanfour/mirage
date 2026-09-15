@@ -32,7 +32,6 @@ test('nav=0 hides navigation and handle independently of stats', () => {
   }
   assert.match(html, /:root.no-nav\{--nav-height:0px\}/);
   assert.match(html, /canvas\{[^}]*height:100%/);
-  assert.match(html, /bottom:max\(var\(--nav-height\),env\(safe-area-inset-bottom,0px\)\)/);
 });
 
 test('navigation uses input backpressure and disconnected drop accounting', () => {
@@ -67,7 +66,7 @@ test('rapid repeated clicks keep feedback for 180ms after the final click', asyn
 test('stats collapse both overlays, persist, and expand from the corner marker', () => {
   const storage = new Map([['mirage.statsCollapsed', '0']]), h = harness({storage});
   assert.equal(h.elements['#panel'].hidden, false);
-  h.elements['#panel'].listeners.click();
+  h.elements['#stats-toggle'].listeners.click();
   assert.equal(h.elements['#panel'].hidden, true);
   assert.equal(h.elements.details.hidden, true);
   assert.equal(h.elements['#stats-toggle'].textContent, 'ⓘ');
@@ -233,4 +232,29 @@ test('stalled warning requires strictly more than five seconds; heartbeat does n
   assert.equal(banner.hidden, false);
   health(h, true, 0);
   assert.equal(banner.hidden, true);
+});
+
+test('expanded stats occupy at most forty percent and only the toggle intercepts input', () => {
+  const h = harness(), button = h.elements['#stats-toggle'], text = h.elements['#stats-text'];
+  button.listeners.click();
+  assert.equal(text.hidden, false);
+  assert.match(html, /#stats-text\{[^}]*max-height:40%;overflow:auto/);
+  assert.match(html, /#stats-text,#stats-text \*\{pointer-events:none\}/);
+  assert.match(html, /#stats-toggle\{pointer-events:auto;/);
+  assert.equal(h.elements['#panel'].listeners.click, undefined);
+  button.listeners.pointerdown({clientY:100, pointerId:1});
+  button.listeners.pointermove({clientY:60});
+  button.listeners.pointerup();
+  button.listeners.click(); // 拖曳後合成 click 不得收合。
+  assert.equal(text.scrollTop, 40);
+  assert.equal(text.hidden, false);
+  button.listeners.wheel({deltaY:20, preventDefault() {}});
+  button.listeners.keydown({key:'ArrowDown', preventDefault() {}});
+  assert.equal(text.scrollTop, 100);
+  h.sockets[0].onopen();
+  h.elements['#canvas'].listeners.pointerdown({clientX:4, clientY:0.5, pointerId:7, preventDefault() {}});
+  h.run('flushTouches()');
+  assert.equal(JSON.parse(h.sockets[1].sent[0]).points[0].phase, 'down');
+  button.listeners.click();
+  assert.equal(text.hidden, true);
 });

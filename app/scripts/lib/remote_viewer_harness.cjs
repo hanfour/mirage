@@ -11,7 +11,7 @@ function harness({immediateOutput = false, search = '?t=abc', storage = new Map(
   let timerID = 0, now = 0, draws = 0;
   function element() {
     const classes = new Set(), listeners = {};
-    return {listeners, hidden: false, value: '', attributes: {}, properties: {},
+    return {listeners, hidden: false, scrollTop: 0, value: '', attributes: {}, properties: {},
       setAttribute(name, value) { this.attributes[name] = value; },
       style: {setProperty(name, value) { this[name] = value; }},
       focus() { document.activeElement = this; this.listeners.focus?.(); },
@@ -27,7 +27,7 @@ function harness({immediateOutput = false, search = '?t=abc', storage = new Map(
       },
     };
   }
-  const elements = Object.fromEntries(['#canvas', '#panel', '#log', '#nav', 'details', '#stats-toggle', '#error', '#text-input', '#keyboard', '#viewport', '#nav-handle', '#manifest', '#frame-warning'].map(id => [id, element()]));
+  const elements = Object.fromEntries(['#canvas', '#panel', '#log', '#nav', 'details', '#stats-toggle', '#error', '#text-input', '#keyboard', '#viewport', '#nav-handle', '#manifest', '#frame-warning', '#stats-text'].map(id => [id, element()]));
   const buttons = [...html.matchAll(/<button[^>]+data-key="([^"]+)"/g)].map(match =>
     Object.assign(element(), {dataset: {key: match[1]}}));
   elements['#nav'].querySelectorAll = () => buttons;
