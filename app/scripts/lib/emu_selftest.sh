@@ -192,6 +192,47 @@ for attempt in 1 2; do
 done
 check "兩次 start 只 put 一次" "$(cat "$SDK_FIXTURE/keyboard-writes")" put
 
+echo "--- emu.sh start 接線：settings 失敗不影響開機成功 ---"
+cat > "${SDK_FIXTURE}/platform-tools/adb" <<'FAKE_ADB'
+#!/usr/bin/env bash
+case "$*" in
+    *'shell getprop sys.boot_completed')
+        if [ -f "$ANDROID_SDK_ROOT/boot-pending" ]; then
+            rm "$ANDROID_SDK_ROOT/boot-pending"
+            printf '0\n'
+        else
+            printf '1\n'
+        fi ;;
+    *'shell settings get secure show_ime_with_hard_keyboard')
+        if [ "$KEYBOARD_FAILURE" = get ]; then
+            echo 'settings service unavailable' >&2; exit 1
+        fi
+        printf '1\n' ;;
+    *'shell settings put secure show_ime_with_hard_keyboard 0')
+        echo 'settings service unavailable' >&2; exit 1 ;;
+    *) exit 1 ;;
+esac
+FAKE_ADB
+for boot_state in ready pending; do
+    for failure in get put; do
+        if [ "$boot_state" = pending ]; then touch "$SDK_FIXTURE/boot-pending"; fi
+        START_OUT=$(ANDROID_SDK_ROOT="$SDK_FIXTURE" MIRAGE_EMU_PS_LINES="$PS_TWO" \
+            MIRAGE_INSTANCES='mirage-game:5554:8554 mirage-poc:5556:8556' \
+            MIRAGE_AVD='' MIRAGE_PORT='' MIRAGE_GRPC='' KEYBOARD_FAILURE="$failure" \
+            bash "$(dirname "$0")/../emu.sh" start < /dev/null 2> "$SDK_FIXTURE/start-stderr")
+        check "${boot_state}：settings ${failure} 失敗仍退出 0" "$?" 0
+        if [ "$boot_state" = pending ]; then
+            [[ "$START_OUT" == *'✅ 開機完成'* ]]
+        else
+            [[ "$START_OUT" == *'✅ 已在執行且開機完成'* ]]
+        fi
+        check "${boot_state}：settings ${failure} 失敗仍印開機成功" "$?" 0
+        START_ERR=$(cat "$SDK_FIXTURE/start-stderr")
+        [[ "$START_ERR" == '⚠️ '* && "$START_ERR" == *'guest 軟體鍵盤'* && "$START_ERR" != *$'\n'* ]]
+        check "${boot_state}：settings ${failure} 失敗 stderr 只有一行警告" "$?" 0
+    done
+done
+
 echo ""
 if [ "$FAILURES" -eq 0 ]; then
     echo "全部通過"
