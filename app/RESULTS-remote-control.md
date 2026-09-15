@@ -84,3 +84,11 @@ repo 的 `phase0/harness/protos/emulator_controller.proto`（Image.timestampUs�
 
 現在每個統計窗口只有 `newFrames >= 10` 才提供 transit 的有效樣本 p50；不足時 transitMs 為 nil（JSON 省略），viewer 與 Python 用戶端顯示 `－（樣本 N）`，N 是該窗新幀數，不含 heartbeat。有效值過濾仍保留；達門檻但沒有有效 transit 時仍顯示缺值，不當成 0。Python 的 MAC_STATS／PINCH_STATS JSON 保持原始數值格式，另印人可讀的 transit 行。
 這是低樣本窗口的顯示門檻，並未修正來源時間戳；靜止畫面下不應把這個數字解讀成傳輸延遲，達到門檻也不證明來源時間戳新鮮。
+
+## 9. 2026-09-15：先關 Mac 視窗再連手機，畫面停住且點擊無效
+
+使用者實測：關掉 Mac 的 Mirage 視窗時手機還沒連上，`windowShouldClose` 判定沒有 viewer 就 `client.suspend()`；之後手機連上，伺服器照常配對、送出快取的最後一張幀與 250 ms 心跳，但模擬器連線是停的，永遠沒有新幀（手機疊層 `frames/s new=0 heartbeat=4`，畫面停在 16 分鐘前）。同一個原因讓觸控與導覽鍵進 `InputQueue` 後被靜默丟掉，所以「點擊無效、浮動按鈕也沒反應」。程式碼當時只有「viewer 斷線 → 休眠」，沒有對應的「viewer 連上 → 喚醒」。
+
+處理：`hasVideo` 由 false 變 true 時走 `AppLifecycle.remoteViewerConnected()`，用 `consumeResume(showingWindow: false)` 喚醒 client 但不叫出隱藏的 Mac 視窗，並要求一次 keyframe。Mac 端 stats 加 `emulatorConnected` 與 `secondsSinceNewFrame`；手機端在未連線或停格超過 5 秒時顯示橫幅，兩種成因的文字分開寫（停格時寫「模擬器仍連線」，避免把排查方向指錯）。統計疊層限高並讓觸控穿透。
+
+驗證：`AppModelRemoteTests` 用真實 WebSocket 與真實 lifecycle 驗「連線中隱藏視窗不休眠 → 斷線才休眠 → 重連才喚醒」；活體 R8 斷言重連後 10 秒內 `emulatorConnected` 為 true 且有新幀（實測 30 幀／秒）。
