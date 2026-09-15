@@ -21,6 +21,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
     /// 被呼叫；三個動作分別對應「開啟／關閉」「網址列（複製）」「中斷連線」。
     var remoteEntries: (() -> [RemoteMenuEntry])?
     var onToggleRemote: (() -> Void)?
+    var onRotateRemoteToken: (() -> Void)?
     var onDisconnectRemote: (() -> Void)?
     var onCopyRemoteURL: ((String) -> Void)?
 
@@ -130,6 +131,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
                           target: self, toggleAction: #selector(remoteToggleTapped),
                           copyAction: #selector(remoteCopyTapped(_:)),
                           disconnectAction: #selector(remoteDisconnectTapped),
+                          rotateAction: #selector(remoteRotateTapped),
                           qrImage: { QRCodeImage.make($0, side: RemoteMenu.qrSide) })
             return
         }
@@ -164,6 +166,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
     }
 
     @objc private func remoteToggleTapped() { onToggleRemote?() }
+    @objc private func remoteRotateTapped() { onRotateRemoteToken?() }
     @objc private func remoteDisconnectTapped() { onDisconnectRemote?() }
     @objc private func remoteCopyTapped(_ sender: NSMenuItem) {
         guard let url = sender.representedObject as? String else { return }
@@ -175,6 +178,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
     /// `AppLifecycle` 掛在 `NSApp.windows.first`，多一個視窗會打破那個不變式。
     static func populate(remoteMenu menu: NSMenu, entries: [RemoteMenuEntry], target: AnyObject?,
                          toggleAction: Selector?, copyAction: Selector?, disconnectAction: Selector?,
+                         rotateAction: Selector? = nil,
                          qrImage: (String) -> NSImage?)
     {
         menu.autoenablesItems = false
@@ -198,6 +202,11 @@ final class MenuBarController: NSObject, NSMenuDelegate {
                 view.image = qrImage(url)
                 view.imageScaling = .scaleNone
                 item.view = view
+            case .rotateToken(let enabled):
+                item = NSMenuItem(title: enabled ? RemoteMenu.rotateTokenTitle : RemoteMenu.overriddenTokenTitle,
+                                 action: enabled ? rotateAction : nil, keyEquivalent: "")
+                item.target = enabled ? target : nil
+                item.isEnabled = enabled
             case .disconnect(let enabled):
                 item = NSMenuItem(title: RemoteMenu.disconnectTitle, action: enabled ? disconnectAction : nil,
                                   keyEquivalent: "")

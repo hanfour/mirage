@@ -41,7 +41,7 @@ struct RemoteLaunchOptions: Equatable, Sendable {
         var token: PairingToken?
         if let raw = environment[tokenKey] {
             token = PairingToken(value: raw)
-            if token == nil { problems.append("\(tokenKey) 不是 32 個小寫十六進位字元，改用亂數 token") }
+            if token == nil { problems.append("\(tokenKey) 不是 32 個小寫十六進位字元，改用保存的配對碼或新配對碼") }
         }
         return RemoteLaunchOptions(pullFPS: pullFPS, port: port, token: token, problems: problems)
     }

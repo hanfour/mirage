@@ -42,6 +42,7 @@ import Testing
             .status("拉取率上限：30 fps"),
             .url(urls[0]), .url(urls[1]),
             .qr(urls[0]),
+            .rotateToken(enabled: true),
             .disconnect(enabled: false),
         ])
         let connected = RemoteSessionState(phase: .connected, hasVideo: true, hasInput: true)
@@ -59,6 +60,7 @@ import Testing
             .status("拉取率上限：30 fps"),
             .status("找不到本機 IPv4 位址，請確認 Wi-Fi 或 Tailscale"),
             .status(RemoteMenu.localNetworkHint),
+            .rotateToken(enabled: true),
             .disconnect(enabled: false),
         ])
     }

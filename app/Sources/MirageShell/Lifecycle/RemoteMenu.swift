@@ -15,6 +15,7 @@ enum RemoteMenuEntry: Equatable {
     case url(String)
     case qr(String)
     case disconnect(enabled: Bool)
+    case rotateToken(enabled: Bool)
 }
 
 /// 子選單內容的純決策：狀態 → 列表。無 AppKit、無 I/O，逐條單元測試（比照 `InstanceMenu`）。
@@ -22,13 +23,16 @@ enum RemoteMenu {
     static let enableTitle = "開啟手機遙控"
     static let disableTitle = "關閉手機遙控"
     static let disconnectTitle = "中斷連線"
+    static let rotateTokenTitle = "重新產生配對碼（已連線手機將斷線）"
+    static let overriddenTokenTitle = "配對碼由環境變數指定，無法重新產生"
     static let noAddressText = "找不到本機 IPv4 位址，請確認 Wi-Fi 或 Tailscale"
     static let localNetworkHint = "找不到區域網路位址，請到系統設定 → 隱私權與安全性 → 本機網路允許 Mirage"
     static let qrSide: CGFloat = 176
 
     static func entries(_ state: RemoteMenuState,
                         pullInterval: Duration = .nanoseconds(1_000_000_000 / 30),
-                        clientStats: RemoteClientStats? = nil) -> [RemoteMenuEntry] {
+                        clientStats: RemoteClientStats? = nil,
+                        canRotateToken: Bool = true) -> [RemoteMenuEntry] {
         switch state {
         case .off:
             return [.toggle(title: enableTitle), .status("狀態：未開啟")]
@@ -43,6 +47,7 @@ enum RemoteMenu {
                 + addresses
                 + (HostAddressProbe.needsLocalNetworkHint(urls.compactMap { URL(string: $0)?.host })
                    ? [.status(localNetworkHint)] : [])
+                + [.rotateToken(enabled: canRotateToken)]
                 + [.disconnect(enabled: session.isViewerConnected)]
         }
     }

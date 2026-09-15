@@ -40,7 +40,11 @@ private final class RemotePortBlocker {
 @Suite(.timeLimit(.minutes(1))) struct AppModelRemoteTests {
     private func withModel(_ tag: String, _ body: (AppModel) async throws -> Void) async throws {
         let (store, dir) = AppModelEditingTests.tempStore(tag)
-        let model = AppModel(store: store, starterBindings: { [] })
+        let suite = "MirageRemoteTests.\(UUID().uuidString)"
+        let defaults = try #require(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let model = AppModel(store: store, pairingTokens: PairingTokenStore(defaults: defaults, environment: [:]),
+                             starterBindings: { [] })
         defer { try? FileManager.default.removeItem(at: dir) }
         // 死埠避免 PM 的環境漏設 MIRAGE_PORT 時誤連真 guest。
         let changed = await model.client.setEndpoint(EmulatorEndpoint(host: "127.0.0.1", port: 1))
@@ -54,6 +58,22 @@ private final class RemotePortBlocker {
         }
         await model.disableRemote()
         await model.client.stop()
+    }
+
+    @Test func repeatedEnableKeepsTokenAndExplicitRotationPersists() async throws {
+        try await withModel("remote-persist") { model in
+            await model.enableRemote(host: "127.0.0.1", port: 0)
+            let first = try #require(model.remote?.token)
+            await model.disableRemote()
+            await model.enableRemote(host: "127.0.0.1", port: 0)
+            #expect(model.remote?.token == first)
+            await model.rotateRemoteToken()
+            let rotated = try #require(model.remote?.token)
+            #expect(rotated != first)
+            await model.disableRemote()
+            await model.enableRemote(host: "127.0.0.1", port: 0)
+            #expect(model.remote?.token == rotated)
+        }
     }
 
     @Test func remoteOffUsesTheOriginalSink() async throws {

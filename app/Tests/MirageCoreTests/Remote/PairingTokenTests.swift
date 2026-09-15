@@ -2,6 +2,15 @@ import Testing
 @testable import MirageCore
 
 @Suite struct PairingTokenTests {
+    @Test func selectionReusesValidValueUnlessRotationRequested() throws {
+        let old = try #require(PairingToken(value: "00112233445566778899aabbccddeeff"))
+        let replacement = PairingToken.generate(randomBytes: { count in Array(repeating: 0xaa, count: count) })
+        #expect(PairingToken.selected(existing: old.value, rotate: false, replacement: replacement) == old)
+        #expect(PairingToken.selected(existing: old.value, rotate: true, replacement: replacement) == replacement)
+        #expect(PairingToken.selected(existing: nil, rotate: false, replacement: replacement) == replacement)
+        #expect(PairingToken.selected(existing: "bad", rotate: false, replacement: replacement) == replacement)
+    }
+
     @Test func generateUsesSixteenInjectedBytesAsLowercaseHex() {
         var requested: [Int] = []
         let token = PairingToken.generate { count in

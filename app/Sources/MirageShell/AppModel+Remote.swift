@@ -17,10 +17,12 @@ extension AppModel {
         menuBar?.remoteEntries = { [weak self] in
             RemoteMenu.entries(self?.remoteMenuState ?? .off,
                                pullInterval: self?.remote?.pullInterval ?? .nanoseconds(1_000_000_000 / 30),
-                               clientStats: self?.remote?.latestClientStats)
+                               clientStats: self?.remote?.latestClientStats,
+                               canRotateToken: self?.pairingTokens.override == nil)
         }
         menuBar?.onToggleRemote = { [weak self] in Task { @MainActor in await self?.toggleRemote() } }
         menuBar?.onDisconnectRemote = { [weak self] in Task { @MainActor in await self?.disconnectRemoteViewer() } }
+        menuBar?.onRotateRemoteToken = { [weak self] in Task { @MainActor in await self?.rotateRemoteToken() } }
         menuBar?.onCopyRemoteURL = { url in
             NSPasteboard.general.clearContents()
             NSPasteboard.general.setString(url, forType: .string)
@@ -40,7 +42,7 @@ extension AppModel {
         guard remote == nil, !remoteTransitionInProgress else { return }
         remoteTransitionInProgress = true
         defer { finishRemoteTransition() }
-        await startRemote(host: host, port: port, token: token ?? PairingToken.generate(), pullInterval: pullInterval)
+        await startRemote(host: host, port: port, token: pairingTokens.override ?? token ?? pairingTokens.token(), pullInterval: pullInterval)
     }
 
     /// 關閉後 activeSink 必須是 FrameSinkFactory.make 的原物件，沒有扇出包裝。
@@ -65,9 +67,14 @@ extension AppModel {
         await controller.stop()
         await inputQueue.drained()
         _ = controller.secondary.takeLatest() // 新配對不要送出停服前的殘留幀。
-        await startRemote(host: controller.host, port: port, token: PairingToken.generate(),
+        await startRemote(host: controller.host, port: port, token: pairingTokens.token(rotate: true),
                           pullInterval: controller.pullInterval)
         if !hasActiveRemoteViewer { lifecycle?.remoteViewerDisconnected() }
+    }
+
+    func rotateRemoteToken() async {
+        guard pairingTokens.override == nil else { return }
+        await disconnectRemoteViewer()
     }
 
     // MARK: - 轉移內部（呼叫者持有 remoteTransitionInProgress）

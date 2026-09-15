@@ -18,6 +18,7 @@ final class AppModel {
     /// 切換模擬器也傳它（`AppModel+Instances.swift`），否則遙控開著時切台會讓扇出靜默消失。
     @ObservationIgnored var activeSink: any FrameSink
     /// 手機遙控的執行期；nil = 功能關閉。
+    let pairingTokens: PairingTokenStore
     var remote: RemoteMirrorController?
     var remoteMenuState: RemoteMenuState = .off
     /// enable／disable／disconnect 都會 await，MainActor 期間會重入；進行中就忽略新要求。
@@ -51,8 +52,10 @@ final class AppModel {
     /// 原本會在使用者真實的 Application Support 底下建目錄（D13 記載的「光建構就有 8 個
     /// 全域副作用」之一），測試不該碰那裡。
     init(store: ProfileStore = .standard(),
+         pairingTokens: PairingTokenStore = PairingTokenStore(),
          starterBindings: @escaping @Sendable () -> [Binding] = { BuiltInProfiles.starterBindings() })
     {
+        self.pairingTokens = pairingTokens
         self.store = store
         self.starterBindings = starterBindings
         let sink = FrameSinkFactory.make(from: ProcessInfo.processInfo.environment)

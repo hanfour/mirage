@@ -9,12 +9,13 @@ import Testing
 @Suite struct MenuBarRemoteMenuTests {
     private let toggle = NSSelectorFromString("remoteToggleTapped")
     private let copy = NSSelectorFromString("remoteCopyTapped:")
+    private let rotate = NSSelectorFromString("remoteRotateTapped")
     private let disconnect = NSSelectorFromString("remoteDisconnectTapped")
     private let url = "http://192.168.1.61:8765/?t=00112233445566778899aabbccddeeff"
 
     private func populate(_ menu: NSMenu, _ entries: [RemoteMenuEntry], target: AnyObject) {
         MenuBarController.populate(remoteMenu: menu, entries: entries, target: target,
-                                   toggleAction: toggle, copyAction: copy, disconnectAction: disconnect,
+                                   toggleAction: toggle, copyAction: copy, disconnectAction: disconnect, rotateAction: rotate,
                                    qrImage: { QRCodeImage.make($0, side: RemoteMenu.qrSide) })
     }
 
@@ -24,7 +25,7 @@ import Testing
         let session = RemoteSessionState(phase: .connected, hasVideo: true, hasInput: true)
         populate(menu, RemoteMenu.entries(.on(urls: [url], session: session)), target: target)
 
-        #expect(menu.items.count == 7)
+        #expect(menu.items.count == 8)
         #expect(menu.items[0].title == RemoteMenu.disableTitle)
         #expect(menu.items[0].action == toggle)
         #expect(menu.items[0].target === target)
@@ -43,9 +44,12 @@ import Testing
         let view = try #require(menu.items[5].view as? NSImageView)
         #expect(view.frame.size == NSSize(width: RemoteMenu.qrSide, height: RemoteMenu.qrSide))
         #expect(view.image != nil)
-        #expect(menu.items[6].title == RemoteMenu.disconnectTitle)
+        #expect(menu.items[6].title == RemoteMenu.rotateTokenTitle)
+        #expect(menu.items[6].action == rotate)
         #expect(menu.items[6].isEnabled)
-        #expect(menu.items[6].action == disconnect)
+        #expect(menu.items[7].title == RemoteMenu.disconnectTitle)
+        #expect(menu.items[7].isEnabled)
+        #expect(menu.items[7].action == disconnect)
     }
 
     @Test func rebuildingMenuReplacesReadOnlyQualityWithLatestReport() throws {

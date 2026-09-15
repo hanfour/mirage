@@ -1,6 +1,6 @@
 import Foundation
 
-/// 手機配對用的一次性 token（spec 第 5 節）。
+/// 手機配對用的持久 token（spec 第 5 節）。
 ///
 /// 128-bit 亂數、32 個小寫十六進位字元，放在網址 `?t=` 上。伺服器只在 `GET /` 與兩條
 /// WebSocket 升級時比對；比對是常數時間，不讓回應時間洩漏前綴長度。
@@ -28,6 +28,12 @@ public struct PairingToken: Sendable, Equatable {
         let bytes = randomBytes(byteCount)
         precondition(bytes.count == byteCount, "randomBytes 必須回傳 \(byteCount) 個位元組")
         return PairingToken(bytes: bytes)
+    }
+
+    /// 純決策：有效舊值沿用；缺值、壞值或明確輪替才採用呼叫端提供的新值。
+    public static func selected(existing: String?, rotate: Bool, replacement: PairingToken) -> PairingToken {
+        if !rotate, let existing, let token = PairingToken(value: existing) { return token }
+        return replacement
     }
 
     public static func systemRandomBytes(_ count: Int) -> [UInt8] {
