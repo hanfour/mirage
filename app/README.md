@@ -46,7 +46,7 @@ P1-a 迴歸的證據，改列為未量測（**當時記為 pending-unlock，該�
 把 P1-a 的「能連能重連」升級為可信生命週期：
 
 - **健康探測重連**：斷線期 banner 誠實顯示 `reconnecting(n)`、attempt 真實遞增（修 P1-a 終審假連線缺口）。重連迴圈非遞迴（消除 async frame 堆積）。
-- **休眠／喚醒（暫停/恢復拉幀）**：關閉視窗→停止 app 端拉幀（省串流/渲染 CPU，**qemu 仍在跑**，spec §8）；選單列/重開→恢復拉幀。
+- **休眠／喚醒（暫停/恢復拉幀）**：關閉視窗→隱藏；手機連著時不休眠，無手機連線時停止 app 端拉幀（省串流/渲染 CPU，**qemu 仍在跑**，spec §8）；選單列/重開→恢復拉幀。
   - ⚠️ **快照「還原」已 descope**：活體實測 `loadSnapshot` 會使運行中的模擬器崩潰（canary 37.2.1），且與「qemu 仍在跑」矛盾（load 會 rewind 丟狀態）。`wake()` 因此只恢復拉幀、不 load 快照。`save-on-suspend` 保留為磁碟檢查點。詳見 `RESULTS-p1b.md` 發現 1。
 - **選單列常駐（🪞）**：連線狀態、喚醒、顯示視窗、退出（Cmd+Q 乾淨 teardown）。（power 狀態 UI 尚未接線）
 - **雙向剪貼簿（純文字，防回音）**：host↔guest 經 `ClipboardBridge` 去重切斷回音迴圈。
@@ -440,7 +440,16 @@ extension）、`AppDelegate`、`KeymapController`、`AdbClient`、`GameDetector`
   `mirage-game:5554:8554 mirage-poc:5556:8556`（名稱:console 埠:gRPC 埠）。
   `MIRAGE_INSTANCES` 可整份覆寫；不帶 `-n` 時選第一台並套用既有的
   `MIRAGE_AVD`／`MIRAGE_PORT`／`MIRAGE_GRPC` 覆寫。
-  `status` 列出所有執行中的實例與 gRPC 綁定位址；`stop` 只停指定那台。
+  `status` 列出所有執行中的實例、視窗模式（有／headless）與 gRPC 綁定位址；`stop` 只停指定那台。
+- **無視窗啟動**：`./scripts/emu.sh -H start` 或
+  `MIRAGE_HEADLESS=1 ./scripts/emu.sh start`，啟動時加上 `-no-window`，桌面只留 Mirage。
+  可搭配指定實例：`./scripts/emu.sh -H -n mirage-poc start`，`-H` 與 `-n` 順序不限；
+  不帶 `-H` 且未設 `MIRAGE_HEADLESS=1` 時維持有視窗。Finder 可雙擊
+  `scripts/mac/啟動模擬器（無視窗）.command`。
+  已在執行且有視窗時，`-H start` 只提示先 `stop` 再重開，不會自動重啟。
+  Mirage 視窗可以關掉（隱藏），手機連著時不休眠。
+  模擬器視窗縮到 Dock 或被蓋住不影響 fps（實測）；headless 的 guest fps 也與有視窗相同
+  （59.65–59.94），Mac 端 Mirage 串流平均 55.5 fps，見[量測更正](RESULTS-multi-instance.md#2026-09-15-更正-no-window-不慢視窗縮小或被蓋住也不影響)。
 - **切換**：選單列 🪞 →「切換模擬器 ▸」，列出探索檔
   `~/Library/Caches/TemporaryItems/avd/running/pid_*.ini` 裡活著的實例，目前那台打勾；
   沒有其他實例時顯示停用項「沒有其他模擬器」。切換期間顯示既有的連線橫幅。

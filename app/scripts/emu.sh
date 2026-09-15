@@ -23,13 +23,27 @@ EMULATOR="$SDK/emulator/emulator"
 ADB="$SDK/platform-tools/adb"
 
 NAME=""
-if [ "${1:-}" = "-n" ]; then
-    NAME="${2:-}"
-    if [ -z "$NAME" ]; then echo "❌ -n 後面要接實例名稱" >&2; exit 2; fi
-    shift 2
-    if [ "${MIRAGE_AVD+x}${MIRAGE_PORT+x}${MIRAGE_GRPC+x}" != "" ]; then
-        echo "⚠️ 已指定 -n，忽略 MIRAGE_AVD／MIRAGE_PORT／MIRAGE_GRPC 環境變數覆寫。" >&2
-    fi
+HEADLESS="${MIRAGE_HEADLESS:-0}"
+COMMAND=""
+usage() { echo "用法：$0 [-H] [-n <實例名稱>] [start|stop|status]（MIRAGE_HEADLESS=1 亦可無視窗啟動）" >&2; }
+while [ "$#" -gt 0 ]; do
+    case "$1" in
+      -H) HEADLESS=1; shift ;;
+      -n)
+        NAME="${2:-}"
+        case "$NAME" in
+          ''|-*) echo "❌ -n 後面要接實例名稱" >&2; exit 2 ;;
+        esac
+        shift 2
+        ;;
+      start|stop|status)
+        if [ -n "$COMMAND" ]; then usage; exit 2; fi
+        COMMAND="$1"; shift ;;
+      *) usage; exit 2 ;;
+    esac
+done
+if [ -n "$NAME" ] && [ "${MIRAGE_AVD+x}${MIRAGE_PORT+x}${MIRAGE_GRPC+x}" != "" ]; then
+    echo "⚠️ 已指定 -n，忽略 MIRAGE_AVD／MIRAGE_PORT／MIRAGE_GRPC 環境變數覆寫。" >&2
 fi
 TABLE="${MIRAGE_INSTANCES:-$EMU_DEFAULT_INSTANCES}"
 DEFAULT_TRIPLET=$(emu_select_triplet "" "$TABLE") || exit 2
@@ -83,8 +97,13 @@ configure_guest_keyboard() {
   fi
 }
 
-case "${1:-start}" in
+case "${COMMAND:-start}" in
   start)
+    if [ "$HEADLESS" = 1 ] && emu_running_instances "$(ps_lines)" | awk -v p="$PORT" '
+        $3 == p && $5 == "windowed" { found = 1 } END { exit !found }'; then
+      echo "已在執行（有視窗）；要換成 headless 請 stop 後重開"
+      exit 0
+    fi
     if running && booted; then echo "✅ 已在執行且開機完成（${SERIAL}，gRPC ${GRPC}）"; warn_if_open "$GRPC"; configure_guest_keyboard || true; exit 0; fi
     if running; then echo "⏳ 已在執行，等待開機完成…"; else
       if other=$(emu_avd_conflict "$(ps_lines)" "$AVD" "$PORT"); then
@@ -92,7 +111,9 @@ case "${1:-start}" in
         exit 1
       fi
       echo "▶︎ 啟動 ${AVD}（port ${PORT}／gRPC ${GRPC}，冷開機、離開不存快照）"
-      nohup "$EMULATOR" -avd "$AVD" -no-snapshot -port "$PORT" -grpc "$GRPC" -grpc-use-token \
+      EMULATOR_ARGS=(-avd "$AVD" -no-snapshot -port "$PORT" -grpc "$GRPC" -grpc-use-token)
+      if [ "$HEADLESS" = 1 ]; then EMULATOR_ARGS+=(-no-window); fi
+      nohup "$EMULATOR" "${EMULATOR_ARGS[@]}" \
         < /dev/null > "$LOG" 2>&1 &
       sleep 8
     fi
@@ -109,10 +130,11 @@ case "${1:-start}" in
     LINES=$(emu_running_instances "$(ps_lines)")
     if [ -z "$LINES" ]; then echo "未執行"; exit 1; fi
     # adb 會吃 stdin，不能讓它讀走清單剩下的行；read 專用 fd 3，查詢的 stdin 接 /dev/null。
-    while read -r pid avd port grpc <&3; do
+    while read -r pid avd port grpc window <&3; do
       serial="emulator-${port}"
       if booted_on "$serial"; then st="開機完成"; else st="開機中"; fi
       printf '執行中：%s（%s，AVD %s，pid %s）\n' "$serial" "$st" "$avd" "$pid"
+      if [ "$window" = headless ]; then echo "  視窗：headless"; else echo "  視窗：有"; fi
       if [ "$grpc" = "?" ]; then
         printf '  gRPC：未指定 -grpc，隨機埠，Mirage 連不上\n'
       else
@@ -122,5 +144,5 @@ case "${1:-start}" in
     done 3<<< "$LINES" < /dev/null
     printf '磁碟可用：%s\n' "$(df -h / | tail -1 | awk '{print $4}')"
     ;;
-  *) echo "用法：$0 [-n <實例名稱>] [start|stop|status]" >&2; exit 2 ;;
+  *) usage; exit 2 ;;
 esac

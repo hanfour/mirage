@@ -97,19 +97,22 @@ emu_table_check() {
     return 0
 }
 
-# emu_running_instances "<pgrep -fl qemu-system 的輸出>" → 每台一行 "pid avd console grpc"，
+# emu_running_instances "<pgrep -fl qemu-system 的輸出>" → 每台一行 "pid avd console grpc window"，
+# window 欄為 windowed／headless，由執行檔名或完整 -no-window 參數判斷。
 # 依 console 埠排序；沒帶 -grpc 的行程 grpc 欄印 `?`（那是隨機埠，Mirage 連不上）。
 # 只認含 qemu-system 且有 -port 的行——pgrep -f 比對的是整條命令列，別的行程也可能提到埠號。
 emu_running_instances() {
     printf '%s\n' "$1" | awk '
         /qemu-system/ {
             pid = $1; avd = "?"; port = ""; grpc = "?"
+            window = ($2 ~ /(^|\/)qemu-system-aarch64-headless$/) ? "headless" : "windowed"
             for (i = 2; i <= NF; i++) {
+                if ($i == "-no-window") window = "headless"
                 if ($i == "-avd")  avd  = $(i + 1)
                 if ($i == "-port") port = $(i + 1)
                 if ($i == "-grpc") grpc = $(i + 1)
             }
-            if (port != "") print pid, avd, port, grpc
+            if (port != "") print pid, avd, port, grpc, window
         }' | sort -k3,3n
 }
 
