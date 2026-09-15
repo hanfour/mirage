@@ -162,7 +162,9 @@ function renderFrameWarning(stats) {
   const event = stats.emulatorConnected === false ? 'disconnected' : seconds > 5 ? 'stalled' : '';
   if (event !== frameWarningEvent) dismissedFrameEvent = '';
   frameWarningEvent = event;
-  frameWarning.textContent = `模擬器未連線，畫面已停止 ${Math.floor(seconds)} 秒`;
+  frameWarning.textContent = event === 'disconnected'
+    ? `模擬器未連線，畫面已停止 ${Math.floor(seconds)} 秒`
+    : `畫面已停止 ${Math.floor(seconds)} 秒（模擬器仍連線）`;
   frameWarning.hidden = !event || dismissedFrameEvent === event;
 }
 frameWarning.addEventListener('click', () => {

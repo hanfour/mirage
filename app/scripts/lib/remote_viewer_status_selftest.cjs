@@ -234,6 +234,25 @@ test('stalled warning requires strictly more than five seconds; heartbeat does n
   assert.equal(banner.hidden, true);
 });
 
+test('stalled text identifies a connected emulator and changing either event restores dismissed warnings', () => {
+  const h = harness(), banner = h.elements['#frame-warning'];
+  health(h, true, 8.9);
+  assert.equal(banner.hidden, false);
+  assert.equal(banner.textContent, '畫面已停止 8 秒（模擬器仍連線）');
+  banner.listeners.click();
+  health(h, true, 9);
+  assert.equal(banner.hidden, true);
+  health(h, false, 10);
+  assert.equal(banner.hidden, false);
+  assert.equal(banner.textContent, '模擬器未連線，畫面已停止 10 秒');
+  banner.listeners.click();
+  health(h, false, 11);
+  assert.equal(banner.hidden, true);
+  health(h, true, 12);
+  assert.equal(banner.hidden, false);
+  assert.equal(banner.textContent, '畫面已停止 12 秒（模擬器仍連線）');
+});
+
 test('expanded stats occupy at most forty percent and only the toggle intercepts input', () => {
   const h = harness(), button = h.elements['#stats-toggle'], text = h.elements['#stats-text'];
   button.listeners.click();
