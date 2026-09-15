@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# 手機遙控活體驗證（spec 第 8 節）：七條斷言
+# 手機遙控活體驗證（spec 第 8 節）：八條斷言
 #   R1 手機端（Python 用戶端）60 秒內收到 keyframe
 #   R2 幀序連續（SEQ_GAPS == 0）
 #   R3 送一組 down/move/up 後 guest 的 getevent 出現 ABS_MT_TRACKING_ID，且沒有 slot 卡在 down
@@ -7,6 +7,7 @@
 #   R5 AppSwitch 在 guest evdev 出現 KEY_APPSELECT DOWN 與 UP
 #   R6 遠端文字提交後，設定搜尋欄位的新鮮 UI dump 精確回讀相等
 #   R7 3 秒雙指縮放：兩 slot 按放、RPC ≤70/s、transit p50 <50ms、tap 500ms 內到達
+#   R8 viewer 重新連上後 10 秒內 emulatorConnected=true 且 newFrames>0（休眠轉移由單元測試覆蓋）
 # 之前先跑兩條 Swift 活體測試：RemoteVideoEncoderLiveTests（硬體編碼器＋SPS 改寫）與
 # RemoteInputLiveTests（server → InputQueue → 真模擬器），並斷言它們是 passed 不是 skipped。
 #
@@ -209,6 +210,12 @@ echo "Mac 延遲摘要（最後一窗，毫秒）：${MAC_SUMMARY:-未收到 sta
 # 這是窗口百分位的中位數，不是原始幀樣本合併後的百分位；空樣本不得當成零通過。
 "$PY" "${SCRIPT_DIR}/lib/remote_latency_verify.py" "$CLIENT_LOG"
 assert_ok "R3 Mac age 各窗中位數 p50 < 12 ms 且 p95 < 25 ms" "$?"
+# R8 也必須在導覽改變遊戲畫面前執行；輸出 stats 原文，不以心跳幀數代替新幀。
+LIVENESS_LOG=$(mktemp -t mirage_remote_liveness) || exit 1
+echo "=== R8：先連線斷開，再驗重連後的新幀（證據：${LIVENESS_LOG}）==="
+"$PY" "${SCRIPT_DIR}/lib/remote_liveness_verify.py" --host 127.0.0.1 --port "$REMOTE_PORT" --token "$TOKEN" \
+    2>&1 | tee "$LIVENESS_LOG"
+assert_ok "R8 重連後 10 秒內模擬器連線且有新幀" "${PIPESTATUS[0]}"
 # R7 在導覽與文字測試之前，沿用遊戲畫面；獨立證據檔不混入 R3 tap。
 cp "$EVENT_LOG" "${EVENT_LOG}.r3" || exit 1
 PINCH_LOG=$(mktemp -t mirage_remote_pinch) || exit 1
