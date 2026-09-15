@@ -85,6 +85,7 @@ cat > "$APP/Contents/Info.plist" <<'PLIST'
   <key>CFBundleName</key><string>Mirage</string>
   <key>CFBundlePackageType</key><string>APPL</string>
   <key>CFBundleInfoDictionaryVersion</key><string>6.0</string>
+  <key>NSLocalNetworkUsageDescription</key><string>Mirage 需要本機網路權限，將畫面串流到同一網路的手機，並接收手機遙控操作。</string>
   <key>NSPrincipalClass</key><string>NSApplication</string>
   <key>NSHighResolutionCapable</key><true/>
 </dict>

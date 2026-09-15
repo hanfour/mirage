@@ -23,6 +23,7 @@ enum RemoteMenu {
     static let disableTitle = "關閉手機遙控"
     static let disconnectTitle = "中斷連線"
     static let noAddressText = "找不到本機 IPv4 位址，請確認 Wi-Fi 或 Tailscale"
+    static let localNetworkHint = "找不到區域網路位址，請到系統設定 → 隱私權與安全性 → 本機網路允許 Mirage"
     static let qrSide: CGFloat = 176
 
     static func entries(_ state: RemoteMenuState,
@@ -40,6 +41,8 @@ enum RemoteMenu {
             return [.toggle(title: disableTitle), .status(statusText(session)), .status(pullRateText(pullInterval))]
                 + (session.isViewerConnected ? [.status(connectionText(clientStats))] : [])
                 + addresses
+                + (HostAddressProbe.needsLocalNetworkHint(urls.compactMap { URL(string: $0)?.host })
+                   ? [.status(localNetworkHint)] : [])
                 + [.disconnect(enabled: session.isViewerConnected)]
         }
     }

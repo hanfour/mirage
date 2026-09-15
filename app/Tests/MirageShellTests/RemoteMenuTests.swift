@@ -58,6 +58,7 @@ import Testing
             .status("狀態：等待配對"),
             .status("拉取率上限：30 fps"),
             .status("找不到本機 IPv4 位址，請確認 Wi-Fi 或 Tailscale"),
+            .status(RemoteMenu.localNetworkHint),
             .disconnect(enabled: false),
         ])
     }

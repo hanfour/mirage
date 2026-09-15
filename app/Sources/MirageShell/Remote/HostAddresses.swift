@@ -10,7 +10,11 @@ struct HostAddress: Equatable, Sendable {
 /// 實際會走的那個位址——Wi-Fi 或 Tailscale）。
 enum HostAddresses {
     /// `getifaddrs`：IPv4、介面 UP、非 loopback。排序交給 `ordered`。
-    static func current() -> [HostAddress] {
+    static func current(probe: (String) -> String? = HostAddressProbe.localAddress) -> [HostAddress] {
+        HostAddressProbe.current(interfaces: interfaces(), probe: probe)
+    }
+
+    private static func interfaces() -> [HostAddress] {
         var head: UnsafeMutablePointer<ifaddrs>?
         guard getifaddrs(&head) == 0, let first = head else { return [] }
         defer { freeifaddrs(head) }
