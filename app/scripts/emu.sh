@@ -70,9 +70,22 @@ foreground_on() {
   "$ADB" -s "$1" shell dumpsys activity activities 2>/dev/null | grep -m1 topResumedActivity | grep -oE '[a-z][a-z.]+/[A-Za-z.]+' | head -1
 }
 
+configure_guest_keyboard() {
+  local current
+  current=$("$ADB" -s "$SERIAL" shell settings get secure show_ime_with_hard_keyboard | tr -d '\r') || {
+    echo "❌ 無法讀取 guest 軟體鍵盤設定（${SERIAL}）" >&2; return 1;
+  }
+  if emu_should_disable_soft_keyboard "$current"; then
+    "$ADB" -s "$SERIAL" shell settings put secure show_ime_with_hard_keyboard 0 || {
+      echo "❌ 無法停用 guest 軟體鍵盤（${SERIAL}）" >&2; return 1;
+    }
+    echo "✅ guest show_ime_with_hard_keyboard：${current:-空值} → 0（有實體鍵盤時不顯示軟體鍵盤）"
+  fi
+}
+
 case "${1:-start}" in
   start)
-    if running && booted; then echo "✅ 已在執行且開機完成（${SERIAL}，gRPC ${GRPC}）"; warn_if_open "$GRPC"; exit 0; fi
+    if running && booted; then echo "✅ 已在執行且開機完成（${SERIAL}，gRPC ${GRPC}）"; warn_if_open "$GRPC"; configure_guest_keyboard; exit $?; fi
     if running; then echo "⏳ 已在執行，等待開機完成…"; else
       if other=$(emu_avd_conflict "$(ps_lines)" "$AVD" "$PORT"); then
         echo "❌ AVD ${AVD} 已在 console 埠 ${other} 上執行。同一個 AVD 不能開第二台——每台要各自一個 AVD（規格 §3.1），用 tools/provision 加一台再以 -n 指定。" >&2
@@ -83,7 +96,7 @@ case "${1:-start}" in
         < /dev/null > "$LOG" 2>&1 &
       sleep 8
     fi
-    for _ in $(seq 1 60); do booted && { echo "✅ 開機完成（${SERIAL}）"; exit 0; }; sleep 3; done
+    for _ in $(seq 1 60); do booted && { echo "✅ 開機完成（${SERIAL}）"; configure_guest_keyboard; exit $?; }; sleep 3; done
     echo "❌ 90 秒內未開機完成，log：${LOG}" >&2; exit 1
     ;;
   stop)

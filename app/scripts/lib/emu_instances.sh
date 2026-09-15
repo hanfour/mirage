@@ -126,3 +126,9 @@ emu_avd_conflict() {
         $2 == a && $3 != p { print $3; found = 1 }
         END { exit !found }'
 }
+
+# emu_should_disable_soft_keyboard <目前 secure 設定值> → 需要 put 0 時回 0。
+# adb 的 CR 由呼叫端去除；null／空值也要套用。
+emu_should_disable_soft_keyboard() {
+    [ "$1" != "0" ]
+}

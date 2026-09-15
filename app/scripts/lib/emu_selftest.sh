@@ -41,6 +41,12 @@ ${PS_ONE}"
 
 echo "=== emu_instances.sh 自我測試 ==="
 
+echo "--- emu_should_disable_soft_keyboard ---"
+check "目前是 0 → 不重複 put" "$(run_case 'emu_should_disable_soft_keyboard 0')" 1
+check "目前是 1 → put 0" "$(run_case 'emu_should_disable_soft_keyboard 1')" 0
+check "目前是 null → put 0" "$(run_case 'emu_should_disable_soft_keyboard null')" 0
+check "目前是空值 → put 0" "$(run_case 'emu_should_disable_soft_keyboard ""')" 0
+
 echo "--- emu_names ---"
 check "名稱依表格順序列出" "$(run_out 'emu_names "a:5554:8554 b:5556:8556"')" "a, b"
 check "空表格名稱清單為空" "$(run_out 'emu_names ""')" ""
@@ -158,6 +164,33 @@ for serial in emulator-5554 emulator-5556; do
     [[ "$STATUS_OUT" == *"執行中：${serial}（開機完成"* ]]
     check "吃光 stdin 後仍列出 ${serial} 且開機完成" "$?" 0
 done
+
+echo "--- emu.sh start 接線：已開機仍套用，第二次不 put ---"
+cat > "${SDK_FIXTURE}/platform-tools/adb" <<'FAKE_ADB'
+#!/usr/bin/env bash
+case "$*" in
+    *'shell getprop sys.boot_completed') printf '1\r\n' ;;
+    *'shell settings get secure show_ime_with_hard_keyboard')
+        cat "$ANDROID_SDK_ROOT/keyboard-value" ;;
+    *'shell settings put secure show_ime_with_hard_keyboard 0')
+        printf 'put\n' >> "$ANDROID_SDK_ROOT/keyboard-writes"
+        printf '0\r\n' > "$ANDROID_SDK_ROOT/keyboard-value" ;;
+    *) exit 1 ;;
+esac
+FAKE_ADB
+printf '1\r\n' > "$SDK_FIXTURE/keyboard-value"
+for attempt in 1 2; do
+    START_OUT=$(ANDROID_SDK_ROOT="$SDK_FIXTURE" MIRAGE_EMU_PS_LINES="$PS_TWO" \
+        MIRAGE_INSTANCES='mirage-game:5554:8554 mirage-poc:5556:8556' \
+        MIRAGE_AVD='' MIRAGE_PORT='' MIRAGE_GRPC='' \
+        bash "$(dirname "$0")/../emu.sh" start < /dev/null)
+    check "start 第 ${attempt} 次成功" "$?" 0
+    if [ "$attempt" = 1 ]; then
+        [[ "$START_OUT" == *'show_ime_with_hard_keyboard：1 → 0'* ]]
+        check "修改時印設定行" "$?" 0
+    fi
+done
+check "兩次 start 只 put 一次" "$(cat "$SDK_FIXTURE/keyboard-writes")" put
 
 echo ""
 if [ "$FAILURES" -eq 0 ]; then

@@ -465,6 +465,8 @@ extension）、`AppDelegate`、`KeymapController`、`AdbClient`、`GameDetector`
 
 ## 手機遙控（區域網路）
 
+`./scripts/emu.sh start` 開機完成後（包含已啟動的實例）會冪等設定 `show_ime_with_hard_keyboard=0`，讓 guest 有實體鍵盤時不彈出 Gboard，避免遮住遙控畫面；手動套用：`adb -s emulator-5554 shell settings put secure show_ime_with_hard_keyboard 0`（其他實例請替換 serial）。
+
 iPhone Safari 可作為 Mirage 的觸控第二螢幕：Mac 用 VideoToolbox 硬體編碼 H.264，
 經 WebSocket 送到手機的 `VideoDecoder`，觸控經既有 `InputQueue` 注入。
 見[設計文件](../docs/specs/2026-09-12-lan-remote-control-design.md)。第一版以 iPhone 為目標；
