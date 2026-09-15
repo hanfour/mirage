@@ -17,7 +17,7 @@ import Testing
         let states: StateRecorder<RemoteSessionState>
     }
 
-    private func start(failEncoding: Bool = false,
+    private func start(failEncoding: Bool = false, emulatorConnected: Bool = false,
                        pullInterval: Duration = .milliseconds(5),
                        heartbeatInterval: Duration = .milliseconds(250)) async throws -> Harness {
         var configuration = RemoteMirrorConfiguration(token: Self.token, viewerPage: Self.page)
@@ -37,6 +37,7 @@ import Testing
                 box.encoder = encoder
                 return encoder
             },
+            emulatorConnected: { emulatorConnected },
             onError: { message in Task { await errors.record(message) } },
             onStateChanged: { state in Task { await states.record(state) } })
         let port = try await controller.start()
@@ -72,17 +73,18 @@ import Testing
         Frame(width: width, height: 1, rgba: Data(count: width * 4))
     }
 
-    private func withController(pullInterval: Duration = .milliseconds(5),
+    private func withController(emulatorConnected: Bool = false, pullInterval: Duration = .milliseconds(5),
                                 heartbeatInterval: Duration = .milliseconds(250),
                                 _ body: (Harness) async throws -> Void) async throws {
-        let h = try await start(pullInterval: pullInterval, heartbeatInterval: heartbeatInterval)
+        let h = try await start(emulatorConnected: emulatorConnected, pullInterval: pullInterval, heartbeatInterval: heartbeatInterval)
         do { try await body(h) } catch { await h.controller.stop(); throw error }
         await h.controller.stop()
     }
 
     /// 沒有 viewer 時不拉幀、不編碼（spec 第 6 節）。
-    @Test func sendsAgeAndHeartbeatStatsOnVideoSocket() async throws {
-        try await withController { h in
+    @Test(arguments: [true, false])
+    func sendsAgeAndHeartbeatStatsOnVideoSocket(connected: Bool) async throws {
+        try await withController(emulatorConnected: connected) { h in
             let source = Frame(width: 8, height: 1, rgba: Data(count: 32),
                                receivedAt: .now - .milliseconds(50), transitMs: 7)
             h.controller.secondary.put(source)
@@ -95,6 +97,8 @@ import Testing
                 }
             }
             let stats = try #require(summary)
+            #expect(stats.emulatorConnected == connected)
+            #expect(stats.secondsSinceNewFrame >= 1)
             #expect(stats.newFrames == 1)
             #expect(stats.heartbeatFrames > 0)
             #expect(stats.age?.count == 1)

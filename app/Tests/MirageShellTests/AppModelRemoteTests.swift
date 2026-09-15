@@ -359,4 +359,15 @@ private final class RemotePortBlocker {
         }
     }
 
+    @Test func remoteConnectionStatusUsesEstablishedConnection() async throws {
+        try await withModel("remote-connection-status") { model in
+            model.connState = .connected
+            #expect(model.emulatorConnected)
+            model.connState = .connecting
+            #expect(!model.emulatorConnected)
+            model.connState = .disconnected
+            #expect(!model.emulatorConnected)
+        }
+    }
+
 }

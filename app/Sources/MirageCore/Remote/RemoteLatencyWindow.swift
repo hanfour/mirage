@@ -20,6 +20,8 @@ public struct RemoteLatencySummary: Codable, Sendable, Equatable {
     public let heartbeatFrames: Int
     public var inputRPCsPerSecond: Double = 0
     public var inputCoalesced: Int = 0
+    public var emulatorConnected: Bool = false
+    public var secondsSinceNewFrame: Double = 0
 }
 
 /// 沿用 LatencyWindow 的 nearest-rank 百分位及 TransitWindow 的無效值過濾。
@@ -65,5 +67,23 @@ public struct RemoteLatencyWindow: Sendable {
     private static func milliseconds(_ duration: Duration) -> Double {
         let c = duration.components
         return Double(c.seconds) * 1000 + Double(c.attoseconds) / 1e15
+    }
+}
+
+/// 跨 stats 窗口保存原始接收時間；沒有首幀時從 controller 建立起計時。
+/// 時鐘由呼叫端注入，快取心跳與 drain 都不能把停格時間歸零。
+public struct RemoteFrameHealth: Sendable {
+    private let startedAt: ContinuousClock.Instant
+    private var lastReceivedAt: ContinuousClock.Instant?
+
+    public init(startedAt: ContinuousClock.Instant) { self.startedAt = startedAt }
+
+    public mutating func record(receivedAt: ContinuousClock.Instant, heartbeat: Bool) {
+        if !heartbeat { lastReceivedAt = max(lastReceivedAt ?? receivedAt, receivedAt) }
+    }
+
+    public func secondsSinceNewFrame(now: ContinuousClock.Instant) -> Double {
+        let elapsed = max(.zero, now - (lastReceivedAt ?? startedAt)).components
+        return Double(elapsed.seconds) + Double(elapsed.attoseconds) / 1e18
     }
 }

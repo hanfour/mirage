@@ -49,6 +49,7 @@ private final class RemoteAccessUnitSequencer: @unchecked Sendable {
     private var sequence: UInt32 = 0
     private var window = RemoteLatencyWindow()
     private var windowStarted = ContinuousClock.now
+    private var frameHealth = RemoteFrameHealth(startedAt: .now)
     private let inputStatistics: InputStatistics
     private var previousInput: InputStatistics.Snapshot
 
@@ -58,16 +59,19 @@ private final class RemoteAccessUnitSequencer: @unchecked Sendable {
         self.previousInput = inputStatistics.snapshot()
     }
 
-    func recordPull(age: Duration, transitMs: Double?, heartbeat: Bool) {
+    func recordPull(age: Duration, transitMs: Double?, heartbeat: Bool, receivedAt: ContinuousClock.Instant) {
         lock.lock(); defer { lock.unlock() }
         window.recordPull(age: age, transitMs: transitMs, heartbeat: heartbeat)
+        frameHealth.record(receivedAt: receivedAt, heartbeat: heartbeat)
     }
 
-    func publishIfDue(now: ContinuousClock.Instant = .now) {
+    func publishIfDue(emulatorConnected: Bool, now: ContinuousClock.Instant = .now) {
         lock.lock()
         let interval = now - windowStarted
         guard interval >= .seconds(1) else { lock.unlock(); return }
         var summary = window.drain(interval: interval)
+        summary.emulatorConnected = emulatorConnected
+        summary.secondsSinceNewFrame = frameHealth.secondsSinceNewFrame(now: now)
         let input = inputStatistics.snapshot()
         summary.inputRPCsPerSecond = input.rpcsPerSecond(since: previousInput, interval: interval)
         summary.inputCoalesced = input.coalesced - previousInput.coalesced
@@ -108,6 +112,7 @@ final class RemoteMirrorController: @unchecked Sendable {
     private let encoder: any RemoteFrameEncoding
     private let sequencer: RemoteAccessUnitSequencer
     private let onError: @Sendable (String) -> Void
+    private let emulatorConnected: @Sendable () async -> Bool
     private let lock = NSLock()
     // 拉取、重連的立即送幀及 stop/invalidate 共用序列佇列；server／VT 回呼不等待它。
     private let encodingQueue = DispatchQueue(label: "mirage.remote.encoding")
@@ -129,6 +134,7 @@ final class RemoteMirrorController: @unchecked Sendable {
          secondary: LatestFrameBox,
          inputQueue: InputQueue,
          makeEncoder: () -> any RemoteFrameEncoding,
+         emulatorConnected: @escaping @Sendable () async -> Bool = { false },
          onText: @escaping @Sendable (String) -> Void = { _ in },
          onError: @escaping @Sendable (String) -> Void = { _ in },
          onStateChanged: @escaping @Sendable (RemoteSessionState) -> Void = { _ in })
@@ -138,6 +144,7 @@ final class RemoteMirrorController: @unchecked Sendable {
         self.notifiedFrames = NotifyingFrameSink(box: secondary)
         self.token = configuration.token
         self.onError = onError
+        self.emulatorConnected = emulatorConnected
         let (states, continuation) = AsyncStream<RemoteSessionState>.makeStream(bufferingPolicy: .bufferingNewest(8))
         self.states = states
         self.stateContinuation = continuation
@@ -222,10 +229,13 @@ final class RemoteMirrorController: @unchecked Sendable {
         guard !stopped else { return false }
         // 獨立計時，不讓慢編碼或沒有新幀遮住每秒統計。
         let sequencer = self.sequencer
+        let emulatorConnected = self.emulatorConnected
         statsTask = Task.detached {
             while !Task.isCancelled {
                 do { try await Task.sleep(for: .seconds(1)) } catch { return }
-                sequencer.publishIfDue()
+                let connected = await emulatorConnected()
+                if Task.isCancelled { return }
+                sequencer.publishIfDue(emulatorConnected: connected)
             }
         }
         signalTask = Task.detached { [weak self] in
@@ -301,7 +311,7 @@ final class RemoteMirrorController: @unchecked Sendable {
         do {
             let sequencer = self.sequencer
             sequencer.recordPull(age: ContinuousClock.now - cached.receivedAt,
-                                 transitMs: cached.transitMs, heartbeat: fresh == nil)
+                                 transitMs: cached.transitMs, heartbeat: fresh == nil, receivedAt: cached.receivedAt)
             let started = ContinuousClock.now
             try encoder.encode(frame) { unit in sequencer.deliver(unit, started: started) }
             lastEncodedAt = started

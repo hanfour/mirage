@@ -9,6 +9,8 @@ typealias RemoteEncoderFactory = (
 /// 手機遙控的開關、配對狀態與 sink 生命週期。所有轉移在 MainActor 串列化，
 /// callback 另帶 generation，舊 server 的非同步通知不能污染新的一次配對。
 extension AppModel {
+    var emulatorConnected: Bool { connState == .connected }
+
     var hasActiveRemoteViewer: Bool { remote?.sessionState.isViewerConnected ?? false }
 
     func setupRemoteMenu() {
@@ -126,6 +128,7 @@ extension AppModel {
         return RemoteMirrorController(
             configuration: configuration, secondary: secondary, inputQueue: inputQueue,
             makeEncoder: { makeRemoteEncoder(fail) },
+            emulatorConnected: { [weak self] in await self?.emulatorConnected ?? false },
             onText: { [textInput] text in textInput.enqueue(text, origin: "remote") },
             onError: fail,
             onStateChanged: { [weak self] _ in

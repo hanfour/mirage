@@ -103,7 +103,7 @@ async function start() {
       if (typeof event.data === 'string') {
         try {
           const message = JSON.parse(event.data);
-          if (message?.type === 'stats') macStats = message;
+          if (message?.type === 'stats') { macStats = message; renderFrameWarning(message); }
         } catch(e) { note('stats JSON error: ' + e.message); }
         return;
       }
@@ -154,6 +154,21 @@ async function start() {
     reconnect(e.message);
   }
 }
+// 同一故障事件只收起一次；恢復或故障種類改變時重新通知。
+const frameWarning = document.querySelector('#frame-warning');
+let frameWarningEvent = '', dismissedFrameEvent = '';
+function renderFrameWarning(stats) {
+  const seconds = Number.isFinite(stats.secondsSinceNewFrame) ? Math.max(0, stats.secondsSinceNewFrame) : 0;
+  const event = stats.emulatorConnected === false ? 'disconnected' : seconds > 5 ? 'stalled' : '';
+  if (event !== frameWarningEvent) dismissedFrameEvent = '';
+  frameWarningEvent = event;
+  frameWarning.textContent = `模擬器未連線，畫面已停止 ${Math.floor(seconds)} 秒`;
+  frameWarning.hidden = !event || dismissedFrameEvent === event;
+}
+frameWarning.addEventListener('click', () => {
+  dismissedFrameEvent = frameWarningEvent;
+  frameWarning.hidden = true;
+});
 let macStats = null;
 function macStatsText() {
   const ms = value => Number.isFinite(value) ? value.toFixed(1) : '—';

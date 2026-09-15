@@ -12,6 +12,8 @@ import Testing
         var summary = window.drain(interval: .milliseconds(1020))
         summary.inputRPCsPerSecond = 60.5
         summary.inputCoalesced = 64
+        summary.emulatorConnected = true
+        summary.secondsSinceNewFrame = 16.25
         #expect(summary.type == "stats")
         #expect(summary.intervalMs == 1020)
         #expect(summary.newFrames == 20)
@@ -25,6 +27,8 @@ import Testing
         #expect(decoded == summary)
         #expect(decoded.inputRPCsPerSecond == 60.5)
         #expect(decoded.inputCoalesced == 64)
+        #expect(decoded.emulatorConnected)
+        #expect(decoded.secondsSinceNewFrame == 16.25)
     }
 
     @Test func heartbeatExcludesCachedAgeAndTransitButMeasuresEncoding() {
@@ -100,4 +104,36 @@ import Testing
         #expect(late.age == nil)
         #expect(late.encode?.p50 == 1500)
     }
+    @Test func frameHealthCountsNoFrameTimeAndIgnoresHeartbeats() {
+        let start = ContinuousClock.now
+        var health = RemoteFrameHealth(startedAt: start)
+        #expect(health.secondsSinceNewFrame(now: start + .seconds(6)) == 6)
+        health.record(receivedAt: start + .seconds(1), heartbeat: false)
+        health.record(receivedAt: start + .seconds(9), heartbeat: true)
+        #expect(health.secondsSinceNewFrame(now: start + .seconds(10)) == 9)
+        health.record(receivedAt: start + .seconds(10), heartbeat: false)
+        #expect(health.secondsSinceNewFrame(now: start + .milliseconds(10250)) == 0.25)
+    }
+
+    @Test func cachedFirstFrameKeepsItsOriginalAgeAndCannotMoveBackwards() {
+        let start = ContinuousClock.now
+        var health = RemoteFrameHealth(startedAt: start)
+        health.record(receivedAt: start - .seconds(960), heartbeat: false)
+        #expect(health.secondsSinceNewFrame(now: start) == 960)
+        health.record(receivedAt: start, heartbeat: false)
+        health.record(receivedAt: start - .seconds(30), heartbeat: false)
+        #expect(health.secondsSinceNewFrame(now: start + .seconds(1)) == 1)
+        #expect(health.secondsSinceNewFrame(now: start - .seconds(1)) == 0)
+    }
+
+    @Test func disconnectedStatsStillEncodeExplicitFieldsWithoutFrames() throws {
+        var window = RemoteLatencyWindow()
+        let summary = window.drain(interval: .seconds(1))
+        let data = try JSONEncoder().encode(summary)
+        let object = try #require(JSONSerialization.jsonObject(with: data) as? [String: Any])
+        let connected = try #require(object["emulatorConnected"] as? Bool)
+        #expect(!connected)
+        #expect(object["secondsSinceNewFrame"] as? Double == 0)
+    }
+
 }
