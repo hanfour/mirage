@@ -61,7 +61,11 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         statusMenuItem = NSMenuItem(title: "狀態：—", action: nil, keyEquivalent: "")
         gameItem = NSMenuItem(title: "遊戲：—", action: nil, keyEquivalent: "")
         muteItem = NSMenuItem(title: "靜音", action: nil, keyEquivalent: "")
-        audioHealthItem = NSMenuItem(title: "音訊：無法取得（模擬器缺陷）", action: nil, keyEquivalent: "")
+        // 只寫「模擬器缺陷」等於要使用者自己想辦法。D44 的閂鎖已量出唯一的解法：
+        // guest 全域音訊停止數秒（實測停 3 秒開始回復、停 8 秒回到 100%）。
+        // 換 audio 元素、重載頁面、重開 RPC、換訂閱格式都無效，Mirage 這端做不到。
+        audioHealthItem = NSMenuItem(title: "音訊：模擬器停止供應（把出聲的 app 關掉約 8 秒可回復）",
+                                     action: nil, keyEquivalent: "")
         audioHealthItem.isEnabled = false
         audioHealthItem.isHidden = true
         forceMenu = NSMenu()

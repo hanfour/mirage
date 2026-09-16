@@ -65,6 +65,8 @@ extension AppModel {
                 monitor = monitor.observing(packets: packets, supplyPercent: supplyPct)
                 switch AudioSupplyMonitor.notice(from: previousState, to: monitor.state) {
                 case .degraded:
+                    // 這一行的格式由 `audio_stats.sh` 的正規式綁著（結尾必須是 supply=N%），
+                    // 不要在後面加欄位。給使用者的處理方式放在選單列那一項。
                     print("[audio] degraded reason=emulator-output-stalled pkt=\(packets) supply=\(supplyPct)%")
                 case .recovered:
                     print("[audio] recovered pkt=\(packets) supply=\(supplyPct)%")
