@@ -90,18 +90,25 @@ public final class AudioRingBuffer: AudioSink, @unchecked Sendable {
     /// 不是每次 read 都加——它數的是「進入蓄水又放行」的次數，不是供應中的 read 次數。
     private let primeCount = ManagedAtomic<Int>(0)
 
-    /// 預設 19200 = 48kHz × 2ch × 200ms。這是**溢位前的天花板**，不是目標深度。
+    /// 預設 57600 = 48kHz × 2ch × 600ms。這是**溢位前的天花板**，不是目標深度。
     ///
-    /// `primeThresholdSamples` 預設 9600 = 100ms：消費端要等緩衝積到這個深度才開始
+    /// **為什麼是 600ms 而不是原本的 200ms**（2026-09-16 實測）：emulator 是成批送的，
+    /// 同一秒內的供應率在 91% 到 119% 之間跳，平均 97% 到 103%（量是夠的）。
+    /// 200ms 的天花板吃不下這個起伏，實測 depth 在 0 到 197ms 之間來回，
+    /// 每秒 overrun 約 2 次（滿了整包丟棄）、重新蓄水約 1 次（每次賠約 100ms 靜音），
+    /// 聽起來就是持續的斷斷續續。丟包與見底互為因果：丟完就見底，見底就重新蓄水。
+    /// 天花板本身不產生延遲，延遲由穩態深度決定，所以放大它只有好處。
+    ///
+    /// `primeThresholdSamples` 預設 19200 = 200ms：消費端要等緩衝積到這個深度才開始
     /// 供應。**沒有它，穩態深度會是 0**——生產與消費速率相等時，每次 render callback
     /// 都拿到不足的資料然後補靜音，2026-08-03 實測 60 秒 under 每秒增加約 90、
     /// depth 全程 0ms（見 app/RESULTS-d32-probe.md）。傳 0 表示不蓄水（測試用）。
-    /// `primeTimeoutSamples` 預設 19200 = 48kHz × 2ch × 200ms，未經校準，不是量出的值。
-    /// 這是明顯長於 100ms 蓄水門檻、又希望短到點擊音效不會被聽成延遲的取捨，
+    /// `primeTimeoutSamples` 預設 28800 = 48kHz × 2ch × 300ms，未經校準，不是量出的值。
+    /// 這是明顯長於 200ms 蓄水門檻、又希望短到點擊音效不會被聽成延遲的取捨，
     /// 並非已驗證的聽感保證。開放注入供測試與日後校準使用。
     /// 逾時以有資料等待期間的累計請求樣本數計算，不讀時鐘。
-    public init(capacitySamples: Int = 19_200, primeThresholdSamples: Int = 9_600,
-                primeTimeoutSamples: Int = 19_200,
+    public init(capacitySamples: Int = 57_600, primeThresholdSamples: Int = 19_200,
+                primeTimeoutSamples: Int = 28_800,
                 collectPacketSizes: Bool = false) {
         packetStatsLock = collectPacketSizes ? NSLock() : nil
         capacity = max(capacitySamples, 1)

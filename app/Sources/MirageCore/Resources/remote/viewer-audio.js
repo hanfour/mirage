@@ -27,102 +27,49 @@ class AudioJitterQueue {
   get size() { return this.items.length; }
   get dropped() { return this.dropCount; }
 }
-const AUDIO_WORKLET_SOURCE = `
-class MirageAudioProcessor extends AudioWorkletProcessor {
-  constructor(options) {
-    super();
-    this.channels = options.processorOptions.channels;
-    this.capacity = Math.ceil(sampleRate * 0.5);
-    this.threshold = Math.ceil(sampleRate * 0.1);
-    this.ring = new Float32Array(this.capacity * this.channels);
-    this.read = 0; this.depth = 0; this.playing = false;
-    this.dropped = 0; this.underruns = 0; this.ticks = 0;
-    this.port.onmessage = ({data}) => {
-      const frames = data.length / this.channels;
-      if (this.depth + frames > this.capacity) this.dropped++;
-      for (let frame = 0; frame < frames; frame++) {
-        if (this.depth === this.capacity) {
-          this.read = (this.read + 1) % this.capacity;
-          this.depth--;
-        }
-        const write = (this.read + this.depth) % this.capacity;
-        for (let ch = 0; ch < this.channels; ch++) this.ring[write * this.channels + ch] = data[frame * this.channels + ch];
-        this.depth++;
-      }
-      this.port.postMessage({ack:true});
-    };
-  }
-  process(inputs, outputs) {
-    const output = outputs[0];
-    for (const channel of output) channel.fill(0);
-    // 生產與消費同速時，零深度會讓每次 render 都補靜音，因此先蓄水 100 ms。
-    if (!this.playing && this.depth >= this.threshold) this.playing = true;
-    if (this.playing) {
-      const count = Math.min(output[0].length, this.depth);
-      for (let frame = 0; frame < count; frame++) {
-        for (let ch = 0; ch < this.channels; ch++) output[ch][frame] = this.ring[this.read * this.channels + ch];
-        this.read = (this.read + 1) % this.capacity;
-      }
-      this.depth -= count;
-      if (!this.depth) { this.playing = false; this.underruns++; }
-    }
-    this.ticks += output[0].length;
-    if (this.ticks >= sampleRate / 20) {
-      this.ticks = 0;
-      this.port.postMessage({bufferMs:this.depth * 1000 / sampleRate, dropped:this.dropped, underruns:this.underruns});
-    }
-    return true;
-  }
+// 排程決策抽成純函式：這是整條播放路徑唯一會算錯的地方，也是 node 裡唯一測得到的部分。
+// preRoll 與 Mac 端 AudioRingBuffer 的蓄水門檻同為 100 ms，理由也相同：生產與消費
+// 速率相等時，不先積一點水就會每次都補靜音。
+const AUDIO_PRE_ROLL_SECONDS = 0.1, AUDIO_MAX_LEAD_SECONDS = 0.5;
+function audioScheduleDecision(now, scheduled, preRoll = AUDIO_PRE_ROLL_SECONDS, maxLead = AUDIO_MAX_LEAD_SECONDS) {
+  // 還沒開始、或已經落後到排程時間在現在之前：重新蓄水，不要把一批排在過去
+  //（排在過去的 AudioBufferSourceNode 會立刻播完，聽起來是破音而不是延遲）。
+  if (scheduled === null || scheduled < now) return {startAt:now + preRoll, reset:true, drop:false};
+  // 領先太多表示手機吃不下，丟這一批而不是讓延遲一路長上去。
+  if (scheduled - now > maxLead) return {startAt:scheduled, reset:false, drop:true};
+  return {startAt:scheduled, reset:false, drop:false};
 }
-registerProcessor('mirage-audio', MirageAudioProcessor);
-`;
 function createAudioPlayback() {
-  let context = null, node = null, format = null, enabled = false, revision = 0;
-  let queue = new AudioJitterQueue(), inFlight = false, failure = null;
-  let totals = {dropped:0, underruns:0}, current = {bufferMs:0, dropped:0, underruns:0};
+  // 不用 AudioWorklet：它只在安全脈絡下存在，而手機是走 http 的區域網路位址連進來的，
+  // 那裡 AudioContext.audioWorklet 是 undefined。改成把每一批排進時間軸，
+  // 兩種脈絡下走同一條路徑，不用判斷 isSecureContext。
+  let context = null, format = null, enabled = false, scheduled = null;
+  let dropped = 0, underruns = 0, failure = null;
   function retire() {
-    revision++;
-    totals = {dropped:totals.dropped + queue.dropped + current.dropped,
-      underruns:totals.underruns + current.underruns};
-    queue = new AudioJitterQueue();
-    current = {bufferMs:0, dropped:0, underruns:0};
-    if (node) { node.port.onmessage = null; node.disconnect(); }
-    if (context) { context.onstatechange = null; context.close().catch(() => {}); }
-    context = node = null; inFlight = false;
-  }
-  function drain() {
-    // 一次只交付一批，避免主執行緒把延遲藏進無上限的 MessagePort 佇列。
-    if (!node || inFlight || context.state !== 'running' || !queue.size) return;
-    const samples = queue.shift();
-    inFlight = true;
-    node.port.postMessage(samples, [samples.buffer]);
+    if (context) { context.close().catch(() => {}); }
+    context = null; scheduled = null;
   }
   function build() {
     retire();
     failure = null;
-    const target = new AudioContext({sampleRate:format.rate, latencyHint:'interactive'});
-    context = target;
-    const version = revision, channels = format.channels;
-    target.onstatechange = drain;
-    // 頁面以單一檔案內嵌送出，沒有第二個可抓取的 worklet 路徑。
-    const url = URL.createObjectURL(new Blob([AUDIO_WORKLET_SOURCE], {type:'application/javascript'}));
-    target.audioWorklet.addModule(url).then(() => {
-      if (version !== revision) return;
-      node = new AudioWorkletNode(target, 'mirage-audio', {
-        numberOfInputs:0, numberOfOutputs:1, outputChannelCount:[channels], processorOptions:{channels},
-      });
-      node.port.onmessage = ({data}) => {
-        if (version !== revision) return;
-        if (data.ack) { inFlight = false; drain(); }
-        else current = {...data};
-      };
-      node.connect(target.destination);
-      drain();
-    }).catch(error => {
-      if (version !== revision) return;
-      retire(); failure = error;
-    }).finally(() => URL.revokeObjectURL(url));
-    return target.resume();
+    context = new AudioContext({sampleRate:format.rate, latencyHint:'interactive'});
+    return context.resume();
+  }
+  function play(item) {
+    const frames = item.samples.length / item.channels;
+    const buffer = context.createBuffer(item.channels, frames, item.rate);
+    for (let ch = 0; ch < item.channels; ch++) {
+      const channel = buffer.getChannelData(ch);
+      for (let frame = 0; frame < frames; frame++) channel[frame] = item.samples[frame * item.channels + ch] / 32768;
+    }
+    const decision = audioScheduleDecision(context.currentTime, scheduled);
+    if (decision.reset && scheduled !== null) underruns++;
+    if (decision.drop) { dropped++; return; }
+    const source = context.createBufferSource();
+    source.buffer = buffer;
+    source.connect(context.destination);
+    source.start(decision.startAt);
+    scheduled = decision.startAt + frames / item.rate;
   }
   return {
     resume() {
@@ -139,14 +86,15 @@ function createAudioPlayback() {
       if (!enabled) return;
       if (failure) throw failure;
       if (changed || !context) {
-        const resumed = build(), version = revision;
-        resumed.catch(error => { if (version === revision) failure = error; });
+        const resumed = build();
+        resumed.catch(error => { failure = error; });
       }
-      queue.push(Float32Array.from(item.samples, sample => sample / 32768));
-      drain();
+      if (context.state === 'running') play(item);
     },
     stop() { enabled = false; failure = null; retire(); },
-    stats() { return {bufferMs:current.bufferMs, dropped:totals.dropped + queue.dropped + current.dropped,
-      underruns:totals.underruns + current.underruns}; },
+    stats() {
+      const lead = context && scheduled !== null ? Math.max(0, scheduled - context.currentTime) : 0;
+      return {bufferMs:lead * 1000, dropped, underruns};
+    },
   };
 }

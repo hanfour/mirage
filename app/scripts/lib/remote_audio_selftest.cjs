@@ -112,3 +112,19 @@ test('video reconnect closes old audio and ignores stale callbacks', async () =>
   h.sockets[3].onopen(); h.sockets[5].onopen(); stale();
   assert.equal(h.run('audioState'), 'connected');
 });
+test('schedule decision pre-rolls, follows the timeline, and drops when too far ahead', () => {
+  const h = harness({audio:true});
+  // vm 脈絡的物件原型與這裡不同，deepEqual 會退化成嚴格比較，所以比 JSON 字串。
+  const decide = (now, scheduled) => h.run(`JSON.stringify(audioScheduleDecision(${now}, ${scheduled}))`);
+  // 第一批：還沒排過，從現在加蓄水時間開始。
+  assert.equal(decide(10, null), '{"startAt":10.1,"reset":true,"drop":false}');
+  // 正常接續：沿用上一批的結束時間，不重新蓄水。
+  assert.equal(decide(10, 10.05), '{"startAt":10.05,"reset":false,"drop":false}');
+  // 排程時間已經在現在之前：排在過去會立刻播完、聽起來是破音，所以重新蓄水。
+  assert.equal(decide(10, 9.99), '{"startAt":10.1,"reset":true,"drop":false}');
+  // 剛好等於現在不算落後，邊界往兩側各驗一次。
+  assert.equal(decide(10, 10), '{"startAt":10,"reset":false,"drop":false}');
+  // 領先剛好等於上限不丟，超過才丟，不讓延遲一路長上去。
+  assert.equal(decide(10, 10.5), '{"startAt":10.5,"reset":false,"drop":false}');
+  assert.equal(decide(10, 10.6), '{"startAt":10.6,"reset":false,"drop":true}');
+});

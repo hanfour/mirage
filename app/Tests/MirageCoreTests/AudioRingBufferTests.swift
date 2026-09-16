@@ -238,11 +238,11 @@ private func readStereoSamples(_ ring: AudioRingBuffer, frames: Int)
     /// 釘住生產預設值：`AppModel` 用的是無參數建構（AppModel.swift:69），
     /// 而這個預設值正是本次修正唯一在生產上生效的東西。沒有這條，把預設改回 0
     /// （等同整個 revert pre-roll）整套測試依然全綠。
-    @Test func productionDefaultsWithholdUntil100msAccumulated() {
-        let ring = AudioRingBuffer()                              // 19200 / 9600
-        ring.write([Float](repeating: 0.5, count: 9_598))
+    @Test func productionDefaultsWithholdUntil200msAccumulated() {
+        let ring = AudioRingBuffer()                               // 57600 / 19200
+        ring.write([Float](repeating: 0.5, count: 19_198))
         #expect(readStereoSamples(ring, frames: 1).0 == 0)        // 差 2 個樣本，不出貨
-        ring.write([0.5, 0.5])                                    // 累積到 9600
+        ring.write([0.5, 0.5])                                    // 累積到 19200
         #expect(readStereoSamples(ring, frames: 1).0 == 1)
     }
 
@@ -267,10 +267,11 @@ private func readStereoSamples(_ ring: AudioRingBuffer, frames: Int)
         let ring = AudioRingBuffer()
         let samples = (0..<2_000).map { Float($0) / 2_000 }
         ring.write(samples)
-        for _ in 0..<8 {
+        // 逾時以累計請求的交錯樣本數計（frames × 2），生產預設是 28800。
+        // 14 次 × 1000 frames = 28000 還不到，第 15 次跨過才放行。
+        for _ in 0..<14 {
             #expect(readStereoSamples(ring, frames: 1_000).got == 0)
         }
-        #expect(readStereoSamples(ring, frames: 600).got == 0)
         let result = readStereoSamples(ring, frames: 1_000)
         #expect(result.got == 1_000)
         #expect(result.left == stride(from: 0, to: 2_000, by: 2).map { samples[$0] })

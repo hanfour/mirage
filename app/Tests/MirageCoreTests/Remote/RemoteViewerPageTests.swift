@@ -11,7 +11,7 @@ import Testing
                        "-webkit-touch-callout:none", "overscroll-behavior:none", "gesturestart", "gesturechange",
                        "wakeLock", "getBigUint64(0, false)", "getUint32(8, false)", "getUint8(12)",
                        "decodeQueueSize", "type:'ping'", "frame.close()", "type:'touches'", "requestAnimationFrame(flushTouches)",
-                       "/ws/audio", "AudioWorklet", "decodeAudioMessage"] {
+                       "/ws/audio", "createBufferSource", "decodeAudioMessage"] {
             #expect(html.contains(needle), "viewer.html 缺 \(needle)")
         }
         // 只檢查已知的那一個標記擋不住新加的：viewer-audio.js 的標記加進 HTML 時，

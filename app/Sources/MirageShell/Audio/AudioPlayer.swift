@@ -1,4 +1,5 @@
 import AVFoundation
+import CoreAudio
 import Foundation
 import MirageCore
 
@@ -8,16 +9,32 @@ import MirageCore
 /// 所有轉換與配置都已在生產者端（AudioChunk.fromS16LE）完成。
 @MainActor
 final class AudioPlayer {
-    private let engine = AVAudioEngine()
+    /// 換輸出裝置時整顆換掉，不是 var 只為了可測。**沿用同一顆 engine 換裝置會壞**：
+    /// 實測 stop → 改 `kAudioOutputUnitProperty_CurrentDevice` → start 之後 `engine.start()`
+    /// 不報錯，但 render block 再也不被呼叫，環形緩衝塞滿、每秒 84 包全部溢位丟棄。
+    private var engine = AVAudioEngine()
     private let ring: AudioRingBuffer
     private var node: AVAudioSourceNode?
     private(set) var isMuted = false
+    /// 目前輸出綁在哪個裝置。`AVAudioEngine` 在 start 時綁定一次就不再跟隨系統變更，
+    /// 所以要自己記住綁的是誰，才分得出「系統換了裝置」與「同一個裝置的其他通知」。
+    private var boundDevice: AudioDeviceID?
+    private var deviceListener: AudioObjectPropertyListenerBlock?
+
+    private static var defaultOutputAddress = AudioObjectPropertyAddress(
+        mSelector: kAudioHardwarePropertyDefaultOutputDevice,
+        mScope: kAudioObjectPropertyScopeGlobal,
+        mElement: kAudioObjectPropertyElementMain)
 
     init(ring: AudioRingBuffer) { self.ring = ring }
 
     /// 啟動失敗一律降級為「無音訊」——音訊絕不可拖垮鏡像主功能（畫面與輸入不受影響）。
     func start() {
         guard node == nil else { return }
+        // 明確綁到「現在」的預設輸出。不做這件事的話，engine 會綁在它第一次啟動時
+        // 的裝置上：耳機在 Mirage 之後才連上時，聲音會一路送到內建喇叭，而所有
+        // 統計（交付率、緩衝深度、排空速率）全部正常，看數字完全查不出來。
+        bindToCurrentDefaultOutput()
         // `interleaved: false` 是硬性要求，不是偏好：`engine.connect(_:to:format:)`（見下方）
         // 只接受 deinterleaved，傳 interleaved 會讓它丟 `kAudioUnitErr_FormatNotSupported`
         // (-10868) 的 **NSException**。那是 Obj-C 例外，下面那個 `do/catch` 攔不到（它本來
@@ -54,6 +71,7 @@ final class AudioPlayer {
         engine.connect(node, to: engine.mainMixerNode, format: format)
         do {
             try engine.start()
+            observeDefaultOutputChanges()
         } catch {
             print("[audio] engine 啟動失敗，降級為無音訊：\(error)")
             // 終審 Minor 5：失敗路徑必須 detach，否則 engine 留著一個已 attach/connect
@@ -63,6 +81,56 @@ final class AudioPlayer {
             engine.detach(node)
             self.node = nil
         }
+    }
+
+    /// 讀系統目前的預設輸出裝置，讀不到回 nil（此時沿用 engine 自己選的，不強行改）。
+    private static func defaultOutputDevice() -> AudioDeviceID? {
+        var device = AudioDeviceID(0)
+        var size = UInt32(MemoryLayout<AudioDeviceID>.size)
+        let status = AudioObjectGetPropertyData(AudioObjectID(kAudioObjectSystemObject),
+                                                &defaultOutputAddress, 0, nil, &size, &device)
+        return status == noErr && device != kAudioObjectUnknown ? device : nil
+    }
+
+    /// 把 engine 的輸出單元指到目前的預設裝置。**必須在 engine 停止時做**，
+    /// 執行中改這個屬性會失敗。
+    private func bindToCurrentDefaultOutput() {
+        guard let device = Self.defaultOutputDevice(), let unit = engine.outputNode.audioUnit else { return }
+        var id = device
+        let status = AudioUnitSetProperty(unit, kAudioOutputUnitProperty_CurrentDevice,
+                                          kAudioUnitScope_Global, 0, &id,
+                                          UInt32(MemoryLayout<AudioDeviceID>.size))
+        if status == noErr {
+            boundDevice = device
+        } else {
+            print("[audio] 無法綁定輸出裝置 \(device)：OSStatus \(status)，沿用 engine 預設")
+        }
+    }
+
+    /// 系統換預設輸出時重新綁定。只在真的換了裝置時重建，同一個裝置的其他通知忽略，
+    /// 否則使用者調個音量都會讓聲音中斷一次。
+    private func observeDefaultOutputChanges() {
+        guard deviceListener == nil else { return }
+        let block: AudioObjectPropertyListenerBlock = { [weak self] _, _ in
+            Task { @MainActor in self?.rebindIfDefaultOutputChanged() }
+        }
+        let status = AudioObjectAddPropertyListenerBlock(
+            AudioObjectID(kAudioObjectSystemObject), &Self.defaultOutputAddress, DispatchQueue.main, block)
+        if status == noErr {
+            deviceListener = block
+        } else {
+            print("[audio] 無法監聽預設輸出變更：OSStatus \(status)，換裝置後需重啟 Mirage")
+        }
+    }
+
+    private func rebindIfDefaultOutputChanged() {
+        guard let device = Self.defaultOutputDevice(), device != boundDevice else { return }
+        let wasMuted = isMuted
+        stop()
+        engine = AVAudioEngine()
+        start()
+        setMuted(wasMuted)
+        print("[audio] 預設輸出已變更，重新綁定到裝置 \(device)")
     }
 
     /// macOS 沒有原生 per-app 音量——不給靜音等於玩家只能把整台 Mac 靜音。
