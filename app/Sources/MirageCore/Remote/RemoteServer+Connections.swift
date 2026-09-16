@@ -127,6 +127,10 @@ enum RemoteVideoConnection {
                                 try await outbound.write(WebSocketFrame(
                                     fin: true, opcode: .text, data: ByteBuffer(bytes: json)))
                             }
+                            if let json = core.popSpeech(channelID: channelID) {
+                                try await outbound.write(WebSocketFrame(
+                                    fin: true, opcode: .text, data: ByteBuffer(bytes: json)))
+                            }
                             guard let entry = core.popVideoEntry(channelID: channelID) else { break }
                             let message = RemoteVideoMessage(
                                 sentAtNanoseconds: DispatchTime.now().uptimeNanoseconds,

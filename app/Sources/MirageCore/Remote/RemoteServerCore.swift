@@ -41,6 +41,7 @@ final class RemoteServerCore: @unchecked Sendable {
 
     private let lock = NSLock()
     private var session = RemoteSessionState.initial
+    private var pendingSpeech: Data?
     private var audioQueue = RemoteAudioQueue()
     private var audioDroppedBeforeReset = 0
     private var audioWakeup: AsyncStream<Void>.Continuation?
@@ -318,6 +319,24 @@ final class RemoteServerCore: @unchecked Sendable {
     }
 
     // 慢 viewer 只保留最新一秒統計，避免無上限堆積；不碰影像佇列。
+    /// 字幕與 stats 同樣是「只留最新一則」：辨識結果是累積的（今 → 今天 → 今天天氣），
+    /// 舊的那一則沒有保留價值，排隊只會讓手機看到過時的文字。
+    func offerSpeech(_ json: Data) {
+        lock.lock()
+        guard !stopped, session.hasVideo else { lock.unlock(); return }
+        pendingSpeech = json
+        let wakeup = self.wakeup
+        lock.unlock()
+        wakeup?.yield(())
+    }
+
+    func popSpeech(channelID: ObjectIdentifier) -> Data? {
+        lock.lock(); defer { lock.unlock() }
+        guard !stopped, kinds[channelID] == .video else { return nil }
+        defer { pendingSpeech = nil }
+        return pendingSpeech
+    }
+
     func offerStats(_ json: Data) {
         lock.lock()
         guard !stopped, session.hasVideo else { lock.unlock(); return }

@@ -128,3 +128,25 @@ test('schedule decision pre-rolls, follows the timeline, and drops when too far 
   assert.equal(decide(10, 10.5), '{"startAt":10.5,"reset":false,"drop":false}');
   assert.equal(decide(10, 10.6), '{"startAt":10.6,"reset":false,"drop":true}');
 });
+test('speech messages render, and only the final one schedules the clear timer', () => {
+  const h = harness({audio:true});
+  h.sockets[0].onopen();
+  // 逐字更新期間不排清除計時器，否則講到一半字幕就消失。
+  h.sockets[0].onmessage({data: JSON.stringify({type:'speech', text:'今天', final:false})});
+  assert.equal(h.run('speechPanel.textContent'), '今天');
+  assert.equal(h.run('speechPanel.hidden'), false);
+  assert.equal(h.run('speechClearTimer === null'), true);
+  h.sockets[0].onmessage({data: JSON.stringify({type:'speech', text:'今天天氣很好', final:false})});
+  assert.equal(h.run('speechPanel.textContent'), '今天天氣很好');
+  assert.equal(h.run('speechClearTimer === null'), true);
+  // 最後一則才排清除，讓字幕留一段時間而不是播完就不見。
+  h.sockets[0].onmessage({data: JSON.stringify({type:'speech', text:'今天天氣很好', final:true})});
+  assert.equal(h.run('speechClearTimer !== null'), true);
+});
+test('speech without a string text is ignored instead of showing undefined', () => {
+  const h = harness({audio:true});
+  h.sockets[0].onopen();
+  h.sockets[0].onmessage({data: JSON.stringify({type:'speech', text:7, final:false})});
+  assert.equal(h.run('speechPanel.textContent') || '', '');
+  assert.equal(h.run('speechPanel.hidden'), true);
+});

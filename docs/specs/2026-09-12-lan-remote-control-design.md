@@ -108,6 +108,13 @@ Android Chrome 的 WebCodecs 只在 HTTPS 下開放。本設計第一版只支�
 
 `stats` 方向為 Mac → 手機，JSON 文字格式為 `{"type":"stats","intervalMs":1000,"age":{"p50":6,"p95":15,"count":30},"encode":{"p50":7,"p95":9,"count":30},"send":{"p50":0.03,"p95":0.05,"count":30},"transitMs":10,"newFrames":30,"heartbeatFrames":0,"inputRPCsPerSecond":42,"inputCoalesced":82}`（數字僅示意）。每秒送一個窗口；`age`、`encode`、`send` 為毫秒百分位及樣本數，無有效樣本時省略，`transitMs` 同樣可省略；`intervalMs` 是實際窗口長度。`age` 與 transit 只計新幀，encode／send 只計成功產生存取單元的回呼，`send` 量至交給 server，非網路單程延遲。`inputRPCsPerSecond` 為實際 `sendTouches` 呼叫次數除以窗口秒數，`inputCoalesced` 為窗口內合併掉的 move 批次數。viewer 解析 JSON 並只採用 `type:"stats"`；沒有另設欄位數值上限。統計不進影像佇列，慢連線只保留最新一份。
 
+`speech` 方向為 Mac → 手機，JSON 文字格式為 `{"type":"speech","text":"今天天氣很好","final":false}`。
+與 `stats` 共用 video channel 的文字訊息，不另開 socket。**只留最新一則**：辨識結果是累積的
+（今 → 今天 → 今天天氣），舊的那一則沒有保留價值，排隊只會讓手機看到過時的文字。
+`final` 為 true 表示該段語音結束，手機端保留 8 秒後隱藏字幕；`final` 為 false 時不排隱藏計時器，
+否則講到一半字幕會消失。viewer 驗 `text` 必須是字串，不是就整則忽略，
+避免解析失敗時浮層顯示 undefined。手機沒連上時 Mac 端直接丟棄，不排隊補送。
+
 `keyframe` 方向為手機 → Mac，是內容恰為 `keyframe` 的 8-byte 文字 frame，不是 JSON。只接受未分片的完整 frame（`fin=true`），其餘文字忽略。只有已配對的 video channel 可請求；距上次接受請求不足 500 ms 時忽略並增加 `keyframeRequestsThrottled`，剛好 500 ms 可接受，被拒請求不延後時間窗。viewer 在等待 IDR 時用 `keyframeRequested` 避免重複送出；此去重與伺服器的時間節流不同。
 
 ### `/ws/input`

@@ -91,6 +91,27 @@ function connectAudio() {
     audioState = 'disconnected'; audioError('音訊無法連線：' + error.message);
   }
 }
+// 語音辨識字幕，走 video channel 的文字訊息（與 stats 同一條）。
+// 由 JS 建立浮層，理由與音訊切換鈕相同：單檔頁面沿用既有的安全區域處理。
+const speechPanel = document.createElement('div');
+speechPanel.style.cssText = 'position:absolute;left:50%;transform:translateX(-50%);'
+  + 'bottom:calc(env(safe-area-inset-bottom,0px) + 72px);max-width:86vw;padding:10px 14px;'
+  + 'background:#000b;color:#fff;font-size:17px;line-height:1.4;border-radius:10px;'
+  + 'white-space:pre-wrap;pointer-events:none;z-index:3';
+speechPanel.hidden = true;
+document.querySelector('#viewport').append(speechPanel);
+let speechClearTimer = null;
+function renderSpeech(message) {
+  // text 由 Mac 端產生，仍然驗一次型別：解析失敗的訊息不該讓浮層顯示 undefined。
+  if (typeof message.text !== 'string') return;
+  speechPanel.textContent = message.text;
+  speechPanel.hidden = message.text === '';
+  // 最後一則保留一段時間再消失，不要播完就立刻不見。
+  clearForegroundTimeout(speechClearTimer);
+  speechClearTimer = message.final
+    ? setForegroundTimeout(() => { speechPanel.hidden = true; }, 8000)
+    : null;
+}
 function audioStatsText() {
   const stats = audioPlayback.stats();
   return `audio ${audioState}: buffer=${stats.bufferMs.toFixed(1)} ms dropped=${stats.dropped} invalid=${audioDecodeErrors}`;
@@ -202,6 +223,7 @@ async function start() {
         try {
           const message = JSON.parse(event.data);
           if (message?.type === 'stats') { macStats = message; renderFrameWarning(message); }
+          else if (message?.type === 'speech') renderSpeech(message);
         } catch(e) { note('stats JSON error: ' + e.message); }
         return;
       }

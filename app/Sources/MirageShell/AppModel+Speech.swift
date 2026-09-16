@@ -29,7 +29,10 @@ extension AppModel {
 
     private func makeSpeechTranscriber() -> SpeechTranscriber {
         SpeechTranscriber { [weak self] transcript in
-            self?.speechText = transcript.text
+            guard let self else { return }
+            self.speechText = transcript.text
+            // 手機把它當第二螢幕在看時，字幕只顯示在 Mac 上等於看不到。
+            self.remote?.send(speech: transcript.text, isFinal: transcript.isFinal)
         }
     }
 

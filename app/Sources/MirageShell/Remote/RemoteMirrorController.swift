@@ -196,6 +196,15 @@ final class RemoteMirrorController: @unchecked Sendable {
         audioMessagesSent += 1
     }
 
+    /// 語音辨識字幕。手機沒連上時直接丟棄，不排隊：字幕是即時的，補送沒有意義。
+    func send(speech text: String, isFinal: Bool) {
+        lock.lock(); defer { lock.unlock() }
+        guard !stopped, server.sessionState.hasVideo else { return }
+        let payload: [String: Any] = ["type": "speech", "text": text, "final": isFinal]
+        guard let json = try? JSONSerialization.data(withJSONObject: payload) else { return }
+        server.send(speech: json)
+    }
+
     func stats() -> RemoteMirrorStats {
         lock.lock(); defer { lock.unlock() }
         return RemoteMirrorStats(server: server.stats(), framesPulled: framesPulled,

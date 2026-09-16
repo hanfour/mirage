@@ -17,7 +17,7 @@ import Testing
     private static let down = #"{"t":1,"id":7,"type":"down","x":0.25,"y":0.75}"#
     private static let ping = #"{"type":"ping","t":1234.5}"#
 
-    private enum TestFailure: Error { case unexpectedMessageKind }
+    private enum TestFailure: Error { case unexpectedMessageKind, timedOut }
 
     private struct Harness: Sendable {
         let server: RemoteServer
@@ -81,6 +81,21 @@ import Testing
         return data
     }
 
+    /// `receive()` 沒有期限，少收一則就無限等待。突變驗證時實測到：把送字幕那段拿掉，
+    /// 測試不是紅而是卡住。
+    ///
+    /// ⚠️ **不能用 task group 賽跑**：`receive()` 不理會 Task 取消，而 task group 要等所有
+    /// 子工作結束才離開，所以逾時那條丟出例外之後整組照樣卡住（實測過）。唯一有效的是
+    /// 取消 WebSocket 本身，讓 `receive()` 自己拋錯。
+    private func receiveText(_ task: URLSessionWebSocketTask, within seconds: Double) async throws -> String {
+        let timeout = Task {
+            try await Task.sleep(for: .seconds(seconds))
+            task.cancel(with: .abnormalClosure, reason: nil)
+        }
+        defer { timeout.cancel() }
+        return try await receiveText(task)
+    }
+
     private func receiveText(_ task: URLSessionWebSocketTask) async throws -> String {
         guard case .string(let text) = try await task.receive() else { throw TestFailure.unexpectedMessageKind }
         return text
@@ -118,6 +133,27 @@ import Testing
             h.server.send(accessUnit: Self.keyframeUnit, keyframe: true, sequence: 1)
             let data = try await receiveData(video)
             #expect(RemoteVideoMessage.decode(data)?.sequence == 1)
+        }
+    }
+
+    /// 字幕與 stats 共用 video channel 的文字訊息，所以要驗它不會被 stats 蓋掉、
+    /// 也不會反過來蓋掉 stats：兩者是各自的槽，不是同一個。
+    @Test func speechTextIsDeliveredAlongsideStats() async throws {
+        try await withServer { h in
+            let video = webSocket(h.port, "/ws/video")
+            defer { video.cancel(with: .normalClosure, reason: nil) }
+            await h.keyframes.wait(for: 1)
+            h.server.sendStats(Data(#"{"type":"stats","newFrames":1}"#.utf8))
+            h.server.send(speech: Data(#"{"type":"speech","text":"今天天氣很好","final":true}"#.utf8))
+            var seen: [String: String] = [:]
+            for _ in 0..<2 {
+                let text = try await receiveText(video, within: 5)
+                let object = try #require(JSONSerialization.jsonObject(with: Data(text.utf8)) as? [String: Any])
+                let type = try #require(object["type"] as? String)
+                seen[type] = object["text"] as? String ?? ""
+            }
+            #expect(seen["stats"] != nil)
+            #expect(seen["speech"] == "今天天氣很好")
         }
     }
 
