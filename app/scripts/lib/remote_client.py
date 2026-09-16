@@ -36,6 +36,47 @@ def parse_header(data: bytes):
         raise ValueError("video payload is not Annex-B")
     return sent_ns, seq, key == 1, unit
 
+AUDIO_HEADER = struct.Struct(">QIIB")
+
+def audio_peak(data):
+    # 與 RemoteAudioMessage.decode 相同的四條規則，不能把壞封包略過後當成功。
+    if not isinstance(data, bytes) or len(data) <= AUDIO_HEADER.size:
+        raise ValueError("音訊訊息必須是超過 17 bytes 的二進位資料")
+    _, _, rate, channels = AUDIO_HEADER.unpack_from(data)
+    if channels not in (1, 2):
+        raise ValueError("音訊聲道必須為 1 或 2")
+    if not 8000 <= rate <= 48000:
+        raise ValueError("音訊取樣率超出 8000 至 48000")
+    payload = data[AUDIO_HEADER.size:]
+    if len(payload) % (2 * channels):
+        raise ValueError("音訊樣本未對齊聲道")
+    return max(abs(sample[0]) for sample in struct.iter_unpack("<h", payload))
+
+async def receive_audio(args, results):
+    from websockets.asyncio.client import connect
+
+    count = peak = 0
+    async with connect(f"ws://{args.host}:{args.port}/ws/audio?t={args.token}",
+                       open_timeout=5, close_timeout=2, **connect_options()) as audio:
+        deadline = time.monotonic() + args.seconds
+        while True:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                break
+            try:
+                message = await asyncio.wait_for(audio.recv(), timeout=remaining)
+            except asyncio.TimeoutError:
+                break
+            peak = max(peak, audio_peak(message))
+            count += 1
+    results["AUDIO_MESSAGES"] = count
+    results["AUDIO_PEAK"] = peak
+    if count == 0 or peak == 0:
+        raise ValueError(f"R9 音訊缺少非零樣本：messages={count}, peak={peak}")
+    # 容許 guest 混音的小幅誤差，但不能把其他音效或飽和雜訊當成受控音源。
+    if not 11400 <= peak <= 12600:
+        raise ValueError(f"R9 峰值 {peak} 未接近 12000（容許 ±5%）")
+
 class SequenceTracker:
     """幀序連續性：與 viewer.html 同一個算法（32 位元回繞）。"""
 
@@ -124,6 +165,7 @@ async def receive_video(args, results):
     seconds = max(args.seconds, pinch + 2) if pinch else args.seconds
     async with connect(video_url(args.host, args.port, args.token), max_size=None, **connect_options()) as video:
         pinch_task = None
+        audio_task = None
         try:
             while True:
                 elapsed = time.monotonic() - started
@@ -142,6 +184,8 @@ async def receive_video(args, results):
                     continue
                 if keyframe_at is None:
                     keyframe_at = time.monotonic() - started
+                    if getattr(args, "audio", False):
+                        audio_task = asyncio.create_task(receive_audio(args, results))
                     if pinch:
                         pinch_task = asyncio.create_task(run_pinch(args, results))
                 tracker.observe(seq, keyframe)
@@ -150,7 +194,12 @@ async def receive_video(args, results):
                 await send_touch(args, results)
             if pinch_task is not None:
                 await pinch_task
+            if audio_task is not None:
+                await audio_task
         finally:
+            if audio_task is not None:
+                audio_task.cancel()
+                await asyncio.gather(audio_task, return_exceptions=True)
             if pinch_task is not None:
                 pinch_task.cancel()
                 await asyncio.gather(pinch_task, return_exceptions=True)
@@ -241,8 +290,14 @@ def parse_args(argv=None):
     parser.add_argument("--pointer-id", type=int, default=1, help="觸控識別碼（可為 iOS Safari 的負數）")
     parser.add_argument("--key", choices=NAVIGATION_KEYS, help="送出一組導覽鍵按放")
     parser.add_argument("--text", help="完整文字經既有剪貼簿提交交易送入 guest")
+    parser.add_argument("--audio", action="store_true", help="收音訊並驗證受控音源峰值")
     parser.add_argument("--loop", action="store_true")
     args = parser.parse_args(argv)
+    if args.audio:
+        if not math.isfinite(args.seconds) or args.seconds <= 0:
+            parser.error("--audio 的 --seconds 必須為有限正秒數")
+        if args.loop or args.pinch is not None or args.touch or args.key or args.text is not None:
+            parser.error("--audio 不可與其他輸入或迴圈模式同用")
     if args.pinch is not None:
         if not math.isfinite(args.pinch) or args.pinch <= 0:
             parser.error("--pinch 必須為有限正秒數")

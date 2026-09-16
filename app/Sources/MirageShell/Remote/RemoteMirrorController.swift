@@ -21,6 +21,7 @@ struct RemoteMirrorStats: Sendable, Equatable {
     let server: RemoteServerStats
     let framesPulled: Int
     let framesEncoded: Int
+    let audioMessagesSent: Int
     let encodeFailures: Int
 }
 
@@ -127,6 +128,7 @@ final class RemoteMirrorController: @unchecked Sendable {
     private var stopped = false
     private var framesPulled = 0
     private var framesEncoded = 0
+    private var audioMessagesSent = 0
     private var encodeFailures = 0
     private var clientStats: RemoteClientStats?
 
@@ -187,10 +189,18 @@ final class RemoteMirrorController: @unchecked Sendable {
     var host: String { configuration.host }
     var pullInterval: Duration { configuration.pullInterval }
 
+    func send(audio: RemoteAudioMessage) {
+        lock.lock(); defer { lock.unlock() }
+        guard !stopped, server.sessionState.hasAudio else { return }
+        server.send(audio: audio)
+        audioMessagesSent += 1
+    }
+
     func stats() -> RemoteMirrorStats {
         lock.lock(); defer { lock.unlock() }
         return RemoteMirrorStats(server: server.stats(), framesPulled: framesPulled,
-                                 framesEncoded: framesEncoded, encodeFailures: encodeFailures)
+                                 framesEncoded: framesEncoded, audioMessagesSent: audioMessagesSent,
+                                 encodeFailures: encodeFailures)
     }
 
     /// 埠被佔用時 `server.start()` 拋錯，這裡原樣往上丟，通知迴圈不啟動。

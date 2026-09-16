@@ -18,7 +18,12 @@ extension AppModel {
         audioPlayer = player
         menuBar?.onToggleMute = { [weak self] in self?.toggleMute() }
         menuBar?.updateMute(player.isMuted)
-        Task { [client, audioRing] in await client.setAudioSink(audioRing) }
+        // 生命週期可能晚於遙控啟動，必須沿用目前 sink 並與遠端切換共用順序。
+        let previous = instanceSwitchTask
+        instanceSwitchTask = Task { @MainActor in
+            await previous?.value
+            await self.client.setAudioSink(self.activeAudioSink)
+        }
         startAudioMonitoring()
     }
 

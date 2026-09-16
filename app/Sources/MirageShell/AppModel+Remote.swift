@@ -83,7 +83,7 @@ extension AppModel {
         remoteGeneration = UUID()
         remotePendingError = nil
         guard let page = RemoteViewerPage.bundled() else {
-            await switchSink(to: box)
+            await switchSink(to: box, audio: audioRing)
             remoteMenuState = .failed("找不到 viewer.html")
             return
         }
@@ -100,14 +100,16 @@ extension AppModel {
         } catch {
             remoteGeneration = UUID()
             await controller.stop()
-            await switchSink(to: box)
+            await inputQueue.drained()
+            await switchSink(to: box, audio: audioRing)
             remoteMenuState = .failed("埠 \(port) 無法監聽：\(error)")
             print("[remote] 啟動失敗 port=\(port)：\(error)")
             return
         }
-        if !(activeSink is BroadcastFrameSink) {
-            await switchSink(to: BroadcastFrameSink(primary: box, secondary: secondary))
-        }
+        let frameSink = (activeSink as? BroadcastFrameSink)
+            ?? BroadcastFrameSink(primary: box, secondary: secondary)
+        await switchSink(to: frameSink, audio: BroadcastAudioSink(
+            primary: audioRing, secondary: RemoteAudioForwarder(controller: controller)))
     }
 
     private func stopRemote() async {
@@ -118,7 +120,7 @@ extension AppModel {
         if let controller { await controller.stop() }
         // server.stop 發出的 release 必須在重啟 emulator 連線前送完。
         await inputQueue.drained()
-        await switchSink(to: box)
+        await switchSink(to: box, audio: audioRing)
         lifecycle?.remoteViewerDisconnected()
     }
 
@@ -189,13 +191,16 @@ extension AppModel {
 
     /// 與模擬器切換共用任務鏈。等前一個 stop/start 完成後才看 isRunning，
     /// 否則正好撞到 stop 的短暫 false 會漏掉換 sink 後的重新啟動。
-    private func switchSink(to sink: any FrameSink) async {
-        guard (activeSink as AnyObject) !== (sink as AnyObject) else { return }
+    private func switchSink(to sink: any FrameSink, audio: any AudioSink) async {
+        let frameChanged = (activeSink as AnyObject) !== (sink as AnyObject)
         activeSink = sink
+        activeAudioSink = audio
         let previous = instanceSwitchTask
         let task = Task { @MainActor in
             await previous?.value
-            guard await self.client.isRunning else { return }
+            // 重新配對可能沿用畫面 sink，但音訊必須改綁新的 controller。
+            await self.client.setAudioSink(audio)
+            guard frameChanged, await self.client.isRunning else { return }
             let size = await self.client.requestedStreamSize
             await self.client.stop()
             await self.client.start(box: self.activeSink, width: size.w, height: size.h)

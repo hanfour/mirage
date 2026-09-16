@@ -56,6 +56,63 @@ class HeaderTests(unittest.TestCase):
             rc.parse_header(struct.pack(">QIB", 1, 1, 2) + b"\x00")
 
 
+class AudioTests(unittest.TestCase):
+    def packet(self, rate=48000, channels=2, payload=b"\xe0\x2e\x20\xd1"):
+        return struct.pack(">QIIB", 123, 0, rate, channels) + payload
+
+    def test_little_endian_peak_and_silence(self):
+        self.assertEqual(rc.audio_peak(self.packet()), 12000)
+        self.assertEqual(rc.audio_peak(self.packet(payload=b"\0" * 4)), 0)
+        self.assertEqual(rc.audio_peak(self.packet(channels=1, payload=b"\0\x80")), 32768)
+
+    def test_rejects_each_wire_validation_failure(self):
+        for message in [b"", b"\0" * 17, "text", self.packet(channels=0),
+                        self.packet(channels=3), self.packet(rate=7999),
+                        self.packet(rate=48001), self.packet(payload=b"\0"),
+                        self.packet(payload=b"\0\0"), self.packet(payload=b"")]:
+            with self.subTest(message=message), self.assertRaises(ValueError):
+                rc.audio_peak(message)
+
+    def test_audio_requires_bounded_positive_capture(self):
+        for seconds in ["0", "-1", "nan", "inf"]:
+            with contextlib.redirect_stderr(io.StringIO()), self.assertRaises(SystemExit):
+                rc.parse_args(["--token", "test", "--audio", "--seconds", seconds])
+
+    def test_capture_rejects_missing_silent_wrong_or_malformed_audio(self):
+        class Socket:
+            def __init__(self, messages):
+                self.messages = iter(messages)
+            async def __aenter__(self):
+                return self
+            async def __aexit__(self, *args):
+                pass
+            async def recv(self):
+                try:
+                    return next(self.messages)
+                except StopIteration:
+                    raise asyncio.TimeoutError()
+
+        args = SimpleNamespace(host="localhost", port=8765, token="test", seconds=0.05)
+        # 假 socket 不碰網路；外層期限仍能抓出接收迴圈忘記結束的回歸。
+        import types
+        client = types.ModuleType("websockets.asyncio.client")
+        with patch.dict(sys.modules, {"websockets.asyncio.client": client}), \
+                patch.object(rc, "connect_options", return_value={}):
+            for messages, valid in [([], False), ([self.packet(payload=b"\0" * 4)], False),
+                                    ([self.packet(payload=b"\xff\x7f" * 2)], False),
+                                    ([self.packet(), b"bad"], False), ([self.packet()], True)]:
+                client.connect = lambda *a, **kw: Socket(messages)
+                results = {}
+                async def capture():
+                    await asyncio.wait_for(rc.receive_audio(args, results), timeout=1)
+                if valid:
+                    asyncio.run(capture())
+                    self.assertEqual(results, {"AUDIO_MESSAGES": 1, "AUDIO_PEAK": 12000})
+                else:
+                    with self.assertRaises(ValueError):
+                        asyncio.run(capture())
+
+
 class SequenceTests(unittest.TestCase):
     def test_counts_gaps_and_keyframes(self):
         tracker = rc.SequenceTracker()

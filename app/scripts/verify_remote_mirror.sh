@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# 手機遙控活體驗證（spec 第 8 節）：八條斷言
+# 手機遙控活體驗證（spec 第 8 節）：九條斷言
 #   R1 手機端（Python 用戶端）60 秒內收到 keyframe
 #   R2 幀序連續（SEQ_GAPS == 0）
 #   R3 送一組 down/move/up 後 guest 的 getevent 出現 ABS_MT_TRACKING_ID，且沒有 slot 卡在 down
@@ -8,6 +8,7 @@
 #   R6 遠端文字提交後，設定搜尋欄位的新鮮 UI dump 精確回讀相等
 #   R7 3 秒雙指縮放：兩 slot 按放、RPC ≤70/s、transit p50 <50ms、tap 500ms 內到達
 #   R8 viewer 重新連上後 10 秒內 emulatorConnected=true 且 newFrames>0（休眠轉移由單元測試覆蓋）
+#   R9 /ws/audio 每則格式合法、有非零樣本，且受控音源峰值為 12000 ±5%
 # 之前先跑兩條 Swift 活體測試：RemoteVideoEncoderLiveTests（硬體編碼器＋SPS 改寫）與
 # RemoteInputLiveTests（server → InputQueue → 真模擬器），並斷言它們是 passed 不是 skipped。
 #
@@ -71,6 +72,7 @@ LOG=$(mktemp -t mirage_remote_app) || exit 1
 BUNDLE=$(mktemp -d -t mirage_remote_bundle) || exit 1
 CAPTURE_PID=''
 KEY_CAPTURE_PID=''
+AUDIO_HTTP_PID=''
 start_capture() {
     : > "$EVENT_LOG"
     if [ "${1:-}" = stamp ]; then
@@ -102,6 +104,10 @@ stop_key_capture() {
 cleanup() {
     stop_capture
     stop_key_capture
+    if [ -n "$AUDIO_HTTP_PID" ]; then
+        kill "$AUDIO_HTTP_PID" 2>/dev/null || true
+        wait "$AUDIO_HTTP_PID" 2>/dev/null || true
+    fi
     gui_session_cleanup "${BUNDLE:-}"
     echo "getevent 紀錄：${EVENT_LOG}　Swift 測試紀錄：${TEST_LOG}　用戶端輸出：${CLIENT_LOG}　App log：${LOG}"
 }
@@ -294,4 +300,37 @@ TEXT_EVIDENCE=$(mktemp -d -t mirage_remote_text) || exit 1
 echo "=== 第六段：遠端文字 → 設定搜尋欄位（證據：${TEXT_EVIDENCE}）==="
 "$PY" "${SCRIPT_DIR}/lib/remote_text_verify.py" --serial "$SERIAL" --port "$REMOTE_PORT" \
     --token "$TOKEN" --wait-keyframe "$WAIT_KEYFRAME" --evidence "$TEXT_EVIDENCE" || exit 1
+echo "=== 第七段：R9 受控音源 → /ws/audio ==="
+python3 -B "${SCRIPT_DIR}/lib/audio_make_tone.py" "${SCRIPT_DIR}/lib/audio_www"
+assert_ok "R9 產生受控音源" "$?"
+# 沿用受控音源的 8099 埠，已有服務時不重啟，避免中斷其他音訊量測。
+if ! lsof -nP -iTCP:8099 -sTCP:LISTEN >/dev/null 2>&1; then
+    "$PY" -B -m http.server 8099 --directory "${SCRIPT_DIR}/lib/audio_www" \
+        > "${CLIENT_LOG}.audio-http" 2>&1 &
+    AUDIO_HTTP_PID=$!
+    sleep 1
+    kill -0 "$AUDIO_HTTP_PID" 2>/dev/null
+    assert_ok "R9 音源 HTTP 服務" "$?"
+fi
+curl --fail --silent --max-time 5 http://127.0.0.1:8099/tone.wav -o "${CLIENT_LOG}.tone.wav"
+assert_ok "R9 音源 HTTP 下載" "$?"
+cmp "${SCRIPT_DIR}/lib/audio_www/tone.wav" "${CLIENT_LOG}.tone.wav"
+assert_ok "R9 HTTP 內容符合受控音源" "$?"
+"$ADB" -s "$SERIAL" shell am start -n com.android.chrome/com.google.android.apps.chrome.Main \
+    -a android.intent.action.VIEW -d 'http://10.0.2.2:8099/index.html?src=tone.wav'
+assert_ok "R9 guest 開啟音源" "$?"
+sleep 10
+"$ADB" -s "$SERIAL" shell input tap 540 1200
+assert_ok "R9 guest 啟動播放" "$?"
+sleep 5
+playing=$("$ADB" -s "$SERIAL" shell dumpsys audio 2>/dev/null | grep -c 'state:started' || true)
+if [ "${playing:-0}" -lt 1 ]; then
+    "$ADB" -s "$SERIAL" shell input tap 540 1200
+    assert_ok "R9 guest 再次啟動播放" "$?"
+    sleep 5
+fi
+"$PY" -B "${SCRIPT_DIR}/lib/remote_client.py" --host 127.0.0.1 \
+    --port "$REMOTE_PORT" --token "$TOKEN" --wait-keyframe "$WAIT_KEYFRAME" \
+    --seconds "$DURATION" --audio 2>&1 | tee -a "$CLIENT_LOG"
+assert_ok "R9 音訊則數、四條格式規則、非零樣本與峰值" "${PIPESTATUS[0]}"
 echo "全部通過"

@@ -84,6 +84,7 @@ private final class RemotePortBlocker {
     @Test func remoteOffUsesTheOriginalSink() async throws {
         try await withModel("remote-off") { model in
             #expect((model.activeSink as AnyObject) === (model.box as AnyObject))
+            #expect((model.activeAudioSink as AnyObject) === model.audioRing)
             #expect(model.remote == nil)
             #expect(model.remoteMenuState == .off)
             #expect(!model.hasActiveRemoteViewer)
@@ -98,6 +99,9 @@ private final class RemotePortBlocker {
             #expect((sink.primary as AnyObject) === (model.box as AnyObject))
             let controller = try #require(model.remote)
             #expect(controller.secondary === sink.secondary)
+            let audio = try #require(model.activeAudioSink as? BroadcastAudioSink)
+            #expect((audio.primary as AnyObject) === model.audioRing)
+            #expect(audio.secondary is RemoteAudioForwarder)
             let port = try #require(controller.boundPort)
             #expect(port > 0)
             if case .on(let urls, let addresses, let session) = model.remoteMenuState {
@@ -111,6 +115,7 @@ private final class RemotePortBlocker {
             #expect(size.h == 2000)
             await model.disableRemote()
             #expect((model.activeSink as AnyObject) === (model.box as AnyObject))
+            #expect((model.activeAudioSink as AnyObject) === model.audioRing)
             #expect(model.remote == nil)
             #expect(model.remoteMenuState == .off)
             #expect(await model.client.isRunning)
@@ -124,6 +129,7 @@ private final class RemotePortBlocker {
             #expect(!(await model.client.isRunning))
             await model.disableRemote()
             #expect((model.activeSink as AnyObject) === (model.box as AnyObject))
+            #expect((model.activeAudioSink as AnyObject) === model.audioRing)
         }
     }
 
@@ -135,6 +141,7 @@ private final class RemotePortBlocker {
             await model.enableRemote(host: "127.0.0.1", port: 0, pullInterval: options.pullInterval)
             let before = try #require(model.remote)
             let sinkBefore = model.activeSink as AnyObject
+            let audioBefore = model.activeAudioSink as AnyObject
             await model.disconnectRemoteViewer()
             let after = try #require(model.remote)
             #expect(after !== before)
@@ -145,6 +152,8 @@ private final class RemotePortBlocker {
             #expect(after.pullInterval == before.pullInterval)
             #expect(after.boundPort == before.boundPort)
             #expect((model.activeSink as AnyObject) === sinkBefore)
+            #expect((model.activeAudioSink as AnyObject) !== audioBefore)
+            #expect(model.activeAudioSink is BroadcastAudioSink)
             #expect(!(await model.client.isRunning))
             let port = try #require(after.boundPort)
             let url = try #require(URL(string: "http://127.0.0.1:\(port)/?t=\(before.token.value)"))
@@ -161,6 +170,7 @@ private final class RemotePortBlocker {
             await model.enableRemote(host: "127.0.0.1", port: port)
             #expect(model.remote == nil)
             #expect((model.activeSink as AnyObject) === (model.box as AnyObject))
+            #expect((model.activeAudioSink as AnyObject) === model.audioRing)
             if case .failed(let message) = model.remoteMenuState {
                 #expect(message.contains(String(port)))
             } else { Issue.record("預期 .failed，實得 \(model.remoteMenuState)") }
@@ -181,6 +191,7 @@ private final class RemotePortBlocker {
             await model.disconnectRemoteViewer()
             #expect(model.remote == nil)
             #expect((model.activeSink as AnyObject) === (model.box as AnyObject))
+            #expect((model.activeAudioSink as AnyObject) === model.audioRing)
             if case .failed(let message) = model.remoteMenuState {
                 #expect(message.contains(String(port)))
             } else { Issue.record("重新配對 bind 失敗必須回報錯誤") }
@@ -198,6 +209,7 @@ private final class RemotePortBlocker {
             try await RemoteTestWaits.teardown(of: model)
             #expect(model.remoteMenuState == .failed("sessionCreation(-12903)"))
             #expect((model.activeSink as AnyObject) === (model.box as AnyObject))
+            #expect((model.activeAudioSink as AnyObject) === model.audioRing)
         }
     }
 
@@ -220,6 +232,7 @@ private final class RemotePortBlocker {
             try await RemoteTestWaits.teardown(of: model)
             #expect(model.remoteMenuState == .failed("current"))
             #expect((model.activeSink as AnyObject) === (model.box as AnyObject))
+            #expect((model.activeAudioSink as AnyObject) === model.audioRing)
         }
     }
 
@@ -235,6 +248,7 @@ private final class RemotePortBlocker {
             #expect(await model.client.currentEndpoint.port == 2)
             await model.disableRemote()
             #expect((model.activeSink as AnyObject) === (model.box as AnyObject))
+            #expect((model.activeAudioSink as AnyObject) === model.audioRing)
         }
     }
     @Test func teardownWaitHasAnIndependentDeadline() async throws {
