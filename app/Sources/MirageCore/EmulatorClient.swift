@@ -38,7 +38,7 @@ public actor EmulatorClient {
     // audioTask 是消費 task，audioRing 是 App 端提供的 sink（nil = 不掛載）。
     var audioTransport: AudioTransport?
     var audioTask: Task<Void, Never>?
-    var audioRing: AudioRingBuffer?
+    var audioRing: (any AudioSink)?
     let pump = FramePump()
     var box: (any FrameSink)?
     var streamSize = (w: 540, h: 1200)
@@ -162,7 +162,7 @@ public actor EmulatorClient {
 
     /// App 層（AudioPlayer）提供的音訊 sink。刻意用 setter 而非改 `start` 的簽章——
     /// 改簽章會動到所有既有呼叫端與測試，憑空製造回歸風險。
-    public func setAudioSink(_ ring: AudioRingBuffer?) {
+    public func setAudioSink(_ ring: (any AudioSink)?) {
         audioRing = ring
         if state == .connected { attachAudio() }
     }

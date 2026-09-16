@@ -57,7 +57,7 @@ public struct AudioStats: Equatable, Sendable {
 /// 生產者只碰 `writeIndex`，消費者只碰 `readIndex`；索引單調遞增（不對容量取模），
 /// 讀寫位置才用 `% capacity` 算——這樣 `write - read` 直接就是可用量，不需要「滿 vs 空」
 /// 的歧義判斷，消除一個經典的環形緩衝特殊情況。
-public final class AudioRingBuffer: @unchecked Sendable {
+public final class AudioRingBuffer: AudioSink, @unchecked Sendable {
     // 診斷鎖只由生產者與每秒監測 task 使用；render callback 永不取得它。
     private let packetStatsLock: NSLock?
     private var packetBytes: [Int: Int] = [:]
