@@ -126,6 +126,40 @@ Android Chrome 的 WebCodecs 只在 HTTPS 下開放。本設計第一版只支�
 
 `client-stats` 格式為 `{"type":"client-stats","rtt":50,"dropped":0,"decodeFps":30}`。rtt 為毫秒，decodeFps 為每秒解碼數，兩者必填、有限且非負，無額外數值上限；dropped 必須是 0 到 9007199254740991 的整數，為頁面累計序號缺口加本地丟幀。三欄均拒絕布林、字串及負值，不要求 t。viewer 在取得有效 RTT 後每秒回報，供 Mac 選單顯示連線品質；伺服器不 echo，input 關閉時清掉最新值。
 
+### `/ws/audio`
+
+音訊方向為 Mac → 手機，每則二進位訊息是一批交錯樣本，標頭共 17 bytes：
+
+| 位移 | 長度 | 內容 |
+|---|---|---|
+| 0 | 8 | Mac monotonic 送出時間，UInt64 奈秒，big-endian |
+| 8 | 4 | UInt32 批次序號，big-endian |
+| 12 | 4 | UInt32 取樣率，big-endian |
+| 16 | 1 | 聲道數，只接受 1 或 2 |
+| 17 | 其餘 | S16 little-endian 交錯樣本 |
+
+取樣率與聲道寫進每一則而不是握手一次，是因為 emulator 的音訊格式在重連後可能不同，
+而手機端要據此設定 `AudioContext`；每則自帶格式就不需要「格式變更」這個額外訊息型別。
+內容用 S16 而不是 Float32：位元組少一半（48kHz 立體聲為 192 kB/s），瀏覽器端轉 Float32
+是一個乘法。**不編碼成 AAC 或 Opus**：省下的頻寬換來編解碼延遲與一套 codec 協商，
+而同一個 Wi-Fi 下 192 kB/s 不是瓶頸（影像本身就比這個大）。
+
+驗證要求總長度大於 17、聲道為 1 或 2、取樣率介於 8000 與 48000、payload 長度為
+`2 × 聲道數` 的整數倍且不為零；不符者整則丟棄並計數。guest 沒有出聲時 emulator 本來就
+不送封包，所以靜音不佔頻寬，不另做靜音偵測。
+
+音訊佇列預設最多 10 則（約 120 ms）。背壓時**丟最舊的**並累計 `audioDropped`：
+音訊落後比丟一小段更難聽，且與影像不同，音訊沒有「等下一個 keyframe」這種恢復點。
+
+`/ws/audio` 與 `/ws/input` 一樣必須依附已配對的 video session，不能單獨配對。
+
+手機端以 `AudioWorklet` 播放，worklet 內是一個固定容量的環形緩衝，主執行緒把收到的
+樣本寫進去。**蓄水門檻 100 ms**，與 Mac 端 `AudioRingBuffer` 相同理由：生產與消費速率
+相等時穩態深度會是 0，每次 render 都補靜音。`AudioContext` 必須由使用者手勢啟動，
+頁面本來就要點一下才開始，接在同一個手勢上。
+
+頁面右上提供 🔊／🔇 切換，`?audio=0` 連 socket 都不開。統計列加一欄音訊緩衝深度與丟棄數。
+
 ### 手機頁面
 
 以 `VideoDecoder`、`optimizeForLatency:true` 解碼，output 回呼 `drawImage` 後立刻 `close()`。設定 `touch-action:none`、`user-select:none`、`-webkit-touch-callout:none`、`overscroll-behavior:none`，攔截 `gesturestart`／`gesturechange`，可用時請求 screen wake lock；不用 iPhone 不支援的 Fullscreen API。
@@ -212,7 +246,6 @@ R1 到 R3 實測第一個 keyframe 0 秒，10 秒收到 280 幀、幀序缺口 0
 
 - Android：需要 HTTPS，憑證發放與安裝在第一版之外。
 - 手機獨立解析度：需要第二條 `streamScreenshot`，CPU 成本翻倍，與第 2 節第 3 點衝突。
-- 音訊串流。
 - 多支手機同時連線。
 - 鍵位映射套用到手機觸控：手機本身是觸控裝置，直接注入。
 
