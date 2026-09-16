@@ -6,12 +6,16 @@ import SwiftUI
 /// 而且字幕在下方比較接近一般播放器的習慣。`allowsHitTesting` 不能關掉，
 /// 因為要點著複製；但只有在有文字時才佔位，沒文字時完全不擋觸控。
 struct SpeechOverlay: View {
+    /// 只顯示尾端這麼多字。一段語音的辨識結果是累加的，不設上限的話長訊息會把畫面塞滿
+    /// （實測 205 字就佔掉 139px）。**複製仍然複製全文**，看得到的只是最後這一段。
+    static let visibleCharacters = 80
+
     let text: String
     let onCopy: (String) -> Void
 
     var body: some View {
         if !text.isEmpty {
-            Text(text)
+            Text(String(text.suffix(Self.visibleCharacters)))
                 .font(.title3)
                 .foregroundStyle(.white)
                 .padding(.horizontal, 14)

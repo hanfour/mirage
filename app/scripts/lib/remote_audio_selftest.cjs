@@ -150,3 +150,12 @@ test('speech without a string text is ignored instead of showing undefined', () 
   assert.equal(h.run('speechPanel.textContent') || '', '');
   assert.equal(h.run('speechPanel.hidden'), true);
 });
+test('long transcripts only show the tail so they do not fill the screen', () => {
+  const h = harness({audio:true});
+  h.sockets[0].onopen();
+  const long = '今天天氣很好'.repeat(40);   // 240 字
+  h.sockets[0].onmessage({data: JSON.stringify({type:'speech', text:long, final:false})});
+  const shown = h.run('speechPanel.textContent');
+  assert.equal(shown.length, 80);
+  assert.equal(shown, long.slice(-80));
+});

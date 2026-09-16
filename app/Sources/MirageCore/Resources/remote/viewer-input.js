@@ -100,11 +100,13 @@ speechPanel.style.cssText = 'position:absolute;left:50%;transform:translateX(-50
   + 'white-space:pre-wrap;pointer-events:none;z-index:3';
 speechPanel.hidden = true;
 document.querySelector('#viewport').append(speechPanel);
+const SPEECH_VISIBLE_CHARACTERS = 80;
 let speechClearTimer = null;
 function renderSpeech(message) {
   // text 由 Mac 端產生，仍然驗一次型別：解析失敗的訊息不該讓浮層顯示 undefined。
   if (typeof message.text !== 'string') return;
-  speechPanel.textContent = message.text;
+  // 只顯示尾端：一段語音的辨識結果是累加的，長訊息會把畫面塞滿。
+  speechPanel.textContent = message.text.slice(-SPEECH_VISIBLE_CHARACTERS);
   speechPanel.hidden = message.text === '';
   // 最後一則保留一段時間再消失，不要播完就立刻不見。
   clearForegroundTimeout(speechClearTimer);

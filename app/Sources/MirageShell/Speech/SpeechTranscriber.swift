@@ -24,6 +24,11 @@ final class SpeechTranscriber {
     private var recognizer: SFSpeechRecognizer?
     private var request: SFSpeechAudioBufferRecognitionRequest?
     private var task: SFSpeechRecognitionTask?
+    /// 段落世代。`endSegment()` 只是告訴辨識器沒有更多音訊，**舊任務還活著**，
+    /// 它稍後送出的最終結果如果直接去清狀態，會把已經開始的**新段落**一起清掉，
+    /// 之後就在「開一段、被舊任務清掉」之間空轉，畫面再也不更新。
+    /// 每個回呼帶著自己的世代，過期的一律忽略。
+    private var generation = 0
     private let format: AVAudioFormat?
     private let onTranscript: (SpeechTranscript) -> Void
 
@@ -75,21 +80,26 @@ final class SpeechTranscriber {
     func beginSegment() {
         guard let recognizer else { return }
         endSegment()
+        generation += 1
+        let generation = self.generation
         let request = SFSpeechAudioBufferRecognitionRequest()
         request.requiresOnDeviceRecognition = true
         request.shouldReportPartialResults = true
         self.request = request
         task = recognizer.recognitionTask(with: request) { [weak self] result, error in
             Task { @MainActor in
-                guard let self else { return }
+                guard let self, generation == self.generation else { return }
                 if error != nil {
                     // 單段失敗不停用整個功能：下一段重新開始。
                     self.clearSegment()
                     return
                 }
                 guard let result else { return }
-                self.onTranscript(SpeechTranscript(text: result.bestTranscription.formattedString,
-                                                   isFinal: result.isFinal))
+                let text = result.bestTranscription.formattedString
+                if Self.logEnabled {
+                    print("[speech] gen=\(generation) final=\(result.isFinal) len=\(text.count)")
+                }
+                self.onTranscript(SpeechTranscript(text: text, isFinal: result.isFinal))
                 if result.isFinal { self.clearSegment() }
             }
         }
@@ -114,6 +124,10 @@ final class SpeechTranscriber {
         request?.endAudio()
         request = nil
     }
+
+    /// 診斷用：`MIRAGE_SPEECH_LOG=1` 時把每一則辨識結果印出來。
+    /// 沒有它就只能從畫面猜辨識是不是還活著，而畫面不會告訴你「停在哪一段」。
+    static let logEnabled = ProcessInfo.processInfo.environment["MIRAGE_SPEECH_LOG"] == "1"
 
     private func clearSegment() {
         request = nil
