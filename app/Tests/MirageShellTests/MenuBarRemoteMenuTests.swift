@@ -52,6 +52,16 @@ import Testing
         #expect(menu.items[7].action == disconnect)
     }
 
+    @Test func permissionHintAndEnvironmentOverrideHaveNoAction() throws {
+        let menu = NSMenu()
+        populate(menu, RemoteMenu.entries(.on(urls: [], session: .initial), canRotateToken: false), target: NSObject())
+        for title in [RemoteMenu.localNetworkHint, RemoteMenu.overriddenTokenTitle] {
+            let item = try #require(menu.items.first { $0.title == title })
+            #expect(!item.isEnabled)
+            #expect(item.action == nil)
+        }
+    }
+
     @Test func rebuildingMenuReplacesReadOnlyQualityWithLatestReport() throws {
         let menu = NSMenu(), target = NSObject()
         let state = RemoteMenuState.on(urls: [], session: .init(phase: .connected, hasVideo: true, hasInput: true))

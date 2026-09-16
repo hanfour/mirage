@@ -16,7 +16,9 @@ final class PairingTokenStore {
     func token(rotate: Bool = false) -> PairingToken {
         // 活體腳本的指定值不污染使用者保存的 token，且跨重新啟用仍優先。
         if let override { return override }
-        let token = PairingToken.selected(existing: defaults.string(forKey: Self.key), rotate: rotate,
+        let existing = defaults.string(forKey: Self.key)
+        if !rotate, let existing, let saved = PairingToken(value: existing) { return saved }
+        let token = PairingToken.selected(existing: existing, rotate: rotate,
                                           replacement: PairingToken.generate())
         defaults.set(token.value, forKey: Self.key)
         return token

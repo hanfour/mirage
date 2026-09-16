@@ -34,7 +34,7 @@ import Testing
 
     /// `current()` 讀真實介面：只能斷言結構（IPv4 點分、非 127.*），不能斷言內容。
     @Test func currentAddressesAreIPv4NonLoopback() {
-        let list = HostAddresses.current()
+        let list = HostAddresses.current(probe: { _ in nil })
         #expect(list.allSatisfy { $0.ip.split(separator: ".").count == 4 })
         #expect(list.allSatisfy { !$0.ip.hasPrefix("127.") })
         #expect(list.allSatisfy { !$0.interface.isEmpty })

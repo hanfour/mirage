@@ -93,7 +93,7 @@ extension AppModel {
         do {
             let bound = try await controller.start()
             remote = controller
-            let urls = RemoteURL.all(addresses: HostAddresses.current(), port: bound, token: controller.token)
+            let urls = RemoteURL.all(addresses: remoteAddresses(), port: bound, token: controller.token)
             remoteMenuState = .on(urls: urls, session: controller.sessionState)
             print("[remote] listening port=\(bound) 已可連線")
         } catch {

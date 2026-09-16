@@ -18,6 +18,7 @@ final class AppModel {
     /// 切換模擬器也傳它（`AppModel+Instances.swift`），否則遙控開著時切台會讓扇出靜默消失。
     @ObservationIgnored var activeSink: any FrameSink
     /// 手機遙控的執行期；nil = 功能關閉。
+    @ObservationIgnored var remoteAddresses: () -> [HostAddress] = { HostAddresses.current() }
     let pairingTokens: PairingTokenStore
     var remote: RemoteMirrorController?
     var remoteMenuState: RemoteMenuState = .off

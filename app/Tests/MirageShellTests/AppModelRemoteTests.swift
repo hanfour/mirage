@@ -46,6 +46,7 @@ private final class RemotePortBlocker {
         let model = AppModel(store: store, pairingTokens: PairingTokenStore(defaults: defaults, environment: [:]),
                              starterBindings: { [] })
         defer { try? FileManager.default.removeItem(at: dir) }
+        model.remoteAddresses = { [HostAddress(interface: "en0", ip: "192.168.1.61")] }
         // 死埠避免 PM 的環境漏設 MIRAGE_PORT 時誤連真 guest。
         let changed = await model.client.setEndpoint(EmulatorEndpoint(host: "127.0.0.1", port: 1))
         #expect(changed)
@@ -70,6 +71,10 @@ private final class RemotePortBlocker {
             await model.rotateRemoteToken()
             let rotated = try #require(model.remote?.token)
             #expect(rotated != first)
+            if case .on(let urls, _) = model.remoteMenuState {
+                #expect(urls.count == 1)
+                #expect(urls.allSatisfy { $0.hasSuffix("/?t=\(rotated.value)") })
+            } else { Issue.record("輪替後必須更新選單網址與 QR") }
             await model.disableRemote()
             await model.enableRemote(host: "127.0.0.1", port: 0)
             #expect(model.remote?.token == rotated)
