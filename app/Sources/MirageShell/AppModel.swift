@@ -62,6 +62,7 @@ final class AppModel {
         let sink = FrameSinkFactory.make(from: ProcessInfo.processInfo.environment)
         box = sink
         activeSink = sink
+        activeAudioSink = audioRing
         inputQueue = InputQueue(injector: client)
         textInput = TextInputPresentation(queue: inputQueue)
         if ProcessInfo.processInfo.environment["MIRAGE_CONN_LOG"] == "1" {
@@ -112,7 +113,10 @@ final class AppModel {
     var frameSize: (w: Int, h: Int) = (0, 0)
     let audioRing = AudioRingBuffer(
         collectPacketSizes: ProcessInfo.processInfo.environment["MIRAGE_AUDIO_LOG"] == "1")
-    lazy var activeAudioSink: any AudioSink = audioRing
+    /// 比照 `activeSink`：遙控關閉時就是 `audioRing` 本身，開啟時換成扇出包裝。
+    /// 不能寫成 `lazy`，`@Observable` 會把儲存屬性變成計算屬性、兩者不相容；
+    /// 也不能在宣告處直接指定 `audioRing`，屬性初始式裡還取不到 self。所以在 init 設定。
+    @ObservationIgnored var activeAudioSink: any AudioSink
     var audioPlayer: AudioPlayer?
     // P1-d: 遊戲偵測→啟用接線。detector 輪詢前景 package（無 adb 時保持 nil，
     // 靜默不偵測）；currentPackage/override 一起餵給 ActivationDecider 決定要不要

@@ -15,8 +15,8 @@ import MirageCore
     }
 
     @Test func roundsAndWritesLittleEndian() {
-        #expect(RemoteAudioForwarder.s16LittleEndian([4660.0 / 32768, -4660.0 / 32768,
-                                                   0.5 / 32768, -0.5 / 32768])
+        let samples: [Float] = [4660.0 / 32768, -4660.0 / 32768, 0.5 / 32768, -0.5 / 32768]
+        #expect(RemoteAudioForwarder.s16LittleEndian(samples)
                 == Data([0x34, 0x12, 0xcc, 0xed, 0x01, 0x00, 0xff, 0xff]))
     }
 
