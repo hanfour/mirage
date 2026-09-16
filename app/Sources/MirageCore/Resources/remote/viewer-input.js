@@ -24,6 +24,8 @@ function resumeAudio() {
   if (audioDisabled || !audioEnabled) return;
   audioPlayback.resume().then(() => {
     if (audioState === 'connected') audioNotice.hidden = true;
+    // 解鎖成功就不用再聽手勢了。留著的話遊戲中每次放開手指都會多跑一次 resume。
+    removeAudioGestureListeners();
   }).catch(error => { audioError('音訊無法播放：' + error.message); });
 }
 audioToggle.addEventListener('click', () => {
@@ -35,6 +37,10 @@ audioToggle.addEventListener('click', () => {
 });
 // capture 可涵蓋會停止冒泡的導覽按鈕，且仍在使用者手勢內解鎖音訊。
 function audioGesture() { audioGestureReceived = true; resumeAudio(); }
+function removeAudioGestureListeners() {
+  document.removeEventListener('pointerup', audioGesture, {capture:true});
+  document.removeEventListener('keydown', audioGesture, {capture:true});
+}
 document.addEventListener('pointerup', audioGesture, {capture:true});
 document.addEventListener('keydown', audioGesture, {capture:true});
 renderAudioToggle();

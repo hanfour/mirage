@@ -9,13 +9,23 @@ public enum RemoteViewerPage {
     static let resourceExtension = "html"
     static let subdirectory = "remote"
 
+    /// 標記與檔名的對應表。**順序就是頁面上的順序**：`viewer-input` 會用到
+    /// `viewer-audio` 匯出的東西，所以 audio 的標記在 HTML 裡排在前面。
+    /// 新增資源時只改這張表；漏掉替換的話 `RemoteViewerPageTests` 會紅
+    /// （它斷言成品裡不得殘留任何 `MIRAGE_VIEWER_` 標記，不是只檢查已知的那幾個）。
+    static let inlinedScripts = [("/* MIRAGE_VIEWER_AUDIO */", "viewer-audio"),
+                                 ("/* MIRAGE_VIEWER_INPUT */", "viewer-input")]
+
     public static func bundled() -> Data? {
         guard let url = Bundle.module.url(forResource: resourceName, withExtension: resourceExtension,
-                                          subdirectory: subdirectory)
+                                          subdirectory: subdirectory),
+              var html = try? String(contentsOf: url, encoding: .utf8)
         else { return nil }
-        guard let inputURL = Bundle.module.url(forResource: "viewer-input", withExtension: "js", subdirectory: subdirectory),
-              let html = try? String(contentsOf: url, encoding: .utf8),
-              let input = try? String(contentsOf: inputURL, encoding: .utf8) else { return nil }
-        return html.replacingOccurrences(of: "/* MIRAGE_VIEWER_INPUT */", with: input).data(using: .utf8)
+        for (marker, name) in inlinedScripts {
+            guard let scriptURL = Bundle.module.url(forResource: name, withExtension: "js", subdirectory: subdirectory),
+                  let script = try? String(contentsOf: scriptURL, encoding: .utf8) else { return nil }
+            html = html.replacingOccurrences(of: marker, with: script)
+        }
+        return html.data(using: .utf8)
     }
 }

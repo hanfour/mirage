@@ -64,7 +64,8 @@ import Testing
 
     @Test func rebuildingMenuReplacesReadOnlyQualityWithLatestReport() throws {
         let menu = NSMenu(), target = NSObject()
-        let state = RemoteMenuState.on(urls: [], addresses: [], session: .init(phase: .connected, hasVideo: true, hasInput: true))
+        let state = RemoteMenuState.on(urls: [], addresses: [],
+                                       session: .init(phase: .connected, hasVideo: true, hasInput: true, hasAudio: true))
         populate(menu, RemoteMenu.entries(state), target: target)
         for rtt in [15.0, 42.0] {
             let stats = RemoteClientStats(rtt: rtt, dropped: 2, decodeFps: 30)
