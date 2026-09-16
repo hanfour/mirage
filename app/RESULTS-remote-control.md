@@ -92,3 +92,17 @@ repo 的 `phase0/harness/protos/emulator_controller.proto`（Image.timestampUs�
 處理：`hasVideo` 由 false 變 true 時走 `AppLifecycle.remoteViewerConnected()`，用 `consumeResume(showingWindow: false)` 喚醒 client 但不叫出隱藏的 Mac 視窗，並要求一次 keyframe。Mac 端 stats 加 `emulatorConnected` 與 `secondsSinceNewFrame`；手機端在未連線或停格超過 5 秒時顯示橫幅，兩種成因的文字分開寫（停格時寫「模擬器仍連線」，避免把排查方向指錯）。統計疊層限高並讓觸控穿透。
 
 驗證：`AppModelRemoteTests` 用真實 WebSocket 與真實 lifecycle 驗「連線中隱藏視窗不休眠 → 斷線才休眠 → 重連才喚醒」；活體 R8 斷言重連後 10 秒內 `emulatorConnected` 為 true 且有新幀（實測 30 幀／秒）。
+
+## 10. 2026-09-16：選單列不出 Wi-Fi 位址、舊網址回 forbidden
+
+使用者打開先前存的網址得到 `forbidden`，選單裡的兩個網址是 `192.168.139.3` 與 `192.168.215.0`（OrbStack 的 bridge），沒有 Wi-Fi 的 `192.168.1.61` 也沒有 Tailscale 的 `100.119.248.33`。
+
+兩件事：
+- macOS 的本機網路隱私權限會過濾 `getifaddrs` 的結果。用與 `HostAddresses.current()` 逐字相同的邏輯寫成 CLI 探針，在終端機看得到 en0、utun8、兩個 bridge；同一份邏輯在 Mirage.app 裡只看得到兩個 bridge。伺服器綁 `0.0.0.0`，所以手動輸入 Wi-Fi 位址仍可連，只有選單列不出來。
+- 配對 token 每次啟用遙控都重新產生，存起來的網址與「加入主畫面」的捷徑都會失效，開啟就是 403。
+
+處理：新增 UDP route 探測（`connect` 到 `1.1.1.1:53` 與 `100.100.100.100:53` 後讀 `getsockname`，不送封包）補上出口介面位址，與 `getifaddrs` 的結果合併去重；token 存進 `UserDefaults`，選單加「重新產生配對碼」，`MIRAGE_REMOTE_TOKEN` 仍優先；403 改成中文說明頁；Info.plist 補 `NSLocalNetworkUsageDescription`。
+
+權限提示的判斷第一版用「IP 是否落在私有網段」，而 bridge 的 `192.168.139.3` 正好符合，等於使用者實際踩到的情況反而不提示，測試還把這個位址寫成「不該提示」的正面案例。改成依來源介面判斷：只有 `en*`、`utun*` 或探測補上的 `route` 才算數。
+
+實機驗證：選單依序列出 `192.168.1.61`（en0）、`100.119.248.33`（utun8）、兩個 bridge；重啟 app 後 token 不變；錯 token 回中文頁與 403。
