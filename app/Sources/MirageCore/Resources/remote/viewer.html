@@ -304,6 +304,7 @@ function updateForegroundClock() {
 }
 function reconnect(reason, immediately = false) {
   if (reconnectTimer !== null) return;
+  closeAudio();
   generation++; // Ignore callbacks (including delayed output/flush) from the old pair.
   clearForegroundTimeout(connectionTimer);
   connectionTimer = null;
@@ -360,5 +361,6 @@ function makeDecoder() {
   return target;
 }
 
+/* MIRAGE_VIEWER_AUDIO */
 /* MIRAGE_VIEWER_INPUT */
 </script></html>

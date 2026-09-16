@@ -4,14 +4,16 @@ const path = require('node:path');
 const vm = require('node:vm');
 const html = fs.readFileSync(path.join(__dirname, '../../Sources/MirageCore/Resources/remote/viewer.html'), 'utf8').replace('/* MIRAGE_VIEWER_INPUT */',
   () => fs.readFileSync(path.join(__dirname, '../../Sources/MirageCore/Resources/remote/viewer-input.js'), 'utf8'));
-const script = html.match(/<script>([\s\S]*?)<\/script>/)[1];
+const audioScript = fs.readFileSync(path.join(__dirname, '../../Sources/MirageCore/Resources/remote/viewer-audio.js'), 'utf8');
+const script = html.replace('/* MIRAGE_VIEWER_AUDIO */', () => audioScript).match(/<script>([\s\S]*?)<\/script>/)[1];
 
-function harness({immediateOutput = false, search = '?t=abc', storage = new Map(), storageFails = false, viewport = null} = {}) {
+function harness({immediateOutput = false, search = '?t=abc', storage = new Map(), storageFails = false, viewport = null, audio = false} = {}) {
   const timers = new Map(), decoders = [], sockets = [];
   let timerID = 0, now = 0, draws = 0;
   function element() {
     const classes = new Set(), listeners = {};
     return {listeners, hidden: false, scrollTop: 0, value: '', attributes: {}, properties: {},
+      append(...children) { this.children = [...(this.children || []), ...children]; },
       setAttribute(name, value) { this.attributes[name] = value; },
       style: {setProperty(name, value) { this[name] = value; }},
       focus() { document.activeElement = this; this.listeners.focus?.(); },
@@ -79,11 +81,11 @@ function harness({immediateOutput = false, search = '?t=abc', storage = new Map(
   }
   const windowListeners = {}, documentListeners = {};
   const window = {addEventListener(type, listener) { windowListeners[type] = listener; }};
-  const document = {querySelector: selector => elements[selector], documentElement: root,
+  const document = {createElement: () => element(), querySelector: selector => elements[selector], documentElement: root,
     addEventListener(type, listener) { documentListeners[type] = listener; }, visibilityState: 'visible', activeElement: null};
   const context = vm.createContext({
     document, window, visualViewport: viewport,
-    location: {search, protocol: 'http:', host: '127.0.0.1'},
+    location: {search:audio ? search : search + '&audio=0', protocol: 'http:', host: '127.0.0.1'},
     navigator: {userAgent: 'test'}, screen: {width: 8, height: 1},
     innerWidth: 8, innerHeight: 1, devicePixelRatio: 1, isSecureContext: true,
     localStorage: {

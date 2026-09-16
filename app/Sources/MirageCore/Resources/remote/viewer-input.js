@@ -1,3 +1,94 @@
+const audioDisabled = params.get('audio') === '0';
+const audioPlayback = createAudioPlayback();
+let audioSocket = null, audioState = audioDisabled ? 'disabled' : 'waiting';
+let audioGestureReceived = false;
+let audioEnabled = true, audioDecodeErrors = 0, audioLastDecodeLog = -Infinity;
+try { audioEnabled = localStorage.getItem('mirage.audioEnabled') !== '0'; } catch {}
+// 由 JS 建立浮層，讓單檔頁面沿用既有的安全區域與觸控處理。
+const audioToggle = document.createElement('button'), audioNotice = document.createElement('div');
+audioToggle.id = 'audio-toggle'; audioToggle.type = 'button';
+audioToggle.style.cssText = 'position:absolute;top:env(safe-area-inset-top,0px);right:0;border:0;background:#000b;color:#fff;width:28px;height:28px;padding:0;touch-action:none;z-index:4';
+audioNotice.style.cssText = 'position:absolute;top:calc(env(safe-area-inset-top,0px) + 30px);right:0;max-width:75vw;padding:8px;background:#7f1d1d;pointer-events:none;white-space:pre-wrap;z-index:3';
+audioNotice.setAttribute('role', 'status'); audioNotice.hidden = true;
+document.querySelector('#viewport').append(audioToggle, audioNotice);
+function renderAudioToggle() {
+  audioToggle.hidden = audioDisabled;
+  audioToggle.textContent = audioEnabled ? '🔊' : '🔇';
+  audioToggle.setAttribute('aria-pressed', String(audioEnabled));
+  audioToggle.setAttribute('aria-label', audioEnabled ? '靜音' : '開啟音訊');
+}
+function audioError(message) {
+  audioNotice.textContent = message; audioNotice.hidden = false;
+}
+function resumeAudio() {
+  if (audioDisabled || !audioEnabled) return;
+  audioPlayback.resume().then(() => {
+    if (audioState === 'connected') audioNotice.hidden = true;
+  }).catch(error => { audioError('音訊無法播放：' + error.message); });
+}
+audioToggle.addEventListener('click', () => {
+  audioGestureReceived = true;
+  audioEnabled = !audioEnabled;
+  try { localStorage.setItem('mirage.audioEnabled', audioEnabled ? '1' : '0'); } catch {}
+  renderAudioToggle();
+  if (audioEnabled) resumeAudio(); else audioPlayback.stop();
+});
+// capture 可涵蓋會停止冒泡的導覽按鈕，且仍在使用者手勢內解鎖音訊。
+function audioGesture() { audioGestureReceived = true; resumeAudio(); }
+document.addEventListener('pointerup', audioGesture, {capture:true});
+document.addEventListener('keydown', audioGesture, {capture:true});
+renderAudioToggle();
+function closeAudio() {
+  if (audioSocket) {
+    audioSocket.onopen = audioSocket.onclose = audioSocket.onerror = audioSocket.onmessage = null;
+    audioSocket.close(); audioSocket = null;
+  }
+  audioPlayback.stop();
+  audioState = audioDisabled ? 'disabled' : 'waiting';
+}
+function connectAudio() {
+  if (audioDisabled) return;
+  const current = generation;
+  try {
+    const socket = new WebSocket(base + '/ws/audio' + query);
+    audioSocket = socket; socket.binaryType = 'arraybuffer';
+    const valid = () => current === generation && audioSocket === socket;
+    const disconnected = () => {
+      if (!valid()) return;
+      audioState = 'disconnected'; audioPlayback.stop();
+      audioError('音訊已斷線，畫面與觸控仍可使用');
+    };
+    socket.onopen = () => {
+      if (!valid()) return;
+      audioState = 'connected'; audioNotice.hidden = true; note('audio connected');
+      if (audioGestureReceived) resumeAudio();
+    };
+    socket.onclose = disconnected;
+    socket.onerror = disconnected;
+    socket.onmessage = event => {
+      if (!valid() || audioState === 'disconnected') return;
+      let item;
+      try { item = decodeAudioMessage(event.data); }
+      catch (error) {
+        audioDecodeErrors++;
+        const now = performance.now();
+        if (now - audioLastDecodeLog >= 1000) {
+          audioLastDecodeLog = now;
+          note('audio decode errors=' + audioDecodeErrors + ': ' + error.message);
+        }
+        return;
+      }
+      try { audioPlayback.push(item); }
+      catch (error) { audioPlayback.stop(); audioError('音訊無法播放：' + error.message); }
+    };
+  } catch (error) {
+    audioState = 'disconnected'; audioError('音訊無法連線：' + error.message);
+  }
+}
+function audioStatsText() {
+  const stats = audioPlayback.stats();
+  return `audio ${audioState}: buffer=${stats.bufferMs.toFixed(1)} ms dropped=${stats.dropped} invalid=${audioDecodeErrors}`;
+}
 function send(obj) {
   if (input?.readyState === WebSocket.OPEN && input.bufferedAmount < 65536) {
     input.send(JSON.stringify(obj)); return true;
@@ -93,6 +184,7 @@ async function start() {
       if (current !== generation) return;
       if (!reconnecting) status = 'waiting for IDR';
       connectInput();
+      connectAudio();
       if (reconnecting) requestKeyframe();
       note(status);
     };
@@ -195,7 +287,7 @@ function updateStats() {
   const now = performance.now(), fps = now > tick ? (decoded-lastDecoded)*1000/(now-tick) : 0;
   lastDecoded = decoded; tick = now;
   const a = samples.sort((x,y)=>x-y); samples = [];
-  const text = `${status}\n${codec}; hw=${hw}; secure=${isSecureContext}\ndecode fps=${fps.toFixed(1)} queue=${decoder?.decodeQueueSize ?? '—'} pending=${pending.size}\narrival→output p50/p95=${percentile(a,.5)}/${percentile(a,.95)} ms (n=${a.length})\n${macStatsText()}\nWS RTT=${Number.isFinite(rtt)?rtt.toFixed(1):'—'} ms\ndropped: seq=${gaps} local=${localDrops}; recv=${received}\nlocal reasons=${JSON.stringify(dropReasons)}\ninput unsent=${inputDrops}\n${lastTouch}`;
+  const text = `${status}\n${codec}; hw=${hw}; secure=${isSecureContext}\ndecode fps=${fps.toFixed(1)} queue=${decoder?.decodeQueueSize ?? '—'} pending=${pending.size}\narrival→output p50/p95=${percentile(a,.5)}/${percentile(a,.95)} ms (n=${a.length})\n${macStatsText()}\n${audioStatsText()}\nWS RTT=${Number.isFinite(rtt)?rtt.toFixed(1):'—'} ms\ndropped: seq=${gaps} local=${localDrops}; recv=${received}\nlocal reasons=${JSON.stringify(dropReasons)}\ninput unsent=${inputDrops}\n${lastTouch}`;
   if (showStats && !configurationFailed) { panel.textContent = text;
     note(text);
   }

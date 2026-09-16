@@ -432,6 +432,11 @@ if node --test ./scripts/lib/remote_viewer_selftest.cjs; then
 else
     fail "viewer 閒置 flush 測試失敗（需 Node.js 18 以上）"
 fi
+if node --test ./scripts/lib/remote_audio_selftest.cjs; then
+    ok "viewer 音訊解碼與佇列測試通過"
+else
+    fail "viewer 音訊測試失敗（需 Node.js 18 以上）"
+fi
 HARNESS_PY="../phase0/harness/.venv-d45/bin/python"
 if [ ! -x "${HARNESS_PY}" ]; then
     fail "找不到 phase0/harness/.venv-d45/bin/python，不能 skip 閘門 8"
