@@ -22,11 +22,10 @@ enum HostAddressProbe {
         return HostAddresses.ordered(addresses.filter { seen.insert($0.ip).inserted })
     }
 
-    static func needsLocalNetworkHint(_ ips: [String]) -> Bool {
-        !ips.contains { ip in
-            guard let bytes = octets(ip) else { return false }
-            return bytes[0] == 10 || (bytes[0] == 192 && bytes[1] == 168)
-                || (bytes[0] == 172 && (16...31).contains(bytes[1])) || isTailscale(ip)
+    /// 私有網段也可能只是虛擬橋接；提示依據是可用的來源介面。
+    static func needsLocalNetworkHint(_ addresses: [HostAddress]) -> Bool {
+        !addresses.contains {
+            $0.interface.hasPrefix("en") || $0.interface.hasPrefix("utun") || $0.interface == "route"
         }
     }
 

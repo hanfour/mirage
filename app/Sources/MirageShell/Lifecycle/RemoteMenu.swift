@@ -5,7 +5,7 @@ import MirageCore
 enum RemoteMenuState: Equatable {
     case off
     case failed(String)
-    case on(urls: [String], session: RemoteSessionState)
+    case on(urls: [String], addresses: [HostAddress], session: RemoteSessionState)
 }
 
 /// 子選單的一列。`qr` 與 `url` 分開：QR 只畫第一個網址，網址每個都列。
@@ -38,14 +38,14 @@ enum RemoteMenu {
             return [.toggle(title: enableTitle), .status("狀態：未開啟")]
         case .failed(let message):
             return [.toggle(title: enableTitle), .status("錯誤：\(message)")]
-        case .on(let urls, let session):
-            let addresses: [RemoteMenuEntry] = urls.isEmpty
+        case .on(let urls, let addresses, let session):
+            let addressEntries: [RemoteMenuEntry] = urls.isEmpty
                 ? [.status(noAddressText)]
                 : urls.map { .url($0) } + [.qr(urls[0])]
             return [.toggle(title: disableTitle), .status(statusText(session)), .status(pullRateText(pullInterval))]
                 + (session.isViewerConnected ? [.status(connectionText(clientStats))] : [])
-                + addresses
-                + (HostAddressProbe.needsLocalNetworkHint(urls.compactMap { URL(string: $0)?.host })
+                + addressEntries
+                + (HostAddressProbe.needsLocalNetworkHint(addresses)
                    ? [.status(localNetworkHint)] : [])
                 + [.rotateToken(enabled: canRotateToken)]
                 + [.disconnect(enabled: session.isViewerConnected)]

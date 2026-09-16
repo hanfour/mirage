@@ -23,7 +23,7 @@ import Testing
         let menu = NSMenu()
         let target = NSObject()
         let session = RemoteSessionState(phase: .connected, hasVideo: true, hasInput: true)
-        populate(menu, RemoteMenu.entries(.on(urls: [url], session: session)), target: target)
+        populate(menu, RemoteMenu.entries(.on(urls: [url], addresses: [.init(interface: "en0", ip: "192.168.1.61")], session: session)), target: target)
 
         #expect(menu.items.count == 8)
         #expect(menu.items[0].title == RemoteMenu.disableTitle)
@@ -54,7 +54,7 @@ import Testing
 
     @Test func permissionHintAndEnvironmentOverrideHaveNoAction() throws {
         let menu = NSMenu()
-        populate(menu, RemoteMenu.entries(.on(urls: [], session: .initial), canRotateToken: false), target: NSObject())
+        populate(menu, RemoteMenu.entries(.on(urls: [], addresses: [], session: .initial), canRotateToken: false), target: NSObject())
         for title in [RemoteMenu.localNetworkHint, RemoteMenu.overriddenTokenTitle] {
             let item = try #require(menu.items.first { $0.title == title })
             #expect(!item.isEnabled)
@@ -64,7 +64,7 @@ import Testing
 
     @Test func rebuildingMenuReplacesReadOnlyQualityWithLatestReport() throws {
         let menu = NSMenu(), target = NSObject()
-        let state = RemoteMenuState.on(urls: [], session: .init(phase: .connected, hasVideo: true, hasInput: true))
+        let state = RemoteMenuState.on(urls: [], addresses: [], session: .init(phase: .connected, hasVideo: true, hasInput: true))
         populate(menu, RemoteMenu.entries(state), target: target)
         for rtt in [15.0, 42.0] {
             let stats = RemoteClientStats(rtt: rtt, dropped: 2, decodeFps: 30)
@@ -80,7 +80,7 @@ import Testing
 
     @Test func disabledDisconnectHasNoActionAndOffMenuHasTwoItems() {
         let menu = NSMenu()
-        populate(menu, RemoteMenu.entries(.on(urls: [url], session: .initial)), target: NSObject())
+        populate(menu, RemoteMenu.entries(.on(urls: [url], addresses: [.init(interface: "en0", ip: "192.168.1.61")], session: .initial)), target: NSObject())
         let last = menu.items[menu.items.count - 1]
         #expect(!last.isEnabled)
         #expect(last.action == nil)

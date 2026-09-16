@@ -29,7 +29,7 @@ import Testing
         #expect(store.token(rotate: true).value == override)
         #expect(defaults.string(forKey: PairingTokenStore.key) == saved.value)
         #expect(PairingTokenStore(defaults: defaults, environment: [RemoteLaunchOptions.tokenKey: "bad"]).token() == saved)
-        let entries = RemoteMenu.entries(.on(urls: [], session: .initial), canRotateToken: false)
+        let entries = RemoteMenu.entries(.on(urls: [], addresses: [], session: .initial), canRotateToken: false)
         #expect(entries.contains(.rotateToken(enabled: false)))
     }
 }

@@ -3,21 +3,23 @@ import Testing
 @testable import MirageShell
 
 @Suite struct RemoteMenuTests {
+    private let addresses = [HostAddress(interface: "en0", ip: "192.168.1.61"),
+                             HostAddress(interface: "utun8", ip: "100.1.1.1")]
     private let urls = ["http://192.168.1.61:8765/?t=aa", "http://100.1.1.1:8765/?t=aa"]
 
     @Test func connectionQualityUsesLatestReportOnlyWhileConnected() {
         let connected = RemoteSessionState(phase: .connected, hasVideo: true, hasInput: true)
-        let state = RemoteMenuState.on(urls: urls, session: connected)
+        let state = RemoteMenuState.on(urls: urls, addresses: addresses, session: connected)
         #expect(RemoteMenu.entries(state).contains(.status("連線：等待手機回報")))
         let stats = RemoteClientStats(rtt: 15.2, dropped: 0, decodeFps: 29.8)
         #expect(RemoteMenu.entries(state, clientStats: stats).contains(.status("連線：RTT 15 ms · 丟幀 0 · 30 fps")))
-        let idle = RemoteMenu.entries(.on(urls: urls, session: .initial), clientStats: stats)
+        let idle = RemoteMenu.entries(.on(urls: urls, addresses: addresses, session: .initial), clientStats: stats)
         #expect(!idle.contains(.status(RemoteMenu.connectionText(stats))))
         #expect(RemoteMenu.connectionText(.init(rtt: 0, dropped: 12, decodeFps: 0)) == "連線：RTT 0 ms · 丟幀 12 · 0 fps")
     }
 
     @Test(arguments: [5, 30, 60]) func showsActualPullRate(_ fps: Int) {
-        let entries = RemoteMenu.entries(.on(urls: urls, session: .initial),
+        let entries = RemoteMenu.entries(.on(urls: urls, addresses: addresses, session: .initial),
                                          pullInterval: .nanoseconds(1_000_000_000 / Int64(fps)))
         #expect(entries.contains(.status("拉取率上限：\(fps) fps")))
     }
@@ -35,7 +37,7 @@ import Testing
 
     /// 開啟中：關閉、狀態、每個網址一列、第一個網址的 QR、中斷連線（有 viewer 才可點）。
     @Test func onListsEveryURLAndQRForTheFirst() {
-        let waiting = RemoteMenu.entries(.on(urls: urls, session: .initial))
+        let waiting = RemoteMenu.entries(.on(urls: urls, addresses: addresses, session: .initial))
         #expect(waiting == [
             .toggle(title: RemoteMenu.disableTitle),
             .status("狀態：等待配對"),
@@ -46,15 +48,15 @@ import Testing
             .disconnect(enabled: false),
         ])
         let connected = RemoteSessionState(phase: .connected, hasVideo: true, hasInput: true)
-        #expect(RemoteMenu.entries(.on(urls: urls, session: connected)).last == .disconnect(enabled: true))
-        #expect(RemoteMenu.entries(.on(urls: urls, session: connected))[1] == .status("狀態：已連線"))
+        #expect(RemoteMenu.entries(.on(urls: urls, addresses: addresses, session: connected)).last == .disconnect(enabled: true))
+        #expect(RemoteMenu.entries(.on(urls: urls, addresses: addresses, session: connected))[1] == .status("狀態：已連線"))
         let dropped = RemoteSessionState(phase: .disconnected, hasVideo: false, hasInput: false)
-        #expect(RemoteMenu.entries(.on(urls: urls, session: dropped))[1] == .status("狀態：已斷線（同一網址可重連）"))
+        #expect(RemoteMenu.entries(.on(urls: urls, addresses: addresses, session: dropped))[1] == .status("狀態：已斷線（同一網址可重連）"))
     }
 
     /// 沒有任何介面位址（沒接網路）：沒有 url、沒有 qr，狀態說明原因。
     @Test func onWithoutAddressesExplains() {
-        #expect(RemoteMenu.entries(.on(urls: [], session: .initial)) == [
+        #expect(RemoteMenu.entries(.on(urls: [], addresses: [], session: .initial)) == [
             .toggle(title: RemoteMenu.disableTitle),
             .status("狀態：等待配對"),
             .status("拉取率上限：30 fps"),
@@ -64,4 +66,22 @@ import Testing
             .disconnect(enabled: false),
         ])
     }
+    @Test func hintPreservesSourceInterfacesThroughMenuState() {
+        let bridge = HostAddress(interface: "bridge100", ip: "192.168.139.3")
+        let ethernet = HostAddress(interface: "en0", ip: "192.168.1.61")
+        let route = HostAddress(interface: "route", ip: "192.168.1.61")
+        let needsHint: [[HostAddress]] = [[], [bridge]]
+        let noHint: [[HostAddress]] = [[bridge, ethernet], [route]]
+        func entries(_ sources: [HostAddress]) -> [RemoteMenuEntry] {
+            let urls = sources.map { "http://\($0.ip):8765/?t=aa" }
+            return RemoteMenu.entries(.on(urls: urls, addresses: sources, session: .initial))
+        }
+        for sources in needsHint {
+            #expect(entries(sources).contains(.status(RemoteMenu.localNetworkHint)))
+        }
+        for sources in noHint {
+            #expect(!entries(sources).contains(.status(RemoteMenu.localNetworkHint)))
+        }
+    }
+
 }

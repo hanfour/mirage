@@ -93,8 +93,9 @@ extension AppModel {
         do {
             let bound = try await controller.start()
             remote = controller
-            let urls = RemoteURL.all(addresses: remoteAddresses(), port: bound, token: controller.token)
-            remoteMenuState = .on(urls: urls, session: controller.sessionState)
+            let addresses = remoteAddresses()
+            let urls = RemoteURL.all(addresses: addresses, port: bound, token: controller.token)
+            remoteMenuState = .on(urls: urls, addresses: addresses, session: controller.sessionState)
             print("[remote] listening port=\(bound) 已可連線")
         } catch {
             remoteGeneration = UUID()
@@ -168,10 +169,10 @@ extension AppModel {
 
     private func remoteSessionChanged(generation: UUID) {
         guard generation == remoteGeneration, let remote,
-              case .on(let urls, let previous) = remoteMenuState else { return }
+              case .on(let urls, let addresses, let previous) = remoteMenuState else { return }
         // Task 投遞順序未必等於 server callback 順序，因此讀目前快照。
         let state = remote.sessionState
-        remoteMenuState = .on(urls: urls, session: state)
+        remoteMenuState = .on(urls: urls, addresses: addresses, session: state)
         if state.hasVideo, !previous.hasVideo {
             Task { @MainActor [weak self] in
                 guard let self, generation == self.remoteGeneration, remote.sessionState.hasVideo else { return }

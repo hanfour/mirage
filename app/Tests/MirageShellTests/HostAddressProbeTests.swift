@@ -40,21 +40,31 @@ import Testing
         #expect(HostAddressProbe.merged(interfaces: [], defaultRoute: ip, tailscaleRoute: nil).isEmpty)
     }
 
-    @Test(arguments: ["10.0.0.0", "192.168.139.3", "172.16.0.0", "172.31.255.255",
-                       "100.64.0.0", "100.127.255.255"])
-    func localRangesSuppressHint(_ ip: String) {
-        #expect(!HostAddressProbe.needsLocalNetworkHint(["1.1.1.1", ip]))
+    @Test(arguments: ["bridge100", "vmnet1", "vmenet0", "lo0", "route0"])
+    func virtualInterfacesCannotSuppressHint(_ interface: String) {
+        #expect(HostAddressProbe.needsLocalNetworkHint([.init(interface: interface, ip: "192.168.139.3")]))
     }
 
-    @Test(arguments: ["172.15.255.255", "172.32.0.0", "100.63.255.255", "100.128.0.0",
-                       "192.169.0.1", "127.0.0.1", "10.999.0.1", "10.1.1", "::1"])
-    func otherRangesNeedHint(_ ip: String) {
-        #expect(HostAddressProbe.needsLocalNetworkHint([ip]))
+    @Test(arguments: ["en0", "en1", "utun8", "route"], ["192.168.139.3", "1.1.1.1"])
+    func usableSourcesSuppressHintRegardlessOfSubnet(_ interface: String, _ ip: String) {
+        #expect(!HostAddressProbe.needsLocalNetworkHint([.init(interface: interface, ip: ip)]))
     }
 
-    @Test func emptyAndPublicMenusShowDisabledHintEntry() {
+    @Test func onlyBridgeNeedsHint() {
+        #expect(HostAddressProbe.needsLocalNetworkHint([.init(interface: "bridge100", ip: "192.168.139.3")]))
+    }
+
+    @Test func bridgeAndEthernetSuppressHint() {
+        #expect(!HostAddressProbe.needsLocalNetworkHint([
+            .init(interface: "bridge100", ip: "192.168.139.3"), .init(interface: "en0", ip: "192.168.1.61"),
+        ]))
+    }
+
+    @Test func onlyRouteSuppressesHint() {
+        #expect(!HostAddressProbe.needsLocalNetworkHint([.init(interface: "route", ip: "192.168.1.61")]))
+    }
+
+    @Test func emptyListNeedsHint() {
         #expect(HostAddressProbe.needsLocalNetworkHint([]))
-        #expect(RemoteMenu.entries(.on(urls: ["http://1.1.1.1:8765/"], session: .initial))
-            .contains(.status(RemoteMenu.localNetworkHint)))
     }
 }

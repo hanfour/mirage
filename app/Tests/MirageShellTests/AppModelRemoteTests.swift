@@ -71,7 +71,7 @@ private final class RemotePortBlocker {
             await model.rotateRemoteToken()
             let rotated = try #require(model.remote?.token)
             #expect(rotated != first)
-            if case .on(let urls, _) = model.remoteMenuState {
+            if case .on(let urls, _, _) = model.remoteMenuState {
                 #expect(urls.count == 1)
                 #expect(urls.allSatisfy { $0.hasSuffix("/?t=\(rotated.value)") })
             } else { Issue.record("輪替後必須更新選單網址與 QR") }
@@ -100,8 +100,9 @@ private final class RemotePortBlocker {
             #expect(controller.secondary === sink.secondary)
             let port = try #require(controller.boundPort)
             #expect(port > 0)
-            if case .on(let urls, let session) = model.remoteMenuState {
+            if case .on(let urls, let addresses, let session) = model.remoteMenuState {
                 #expect(session == .initial)
+                #expect(addresses == model.remoteAddresses())
                 #expect(urls.allSatisfy { $0.hasSuffix("/?t=\(controller.token.value)") })
             } else { Issue.record("預期 .on，實得 \(model.remoteMenuState)") }
             #expect(await model.client.isRunning)
