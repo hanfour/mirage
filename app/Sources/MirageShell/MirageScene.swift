@@ -70,6 +70,11 @@ struct MirageScene: App {
                 InstallBanner(state: model.installState)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
                     .allowsHitTesting(false)
+                SpeechOverlay(text: model.speechText) { text in
+                    NSPasteboard.general.clearContents()
+                    NSPasteboard.general.setString(text, forType: .string)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
             }
             // **setter 刻意什麼都不做**（2026-07-30，D5 階段 B 終審 I1）。
             //

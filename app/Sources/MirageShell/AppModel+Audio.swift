@@ -18,6 +18,8 @@ extension AppModel {
         audioPlayer = player
         menuBar?.onToggleMute = { [weak self] in self?.toggleMute() }
         menuBar?.updateMute(player.isMuted)
+        menuBar?.onToggleSpeech = { [weak self] in self?.toggleSpeech() }
+        menuBar?.updateSpeech(on: false, unavailableReason: nil)
         // 生命週期可能晚於遙控啟動，必須沿用目前 sink 並與遠端切換共用順序。
         let previous = instanceSwitchTask
         instanceSwitchTask = Task { @MainActor in
@@ -81,6 +83,7 @@ extension AppModel {
                     break
                 }
                 if monitor.state != previousState { self.menuBar?.updateAudioHealth(monitor.state) }
+                self.advanceSpeechSegment(packets: packets)
                 if logRequested {
                     print("[audio] pkt=\(s.writes - lastWrites) smp=\(supplied) supply=\(supplyPct)% " +
                           "sr=48000 ch=2 under=\(s.underruns) over=\(s.overruns) " +

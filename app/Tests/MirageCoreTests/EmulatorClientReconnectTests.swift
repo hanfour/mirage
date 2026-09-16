@@ -104,11 +104,21 @@ actor SleepRecorder {
             randomSource: { 0.5 }
         )
         await client.start(box: box, width: 540, height: 1200)
-        try await Task.sleep(for: .milliseconds(500))  // 讓重連迴圈跑完
+        // 原本是固定睡 500ms。機器有負載時（整套測試一起跑）那個時間不夠，
+        // 這條會偶發假紅：ci 閘門 2 的第 2 次跑到 rgba.first 還是 1。
+        // 改成輪詢到條件成立，閒時更快、有負載時也不會誤判。takeLatest 會消費，
+        // 所以拿到就留著，不能每圈重讀。
+        var firstByte: UInt8?
+        let deadline = ContinuousClock.now + .seconds(5)
+        while ContinuousClock.now < deadline {
+            if let frame = box.takeLatest() { firstByte = frame.rgba.first }
+            if mock.subscribeCount == 2, firstByte == 2 { break }
+            try await Task.sleep(for: .milliseconds(10))
+        }
         #expect(mock.subscribeCount == 2)               // 失敗後重掛了
         let sleeps = await sleepRecorder.all
         #expect(sleeps.first == .milliseconds(500))      // attempt 0、random 0.5
-        #expect(box.takeLatest()?.rgba.first == 2)        // 第二源的幀進了 box
+        #expect(firstByte == 2)                          // 第二源的幀進了 box
         await client.stop()
     }
 

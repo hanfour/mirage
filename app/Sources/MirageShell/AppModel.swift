@@ -118,6 +118,14 @@ final class AppModel {
     /// 也不能在宣告處直接指定 `audioRing`，屬性初始式裡還取不到 self。所以在 init 設定。
     @ObservationIgnored var activeAudioSink: any AudioSink
     var audioPlayer: AudioPlayer?
+    /// 語音轉文字（2026-09-16）。`speechText` 是給字幕浮層看的，所以要被觀察；
+    /// 其餘是實作細節，標 ObservationIgnored 免得每包樣本都觸發畫面重算。
+    var speechText = ""
+    @ObservationIgnored var speechEnabled = false
+    @ObservationIgnored var speechTranscriber: SpeechTranscriber?
+    @ObservationIgnored var speechSegmenter = SpeechSegmenter()
+    /// 手機遙控的音訊下游。與語音辨識並存，所以存起來而不是每次重建。
+    @ObservationIgnored var remoteAudioForwarder: (any AudioSink)?
     // P1-d: 遊戲偵測→啟用接線。detector 輪詢前景 package（無 adb 時保持 nil，
     // 靜默不偵測）；currentPackage/override 一起餵給 ActivationDecider 決定要不要
     // 套用 keymap。（2026-07-30 更新：`saveProfile` 原本另外呼叫 `ProfileStore.standard()`，

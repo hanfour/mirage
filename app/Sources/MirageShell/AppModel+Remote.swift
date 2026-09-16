@@ -83,7 +83,8 @@ extension AppModel {
         remoteGeneration = UUID()
         remotePendingError = nil
         guard let page = RemoteViewerPage.bundled() else {
-            await switchSink(to: box, audio: audioRing)
+            remoteAudioForwarder = nil
+            await switchSink(to: box, audio: currentAudioSink())
             remoteMenuState = .failed("找不到 viewer.html")
             return
         }
@@ -101,15 +102,16 @@ extension AppModel {
             remoteGeneration = UUID()
             await controller.stop()
             await inputQueue.drained()
-            await switchSink(to: box, audio: audioRing)
+            remoteAudioForwarder = nil
+            await switchSink(to: box, audio: currentAudioSink())
             remoteMenuState = .failed("埠 \(port) 無法監聽：\(error)")
             print("[remote] 啟動失敗 port=\(port)：\(error)")
             return
         }
         let frameSink = (activeSink as? BroadcastFrameSink)
             ?? BroadcastFrameSink(primary: box, secondary: secondary)
-        await switchSink(to: frameSink, audio: BroadcastAudioSink(
-            primary: audioRing, secondary: RemoteAudioForwarder(controller: controller)))
+        remoteAudioForwarder = RemoteAudioForwarder(controller: controller)
+        await switchSink(to: frameSink, audio: currentAudioSink())
     }
 
     private func stopRemote() async {
@@ -120,7 +122,8 @@ extension AppModel {
         if let controller { await controller.stop() }
         // server.stop 發出的 release 必須在重啟 emulator 連線前送完。
         await inputQueue.drained()
-        await switchSink(to: box, audio: audioRing)
+        remoteAudioForwarder = nil
+        await switchSink(to: box, audio: currentAudioSink())
         lifecycle?.remoteViewerDisconnected()
     }
 

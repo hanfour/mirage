@@ -101,7 +101,13 @@ private final class RemotePortBlocker {
             #expect(controller.secondary === sink.secondary)
             let audio = try #require(model.activeAudioSink as? BroadcastAudioSink)
             #expect((audio.primary as AnyObject) === model.audioRing)
-            #expect(audio.secondary is RemoteAudioForwarder)
+            // ⚠️ 先算成 Bool 再斷言，不要寫 `#expect(audio.secondary is X)`：
+            // 這條失敗時 Swift Testing 會反射運算元，而 secondary 連著整個 controller
+            // 物件圖，反射會無限遞迴把測試行程打成 signal 11，看到的不是失敗訊息而是崩潰。
+            let fanOut = try #require(audio.secondary as? FanOutAudioSink)
+            let hasForwarder = fanOut.sinks.contains { $0 is RemoteAudioForwarder }
+            #expect(hasForwarder)
+            #expect(fanOut.sinks.count == 1)
             let port = try #require(controller.boundPort)
             #expect(port > 0)
             if case .on(let urls, let addresses, let session) = model.remoteMenuState {
@@ -153,7 +159,8 @@ private final class RemotePortBlocker {
             #expect(after.boundPort == before.boundPort)
             #expect((model.activeSink as AnyObject) === sinkBefore)
             #expect((model.activeAudioSink as AnyObject) !== audioBefore)
-            #expect(model.activeAudioSink is BroadcastAudioSink)
+            let isBroadcast = model.activeAudioSink is BroadcastAudioSink
+            #expect(isBroadcast)
             #expect(!(await model.client.isRunning))
             let port = try #require(after.boundPort)
             let url = try #require(URL(string: "http://127.0.0.1:\(port)/?t=\(before.token.value)"))
