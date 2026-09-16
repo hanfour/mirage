@@ -627,3 +627,76 @@ python3 -B app/scripts/lib/audio_rpc_windows.py
 python3 -B app/scripts/lib/audio_reopen_selftest.py
 python3 -B app/scripts/lib/audio_packet_analyze.py app/measurements/audio-pikmin-reopen-20260910
 ```
+
+## 14. 受控合成訊號可重現崩潰；§11 的「合成訊號不會崩」作廢（2026-09-16）
+
+**本節推翻 §11 的核心結論，並第一次在不需要遊戲的條件下重現 D44。**
+
+### 條件
+
+emulator 37.1.11、`mirage-game`、`emu.sh -H start`（`-no-snapshot -grpc-use-token -no-window`）。
+音源是本機 HTTP 供應的 440Hz 正弦波、振幅 12000、48000Hz 立體聲，由
+`app/scripts/lib/audio_make_tone.py` 產生，`tone.wav` 連續、`tone_gap.wav` 每 8 秒響 2 秒靜音，
+兩者取樣率／聲道／振幅／長度相同。Chrome 播放，每輪冷開機。
+量測用 `audio_amplitude_probe.py`，每次 10 秒窗口，只有探針一個訂閱者。
+每輪開跑前先驗峰值接近 11994，否則整輪作廢。
+
+### 崩潰時點
+
+| 輪次 | 音源 | 崩潰時點 | 備註 |
+|---|---|---|---|
+| gap1 | 每 8 秒插 2 秒靜音 | 314 秒 | 背景另有一個 Mirage 訂閱者 |
+| cont1 | 連續定幅 | **695 秒** | 同上 |
+| gap2 | 每 8 秒插 2 秒靜音 | 352 秒 | 只有探針 |
+| gap3 | 每 8 秒插 2 秒靜音 | 638 秒 | 只有探針，且 `-audio none` |
+
+**§11 寫的「定幅正弦波零崩潰／640 秒」是取樣窗口造成的。** 那兩輪各只跑 640 秒，
+而本節同樣的連續訊號崩在 695 秒。「真實遊戲音訊會崩、合成訊號不會」這條分界不存在。
+
+⚠️ 314 到 695 秒的跨度大於兩種波形之間的差距，**不能說靜音中斷讓它更早崩**（同 §11 的形狀）。
+
+### 崩潰態的特徵
+
+連續三個 10 秒窗口：交付率 6.5%、峰值 4（內容本身幾乎是靜音，不是同一段聲音變慢）、
+包率 43 包／秒、每包 288 bytes。§13 量到的是 86 包／秒、141 bytes，兩者的乘積都是
+約 12.4 kB/s，等於 192 kB/s 的 6.4%。guest 全程 `state:started`。
+
+### 什麼能讓它回復，什麼不能
+
+| 動作 | 交付率 |
+|---|---|
+| 崩潰後基線 | 6.5% |
+| 同一個 audio 元素暫停再播放（約 2 秒） | 6.5% |
+| 重新載入分頁（新的 audio 元素、同一個 Chrome 行程） | 6.6% |
+| 以 44100Hz 重新訂閱 | 6.5% |
+| 以單聲道重新訂閱 | 6.4% |
+| 再回到 48000Hz 立體聲 | 6.3% |
+| 停掉所有 guest 音訊 3 秒後重播 | 60.8%（回復中） |
+| **停掉所有 guest 音訊 8 秒後重播** | **100.0%** |
+| **停掉所有 guest 音訊 20 秒後重播** | **99.5 → 100.1%** |
+
+**閂鎖解除的條件是 guest 全域音訊停止數秒**，不是換 audio 元素、不是換 RPC（§13 已證）、
+也不是換訂閱格式。這解釋了為什麼持續出聲的遊戲會一直卡在崩潰態，而零星的聲音不會。
+
+### 被推翻的假設：主機音訊輸出裝置
+
+以 `-audio none` 冷開機時 `streamAudio` 仍交付 99.9%、峰值 11994，
+表示主機輸出裝置不是交付的必要條件；但同一輪在第 638 秒照樣崩。
+**關掉主機輸出裝置不能避免崩潰**，故障在 emulator 內部的音訊路徑，與主機後端無關。
+
+### 工具與可重現指令
+
+```sh
+python3 -B app/scripts/lib/audio_make_tone.py app/scripts/lib/audio_www
+bash app/scripts/lib/audio_round_controlled.sh <標籤> tone_gap.wav 45
+bash app/scripts/lib/audio_paired_rounds.sh <輸出目錄>
+```
+
+`audio_amplitude_probe.py` 已改為從探索檔讀 gRPC token（D73 之後不帶 token 會被拒）；
+突變驗證：把 token 拿掉即 `UNAUTHENTICATED`。
+`emu.sh` 新增 `MIRAGE_EMU_EXTRA_ARGS` 供量測帶額外旗標。
+
+### 下一步
+
+崩潰在 emulator 內部且與版本的關係尚未用受控音源重驗過（既有的「三個版本都會」是
+音源不受控那一段的結論）。現在重現一次只要約 6 分鐘，值得拿新版 emulator 重跑一輪。

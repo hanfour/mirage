@@ -113,6 +113,12 @@ case "${COMMAND:-start}" in
       echo "▶︎ 啟動 ${AVD}（port ${PORT}／gRPC ${GRPC}，冷開機、離開不存快照）"
       EMULATOR_ARGS=(-avd "$AVD" -no-snapshot -port "$PORT" -grpc "$GRPC" -grpc-use-token)
       if [ "$HEADLESS" = 1 ]; then EMULATOR_ARGS+=(-no-window); fi
+      # 量測用的額外旗標（例如 D44 在試的 `-audio none`）。以空白分隔，不做引號解析。
+      if [ -n "${MIRAGE_EMU_EXTRA_ARGS:-}" ]; then
+        read -ra extra <<< "$MIRAGE_EMU_EXTRA_ARGS"
+        EMULATOR_ARGS+=("${extra[@]}")
+        echo "額外旗標：${MIRAGE_EMU_EXTRA_ARGS}"
+      fi
       nohup "$EMULATOR" "${EMULATOR_ARGS[@]}" \
         < /dev/null > "$LOG" 2>&1 &
       sleep 8

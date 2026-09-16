@@ -1,1 +1,22 @@
-<!doctype html><meta charset=utf-8><title>tone</title><body style="background:#004400;color:#fff;font:40px monospace;text-align:center" onclick="go()"><div id=s style="padding-top:40vh">TAP TO START</div><audio id=a loop src="tone.wav"></audio><script>const a=document.getElementById("a"),s=document.getElementById("s");function go(){a.volume=1;a.play()}setInterval(()=>{s.textContent=a.paused?"PAUSED - TAP":"PLAYING "+Math.floor(a.currentTime)},500)</script>
+<!doctype html><meta charset=utf-8><title>tone</title>
+<style>
+/* 點擊區必須是整個視窗：body 的高度只有內容那麼高，把 onclick 掛在 body 上時，
+   點在內容下方會落到 <html> 上、handler 不會觸發，畫面停在 PAUSED 而沒有任何錯誤。 */
+html,body{height:100%;margin:0}
+body{background:#004400;color:#fff;font:30px monospace;text-align:center;display:flex;
+     align-items:center;justify-content:center;white-space:pre-line}
+</style>
+<body><div id=s>TAP TO START</div><audio id=a loop></audio><script>
+// ?src=tone.wav（連續）或 ?src=tone_gap.wav（每 8 秒插 2 秒靜音）。預設連續。
+// 失敗原因一律顯示在畫面上：play() 被拒與檔案載入失敗都是靜默的，
+// 只看「有沒有聲音」會把兩者跟 D44 的崩潰混在一起。
+const a=document.getElementById("a"),s=document.getElementById("s");
+const src=new URLSearchParams(location.search).get("src")||"tone.wav";
+let err="";
+a.src=src;
+a.onerror=()=>{err="LOAD ERR "+(a.error&&a.error.code)};
+function go(){a.volume=1;a.play().then(()=>{err=""}).catch(e=>{err="PLAY ERR "+e.name})}
+document.addEventListener("click",go);
+setInterval(()=>{s.textContent=(a.paused?"PAUSED - TAP":"PLAYING "+Math.floor(a.currentTime))
+  +"\n"+src+" rs="+a.readyState+"\n"+err},500)
+</script>

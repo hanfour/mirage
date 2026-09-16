@@ -22,11 +22,14 @@
 """
 
 import argparse
+import importlib.util
 import os
 import sys
 import time
 
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "gen"))
+_HERE = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, os.path.join(_HERE, "gen"))
+
 
 import numpy as np
 import grpc
@@ -44,6 +47,19 @@ CONFLATION_CAUTION = (
     "封包歸零，形狀與 RPC 停止交付完全相同。判定前先確認 guest 當下還有沒有音軌"
     "（`adb shell dumpsys audio | grep state:started`），"
     "`app/scripts/measure_audio_window.sh` 會自動幫你查。")
+
+
+def _load_grpc_auth():
+    """按檔案路徑載入 `tools/probe/lib/grpc_auth.py`，不動 `sys.path`。
+
+    把 `tools/probe` 加進 `sys.path` 會讓 `lib` 這個名字指到那邊，
+    於是 `phase0/harness/lib/*` 全部 import 不到，本目錄的 pytest 會整批失敗。
+    """
+    path = os.path.join(_HERE, "..", "..", "tools", "probe", "lib", "grpc_auth.py")
+    spec = importlib.util.spec_from_file_location("mirage_probe_grpc_auth", path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
 
 
 def tail_verdict(elapsed, last_packet_offset, threshold=TAIL_SILENCE_THRESHOLD_SECONDS):
@@ -70,11 +86,15 @@ def main() -> int:
     p.add_argument("--label", default="")
     args = p.parse_args()
 
+    grpc_auth = _load_grpc_auth()
     nch = CHANNELS[args.channels]
     realtime_bps = args.rate * nch * 2
 
-    channel = grpc.insecure_channel(
-        args.target, options=[("grpc.max_receive_message_length", -1)])
+    # emu.sh 開的 emulator 帶 `-grpc-use-token`，不附 token 會一律 UNAUTHENTICATED。
+    # token 每次開機重產，所以從探索檔即時讀，不快取、不寫進參數。
+    channel = grpc.intercept_channel(
+        grpc.insecure_channel(args.target, options=[("grpc.max_receive_message_length", -1)]),
+        grpc_auth.AuthInterceptor(grpc_auth.auth_metadata(int(args.target.rsplit(":", 1)[1]))))
     stub = ecg.EmulatorControllerStub(channel)
 
     fmt = ec.AudioFormat()
