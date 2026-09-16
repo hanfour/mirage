@@ -22,7 +22,7 @@ import Testing
     @Test func buildsOneItemPerEntryWithActionsAndQRView() throws {
         let menu = NSMenu()
         let target = NSObject()
-        let session = RemoteSessionState(phase: .connected, hasVideo: true, hasInput: true)
+        let session = RemoteSessionState(phase: .connected, hasVideo: true, hasInput: true, hasAudio: false)
         populate(menu, RemoteMenu.entries(.on(urls: [url], addresses: [.init(interface: "en0", ip: "192.168.1.61")], session: session)), target: target)
 
         #expect(menu.items.count == 8)

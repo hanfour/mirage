@@ -2,8 +2,8 @@ import Testing
 @testable import MirageCore
 
 @Suite struct RemoteSessionStateTests {
-    private func state(_ phase: RemoteSessionState.Phase, video: Bool, input: Bool) -> RemoteSessionState {
-        RemoteSessionState(phase: phase, hasVideo: video, hasInput: input)
+    private func state(_ phase: RemoteSessionState.Phase, video: Bool, input: Bool, audio: Bool = false) -> RemoteSessionState {
+        RemoteSessionState(phase: phase, hasVideo: video, hasInput: input, hasAudio: audio)
     }
 
     @Test func initialIsWaitingWithNothingAttached() {
@@ -79,5 +79,49 @@ import Testing
         let (s2, e2) = RemoteSessionReducer.reduce(.initial, .stopRequested)
         #expect(s2 == state(.disconnected, video: false, input: false))
         #expect(e2 == .none)
+    }
+    @Test func audioRequiresVideoAndRejectsDuplicate() {
+        for from in [RemoteSessionState.initial, state(.disconnected, video: false, input: false)] {
+            #expect(RemoteSessionReducer.reduce(from, .audioOpened) == (from, .rejectBusy))
+            #expect(RemoteSessionReducer.reduce(from, .audioClosed) == (from, .none))
+        }
+        let video = state(.connected, video: true, input: false)
+        let (opened, effect) = RemoteSessionReducer.reduce(video, .audioOpened)
+        #expect(opened == state(.connected, video: true, input: false, audio: true))
+        #expect(effect == .none)
+        #expect(RemoteSessionReducer.reduce(opened, .audioOpened) == (opened, .rejectBusy))
+    }
+
+    @Test func closingAudioPreservesVideoAndInputWithoutReleasingTouches() {
+        let full = state(.connected, video: true, input: true, audio: true)
+        let (closed, effect) = RemoteSessionReducer.reduce(full, .audioClosed)
+        #expect(closed == state(.connected, video: true, input: true))
+        #expect(effect == .none)
+        #expect(RemoteSessionReducer.reduce(closed, .audioClosed) == (closed, .none))
+        let (inputClosed, inputEffect) = RemoteSessionReducer.reduce(full, .inputClosed)
+        #expect(inputClosed == state(.connected, video: true, input: false, audio: true))
+        #expect(inputEffect == .releaseTouches)
+    }
+
+    @Test func videoCloseAndStopClearAudioAndOnlyReleaseExistingInput() {
+        for input in [false, true] {
+            for event in [RemoteSessionEvent.videoClosed, .stopRequested] {
+                let (closed, effect) = RemoteSessionReducer.reduce(
+                    state(.connected, video: true, input: input, audio: true), event)
+                #expect(closed == state(.disconnected, video: false, input: false))
+                #expect(effect == (input ? .releaseTouches : .none))
+                #expect(RemoteSessionReducer.reduce(closed, .audioClosed) == (closed, .none))
+            }
+        }
+    }
+
+    @Test func audioAloneStillDeterminesConnectedPhase() {
+        let (remaining, _) = RemoteSessionReducer.reduce(
+            state(.connected, video: false, input: true, audio: true), .inputClosed)
+        #expect(remaining.isViewerConnected)
+        #expect(remaining.hasAudio)
+        let (closed, effect) = RemoteSessionReducer.reduce(remaining, .audioClosed)
+        #expect(closed.phase == .disconnected)
+        #expect(effect == .none)
     }
 }

@@ -365,7 +365,7 @@ import Testing
         let h = try await start()
         await h.controller.stop()
         #expect(h.encoder.wasInvalidated)
-        #expect(h.controller.sessionState == RemoteSessionState(phase: .disconnected, hasVideo: false, hasInput: false))
+        #expect(h.controller.sessionState == RemoteSessionState(phase: .disconnected, hasVideo: false, hasInput: false, hasAudio: false))
         h.controller.secondary.put(frame(8))
         try await Task.sleep(for: .milliseconds(30))
         #expect(h.encoder.calls == 0)

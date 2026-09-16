@@ -4,12 +4,29 @@ import NIOCore
 enum RemoteUpgradeKind: Sendable {
     case video
     case input
+    case audio
+
+    var opened: RemoteSessionEvent {
+        switch self {
+        case .video: return .videoOpened
+        case .input: return .inputOpened
+        case .audio: return .audioOpened
+        }
+    }
+
+    var closed: RemoteSessionEvent {
+        switch self {
+        case .video: return .videoClosed
+        case .input: return .inputClosed
+        case .audio: return .audioClosed
+        }
+    }
 }
 
 /// `RemoteServer` 的全部可變狀態，一把鎖（比照 `LatestFrameBox`）。
 ///
 /// reducer 在鎖內套用、效果（回呼）一律在鎖外執行，避免回呼再進來拿鎖。每條子 channel 都
-/// 在 `track` 登記，`closeFuture` 觸發 `channelClosed`，所以 video／input 的關閉只有一條路徑。
+/// 在 `track` 登記，`closeFuture` 觸發 `channelClosed`，所以三種連線的關閉只有一條路徑。
 final class RemoteServerCore: @unchecked Sendable {
     static let invalidLogInterval: Duration = .seconds(1)
 
@@ -24,6 +41,9 @@ final class RemoteServerCore: @unchecked Sendable {
 
     private let lock = NSLock()
     private var session = RemoteSessionState.initial
+    private var audioQueue = RemoteAudioQueue()
+    private var audioDroppedBeforeReset = 0
+    private var audioWakeup: AsyncStream<Void>.Continuation?
     private var queue: RemoteVideoQueue
     private var allocator = RemoteTouchIdentifierAllocator()
     private var stopped = false
@@ -74,6 +94,7 @@ final class RemoteServerCore: @unchecked Sendable {
         lock.lock(); defer { lock.unlock() }
         return RemoteServerStats(framesOffered: framesOffered, framesSent: framesSent,
                                  framesDropped: framesDroppedBeforeReset + queue.dropped,
+                                 audioDropped: audioDroppedBeforeReset + audioQueue.dropped,
                                  rejectedForbidden: rejectedForbidden, rejectedBusy: rejectedBusy,
                                  invalidInputMessages: invalidInputMessages,
                                  keyframeRequestsThrottled: keyframeRequestsThrottled, touchesForwarded: touchesForwarded)
@@ -100,6 +121,7 @@ final class RemoteServerCore: @unchecked Sendable {
         switch route {
         case .upgradeVideo: kind = .video
         case .upgradeInput: kind = .input
+        case .upgradeAudio: kind = .audio
         default: kind = nil
         }
         guard let kind else {
@@ -109,7 +131,7 @@ final class RemoteServerCore: @unchecked Sendable {
             return nil
         }
         kinds[ObjectIdentifier(channel)] = kind
-        let effects = applyLocked(kind == .video ? .videoOpened : .inputOpened)
+        let effects = applyLocked(kind.opened)
         pendingEffects.append(contentsOf: effects)
         lock.unlock()
         performEffects()
@@ -140,22 +162,23 @@ final class RemoteServerCore: @unchecked Sendable {
         channels[id] = nil
         pendingRejections[id] = nil
         guard let kind = kinds.removeValue(forKey: id) else { lock.unlock(); return }
-        var pairedInputs: [any Channel] = []
+        var pairedChannels: [any Channel] = []
         if kind == .video {
             pendingStats = nil
             wakeup?.finish(); wakeup = nil
-            // 鎖內撤銷舊 input 的資格，再關 socket，阻止緩衝中的觸控繼續轉發。
+            // 鎖內撤銷舊 input 與 audio 的資格，再關 socket，阻止緩衝中的觸控繼續轉發。
             // 移除 kind 也避免其延遲 closeFuture 釋放新一組配對的觸控。
-            let inputIDs = kinds.filter { $0.value == .input }.map { $0.key }
-            for inputID in inputIDs {
-                kinds.removeValue(forKey: inputID)
-                if let channel = channels[inputID] { pairedInputs.append(channel) }
+            let pairedIDs = kinds.filter { $0.value == .input || $0.value == .audio }.map { $0.key }
+            for pairedID in pairedIDs {
+                kinds.removeValue(forKey: pairedID)
+                if let channel = channels[pairedID] { pairedChannels.append(channel) }
             }
         }
-        let effects = applyLocked(kind == .video ? .videoClosed : .inputClosed)
+        if kind == .video || kind == .audio { resetAudioLocked() }
+        let effects = applyLocked(kind.closed)
         pendingEffects.append(contentsOf: effects)
         lock.unlock()
-        for channel in pairedInputs { channel.close(promise: nil) }
+        for channel in pairedChannels { channel.close(promise: nil) }
         performEffects()
     }
 
@@ -183,6 +206,7 @@ final class RemoteServerCore: @unchecked Sendable {
         pendingRejections.removeAll()
         wakeup?.finish()
         wakeup = nil
+        resetAudioLocked()
         let effects = applyLocked(.stopRequested)
         pendingEffects.append(contentsOf: effects)
         lock.unlock()
@@ -202,6 +226,49 @@ final class RemoteServerCore: @unchecked Sendable {
         let wakeup = self.wakeup
         lock.unlock()
         if accepted { wakeup?.yield(()) }
+    }
+
+    func offer(audio: RemoteAudioMessage) {
+        lock.lock()
+        if !stopped, session.hasAudio {
+            audioQueue = audioQueue.offering(audio)
+            let wakeup = audioWakeup
+            lock.unlock()
+            wakeup?.yield(())
+        } else {
+            lock.unlock()
+        }
+    }
+
+    func attachAudioWakeups(channelID: ObjectIdentifier) -> AsyncStream<Void> {
+        let (stream, continuation) = AsyncStream<Void>.makeStream(bufferingPolicy: .bufferingNewest(1))
+        lock.lock()
+        guard !stopped, kinds[channelID] == .audio else {
+            lock.unlock()
+            continuation.finish()
+            return stream
+        }
+        audioWakeup?.finish()
+        audioWakeup = continuation
+        lock.unlock()
+        continuation.yield(())
+        return stream
+    }
+
+    func popAudioEntry(channelID: ObjectIdentifier) -> RemoteAudioMessage? {
+        lock.lock(); defer { lock.unlock() }
+        guard !stopped, kinds[channelID] == .audio else { return nil }
+        let (next, entry) = audioQueue.popping()
+        audioQueue = next
+        return entry
+    }
+
+    // 舊樣本不能流進新配對，但丟棄統計必須跨重連累計。
+    private func resetAudioLocked() {
+        audioWakeup?.finish()
+        audioWakeup = nil
+        audioDroppedBeforeReset += audioQueue.dropped
+        audioQueue = RemoteAudioQueue()
     }
 
     /// 已配對的 video viewer 在 decoder.flush 後要求 IDR；沿用有序的效果回呼。
@@ -264,7 +331,12 @@ final class RemoteServerCore: @unchecked Sendable {
         lock.lock(); defer { lock.unlock() }
         guard !stopped, kinds[channelID] == .video else { return nil }
         defer { pendingStats = nil }
-        return pendingStats
+        guard let pendingStats,
+              var stats = try? JSONSerialization.jsonObject(with: pendingStats) as? [String: Any] else {
+            return pendingStats
+        }
+        stats["audioDropped"] = audioDroppedBeforeReset + audioQueue.dropped
+        return try? JSONSerialization.data(withJSONObject: stats)
     }
 
     func recordSent() {

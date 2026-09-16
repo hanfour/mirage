@@ -8,7 +8,7 @@ import Testing
     private let urls = ["http://192.168.1.61:8765/?t=aa", "http://100.1.1.1:8765/?t=aa"]
 
     @Test func connectionQualityUsesLatestReportOnlyWhileConnected() {
-        let connected = RemoteSessionState(phase: .connected, hasVideo: true, hasInput: true)
+        let connected = RemoteSessionState(phase: .connected, hasVideo: true, hasInput: true, hasAudio: false)
         let state = RemoteMenuState.on(urls: urls, addresses: addresses, session: connected)
         #expect(RemoteMenu.entries(state).contains(.status("連線：等待手機回報")))
         let stats = RemoteClientStats(rtt: 15.2, dropped: 0, decodeFps: 29.8)
@@ -47,10 +47,10 @@ import Testing
             .rotateToken(enabled: true),
             .disconnect(enabled: false),
         ])
-        let connected = RemoteSessionState(phase: .connected, hasVideo: true, hasInput: true)
+        let connected = RemoteSessionState(phase: .connected, hasVideo: true, hasInput: true, hasAudio: false)
         #expect(RemoteMenu.entries(.on(urls: urls, addresses: addresses, session: connected)).last == .disconnect(enabled: true))
         #expect(RemoteMenu.entries(.on(urls: urls, addresses: addresses, session: connected))[1] == .status("狀態：已連線"))
-        let dropped = RemoteSessionState(phase: .disconnected, hasVideo: false, hasInput: false)
+        let dropped = RemoteSessionState(phase: .disconnected, hasVideo: false, hasInput: false, hasAudio: false)
         #expect(RemoteMenu.entries(.on(urls: urls, addresses: addresses, session: dropped))[1] == .status("狀態：已斷線（同一網址可重連）"))
     }
 

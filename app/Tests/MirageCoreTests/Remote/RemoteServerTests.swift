@@ -107,7 +107,11 @@ import Testing
             let json = #"{"type":"stats","newFrames":30,"heartbeatFrames":0}"#
             h.server.sendStats(Data(json.utf8))
             let text = try await receiveText(video)
-            #expect(text == json)
+            let stats = try #require(JSONSerialization.jsonObject(with: Data(text.utf8)) as? [String: Any])
+            #expect(stats["type"] as? String == "stats")
+            #expect(stats["newFrames"] as? Int == 30)
+            #expect(stats["heartbeatFrames"] as? Int == 0)
+            #expect(stats["audioDropped"] as? Int == 0)
             #expect(h.server.stats().framesOffered == 1)
             #expect(h.server.stats().framesSent == 0)
             #expect(h.server.stats().framesDropped == 1)
@@ -307,7 +311,7 @@ import Testing
             await h.touches.wait { $0.count == 2 }
             let released = await h.touches.items[1]
             #expect(released == [TouchSpec(identifier: 64, point: NormPoint(x: 0.25, y: 0.75), down: false)])
-            #expect(h.server.sessionState == RemoteSessionState(phase: .connected, hasVideo: true, hasInput: false))
+            #expect(h.server.sessionState == RemoteSessionState(phase: .connected, hasVideo: true, hasInput: false, hasAudio: false))
             #expect(h.server.stats().touchesForwarded == 2)
             await h.server.stop()
         }
@@ -323,7 +327,7 @@ import Testing
             await h.states.wait { $0.contains { $0.hasVideo && $0.hasInput } }
 
             await h.server.stop()
-            #expect(h.server.sessionState == RemoteSessionState(phase: .disconnected, hasVideo: false, hasInput: false))
+            #expect(h.server.sessionState == RemoteSessionState(phase: .disconnected, hasVideo: false, hasInput: false, hasAudio: false))
             await h.touches.wait { $0.count == 2 }
             let released = await h.touches.items[1]
             #expect(released == [TouchSpec(identifier: 64, point: NormPoint(x: 0.25, y: 0.75), down: false)])
@@ -365,7 +369,7 @@ import Testing
             video.cancel(with: .normalClosure, reason: nil)
             await #expect(throws: (any Error).self) { _ = try await input.receive() }
             await h.touches.wait { $0.count == 2 }
-            #expect(h.server.sessionState == RemoteSessionState(phase: .disconnected, hasVideo: false, hasInput: false))
+            #expect(h.server.sessionState == RemoteSessionState(phase: .disconnected, hasVideo: false, hasInput: false, hasAudio: false))
             let released = await h.touches.items[1]
             #expect(released == [TouchSpec(identifier: 64, point: NormPoint(x: 0.25, y: 0.75), down: false)])
             await h.server.stop()

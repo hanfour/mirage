@@ -11,28 +11,32 @@ public struct RemoteSessionState: Sendable, Equatable {
     public let phase: Phase
     public let hasVideo: Bool
     public let hasInput: Bool
+    public let hasAudio: Bool
 
-    public init(phase: Phase, hasVideo: Bool, hasInput: Bool) {
+    public init(phase: Phase, hasVideo: Bool, hasInput: Bool, hasAudio: Bool) {
         self.phase = phase
         self.hasVideo = hasVideo
         self.hasInput = hasInput
+        self.hasAudio = hasAudio
     }
 
-    public static let initial = RemoteSessionState(phase: .waitingForPairing, hasVideo: false, hasInput: false)
+    public static let initial = RemoteSessionState(phase: .waitingForPairing, hasVideo: false, hasInput: false, hasAudio: false)
 
     public var isViewerConnected: Bool { phase == .connected }
 
-    /// video 是配對的必要連線；正常事件不會產生僅有 input 的狀態。
-    fileprivate func with(video: Bool, input: Bool) -> RemoteSessionState {
-        RemoteSessionState(phase: video || input ? .connected : .disconnected, hasVideo: video, hasInput: input)
+    /// video 是配對的必要連線；正常事件不會產生僅有 input 或 audio 的狀態。
+    fileprivate func with(video: Bool, input: Bool, audio: Bool) -> RemoteSessionState {
+        RemoteSessionState(phase: video || input || audio ? .connected : .disconnected, hasVideo: video, hasInput: input, hasAudio: audio)
     }
 }
 
 public enum RemoteSessionEvent: Sendable, Equatable {
     case videoOpened
     case inputOpened
+    case audioOpened
     case videoClosed
     case inputClosed
+    case audioClosed
     case stopRequested
 }
 
@@ -50,20 +54,26 @@ public enum RemoteSessionReducer {
         switch event {
         case .videoOpened:
             guard !state.hasVideo else { return (state, .rejectBusy) }
-            return (state.with(video: true, input: state.hasInput), .requestKeyframe)
+            return (state.with(video: true, input: state.hasInput, audio: state.hasAudio), .requestKeyframe)
         case .inputOpened:
             guard state.hasVideo, !state.hasInput else { return (state, .rejectBusy) }
-            return (state.with(video: state.hasVideo, input: true), .none)
+            return (state.with(video: state.hasVideo, input: true, audio: state.hasAudio), .none)
+        case .audioOpened:
+            guard state.hasVideo, !state.hasAudio else { return (state, .rejectBusy) }
+            return (state.with(video: state.hasVideo, input: state.hasInput, audio: true), .none)
+        case .audioClosed:
+            guard state.hasAudio else { return (state, .none) }
+            return (state.with(video: state.hasVideo, input: state.hasInput, audio: false), .none)
         case .videoClosed:
             guard state.hasVideo else { return (state, .none) }
             // 沿用 inputClosed 的釋放效果；video 關閉時整組配對失效。
             let (_, effect) = reduce(state, .inputClosed)
-            return (state.with(video: false, input: false), effect)
+            return (state.with(video: false, input: false, audio: false), effect)
         case .inputClosed:
             guard state.hasInput else { return (state, .none) }
-            return (state.with(video: state.hasVideo, input: false), .releaseTouches)
+            return (state.with(video: state.hasVideo, input: false, audio: state.hasAudio), .releaseTouches)
         case .stopRequested:
-            return (state.with(video: false, input: false), state.hasInput ? .releaseTouches : .none)
+            return (state.with(video: false, input: false, audio: false), state.hasInput ? .releaseTouches : .none)
         }
     }
 }

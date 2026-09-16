@@ -69,12 +69,12 @@ enum RemoteHTTPConnection {
         case .busy:
             return (.conflict, Data("a viewer is already connected\n".utf8), textType)
         case .videoRequired:
-            return (.conflict, Data("connect /ws/video before /ws/input\n".utf8), textType)
+            return (.conflict, Data("connect /ws/video before /ws/input or /ws/audio\n".utf8), textType)
         case .notFound:
             return (.notFound, Data("not found\n".utf8), textType)
         case .methodNotAllowed:
             return (.methodNotAllowed, Data("method not allowed\n".utf8), textType)
-        case .upgradeVideo, .upgradeInput:
+        case .upgradeVideo, .upgradeInput, .upgradeAudio:
             return (.upgradeRequired, Data("websocket upgrade required\n".utf8), textType)
         }
     }
@@ -141,6 +141,56 @@ enum RemoteVideoConnection {
                             )
                             try await outbound.write(frame)
                             core.recordSent()
+                        }
+                    }
+                }
+                // 即使 next 拋錯也取消另一個迴圈，讓 executeThenClose 能關閉 channel。
+                defer { group.cancelAll() }
+                try await group.next()
+            }
+        }
+    }
+}
+
+enum RemoteAudioConnection {
+    static func run(
+        _ channel: NIOAsyncChannel<WebSocketFrame, WebSocketFrame>,
+        core: RemoteServerCore
+    ) async throws {
+        let channelID = ObjectIdentifier(channel.channel)
+        let wakeups = core.attachAudioWakeups(channelID: channelID)
+        try await channel.executeThenClose { inbound, outbound in
+            try await withThrowingTaskGroup(of: Void.self) { group in
+                group.addTask {
+                    for try await frame in inbound {
+                        switch frame.opcode {
+                        case .connectionClose:
+                            try await outbound.write(WebSocketFrame(
+                                fin: true,
+                                opcode: .connectionClose,
+                                data: frame.unmaskedData
+                            ))
+                            return
+                        case .ping:
+                            try await outbound.write(WebSocketFrame(
+                                fin: true,
+                                opcode: .pong,
+                                data: frame.unmaskedData
+                            ))
+                        default:
+                            break
+                        }
+                    }
+                }
+                group.addTask {
+                    for await _ in wakeups {
+                        while let message = core.popAudioEntry(channelID: channelID) {
+                            let frame = WebSocketFrame(
+                                fin: true,
+                                opcode: .binary,
+                                data: ByteBuffer(bytes: message.encoded())
+                            )
+                            try await outbound.write(frame)
                         }
                     }
                 }

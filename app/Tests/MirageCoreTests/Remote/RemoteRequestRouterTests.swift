@@ -6,8 +6,8 @@ import Testing
     private let token = PairingToken(value: "00112233445566778899aabbccddeeff")!
     private let good = "?t=00112233445566778899aabbccddeeff"
     private let idle = RemoteSessionState.initial
-    private let videoOnly = RemoteSessionState(phase: .connected, hasVideo: true, hasInput: false)
-    private let full = RemoteSessionState(phase: .connected, hasVideo: true, hasInput: true)
+    private let videoOnly = RemoteSessionState(phase: .connected, hasVideo: true, hasInput: false, hasAudio: false)
+    private let full = RemoteSessionState(phase: .connected, hasVideo: true, hasInput: true, hasAudio: true)
 
     private func route(_ uri: String, method: String = "GET", state: RemoteSessionState? = nil) -> RemoteRoute {
         RemoteRequestRouter.route(method: method, uri: uri, token: token, state: state ?? idle)
@@ -32,7 +32,7 @@ import Testing
         #expect(html.contains("charset=\"utf-8\""))
         #expect(!html.contains(token.value))
         for state in [idle, videoOnly, full] {
-            for uri in ["/", "/?t=wrong", "/ws/video?t=wrong", "/ws/input?t=wrong"] {
+            for uri in ["/", "/?t=wrong", "/ws/video?t=wrong", "/ws/input?t=wrong", "/ws/audio?t=wrong"] {
                 let response = RemoteHTTPConnection.response(for: route(uri, state: state), viewerPage: Data())
                 #expect(response.status.code == 403)
                 #expect(response.body == expected.body)
@@ -79,7 +79,7 @@ import Testing
     }
 
     @Test func inputRequiresVideoAfterDisconnectAndStillChecksTokenFirst() {
-        let disconnected = RemoteSessionState(phase: .disconnected, hasVideo: false, hasInput: false)
+        let disconnected = RemoteSessionState(phase: .disconnected, hasVideo: false, hasInput: false, hasAudio: false)
         #expect(route("/ws/input" + good, state: disconnected) == .videoRequired)
         #expect(route("/ws/input?t=nope") == .forbidden)
         #expect(route("/ws/input", state: disconnected) == .forbidden)
@@ -93,7 +93,7 @@ import Testing
 
     @Test func unknownPathWithValidTokenIsNotFound() {
         #expect(route("/index.html" + good) == .notFound)
-        #expect(route("/ws/audio" + good) == .notFound)
+        #expect(route("/ws/audio/" + good) == .notFound)
         #expect(route("/ws/video/" + good) == .notFound)
     }
 
@@ -101,5 +101,20 @@ import Testing
     func nonGetIsRejectedBeforeTokenCheck(method: String) {
         #expect(route("/" + good, method: method) == .methodNotAllowed)
         #expect(route("/ws/video?t=nope", method: method) == .methodNotAllowed)
+    }
+    @Test func audioRequiresVideoAndChecksTokenBeforeSession() {
+        let disconnected = RemoteSessionState(phase: .disconnected, hasVideo: false, hasInput: false, hasAudio: false)
+        for state in [idle, disconnected] {
+            #expect(route("/ws/audio" + good, state: state) == .videoRequired)
+        }
+        for state in [idle, disconnected, videoOnly, full] {
+            #expect(route("/ws/audio?t=nope", state: state) == .forbidden)
+            #expect(route("/ws/audio", state: state) == .forbidden)
+        }
+        #expect(route("/ws/audio" + good, state: videoOnly) == .upgradeAudio)
+        #expect(route("/ws/audio" + good, state: full) == .busy)
+        let inputOnlyPair = RemoteSessionState(phase: .connected, hasVideo: true, hasInput: true, hasAudio: false)
+        #expect(route("/ws/audio" + good, state: inputOnlyPair) == .upgradeAudio)
+        #expect(RemoteHTTPConnection.response(for: .upgradeAudio, viewerPage: Data()).status.code == 426)
     }
 }

@@ -29,6 +29,7 @@ public struct RemoteServerStats: Sendable, Equatable {
     public let framesOffered: Int
     public let framesSent: Int
     public let framesDropped: Int
+    public let audioDropped: Int
     public let rejectedForbidden: Int
     public let rejectedBusy: Int
     public let invalidInputMessages: Int
@@ -91,6 +92,8 @@ public final class RemoteServer: @unchecked Sendable {
     public func send(accessUnit: Data, keyframe: Bool, sequence: UInt32) {
         core.offer(accessUnit: accessUnit, keyframe: keyframe, sequence: sequence)
     }
+
+    public func send(audio: RemoteAudioMessage) { core.offer(audio: audio) }
 
     /// 統計使用獨立的最新值槽，不受影像 GOP 丟棄影響。
     public func sendStats(_ json: Data) { core.offerStats(json) }
@@ -217,6 +220,7 @@ public final class RemoteServer: @unchecked Sendable {
             switch try await future.get() {
             case .websocket(.video, let channel): try await RemoteVideoConnection.run(channel, core: core)
             case .websocket(.input, let channel): try await RemoteInputConnection.run(channel, core: core)
+            case .websocket(.audio, let channel): try await RemoteAudioConnection.run(channel, core: core)
             case .http(let channel): try await RemoteHTTPConnection.run(channel, core: core)
             }
         } catch {

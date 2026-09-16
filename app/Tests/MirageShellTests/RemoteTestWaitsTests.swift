@@ -39,8 +39,8 @@ import Testing
     @Test func bufferedConnectionAndDisconnectionAreBothObserved() async throws {
         let (stream, continuation) = AsyncStream<RemoteSessionState>.makeStream()
         continuation.yield(.initial)
-        continuation.yield(RemoteSessionState(phase: .connected, hasVideo: true, hasInput: false))
-        continuation.yield(RemoteSessionState(phase: .disconnected, hasVideo: false, hasInput: false))
+        continuation.yield(RemoteSessionState(phase: .connected, hasVideo: true, hasInput: false, hasAudio: false))
+        continuation.yield(RemoteSessionState(phase: .disconnected, hasVideo: false, hasInput: false, hasAudio: false))
         continuation.finish()
         let connected = try await RemoteTestWaits.state(in: stream, hasVideo: true, diagnostics: { "" })
         #expect(connected.hasVideo)

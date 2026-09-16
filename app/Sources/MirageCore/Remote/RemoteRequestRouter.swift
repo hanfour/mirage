@@ -5,6 +5,7 @@ public enum RemoteRoute: Sendable, Equatable {
     case manifest
     case upgradeVideo
     case upgradeInput
+    case upgradeAudio
     case forbidden
     case busy
     case videoRequired
@@ -18,6 +19,7 @@ public enum RemoteRequestRouter {
     public static let manifestPath = "/manifest.webmanifest"
     public static let viewerPath = "/"
     public static let videoPath = "/ws/video"
+    public static let audioPath = "/ws/audio"
     public static let inputPath = "/ws/input"
     public static let tokenQueryName = "t"
     private static let getMethod = "GET"
@@ -40,6 +42,9 @@ public enum RemoteRequestRouter {
         case inputPath:
             guard state.hasVideo else { return .videoRequired }
             return state.hasInput ? .busy : .upgradeInput
+        case audioPath:
+            guard state.hasVideo else { return .videoRequired }
+            return state.hasAudio ? .busy : .upgradeAudio
         default: return .notFound
         }
     }
