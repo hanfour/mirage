@@ -62,6 +62,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
+    /// 點 Dock 圖示：原本由 SwiftUI `Window` 場景叫回隱藏的視窗，改成 AppKit 視窗後要自己處理。
+    /// 回傳 false，避免 SwiftUI 另外開出空的 Settings 視窗。
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        MainActor.assumeIsolated { model?.wake() }
+        return false
+    }
+
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
         MainActor.assumeIsolated {
             AppLifecycle.diagnose("lastWindowPolicy", window: nil,

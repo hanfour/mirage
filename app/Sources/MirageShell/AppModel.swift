@@ -267,7 +267,8 @@ final class AppModel {
         inputQueue.hostClipboardChanged(text)
     }
 
-    private func wake() {
+    /// 選單列「喚醒／顯示視窗」與 Dock 圖示點擊（`AppDelegate.applicationShouldHandleReopen`）共用。
+    func wake() {
         lifecycle?.wake(showing: windowController.window())
     }
 
