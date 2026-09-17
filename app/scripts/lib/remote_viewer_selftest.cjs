@@ -246,6 +246,33 @@ test('keyboard crops a full-width canvas and visible touches map into its lower 
   assert.equal(canvas.style.height, '874px');
 });
 
+test('fill-width mode centers a full-width canvas, maps touches, persists, and reports the width-driven size', () => {
+  const listeners = {}, viewport = {height:697, width:393, offsetTop:0, offsetLeft:0,
+    addEventListener(type, listener) { listeners[type] = listener; }};
+  const storage = new Map();
+  const h = harness({viewport, storage}), canvas = h.elements['#canvas'];
+  assert.equal(canvas.style.height, '697px', '預設仍是完整顯示');
+  h.run('fillToggle.listeners.click()');
+  const fullHeight = 393 * 2400 / 1080;
+  assert.equal(canvas.style.width, '393px');
+  assert.equal(canvas.style.height, fullHeight + 'px');
+  assert.equal(canvas.style.transform, `translateY(${(697 - fullHeight) / 2}px)`);
+  assert.equal(storage.get('mirage.fillWidth'), '1');
+  canvas.getBoundingClientRect = () => ({left:0, top:(697 - fullHeight) / 2, width:393, height:fullHeight});
+  const center = h.run('position({clientX:196.5,clientY:348.5})');
+  assert.ok(Math.abs(center.x - 0.5) < 1e-9 && Math.abs(center.y - 0.5) < 1e-9);
+  assert.ok(h.run('position({clientX:196.5,clientY:0}).y') > 0, '可見區頂端對應到被裁掉的那一段之後');
+  h.sockets[0].onopen(); h.sockets[1].onopen();
+  const report = h.sockets[1].sent.map(m => JSON.parse(m)).filter(m => m.type === 'viewport').at(-1);
+  assert.deepEqual(report, {type:'viewport', width:393, height:Math.round(fullHeight), scale:1});
+  h.run('fillToggle.listeners.click()');
+  assert.equal(canvas.style.height, '697px');
+  assert.equal(canvas.style.transform, 'translateY(0px)');
+  assert.equal(storage.get('mirage.fillWidth'), '0');
+  const restored = harness({viewport, storage: new Map([['mirage.fillWidth', '1']])});
+  assert.equal(restored.elements['#canvas'].style.height, fullHeight + 'px', '重新整理後沿用上次的選擇');
+});
+
 test('toolbar changes do not enable keyboard cropping and fallback resizes without visualViewport', () => {
   const listeners = {}, viewport = {height:874, width:402, offsetTop:0, offsetLeft:0,
     addEventListener(type, listener) { listeners[type] = listener; }};
