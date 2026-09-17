@@ -51,6 +51,26 @@ public enum StreamSize {
         return max(min(byWidth, byPixels), minWidth) & ~1
     }
 
+    /// 請求串流用的長寬比。guest 實體解析度已知時一律用它，依幀的方向對調；幀只用來判斷直橫。
+    ///
+    /// 不能直接用幀尺寸：emulator 回傳的幀會自行縮 1 到 2px 且長寬比跟著變（實測請求
+    /// 860×1910 回 859×1910），拿它算下一次請求會換到另一個尺寸，視窗高度與手機遙控畫面
+    /// 在兩個尺寸間無限來回（2026-09-17）。
+    public static func aspect(guest: (w: Int, h: Int)?, frame: (w: Int, h: Int)?) -> (w: Int, h: Int) {
+        guard let frame, frame.w > 0, frame.h > 0 else { return guest ?? (w: 9, h: 20) }
+        guard let guest, guest.w > 0, guest.h > 0 else { return frame }
+        let long = max(guest.w, guest.h), short = min(guest.w, guest.h)
+        return frame.w > frame.h ? (w: long, h: short) : (w: short, h: long)
+    }
+
+    /// 手機顯示區域（換成實體像素）放得下的最大畫面，再套用與視窗相同的上下限。
+    public static func fitting(_ viewport: RemoteViewport, aspect: (w: Int, h: Int)) -> (w: Int, h: Int) {
+        let pixels = (w: Int(viewport.width * viewport.scale), h: Int(viewport.height * viewport.scale))
+        let fit = ViewportFit.fit(frame: aspect, in: pixels)
+        let w = width(forContentWidth: fit.width, aspect: aspect)
+        return (w: w, h: height(forWidth: w, aspect: aspect))
+    }
+
     /// 由寬與長寬比推回高度（偶數對齊，下限 2）。
     public static func height(forWidth width: Int, aspect: (w: Int, h: Int)) -> Int {
         guard aspect.w > 0, aspect.h > 0 else { return 2 }

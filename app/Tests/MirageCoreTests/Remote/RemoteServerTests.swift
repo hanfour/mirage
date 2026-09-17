@@ -28,6 +28,7 @@ import Testing
         let touchCalls: CountGate
         let states: StateRecorder<RemoteSessionState>
         let keyframes: CountGate
+        let viewports: StateRecorder<RemoteViewport?>
     }
 
     private func start() async throws -> Harness {
@@ -37,6 +38,7 @@ import Testing
         let touchCalls = CountGate()
         let states = StateRecorder<RemoteSessionState>()
         let keyframes = CountGate()
+        let viewports = StateRecorder<RemoteViewport?>()
         let server = RemoteServer(
             configuration: RemoteServerConfiguration(host: "127.0.0.1", port: 0, token: Self.token, viewerPage: Self.page),
             onTouches: { specs in
@@ -46,10 +48,11 @@ import Testing
             onText: { text in Task { await texts.record(text) } },
             onKey: { code in Task { await keys.record(code) } },
             onKeyframeRequested: { keyframes.increment() },
+            onViewport: { viewport in Task { await viewports.record(viewport) } },
             onStateChanged: { state in Task { await states.record(state) } })
         let port = try await server.start()
         return Harness(server: server, port: port, touches: touches, keys: keys, texts: texts, touchCalls: touchCalls,
-                       states: states, keyframes: keyframes)
+                       states: states, keyframes: keyframes, viewports: viewports)
     }
 
     private func url(_ port: Int, _ path: String, token: String? = RemoteServerTests.token.value, scheme: String = "http") -> URL {
@@ -332,6 +335,26 @@ import Testing
             let texts = await h.texts.items
             #expect(texts == ["中文🙂"])
             #expect(h.server.stats().invalidInputMessages == 2)
+        }
+    }
+
+    /// 手機斷線時要回報 nil，Mac 端才會把串流請求退回視窗的需求。
+    @Test func inputForwardsViewportAndClearsItOnClose() async throws {
+        try await withServer { h in
+            let video = webSocket(h.port, "/ws/video")
+            defer { video.cancel(with: .normalClosure, reason: nil) }
+            await h.keyframes.wait(for: 1)
+            let input = webSocket(h.port, "/ws/input")
+            try await input.send(.string(#"{"type":"viewport","width":393,"height":697,"scale":3}"#))
+            try await input.send(.string(#"{"type":"viewport","width":0,"height":697,"scale":3}"#))
+            try await input.send(.string(Self.ping))
+            _ = try await receiveText(input)
+            await h.viewports.wait { !$0.isEmpty }
+            #expect(await h.viewports.items == [RemoteViewport(width: 393, height: 697, scale: 3)])
+            #expect(h.server.stats().invalidInputMessages == 1)
+            input.cancel(with: .normalClosure, reason: nil)
+            await h.viewports.wait { $0.count == 2 }
+            #expect(await h.viewports.items.last == .some(nil))
         }
     }
 

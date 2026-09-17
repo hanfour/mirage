@@ -124,6 +124,8 @@ extension AppModel {
         await inputQueue.drained()
         remoteAudioForwarder = nil
         await switchSink(to: box, audio: currentAudioSink())
+        // generation 已換，server 關閉時送出的 nil 會被擋掉，這裡自己清。
+        await updateRemoteViewport(nil)
         lifecycle?.remoteViewerDisconnected()
     }
 
@@ -143,6 +145,12 @@ extension AppModel {
             makeEncoder: { makeRemoteEncoder(fail) },
             emulatorConnected: { [weak self] in await self?.emulatorConnected ?? false },
             onText: { [textInput] text in textInput.enqueue(text, origin: "remote") },
+            onViewport: { [weak self] viewport in
+                Task { @MainActor in
+                    guard let self, generation == self.remoteGeneration else { return }
+                    await self.updateRemoteViewport(viewport)
+                }
+            },
             onError: fail,
             onStateChanged: { [weak self] _ in
                 Task { @MainActor in self?.remoteSessionChanged(generation: generation) }

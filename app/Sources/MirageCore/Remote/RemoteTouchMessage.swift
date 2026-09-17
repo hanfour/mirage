@@ -36,6 +36,19 @@ public struct RemoteClientStats: Sendable, Equatable {
     }
 }
 
+/// 手機頁面可顯示畫面的區域（CSS 像素）與像素密度，Mac 端依此決定串流解析度。
+public struct RemoteViewport: Sendable, Equatable {
+    public let width: Double
+    public let height: Double
+    public let scale: Double
+
+    public init(width: Double, height: Double, scale: Double) {
+        self.width = width
+        self.height = height
+        self.scale = scale
+    }
+}
+
 public enum RemoteInputMessage: Sendable, Equatable {
     case ping
     case clientStats(RemoteClientStats)
@@ -43,6 +56,7 @@ public enum RemoteInputMessage: Sendable, Equatable {
     case text(String, time: Double)
     case touch(RemoteTouchMessage)
     case touches([RemoteTouchMessage])
+    case viewport(RemoteViewport)
 }
 
 public enum RemoteInputDecodeError: Error, Equatable {
@@ -56,6 +70,7 @@ public enum RemoteInputDecodeError: Error, Equatable {
     case invalidTime
     case invalidPoints
     case invalidClientStats
+    case invalidViewport
 }
 
 /// `/ws/input` 文字訊息 → `RemoteInputMessage`。純函式：不 log、不計數、不拋例外，
@@ -72,6 +87,7 @@ public enum RemoteTouchMessageDecoder {
         guard let type = fields["type"] as? String else { return .failure(.missingField("type")) }
         if type == "client-stats" { return clientStats(fields) }
         if type == pingType { return .success(.ping) }
+        if type == "viewport" { return viewport(fields) }
         if type == "text" { return textCommit(fields) }
         if type == "key" { return navigationKey(fields) }
         if type == "touches" { return batch(fields) }
@@ -96,6 +112,15 @@ public enum RemoteTouchMessageDecoder {
               let fps = number(fields["decodeFps"]), fps >= 0
         else { return .failure(.invalidClientStats) }
         return .success(.clientStats(RemoteClientStats(rtt: rtt, dropped: Int(dropped), decodeFps: fps)))
+    }
+
+    /// 尺寸上限 10000pt、密度上限 8：超出的值只會讓請求撞上像素上限，不如直接當成壞訊息。
+    private static func viewport(_ fields: [String: Any]) -> Result<RemoteInputMessage, RemoteInputDecodeError> {
+        guard let width = number(fields["width"]), width > 0, width <= 10_000,
+              let height = number(fields["height"]), height > 0, height <= 10_000,
+              let scale = number(fields["scale"]), scale > 0, scale <= 8
+        else { return .failure(.invalidViewport) }
+        return .success(.viewport(RemoteViewport(width: width, height: height, scale: scale)))
     }
 
     private static func batch(_ fields: [String: Any]) -> Result<RemoteInputMessage, RemoteInputDecodeError> {

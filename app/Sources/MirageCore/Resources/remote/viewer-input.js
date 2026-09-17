@@ -11,6 +11,26 @@ audioToggle.style.cssText = 'position:absolute;top:env(safe-area-inset-top,0px);
 audioNotice.style.cssText = 'position:absolute;top:calc(env(safe-area-inset-top,0px) + 30px);right:0;max-width:75vw;padding:8px;background:#7f1d1d;pointer-events:none;white-space:pre-wrap;z-index:3';
 audioNotice.setAttribute('role', 'status'); audioNotice.hidden = true;
 document.querySelector('#viewport').append(audioToggle, audioNotice);
+// 填滿寬度：Safari 頁面比 Android 畫面矮，完整顯示會留左右黑邊；這個模式改成裁掉上下。
+let fillWidth = false;
+try { fillWidth = localStorage.getItem('mirage.fillWidth') === '1'; } catch {}
+const fillToggle = document.createElement('button');
+fillToggle.id = 'fill-toggle'; fillToggle.type = 'button';
+fillToggle.style.cssText = 'position:absolute;top:env(safe-area-inset-top,0px);right:30px;border:0;background:#000b;color:#fff;width:28px;height:28px;padding:0;touch-action:none;z-index:4';
+document.querySelector('#viewport').append(fillToggle);
+function renderFillToggle() {
+  fillToggle.textContent = fillWidth ? '⇕' : '⇔';
+  fillToggle.setAttribute('aria-pressed', String(fillWidth));
+  fillToggle.setAttribute('aria-label', fillWidth ? '完整顯示畫面' : '填滿寬度');
+}
+renderFillToggle();
+fillToggle.addEventListener('pointerdown', e => e.preventDefault());
+fillToggle.addEventListener('click', () => {
+  fillWidth = !fillWidth;
+  try { localStorage.setItem('mirage.fillWidth', fillWidth ? '1' : '0'); } catch {}
+  renderFillToggle();
+  resizeViewport();
+});
 function renderAudioToggle() {
   audioToggle.hidden = audioDisabled;
   audioToggle.textContent = audioEnabled ? '🔊' : '🔇';
@@ -140,10 +160,26 @@ function resizeViewport() {
   for (const [name, value] of Object.entries({
     height, width, top:view ? view.offsetTop : 0, left:view ? view.offsetLeft : 0,
   })) viewport.style.setProperty('--view-' + name, value + 'px');
-  const canvasHeight = keyboardOpen ? width * canvas.height / canvas.width : height;
+  // 鍵盤開著或填滿寬度時，畫面依寬度縮放：鍵盤時靠下（露出下半部），填滿寬度時置中。
+  const widthHeight = width * canvas.height / canvas.width;
+  const canvasHeight = keyboardOpen || fillWidth ? widthHeight : height;
+  const offset = keyboardOpen ? height - canvasHeight : fillWidth ? (height - canvasHeight) / 2 : 0;
   canvas.style.setProperty('width', width + 'px');
   canvas.style.setProperty('height', canvasHeight + 'px');
-  canvas.style.setProperty('transform', `translateY(${keyboardOpen ? height - canvasHeight : 0}px)`);
+  canvas.style.setProperty('transform', `translateY(${offset}px)`);
+  // 回報畫面實際需要的區域。鍵盤開著時高度被擠掉，用鍵盤出現前的高度，否則每開一次鍵盤串流就重新要求一次。
+  reportViewport(width, fillWidth ? widthHeight : keyboardOpen ? viewportBaseline : height);
+}
+// Mac 端依此決定串流解析度。只送變化；input 還沒開就先不送（onopen 會補送），
+// 也不走 send()：沒連上不是丟掉使用者的輸入，不該算進 inputDrops。
+let reportedViewport = '';
+function reportViewport(width, height) {
+  const scale = devicePixelRatio || 1;
+  const key = `${Math.round(width)}x${Math.round(height)}@${scale}`;
+  if (key === reportedViewport || !(width > 0 && height > 0)) return;
+  if (!inputReady || input?.readyState !== WebSocket.OPEN) return;
+  input.send(JSON.stringify({type:'viewport', width:Math.round(width), height:Math.round(height), scale}));
+  reportedViewport = key;
 }
 if (typeof visualViewport !== 'undefined' && visualViewport) {
   visualViewport.addEventListener('resize', resizeViewport);
@@ -183,7 +219,7 @@ textInput.addEventListener('beforeinput', e => {
 function connectInput() {
   input = new WebSocket(base + '/ws/input' + query);
   const current = generation;
-  input.onopen = () => { if (current !== generation) return; inputReady = true; connectionHealthy(); note('input connected'); };
+  input.onopen = () => { if (current !== generation) return; inputReady = true; connectionHealthy(); note('input connected'); reportedViewport = ''; resizeViewport(); };
   input.onclose = () => { if (current === generation) reconnect('input disconnected'); };
   input.onerror = () => { if (current === generation) reconnect('input WebSocket error'); };
   input.onmessage = event => {

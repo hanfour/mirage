@@ -131,6 +131,7 @@ final class RemoteMirrorController: @unchecked Sendable {
     private var audioMessagesSent = 0
     private var encodeFailures = 0
     private var clientStats: RemoteClientStats?
+    private var frameSize: (w: Int, h: Int)?
 
     init(configuration: RemoteMirrorConfiguration,
          secondary: LatestFrameBox,
@@ -138,6 +139,7 @@ final class RemoteMirrorController: @unchecked Sendable {
          makeEncoder: () -> any RemoteFrameEncoding,
          emulatorConnected: @escaping @Sendable () async -> Bool = { false },
          onText: @escaping @Sendable (String) -> Void = { _ in },
+         onViewport: @escaping @Sendable (RemoteViewport?) -> Void = { _ in },
          onError: @escaping @Sendable (String) -> Void = { _ in },
          onStateChanged: @escaping @Sendable (RemoteSessionState) -> Void = { _ in })
     {
@@ -163,6 +165,7 @@ final class RemoteMirrorController: @unchecked Sendable {
             },
             onClientStats: { relay.record($0) },
             onKeyframeRequested: { relay.request() },
+            onViewport: onViewport,
             onStateChanged: { state in
                 if !state.hasInput { relay.record(nil) }
                 continuation.yield(state)
@@ -172,6 +175,12 @@ final class RemoteMirrorController: @unchecked Sendable {
         self.sequencer = RemoteAccessUnitSequencer(server: server, inputStatistics: inputQueue.inputStatistics)
         self.encoder = makeEncoder()
         relay.attach(self)
+    }
+
+    /// 最近送進編碼器的幀尺寸，給串流請求判斷直橫；背景模式沒有 Renderer 可問。
+    var latestFrameSize: (w: Int, h: Int)? {
+        lock.lock(); defer { lock.unlock() }
+        return frameSize
     }
 
     var latestClientStats: RemoteClientStats? {
@@ -308,6 +317,7 @@ final class RemoteMirrorController: @unchecked Sendable {
         let fresh = notifiedFrames.takeLatest()
         if let fresh {
             lastFrame = fresh
+            lock.lock(); frameSize = (w: fresh.width, h: fresh.height); lock.unlock()
             recordPull()
         }
         let heartbeatDue = lastEncodedAt.map { now - $0 >= configuration.heartbeatInterval } ?? true

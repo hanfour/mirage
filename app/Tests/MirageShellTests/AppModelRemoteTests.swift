@@ -406,6 +406,44 @@ private final class RemotePortBlocker {
         }
     }
 
+    /// 背景模式沒有視窗，串流原本停在 540×1200。手機回報顯示區域後請求要放大，
+    /// 與視窗需求取較大者，手機斷線退回視窗需求（2026-09-17）。
+    @Test func viewerViewportDrivesStreamSizeAndClearsOnDisconnect() async throws {
+        try await withModel("remote-viewport") { model in
+            await model.enableRemote(host: "127.0.0.1", port: 0)
+            let controller = try #require(model.remote)
+            let port = try #require(controller.boundPort)
+            let base = "ws://127.0.0.1:\(port)"
+            let videoURL = try #require(URL(string: "\(base)/ws/video?t=\(controller.token.value)"))
+            let inputURL = try #require(URL(string: "\(base)/ws/input?t=\(controller.token.value)"))
+            let video = URLSession.shared.webSocketTask(with: videoURL)
+            defer { video.cancel(with: .normalClosure, reason: nil) }
+            video.resume()
+            _ = try await RemoteTestWaits.state(in: controller.states, hasVideo: true, diagnostics: {
+                "remote viewport state=\(controller.sessionState)"
+            })
+            await model.updateWindowStreamDemand(width: 700, height: 1554)
+            let input = URLSession.shared.webSocketTask(with: inputURL)
+            input.resume()
+            // guest 解析度未知（死埠）且沒有幀：長寬比退回 9:20，393×697pt×3 受像素上限壓到 900×2000。
+            try await input.send(.string(#"{"type":"viewport","width":393,"height":697,"scale":3}"#))
+            try await waitForStreamSize(model, width: 900, height: 2000)
+            input.cancel(with: .normalClosure, reason: nil)
+            try await waitForStreamSize(model, width: 700, height: 1554)
+        }
+    }
+
+    private func waitForStreamSize(_ model: AppModel, width: Int, height: Int) async throws {
+        let deadline = ContinuousClock.now + .seconds(3)
+        var size = await model.client.requestedStreamSize
+        while size != (width, height), ContinuousClock.now < deadline {
+            try await Task.sleep(for: .milliseconds(10))
+            size = await model.client.requestedStreamSize
+        }
+        #expect(size.w == width, "stream width \(size.w)x\(size.h)")
+        #expect(size.h == height, "stream height \(size.w)x\(size.h)")
+    }
+
     @Test func remoteConnectionStatusUsesEstablishedConnection() async throws {
         try await withModel("remote-connection-status") { model in
             model.connState = .connected
