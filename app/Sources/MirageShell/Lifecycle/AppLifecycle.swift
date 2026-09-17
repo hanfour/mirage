@@ -7,12 +7,15 @@ import ObjectiveC
 final class AppLifecycle: NSObject, NSWindowDelegate {
     private let client: EmulatorClient
     private let hasActiveRemoteViewer: () -> Bool
+    private let backgroundMode: () -> Bool
     private var policy = LifecyclePolicy()
     private var powerTask: Task<Void, Never>?
 
-    init(client: EmulatorClient, hasActiveRemoteViewer: @escaping () -> Bool = { false }) {
+    init(client: EmulatorClient, hasActiveRemoteViewer: @escaping () -> Bool = { false },
+         backgroundMode: @escaping () -> Bool = { false }) {
         self.client = client
         self.hasActiveRemoteViewer = hasActiveRemoteViewer
+        self.backgroundMode = backgroundMode
         super.init()
         if ProcessInfo.processInfo.environment["MIRAGE_CONN_LOG"] == "1" {
             NotificationCenter.default.addObserver(
@@ -75,6 +78,9 @@ final class AppLifecycle: NSObject, NSWindowDelegate {
         Self.diagnose("windowShouldClose", window: sender, result: "false",
                       action: remoteActive ? "hide-only(remote)" : "suspend")
         sender.orderOut(nil)                 // 隱藏視窗，app 續存（選單列常駐）
+        if let policy = LaunchPreferences.policyAfterWindowHidden(backgroundMode: backgroundMode()) {
+            (NSApp as NSApplication?)?.setActivationPolicy(policy)   // 背景模式：回到只留選單列
+        }
         didHideWindow()
         return false
     }
@@ -114,6 +120,9 @@ final class AppLifecycle: NSObject, NSWindowDelegate {
     func wake(showing window: NSWindow?) {
         Self.diagnose("wake", window: window, action: policy.suspended ? "resume" : "show")
         let shouldResume = policy.consumeResume()
+        // 背景模式是 accessory：視窗要拿到鍵盤焦點與主選單快捷鍵，先切回 regular。
+        // 一般模式本來就是 regular，這行不改變任何事。
+        (NSApp as NSApplication?)?.setActivationPolicy(.regular)
         window?.makeKeyAndOrderFront(nil)
         Self.diagnose("wake-before-activate", window: window)
         // L：顯示視窗後明確啟用 app，嘗試恢復主選單快捷鍵；仍需活體驗證 ⌘Q。

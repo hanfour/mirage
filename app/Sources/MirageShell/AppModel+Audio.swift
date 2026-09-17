@@ -22,7 +22,10 @@ extension AppModel {
         menuBar?.updateSpeech(on: false, unavailableReason: nil)
         // 驗證用：沒有這個旗標就只能靠人點選單，端到端的自動驗證做不了。
         // 與 MIRAGE_REMOTE 同樣只讀環境變數，產品預設仍是關閉。
-        if ProcessInfo.processInfo.environment["MIRAGE_SPEECH"] == "1" { toggleSpeech() }
+        // 環境變數不寫入記住的設定：驗證腳本不該改動使用者下次啟動的行為。
+        if ProcessInfo.processInfo.environment["MIRAGE_SPEECH"] == "1" || launchPreferences.speechEnabled {
+            toggleSpeech(persist: false)
+        }
         // 生命週期可能晚於遙控啟動，必須沿用目前 sink 並與遠端切換共用順序。
         let previous = instanceSwitchTask
         instanceSwitchTask = Task { @MainActor in

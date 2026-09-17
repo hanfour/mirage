@@ -111,6 +111,7 @@ struct MirageScene: App {
             .frame(minWidth: 270, minHeight: 600)
             .task {
                 appDelegate.model = model   // 供 applicationWillTerminate 使用
+                model.hideWindowEarlyForBackgroundMode()   // 在連線之前藏，縮短視窗露出的時間
                 await model.start()
                 model.startLifecycle()
                 model.seedBuiltInProfiles()   // 必須在 startDetection 之前：偵測命中就會讀那個目錄

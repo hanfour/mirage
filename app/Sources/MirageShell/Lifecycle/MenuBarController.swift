@@ -13,6 +13,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
     private let audioHealthItem: NSMenuItem
     private let muteItem: NSMenuItem
     private let speechItem: NSMenuItem
+    private let backgroundModeItem: NSMenuItem
     private let forceMenu: NSMenu
     /// 「切換模擬器」子選單。內容每次展開前由 `instanceEntries` 重算（探索檔隨模擬器起停而變）。
     private let instanceMenu: NSMenu
@@ -43,6 +44,8 @@ final class MenuBarController: NSObject, NSMenuDelegate {
     /// P1-e：AppModel.startAudio() 綁定 → AudioPlayer.setMuted。
     var onToggleMute: (() -> Void)?
     var onToggleSpeech: (() -> Void)?
+    /// 背景模式（2026-09-17）：記住的設定，下次啟動才生效。
+    var onToggleBackgroundMode: (() -> Void)?
 
     /// D2：Android 實體鍵。參數是 W3C key 字串（"GoBack"／"GoHome"／"AppSwitch"）。
     ///
@@ -64,6 +67,9 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         gameItem = NSMenuItem(title: "遊戲：—", action: nil, keyEquivalent: "")
         muteItem = NSMenuItem(title: "靜音", action: nil, keyEquivalent: "")
         speechItem = NSMenuItem(title: "語音轉文字", action: nil, keyEquivalent: "")
+        // 標題寫明「下次啟動」：打勾當下視窗不會消失，不寫清楚會以為沒反應。
+        backgroundModeItem = NSMenuItem(title: "背景模式（下次啟動不開視窗、自動開手機遙控）",
+                                        action: nil, keyEquivalent: "")
         // 只寫「模擬器缺陷」等於要使用者自己想辦法。D44 的閂鎖已量出唯一的解法：
         // guest 全域音訊停止數秒（實測停 3 秒開始回復、停 8 秒回到 100%）。
         // 換 audio 元素、重載頁面、重開 RPC、換訂閱格式都無效，Mirage 這端做不到。
@@ -95,6 +101,9 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         speechItem.action = #selector(speechTapped)
         speechItem.target = self
         menu.addItem(speechItem)
+        backgroundModeItem.action = #selector(backgroundModeTapped)
+        backgroundModeItem.target = self
+        menu.addItem(backgroundModeItem)
         let instanceParent = NSMenuItem(title: "切換模擬器", action: nil, keyEquivalent: "")
         instanceParent.submenu = instanceMenu   // 與「套用 profile」同形：AppKit 自己畫 ▸
         menu.addItem(instanceParent)
@@ -136,6 +145,8 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         speechItem.title = unavailableReason.map { "語音轉文字：\($0)" } ?? "語音轉文字"
     }
 
+    func updateBackgroundMode(_ on: Bool) { backgroundModeItem.state = on ? .on : .off }
+
     /// 已知模擬器限制只放在選單內告知，避免打斷遊戲；正常或安靜時不佔版面。
     func updateAudioHealth(_ state: AudioSupplyMonitor.State) {
         audioHealthItem.isHidden = state != .degraded
@@ -174,6 +185,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
     @objc private func muteTapped() { onToggleMute?() }
 
     @objc private func speechTapped() { onToggleSpeech?() }
+    @objc private func backgroundModeTapped() { onToggleBackgroundMode?() }
     @objc private func backTapped() { onAndroidKey?("GoBack") }
     @objc private func homeTapped() { onAndroidKey?("GoHome") }
     @objc private func recentsTapped() { onAndroidKey?("AppSwitch") }

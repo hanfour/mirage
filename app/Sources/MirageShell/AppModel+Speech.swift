@@ -9,9 +9,11 @@ import MirageCore
 /// 只有監測迴圈看得到。
 extension AppModel {
     /// 選單列切換。第一次開啟才要授權，關閉時不撤銷授權也不重問。
-    func toggleSpeech() {
+    /// `persist` 為 true（使用者從選單列切換）才寫入下次啟動沿用的設定。
+    func toggleSpeech(persist: Bool = true) {
         if speechEnabled {
             setSpeechEnabled(false)
+            if persist { launchPreferences.speechEnabled = false }
             return
         }
         let transcriber = speechTranscriber ?? makeSpeechTranscriber()
@@ -20,6 +22,7 @@ extension AppModel {
             guard let self else { return }
             if ready {
                 self.setSpeechEnabled(true)
+                if persist { self.launchPreferences.speechEnabled = true }
             } else {
                 // 不可用的原因寫在選單列那一項，功能保持關閉。
                 self.menuBar?.updateSpeech(on: false, unavailableReason: transcriber.unavailableReason)

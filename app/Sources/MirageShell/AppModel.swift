@@ -20,6 +20,7 @@ final class AppModel {
     /// 手機遙控的執行期；nil = 功能關閉。
     @ObservationIgnored var remoteAddresses: () -> [HostAddress] = { HostAddresses.current() }
     let pairingTokens: PairingTokenStore
+    let launchPreferences: LaunchPreferences
     var remote: RemoteMirrorController?
     var remoteMenuState: RemoteMenuState = .off
     /// enable／disable／disconnect 都會 await，MainActor 期間會重入；進行中就忽略新要求。
@@ -54,9 +55,11 @@ final class AppModel {
     /// 全域副作用」之一），測試不該碰那裡。
     init(store: ProfileStore = .standard(),
          pairingTokens: PairingTokenStore = PairingTokenStore(),
+         launchPreferences: LaunchPreferences = LaunchPreferences(),
          starterBindings: @escaping @Sendable () -> [Binding] = { BuiltInProfiles.starterBindings() })
     {
         self.pairingTokens = pairingTokens
+        self.launchPreferences = launchPreferences
         self.store = store
         self.starterBindings = starterBindings
         let sink = FrameSinkFactory.make(from: ProcessInfo.processInfo.environment)
@@ -188,6 +191,8 @@ final class AppModel {
         if let options = RemoteLaunchOptions.parse(ProcessInfo.processInfo.environment) {
             for problem in options.problems { print("[remote] 環境變數覆寫無效：\(problem)") }
             await enableRemote(port: options.port, token: options.token, pullInterval: options.pullInterval)
+        } else if launchPreferences.backgroundMode {
+            await enableRemote()   // 同一條路徑：client 還沒 start，只換 activeSink
         }
         Task { [client] in
             for await s in client.states {
@@ -204,12 +209,15 @@ final class AppModel {
     func startLifecycle() {
         lifecycle = AppLifecycle(client: client, hasActiveRemoteViewer: { [weak self] in
             self?.hasActiveRemoteViewer ?? false
+        }, backgroundMode: { [weak self] in
+            self?.launchPreferences.backgroundMode ?? false
         })
         menuBar = MenuBarController(
             onWake: { [weak self] in self?.wake() },
             onShow: { [weak self] in self?.wake() }
         )
         menuBar?.updateStatus(Self.label(connState))   // 補上 menuBar 建立前已錯過的狀態
+        setupBackgroundModeMenu()
         // D2：選單列的 Android 實體鍵。down 之後緊接 up——guest 收到的是一次完整按放，
         // 不是按住不放。sendKey 在未連線時靜默不送（與 sendTap/sendTouches 一致）。
         // D6：走同一條佇列。原本這裡自己開一個 Task 循序 await 兩次——那一對內部確實
@@ -246,6 +254,7 @@ final class AppModel {
                 }
                 windows.first?.delegate = self?.lifecycle
                 AppLifecycle.diagnose("assign-selected-after", window: windows.first)
+                self?.applyBackgroundModeAfterStart(windows.first)
             }
         }
     }

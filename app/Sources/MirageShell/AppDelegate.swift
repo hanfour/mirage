@@ -45,6 +45,13 @@ import AppKit
 final class AppDelegate: NSObject, NSApplicationDelegate {
     var model: AppModel?
 
+    /// 背景模式在最早的時間點換成 accessory：Dock 圖示從頭就不出現，app 也不會被帶到最前面，
+    /// 視窗在 `.task` 藏起來之前就算短暫存在，也落在其他 app 後面。
+    func applicationWillFinishLaunching(_ notification: Notification) {
+        guard LaunchPreferences().backgroundMode else { return }
+        (NSApp as NSApplication?)?.setActivationPolicy(LaunchPreferences.launchActivationPolicy(backgroundMode: true))
+    }
+
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
         MainActor.assumeIsolated {
             AppLifecycle.diagnose("lastWindowPolicy", window: nil,
