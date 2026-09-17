@@ -265,7 +265,9 @@ struct MirrorView: NSViewRepresentable {
                 try? await Task.sleep(for: .milliseconds(300))
                 guard !Task.isCancelled else { return }
                 // P1-e：長寬比改用實際解碼幀（原本硬編碼 h = w * 20 / 9，遊戲轉橫向就錯）。
-                let aspect = renderer?.lastFrameSize ?? Self.defaultStreamSize
+                // 長寬比取 guest 解析度，幀只決定直橫，理由見 StreamSize.aspect。
+                let aspect = StreamSize.aspect(guest: await client.displaySize,
+                                               frame: renderer?.lastFrameSize ?? Self.defaultStreamSize)
                 // 上限與偶數對齊的算術在 MirageCore.StreamSize（純函式、有單元測試）。
                 let w = StreamSize.width(forContentWidth: Int(pixelSize.width), aspect: aspect)
                 let h = StreamSize.height(forWidth: w, aspect: aspect)

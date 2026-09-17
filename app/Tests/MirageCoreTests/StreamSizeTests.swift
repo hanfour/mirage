@@ -54,4 +54,35 @@ import Testing
         let h = StreamSize.height(forWidth: w, aspect: aspect)
         #expect(w * h <= StreamSize.maxPixels)
     }
+
+    /// 回歸（2026-09-17）：emulator 回傳的幀會自行縮 1 到 2px，長寬比跟著變
+    /// （實測請求 860×1910 回 859×1910、860×1908 回 858×1908）。拿幀算長寬比時，
+    /// 下一次請求又換一個尺寸，視窗與手機畫面在兩個尺寸間無限來回。
+    /// 長寬比要來自 guest 實體解析度，同一個方向的幀不論縮成多少都得到同一個值。
+    @Test(arguments: [(859, 1910), (860, 1911), (858, 1908), (1080, 2400)])
+    func portraitFramesYieldGuestAspect(fw: Int, fh: Int) {
+        let aspect = StreamSize.aspect(guest: (w: 1080, h: 2400), frame: (w: fw, h: fh))
+        #expect(aspect.w == 1080)
+        #expect(aspect.h == 2400)
+    }
+
+    /// 遊戲轉橫向：幀是橫的就把 guest 解析度對調，不論 guest 設定是直是橫。
+    @Test func landscapeFrameSwapsGuestAspect() {
+        let fromPortraitGuest = StreamSize.aspect(guest: (w: 1080, h: 2400), frame: (w: 1910, h: 859))
+        #expect(fromPortraitGuest.w == 2400)
+        #expect(fromPortraitGuest.h == 1080)
+        let fromLandscapeGuest = StreamSize.aspect(guest: (w: 2400, h: 1080), frame: (w: 859, h: 1910))
+        #expect(fromLandscapeGuest.w == 1080)
+        #expect(fromLandscapeGuest.h == 2400)
+    }
+
+    /// guest 解析度未知（健康探測還沒回來）時退回幀尺寸，兩者都沒有時用 9:20。
+    @Test func unknownGuestFallsBackToFrameThenDefault() {
+        let fromFrame = StreamSize.aspect(guest: nil, frame: (w: 859, h: 1910))
+        #expect(fromFrame.w == 859)
+        #expect(fromFrame.h == 1910)
+        let fallback = StreamSize.aspect(guest: nil, frame: nil)
+        #expect(fallback.w == 9)
+        #expect(fallback.h == 20)
+    }
 }
