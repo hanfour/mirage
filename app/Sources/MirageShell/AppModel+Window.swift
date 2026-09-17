@@ -17,7 +17,7 @@ extension AppModel {
     /// 順序與原本的 `.task` 相同，不要調換：`seedBuiltInProfiles` 必須在 `startDetection` 之前，
     /// 偵測命中就會讀那個目錄。
     func launch() async {
-        if !launchPreferences.backgroundMode {
+        if !launchPreferences.effectiveBackgroundMode {
             windowController.window().makeKeyAndOrderFront(nil)
             (NSApp as NSApplication?)?.activate(ignoringOtherApps: true)
         }

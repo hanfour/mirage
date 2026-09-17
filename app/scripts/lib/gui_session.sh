@@ -47,7 +47,8 @@ gui_session_start() {
         echo "❌ 打包 .app 失敗（見上方訊息）" >&2
         return 1
     fi
-    local env_args=()
+    # 背景模式不建視窗，等視窗或 fps 的腳本會失敗；一律以一般模式啟動，不動使用者的設定。
+    local env_args=(--env MIRAGE_BACKGROUND_MODE=0)
     local kv
     for kv in "$@"; do env_args+=(--env "$kv"); done
     open -n -a "$bundle/Mirage.app" --stdout "$log" --stderr "$log" ${env_args[@]+"${env_args[@]}"} || return 1

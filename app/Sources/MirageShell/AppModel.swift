@@ -175,6 +175,9 @@ final class AppModel {
         if let problem = endpoint.overrideProblem {
             print("[app] 環境變數覆寫無效：\(problem)")
         }
+        if let problem = launchPreferences.backgroundModeOverrideProblem {
+            print("[app] 環境變數覆寫無效：\(problem)")
+        }
 
         // RECONCILIATION (Task 6 brief vs. this file): the brief's `startLifecycle()`
         // snippet spins up a SECOND `for await s in client.states` loop to feed
@@ -194,7 +197,7 @@ final class AppModel {
         if let options = RemoteLaunchOptions.parse(ProcessInfo.processInfo.environment) {
             for problem in options.problems { print("[remote] 環境變數覆寫無效：\(problem)") }
             await enableRemote(port: options.port, token: options.token, pullInterval: options.pullInterval)
-        } else if launchPreferences.backgroundMode {
+        } else if launchPreferences.effectiveBackgroundMode {
             await enableRemote()   // 同一條路徑：client 還沒 start，只換 activeSink
         }
         Task { [client] in
@@ -213,7 +216,7 @@ final class AppModel {
         lifecycle = AppLifecycle(client: client, hasActiveRemoteViewer: { [weak self] in
             self?.hasActiveRemoteViewer ?? false
         }, backgroundMode: { [weak self] in
-            self?.launchPreferences.backgroundMode ?? false
+            self?.launchPreferences.effectiveBackgroundMode ?? false
         })
         if let lifecycle { windowController.attach(delegate: lifecycle) }
         AppLifecycle.diagnose("assign-selected-after", window: windowController.existingWindow)

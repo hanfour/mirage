@@ -17,7 +17,7 @@ extension AppModel {
 
     /// `startLifecycle()` 最後呼叫。背景模式沒有建立視窗，這裡決定要休眠還是把視窗叫出來。
     func applyBackgroundModeAfterStart() {
-        switch LaunchPreferences.windowStepAfterStart(backgroundMode: launchPreferences.backgroundMode,
+        switch LaunchPreferences.windowStepAfterStart(backgroundMode: launchPreferences.effectiveBackgroundMode,
                                                       remoteStarted: remote != nil) {
         case .keep:
             return

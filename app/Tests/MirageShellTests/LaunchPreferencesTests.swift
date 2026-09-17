@@ -49,4 +49,62 @@ import Testing
         #expect(LaunchPreferences.policyAfterWindowHidden(backgroundMode: true) == .accessory)
         #expect(LaunchPreferences.policyAfterWindowHidden(backgroundMode: false) == nil)
     }
+    // MIRAGE_BACKGROUND_MODE：驗證腳本用來蓋掉使用者的背景模式設定，不寫回儲存值。
+    @Test func overrideParserAbsent() {
+        let result = LaunchPreferences.backgroundModeOverride([:])
+        #expect(result.value == nil)
+        #expect(result.problem == nil)
+    }
+
+    @Test func overrideParserOneAndZero() throws {
+        let on = LaunchPreferences.backgroundModeOverride(["MIRAGE_BACKGROUND_MODE": "1"])
+        let onValue = try #require(on.value)
+        #expect(onValue)
+        #expect(on.problem == nil)
+        let off = LaunchPreferences.backgroundModeOverride(["MIRAGE_BACKGROUND_MODE": "0"])
+        let offValue = try #require(off.value)
+        #expect(!offValue)
+        #expect(off.problem == nil)
+    }
+
+    @Test func overrideParserRejectsOtherValues() {
+        let result = LaunchPreferences.backgroundModeOverride(["MIRAGE_BACKGROUND_MODE": "yes"])
+        #expect(result.value == nil)
+        #expect(result.problem == "MIRAGE_BACKGROUND_MODE=yes 不是 0 或 1，改用儲存的設定")
+    }
+
+    @Test func effectiveFollowsOverrideWhenPresent() throws {
+        try withSuite { defaults in
+            LaunchPreferences(defaults: defaults).backgroundMode = true
+            let forcedOff = LaunchPreferences(defaults: defaults, environment: ["MIRAGE_BACKGROUND_MODE": "0"])
+            #expect(!forcedOff.effectiveBackgroundMode)
+            #expect(forcedOff.backgroundMode)
+            LaunchPreferences(defaults: defaults).backgroundMode = false
+            let forcedOn = LaunchPreferences(defaults: defaults, environment: ["MIRAGE_BACKGROUND_MODE": "1"])
+            #expect(forcedOn.effectiveBackgroundMode)
+        }
+    }
+
+    @Test func effectiveFollowsStoredValueWhenAbsent() throws {
+        try withSuite { defaults in
+            let prefs = LaunchPreferences(defaults: defaults, environment: [:])
+            #expect(!prefs.effectiveBackgroundMode)
+            prefs.backgroundMode = true
+            #expect(prefs.effectiveBackgroundMode)
+            let invalid = LaunchPreferences(defaults: defaults, environment: ["MIRAGE_BACKGROUND_MODE": "yes"])
+            #expect(invalid.effectiveBackgroundMode)
+        }
+    }
+
+    @Test func togglingStoredValueDoesNotChangeEffectiveUnderOverride() throws {
+        try withSuite { defaults in
+            let prefs = LaunchPreferences(defaults: defaults, environment: ["MIRAGE_BACKGROUND_MODE": "0"])
+            prefs.backgroundMode = true
+            #expect(LaunchPreferences(defaults: defaults).backgroundMode)
+            #expect(!prefs.effectiveBackgroundMode)
+            prefs.backgroundMode = false
+            #expect(!LaunchPreferences(defaults: defaults).backgroundMode)
+            #expect(!prefs.effectiveBackgroundMode)
+        }
+    }
 }

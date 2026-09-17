@@ -9,15 +9,40 @@ import Foundation
 final class LaunchPreferences {
     static let backgroundModeKey = "mirage.launch.backgroundMode"
     static let speechEnabledKey = "mirage.launch.speechEnabled"
+    /// 驗證腳本用來指定這次啟動是否為背景模式（"1"／"0"），不寫回使用者的設定。
+    static let backgroundModeOverrideKey = "MIRAGE_BACKGROUND_MODE"
     private let defaults: UserDefaults
+    private let backgroundModeOverride: Bool?
+    /// 覆寫值無效時的說明，由 `AppModel.start()` 印一次。
+    let backgroundModeOverrideProblem: String?
 
-    init(defaults: UserDefaults = .standard) {
+    init(defaults: UserDefaults = .standard,
+         environment: [String: String] = ProcessInfo.processInfo.environment) {
         self.defaults = defaults
+        let parsed = Self.backgroundModeOverride(environment)
+        backgroundModeOverride = parsed.value
+        backgroundModeOverrideProblem = parsed.problem
     }
 
+    /// 儲存的設定。只給選單列的勾選與切換用；決定啟動行為一律讀 `effectiveBackgroundMode`，
+    /// 否則切換時會把環境變數的值寫進使用者的設定。
     var backgroundMode: Bool {
         get { defaults.bool(forKey: Self.backgroundModeKey) }
         set { defaults.set(newValue, forKey: Self.backgroundModeKey) }
+    }
+
+    /// 這次啟動實際採用的背景模式：有環境變數覆寫就用它，否則即時讀儲存的設定。
+    var effectiveBackgroundMode: Bool {
+        backgroundModeOverride ?? backgroundMode
+    }
+
+    static func backgroundModeOverride(_ environment: [String: String]) -> (value: Bool?, problem: String?) {
+        guard let raw = environment[backgroundModeOverrideKey] else { return (nil, nil) }
+        switch raw {
+        case "1": return (true, nil)
+        case "0": return (false, nil)
+        default: return (nil, "\(backgroundModeOverrideKey)=\(raw) 不是 0 或 1，改用儲存的設定")
+        }
     }
 
     var speechEnabled: Bool {

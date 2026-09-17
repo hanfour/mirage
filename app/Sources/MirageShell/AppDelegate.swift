@@ -50,7 +50,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationWillFinishLaunching(_ notification: Notification) {
         MainActor.assumeIsolated {
             if model == nil { model = AppModel() }
-            guard LaunchPreferences().backgroundMode else { return }
+            guard model?.launchPreferences.effectiveBackgroundMode ?? false else { return }
             (NSApp as NSApplication?)?.setActivationPolicy(LaunchPreferences.launchActivationPolicy(backgroundMode: true))
         }
     }

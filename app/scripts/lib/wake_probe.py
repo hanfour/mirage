@@ -176,7 +176,8 @@ def run_round(bundle, log_path, port):
 
     try:
         startup = timed_action(["open", "-a", str(bundle), "--stdout", str(log_path),
-                                "--stderr", str(log_path), "--env", f"MIRAGE_PORT={port}",
+                                "--stderr", str(log_path), "--env", "MIRAGE_BACKGROUND_MODE=0",
+                                "--env", f"MIRAGE_PORT={port}",
                                 "--env", "MIRAGE_CONN_LOG=1", "--env", "MIRAGE_FPS_LOG=1",
                                 "--env", "NSUnbufferedIO=YES"], 0)
         pids = subprocess.check_output(["pgrep", "-x", "MirageApp"], text=True).split()
