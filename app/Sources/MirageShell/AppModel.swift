@@ -21,6 +21,8 @@ final class AppModel {
     @ObservationIgnored var remoteAddresses: () -> [HostAddress] = { HostAddresses.current() }
     let pairingTokens: PairingTokenStore
     let launchPreferences: LaunchPreferences
+    /// 鏡像視窗。init 最後才能設定（需要 self），所以是 IUO；建立它不會建立視窗。
+    @ObservationIgnored var windowController: MirrorWindowController!
     var remote: RemoteMirrorController?
     var remoteMenuState: RemoteMenuState = .off
     /// enable／disable／disconnect 都會 await，MainActor 期間會重入；進行中就忽略新要求。
@@ -71,6 +73,7 @@ final class AppModel {
         if ProcessInfo.processInfo.environment["MIRAGE_CONN_LOG"] == "1" {
             print("[app] frame sink=\(FrameSinkFactory.label(for: box))")
         }
+        windowController = Self.makeWindowController(for: self)
     }
 
     // Task 6: 選單列、剪貼簿橋接、視窗關閉/喚醒生命週期。
@@ -212,6 +215,8 @@ final class AppModel {
         }, backgroundMode: { [weak self] in
             self?.launchPreferences.backgroundMode ?? false
         })
+        if let lifecycle { windowController.attach(delegate: lifecycle) }
+        AppLifecycle.diagnose("assign-selected-after", window: windowController.existingWindow)
         menuBar = MenuBarController(
             onWake: { [weak self] in self?.wake() },
             onShow: { [weak self] in self?.wake() }
@@ -241,22 +246,8 @@ final class AppModel {
         // host→guest：watcher 輪詢 → bridge → 共用 InputQueue 的 clipboard gate
         watcher = ClipboardWatcher { [weak self] text in self?.applyHostClipboard(text) }
         watcher?.start()
-        // 視窗關閉→休眠、喚醒→load 交由 AppLifecycle 當 NSWindowDelegate；
-        // 用 Task 讓出一輪 run loop，確保 WindowGroup 的視窗已完成建立掛載。
-        Task { [weak self] in
-            await MainActor.run {
-                // `NSApp` 是 IUO，headless 測試行程裡是 nil——硬解包會帶著整個 test run
-                // 一起死，而錯誤訊息不指向這裡。理由同 `shouldCapture`（見該處註解）。
-                let windows = (NSApp as NSApplication?)?.windows ?? []
-                AppLifecycle.diagnose("assign-selected-before", window: windows.first)
-                for window in windows {
-                    AppLifecycle.diagnose("assign-candidate", window: window)
-                }
-                windows.first?.delegate = self?.lifecycle
-                AppLifecycle.diagnose("assign-selected-after", window: windows.first)
-                self?.applyBackgroundModeAfterStart(windows.first)
-            }
-        }
+        // 背景模式的休眠或叫回視窗要用到 AppLifecycle，所以放在它建立之後。
+        applyBackgroundModeAfterStart()
     }
 
     private func applyGuestClipboard(_ text: String) {
@@ -277,8 +268,7 @@ final class AppModel {
     }
 
     private func wake() {
-        let window = (NSApp as NSApplication?)?.windows.first
-        lifecycle?.wake(showing: window)
+        lifecycle?.wake(showing: windowController.window())
     }
 
     static func label(_ s: ConnState) -> String {
