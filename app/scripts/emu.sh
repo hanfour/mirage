@@ -23,12 +23,19 @@ EMULATOR="$SDK/emulator/emulator"
 ADB="$SDK/platform-tools/adb"
 
 NAME=""
-HEADLESS="${MIRAGE_HEADLESS:-0}"
+# 預設無視窗（2026-09-17）：模擬器自己的視窗和 Mirage 並存時，使用者盯著模擬器視窗、
+# 以為 Mirage 的字幕沒出現。`-W` 或 MIRAGE_HEADLESS=0 才開模擬器視窗；`-H` 保留相容。
+HEADLESS="${MIRAGE_HEADLESS:-1}"
+# 明確要求無視窗（-H 或 MIRAGE_HEADLESS=1）才擋住「已有視窗的實例」；只是吃到預設值時照常冪等，
+# 不然每一台之前用舊預設開的模擬器，start 都會被當成要換模式。
+HEADLESS_EXPLICIT=0
+[ "${MIRAGE_HEADLESS:-}" = 1 ] && HEADLESS_EXPLICIT=1
 COMMAND=""
-usage() { echo "用法：$0 [-H] [-n <實例名稱>] [start|stop|status]（MIRAGE_HEADLESS=1 亦可無視窗啟動）" >&2; }
+usage() { echo "用法：$0 [-W|-H] [-n <實例名稱>] [start|stop|status]（預設無視窗；-W 或 MIRAGE_HEADLESS=0 開模擬器視窗）" >&2; }
 while [ "$#" -gt 0 ]; do
     case "$1" in
-      -H) HEADLESS=1; shift ;;
+      -H) HEADLESS=1; HEADLESS_EXPLICIT=1; shift ;;
+      -W) HEADLESS=0; HEADLESS_EXPLICIT=0; shift ;;
       -n)
         NAME="${2:-}"
         case "$NAME" in
@@ -73,6 +80,7 @@ ps_lines() {
 booted_on() { [ "$("$ADB" -s "$1" shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" = "1" ]; }
 booted() { booted_on "$SERIAL"; }
 running() { emu_is_running "$(ps_lines)" "$PORT"; }
+windowed_running() { emu_running_instances "$(ps_lines)" | awk -v p="$PORT" '$3 == p && $5 == "windowed" { found = 1 } END { exit !found }'; }
 # gRPC 綁在哪個位址：`*` 表示對整個區域網路開放（沒用 -grpc-use-token 啟動的舊實例）。
 grpc_bind() { lsof -nP -iTCP:"$1" -sTCP:LISTEN 2>/dev/null | awk 'NR==2 {print $9}'; }
 warn_if_open() {
@@ -99,12 +107,16 @@ configure_guest_keyboard() {
 
 case "${COMMAND:-start}" in
   start)
-    if [ "$HEADLESS" = 1 ] && emu_running_instances "$(ps_lines)" | awk -v p="$PORT" '
-        $3 == p && $5 == "windowed" { found = 1 } END { exit !found }'; then
+    if [ "$HEADLESS_EXPLICIT" = 1 ] && windowed_running; then
       echo "已在執行（有視窗）；要換成 headless 請 stop 後重開"
       exit 0
     fi
-    if running && booted; then echo "✅ 已在執行且開機完成（${SERIAL}，gRPC ${GRPC}）"; warn_if_open "$GRPC"; configure_guest_keyboard || true; exit 0; fi
+    if running && booted; then
+      echo "✅ 已在執行且開機完成（${SERIAL}，gRPC ${GRPC}）"
+      if [ "$HEADLESS" = 1 ] && windowed_running; then
+        echo "   這台有模擬器視窗（舊的啟動方式）；要只留 Mirage 請 stop 後重開"
+      fi
+      warn_if_open "$GRPC"; configure_guest_keyboard || true; exit 0; fi
     if running; then echo "⏳ 已在執行，等待開機完成…"; else
       if other=$(emu_avd_conflict "$(ps_lines)" "$AVD" "$PORT"); then
         echo "❌ AVD ${AVD} 已在 console 埠 ${other} 上執行。同一個 AVD 不能開第二台——每台要各自一個 AVD（規格 §3.1），用 tools/provision 加一台再以 -n 指定。" >&2

@@ -283,25 +283,34 @@ fixture_emu() {
         MIRAGE_AVD='' MIRAGE_PORT='' MIRAGE_GRPC='' \
         bash "$SCRIPT_DIR/../emu.sh" "$@" < /dev/null
 }
-for mode in default flag_first name_first command_first env; do
+# 預設無視窗（2026-09-17）：模擬器自己的視窗與 Mirage 並存時，使用者看錯視窗、以為字幕沒出現。
+# headless 為 unset 表示不設環境變數，驗的才是真正的預設值。
+for mode in default flag_first name_first command_first env windowed_flag env_off; do
     rm -f "$SDK_FIXTURE/launch-args"
     case "$mode" in
-      default) args=(start); headless=0; avd=mirage-game ;;
-      flag_first) args=(-H -n mirage-poc start); headless=0; avd=mirage-poc ;;
-      name_first) args=(-n mirage-poc -H start); headless=0; avd=mirage-poc ;;
-      command_first) args=(start -H -n mirage-poc); headless=0; avd=mirage-poc ;;
-      env) args=(start); headless=1; avd=mirage-game ;;
+      default) args=(start); headless=unset; avd=mirage-game; expected=1 ;;
+      flag_first) args=(-H -n mirage-poc start); headless=unset; avd=mirage-poc; expected=1 ;;
+      name_first) args=(-n mirage-poc -H start); headless=unset; avd=mirage-poc; expected=1 ;;
+      command_first) args=(start -H -n mirage-poc); headless=unset; avd=mirage-poc; expected=1 ;;
+      env) args=(start); headless=1; avd=mirage-game; expected=1 ;;
+      windowed_flag) args=(-W -n mirage-poc start); headless=unset; avd=mirage-poc; expected=0 ;;
+      env_off) args=(start); headless=0; avd=mirage-game; expected=0 ;;
     esac
-    START_OUT=$(MIRAGE_EMU_PS_LINES='' MIRAGE_HEADLESS="$headless" fixture_emu "${args[@]}")
+    if [ "$headless" = unset ]; then
+        START_OUT=$(MIRAGE_EMU_PS_LINES='' fixture_emu "${args[@]}")
+    else
+        START_OUT=$(MIRAGE_EMU_PS_LINES='' MIRAGE_HEADLESS="$headless" fixture_emu "${args[@]}")
+    fi
     check "${mode}：啟動成功" "$?" 0
     check "${mode}：正確 AVD" "$(sed -n '2p' "$SDK_FIXTURE/launch-args")" "$avd"
-    if [ "$mode" = default ]; then expected=0; else expected=1; fi
     check "${mode}：-no-window 數量" "$(grep -c -- '^-no-window$' "$SDK_FIXTURE/launch-args")" "$expected"
 done
 for mode in flag env; do
     rm -f "$SDK_FIXTURE/launch-args" "$SDK_FIXTURE/adb-calls"
-    if [ "$mode" = flag ]; then args=(-H start); headless=0; else args=(start); headless=1; fi
-    START_OUT=$(MIRAGE_EMU_PS_LINES="$PS_ONE" MIRAGE_HEADLESS="$headless" fixture_emu "${args[@]}")
+    case "$mode" in
+      flag) START_OUT=$(MIRAGE_EMU_PS_LINES="$PS_ONE" fixture_emu -H start) ;;
+      env) START_OUT=$(MIRAGE_EMU_PS_LINES="$PS_ONE" MIRAGE_HEADLESS=1 fixture_emu start) ;;
+    esac
     check "${mode}：有視窗實例退出 0" "$?" 0
     check "${mode}：提示手動重開" "$START_OUT" '已在執行（有視窗）；要換成 headless 請 stop 後重開'
     [ ! -f "$SDK_FIXTURE/launch-args" ] && [ ! -f "$SDK_FIXTURE/adb-calls" ]
@@ -317,6 +326,19 @@ fixture_emu -H -n > /dev/null 2>&1
 check "-n 缺名稱退出 2" "$?" 2
 fixture_emu -n -H start > /dev/null 2>&1
 check "-n 不會吞掉 -H" "$?" 2
+rm -f "$SDK_FIXTURE/launch-args"
+START_OUT=$(MIRAGE_EMU_PS_LINES="$PS_ONE" fixture_emu -W start)
+check "-W：有視窗實例保持冪等" "$?" 0
+[ ! -f "$SDK_FIXTURE/launch-args" ]
+check "-W：有視窗實例不重開" "$?" 0
+[[ "$START_OUT" != *'舊的啟動方式'* ]]
+check "-W：有視窗實例不提示改無視窗" "$?" 0
+START_OUT=$(MIRAGE_EMU_PS_LINES="$PS_ONE" fixture_emu start)
+check "預設：有視窗實例退出 0（不當成要換模式）" "$?" 0
+[[ "$START_OUT" == *'已在執行且開機完成'* && "$START_OUT" == *'舊的啟動方式'* ]]
+check "預設：有視窗實例冪等並提示可改無視窗" "$?" 0
+[ ! -f "$SDK_FIXTURE/launch-args" ]
+check "預設：有視窗實例不重開" "$?" 0
 
 echo ""
 if [ "$FAILURES" -eq 0 ]; then

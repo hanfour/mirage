@@ -441,12 +441,13 @@ extension）、`AppDelegate`、`KeymapController`、`AdbClient`、`GameDetector`
   `MIRAGE_INSTANCES` 可整份覆寫；不帶 `-n` 時選第一台並套用既有的
   `MIRAGE_AVD`／`MIRAGE_PORT`／`MIRAGE_GRPC` 覆寫。
   `status` 列出所有執行中的實例、視窗模式（有／headless）與 gRPC 綁定位址；`stop` 只停指定那台。
-- **無視窗啟動**：`./scripts/emu.sh -H start` 或
-  `MIRAGE_HEADLESS=1 ./scripts/emu.sh start`，啟動時加上 `-no-window`，桌面只留 Mirage。
-  可搭配指定實例：`./scripts/emu.sh -H -n mirage-poc start`，`-H` 與 `-n` 順序不限；
-  不帶 `-H` 且未設 `MIRAGE_HEADLESS=1` 時維持有視窗。Finder 可雙擊
-  `scripts/mac/啟動模擬器（無視窗）.command`。
-  已在執行且有視窗時，`-H start` 只提示先 `stop` 再重開，不會自動重啟。
+- **預設無視窗**（2026-09-17 起）：`./scripts/emu.sh start` 會加上 `-no-window`，桌面只留 Mirage。
+  模擬器視窗和 Mirage 視窗並存時，容易盯著模擬器視窗、以為 Mirage 的字幕或疊層沒出現。
+  要開模擬器視窗：`./scripts/emu.sh -W start` 或 `MIRAGE_HEADLESS=0 ./scripts/emu.sh start`。
+  `-H` 保留相容，`-W`／`-H` 與 `-n` 順序不限。Finder 雙擊 `scripts/mac/啟動模擬器.command`
+  與 `啟動模擬器（無視窗）.command` 現在都是無視窗。
+  已經用舊方式開著視窗的實例，`start` 照常回報已在執行並提示 stop 後重開；
+  明確帶 `-H` 時只提示、不繼續設定，兩種情況都不會自動重啟。
   Mirage 視窗可以關掉（隱藏），手機連著時不休眠。
   模擬器視窗縮到 Dock 或被蓋住不影響 fps（實測）；headless 的 guest fps 也與有視窗相同
   （59.65–59.94），Mac 端 Mirage 串流平均 55.5 fps，見[量測更正](RESULTS-multi-instance.md#2026-09-15-更正-no-window-不慢視窗縮小或被蓋住也不影響)。
