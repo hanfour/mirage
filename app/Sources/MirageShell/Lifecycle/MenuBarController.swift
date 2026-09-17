@@ -205,8 +205,8 @@ final class MenuBarController: NSObject, NSMenuDelegate {
     }
 
     /// 純佈局：entries → NSMenuItem。static 是為了測試（同 `populate(instanceMenu:)` 的理由）。
-    /// QR 放 `NSMenuItem.view`（一個 `NSImageView`），不開視窗：`MirageScene` 是單一 `Window`、
-    /// `AppLifecycle` 掛在 `NSApp.windows.first`，多一個視窗會打破那個不變式。
+    /// QR 放 `NSMenuItem.view`（一個 `NSImageView`），不另開視窗：唯一的鏡像視窗由
+    /// `MirrorWindowController` 保證，QR 不需要自己的視窗。
     static func populate(remoteMenu menu: NSMenu, entries: [RemoteMenuEntry], target: AnyObject?,
                          toggleAction: Selector?, copyAction: Selector?, disconnectAction: Selector?,
                          rotateAction: Selector? = nil,

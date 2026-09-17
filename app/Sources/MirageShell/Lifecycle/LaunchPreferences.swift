@@ -50,8 +50,8 @@ final class LaunchPreferences {
         set { defaults.set(newValue, forKey: Self.speechEnabledKey) }
     }
 
-    /// `start()` 完成之後視窗要怎麼處理。視窗在 `start()` 之前已經先藏起來（縮短露出時間），
-    /// 這裡只決定之後要不要休眠或叫回來。
+    /// `start()` 完成之後視窗要怎麼處理。背景模式根本不建立視窗，
+    /// 這裡只決定之後要不要休眠或把視窗建立並顯示出來。
     enum WindowStep: Equatable {
         /// 一般模式：不動視窗。
         case keep
@@ -66,7 +66,8 @@ final class LaunchPreferences {
         return remoteStarted ? .suspendHidden : .reshow
     }
 
-    /// 背景模式不在 Dock 與 ⌘Tab 出現。在 Dock 點圖示會讓 SwiftUI 把隱藏的視窗叫回來。
+    /// 背景模式（accessory）只讓圖示不出現在 Dock 與 ⌘Tab。點 Dock 圖示叫回視窗由
+    /// `AppDelegate.applicationShouldHandleReopen` 負責。
     static func launchActivationPolicy(backgroundMode: Bool) -> NSApplication.ActivationPolicy {
         backgroundMode ? .accessory : .regular
     }

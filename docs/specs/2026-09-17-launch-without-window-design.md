@@ -91,8 +91,9 @@ MirrorRootView (SwiftUI)    原 Window { } 內的 ZStack、兩個 .alert、.fram
 單一視窗的保證（D30）改由 `MirrorWindowController` 負責：只有 `window()` 會建立 `NSWindow`，
 且只建立一次。`Settings` 場景沒有 ⌘N，不會產生第二個鏡像視窗。
 
-改用 `windowController` 取得視窗的地方：`AppModel.wake()`、`applyBackgroundModeAfterStart`、
-`AppDelegate.applicationWillTerminate` 的診斷輸出。`NSApp.keyWindow` 的用法（全螢幕切換、
+改用 `windowController` 取得視窗的地方：`AppModel.wake()`、`applyBackgroundModeAfterStart`。
+`AppDelegate.applicationWillTerminate` 的診斷輸出仍列出 `NSApp.windows` 的所有視窗，只是診斷，
+不影響行為。`NSApp.keyWindow` 的用法（全螢幕切換、
 `shouldCapture`）不需要改，因為鏡像視窗仍是唯一會成為 key 的一般視窗。
 
 ## 6. 第二階段的成員歸屬（本階段不搬動）

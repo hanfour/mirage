@@ -14,7 +14,7 @@ final class AppModel {
     let box: any FrameSink
     /// `client.start` 實際拿到的 sink。遙控關閉時**就是** `box`（同一個物件，行為零改變）；
     /// 開啟時是 `BroadcastFrameSink(primary: box, secondary:)`。Renderer 一直拿 `box`
-    /// （`MirageScene.swift:46`），扇出的 `takeLatest` 代理到它，所以 Renderer 不必知道這件事。
+    /// （`MirrorRootView.swift`），扇出的 `takeLatest` 代理到它，所以 Renderer 不必知道這件事。
     /// 切換模擬器也傳它（`AppModel+Instances.swift`），否則遙控開著時切台會讓扇出靜默消失。
     @ObservationIgnored var activeSink: any FrameSink
     /// 手機遙控的執行期；nil = 功能關閉。
@@ -51,7 +51,7 @@ final class AppModel {
     let inputQueue: InputQueue
     let textInput: TextInputPresentation
 
-    /// **參數都有預設值，產品呼叫端（`MirageScene` 的 `@State private var model = AppModel()`）
+    /// **參數都有預設值，產品呼叫端（`AppDelegate.applicationWillFinishLaunching` 的 `AppModel()`）
     /// 一個字都不用改。** 開這道縫只為了測試能餵暫存目錄與固定的 starter——構造 `AppModel`
     /// 原本會在使用者真實的 Application Support 底下建目錄（D13 記載的「光建構就有 8 個
     /// 全域副作用」之一），測試不該碰那裡。

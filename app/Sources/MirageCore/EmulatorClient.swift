@@ -133,9 +133,10 @@ public actor EmulatorClient {
     /// 啟動連線迴圈。**已在跑時忽略重複呼叫**（D30）。
     ///
     /// 原本這裡直接覆寫 `loopTask`：舊 Task 既不取消、`running` 也還是 true，於是舊迴圈
-    /// 繼續跑，兩條連線迴圈同時對同一個 actor 搶 `attachStream()`。真實觸發路徑是 App 層
+    /// 繼續跑，兩條連線迴圈同時對同一個 actor 搶 `attachStream()`。當時的觸發路徑是 App 層
     /// 啟動序列掛在 `WindowGroup` 的 `.task` 上——`.task` 每個視窗跑一次，而 `AppModel`
     /// 整個 App 只有一份，開第二個視窗（⌘N）就會對同一個 client 再 `start()` 一次。
+    /// 現在啟動改由 `AppDelegate` 呼叫 `AppModel.launch()`，只跑一次；這道防護保留。
     ///
     /// **選擇忽略而不是「先 stop 再 start」**：呼叫端傳的是同一個 box 與同一組尺寸，
     /// 重啟只會平白斷一次線；要換串流尺寸有 `setStreamSize` 專門負責。`stop()` 會把
