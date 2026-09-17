@@ -29,6 +29,8 @@ final class SpeechTranscriber {
     /// 之後就在「開一段、被舊任務清掉」之間空轉，畫面再也不更新。
     /// 每個回呼帶著自己的世代，過期的一律忽略。
     private var generation = 0
+    /// 這一段辨識到目前為止要顯示的文字。最終結果可能是空字串，見 `SpeechSegmentText`。
+    private var segmentText = SpeechSegmentText()
     private let format: AVAudioFormat?
     private let onTranscript: (SpeechTranscript) -> Void
 
@@ -82,6 +84,7 @@ final class SpeechTranscriber {
         endSegment()
         generation += 1
         let generation = self.generation
+        segmentText = SpeechSegmentText()
         let request = SFSpeechAudioBufferRecognitionRequest()
         request.requiresOnDeviceRecognition = true
         request.shouldReportPartialResults = true
@@ -99,7 +102,11 @@ final class SpeechTranscriber {
                 if Self.logEnabled {
                     print("[speech] gen=\(generation) final=\(result.isFinal) len=\(text.count)")
                 }
-                self.onTranscript(SpeechTranscript(text: text, isFinal: result.isFinal))
+                let (next, shown) = self.segmentText.observing(text)
+                self.segmentText = next
+                if let shown {
+                    self.onTranscript(SpeechTranscript(text: shown, isFinal: result.isFinal))
+                }
                 if result.isFinal { self.clearSegment() }
             }
         }
