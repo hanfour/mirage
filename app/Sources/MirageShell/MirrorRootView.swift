@@ -13,7 +13,8 @@ struct MirrorRootView: View {
             MirrorView(client: model.client, box: model.box,
                        controller: model.keymap, isEditing: model.editing, textInput: model.textInput,
                        queue: model.inputQueue,
-                       onFrameSize: { w, h in model.frameSize = (w: w, h: h) })
+                       onFrameSize: { w, h in model.frameSize = (w: w, h: h) },
+                       onStreamDemand: { w, h in await model.updateWindowStreamDemand(width: w, height: h) })
                 .dropDestination(for: URL.self) { urls, _ in
                     let apks = urls.filter { $0.pathExtension.lowercased() == "apk" }
                     guard !apks.isEmpty else { return false }

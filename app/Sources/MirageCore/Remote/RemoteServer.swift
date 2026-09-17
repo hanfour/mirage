@@ -71,12 +71,14 @@ public final class RemoteServer: @unchecked Sendable {
                 onKey: @escaping @Sendable (KeyCode) -> Void = { _ in },
                 onClientStats: @escaping @Sendable (RemoteClientStats) -> Void = { _ in },
                 onKeyframeRequested: @escaping @Sendable () -> Void = {},
+                onViewport: @escaping @Sendable (RemoteViewport?) -> Void = { _ in },
                 onStateChanged: @escaping @Sendable (RemoteSessionState) -> Void = { _ in },
                 now: @escaping @Sendable () -> ContinuousClock.Instant = { .now })
     {
         self.configuration = configuration
         core = RemoteServerCore(configuration: configuration, onTouches: onTouches, onText: onText, onKey: onKey,
                                 onClientStats: onClientStats, onKeyframeRequested: onKeyframeRequested,
+                                onViewport: onViewport,
                                 onStateChanged: onStateChanged, now: now)
     }
 

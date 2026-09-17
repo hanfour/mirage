@@ -184,6 +184,28 @@ test('failed or oversized text submissions retain the local draft and show an er
   }
 });
 
+test('viewport is reported once input opens, deduplicated, and ignores the keyboard', () => {
+  const listeners = {}, viewport = {height:800, width:390, offsetTop:0, offsetLeft:0,
+    addEventListener(type, listener) { listeners[type] = listener; }};
+  const h = harness({viewport});
+  h.sockets[0].onopen();
+  const input = h.sockets[1];
+  const reports = () => input.sent.map(s => JSON.parse(s)).filter(m => m.type === 'viewport');
+  listeners.resize();
+  assert.deepEqual(reports(), [], 'input 還沒 onopen 不該送');
+  assert.equal(h.run('inputDrops'), 0);
+  input.onopen();
+  assert.deepEqual(reports(), [{type:'viewport', width:390, height:800, scale:1}]);
+  listeners.scroll();
+  assert.equal(reports().length, 1, '尺寸沒變不重送');
+  h.elements['#text-input'].focus();
+  viewport.height = 420; listeners.resize();
+  assert.equal(reports().length, 1, '鍵盤擠掉的高度不回報');
+  h.elements['#text-input'].blur();
+  viewport.width = 800; viewport.height = 370; listeners.resize();
+  assert.deepEqual(reports().at(-1), {type:'viewport', width:800, height:370, scale:1});
+});
+
 test('visual viewport resize and scroll keep the canvas above the iOS keyboard', () => {
   const listeners = {}, viewport = {height:800, width:390, offsetTop:0, offsetLeft:0,
     addEventListener(type, listener) { listeners[type] = listener; }};

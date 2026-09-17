@@ -171,8 +171,12 @@ struct MirrorView: NSViewRepresentable {
     let queue: InputQueue
     /// Task 4：幀尺寸同時餵給容器（佈局用）與 `AppModel`（overlay 算內容矩形用）。
     let onFrameSize: (Int, Int) -> Void
+    /// 視窗需要的串流尺寸。不直接設給 client：手機遙控也有需求，由 `AppModel` 合併兩者。
+    let onStreamDemand: @MainActor (_ width: Int, _ height: Int) async -> Void
 
-    func makeCoordinator() -> Coordinator { Coordinator(client: client, queue: queue) }
+    func makeCoordinator() -> Coordinator {
+        Coordinator(client: client, queue: queue, onStreamDemand: onStreamDemand)
+    }
 
     func makeNSView(context: Context) -> MirrorContainerView {
         let container = MirrorContainerView(frame: .zero)
@@ -240,9 +244,13 @@ struct MirrorView: NSViewRepresentable {
         private var resizeTask: Task<Void, Never>?
         private static let defaultStreamSize = (w: 540, h: 1200)
 
-        init(client: EmulatorClient, queue: InputQueue) {
+        private let onStreamDemand: @MainActor (Int, Int) async -> Void
+
+        init(client: EmulatorClient, queue: InputQueue,
+             onStreamDemand: @escaping @MainActor (Int, Int) async -> Void = { _, _ in }) {
             self.client = client
             self.queue = queue
+            self.onStreamDemand = onStreamDemand
         }
 
         func sendMouse(nx: Double, ny: Double, down: Bool) {
@@ -273,7 +281,7 @@ struct MirrorView: NSViewRepresentable {
                 let h = StreamSize.height(forWidth: w, aspect: aspect)
                 // 只換串流解析度。觸控座標**不隨它改變**——那是 guest 實體螢幕的事，
                 // 由 EmulatorClient 從健康探測取得，與我們請求多大的畫面無關。
-                await client.setStreamSize(width: w, height: h)
+                await onStreamDemand(w, h)
             }
         }
     }

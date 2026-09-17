@@ -63,6 +63,14 @@ public enum StreamSize {
         return frame.w > frame.h ? (w: long, h: short) : (w: short, h: long)
     }
 
+    /// 手機顯示區域（換成實體像素）放得下的最大畫面，再套用與視窗相同的上下限。
+    public static func fitting(_ viewport: RemoteViewport, aspect: (w: Int, h: Int)) -> (w: Int, h: Int) {
+        let pixels = (w: Int(viewport.width * viewport.scale), h: Int(viewport.height * viewport.scale))
+        let fit = ViewportFit.fit(frame: aspect, in: pixels)
+        let w = width(forContentWidth: fit.width, aspect: aspect)
+        return (w: w, h: height(forWidth: w, aspect: aspect))
+    }
+
     /// 由寬與長寬比推回高度（偶數對齊，下限 2）。
     public static func height(forWidth width: Int, aspect: (w: Int, h: Int)) -> Int {
         guard aspect.w > 0, aspect.h > 0 else { return 2 }

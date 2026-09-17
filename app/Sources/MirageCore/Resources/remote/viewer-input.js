@@ -144,6 +144,19 @@ function resizeViewport() {
   canvas.style.setProperty('width', width + 'px');
   canvas.style.setProperty('height', canvasHeight + 'px');
   canvas.style.setProperty('transform', `translateY(${keyboardOpen ? height - canvasHeight : 0}px)`);
+  // 鍵盤開著時高度被擠掉，用鍵盤出現前的高度回報，否則每開一次鍵盤串流就重新要求一次。
+  reportViewport(width, keyboardOpen ? viewportBaseline : height);
+}
+// Mac 端依此決定串流解析度。只送變化；input 還沒開就先不送（onopen 會補送），
+// 也不走 send()：沒連上不是丟掉使用者的輸入，不該算進 inputDrops。
+let reportedViewport = '';
+function reportViewport(width, height) {
+  const scale = devicePixelRatio || 1;
+  const key = `${Math.round(width)}x${Math.round(height)}@${scale}`;
+  if (key === reportedViewport || !(width > 0 && height > 0)) return;
+  if (!inputReady || input?.readyState !== WebSocket.OPEN) return;
+  input.send(JSON.stringify({type:'viewport', width:Math.round(width), height:Math.round(height), scale}));
+  reportedViewport = key;
 }
 if (typeof visualViewport !== 'undefined' && visualViewport) {
   visualViewport.addEventListener('resize', resizeViewport);
@@ -183,7 +196,7 @@ textInput.addEventListener('beforeinput', e => {
 function connectInput() {
   input = new WebSocket(base + '/ws/input' + query);
   const current = generation;
-  input.onopen = () => { if (current !== generation) return; inputReady = true; connectionHealthy(); note('input connected'); };
+  input.onopen = () => { if (current !== generation) return; inputReady = true; connectionHealthy(); note('input connected'); reportedViewport = ''; resizeViewport(); };
   input.onclose = () => { if (current === generation) reconnect('input disconnected'); };
   input.onerror = () => { if (current === generation) reconnect('input WebSocket error'); };
   input.onmessage = event => {

@@ -36,6 +36,7 @@ final class RemoteServerCore: @unchecked Sendable {
     private let onTouches: @Sendable ([TouchSpec]) -> Void
     private let onClientStats: @Sendable (RemoteClientStats) -> Void
     private let onKeyframeRequested: @Sendable () -> Void
+    private let onViewport: @Sendable (RemoteViewport?) -> Void
     private let onStateChanged: @Sendable (RemoteSessionState) -> Void
     private let now: @Sendable () -> ContinuousClock.Instant
 
@@ -72,6 +73,7 @@ final class RemoteServerCore: @unchecked Sendable {
          onKey: @escaping @Sendable (KeyCode) -> Void = { _ in },
          onClientStats: @escaping @Sendable (RemoteClientStats) -> Void = { _ in },
          onKeyframeRequested: @escaping @Sendable () -> Void,
+         onViewport: @escaping @Sendable (RemoteViewport?) -> Void = { _ in },
          onStateChanged: @escaping @Sendable (RemoteSessionState) -> Void,
          now: @escaping @Sendable () -> ContinuousClock.Instant)
     {
@@ -81,6 +83,7 @@ final class RemoteServerCore: @unchecked Sendable {
         self.onKey = onKey
         self.onText = onText
         self.onKeyframeRequested = onKeyframeRequested
+        self.onViewport = onViewport
         self.onStateChanged = onStateChanged
         self.now = now
         queue = RemoteVideoQueue(limit: configuration.queueLimit)
@@ -178,6 +181,11 @@ final class RemoteServerCore: @unchecked Sendable {
         if kind == .video || kind == .audio { resetAudioLocked() }
         let effects = applyLocked(kind.closed)
         pendingEffects.append(contentsOf: effects)
+        // video 關閉時 input 已在上面撤銷，它自己的 closeFuture 不會再走到這裡，所以兩種都要清。
+        if kind == .input || kind == .video {
+            let onViewport = self.onViewport
+            pendingEffects.append { onViewport(nil) }
+        }
         lock.unlock()
         for channel in pairedChannels { channel.close(promise: nil) }
         performEffects()
@@ -377,6 +385,12 @@ final class RemoteServerCore: @unchecked Sendable {
         case .success(.ping):
             lock.unlock()
             return text
+        case .success(.viewport(let viewport)):
+            let onViewport = self.onViewport
+            pendingEffects.append { onViewport(viewport) }
+            lock.unlock()
+            performEffects()
+            return nil
         case .success(.text(let text, time: _)):
             let onText = self.onText
             pendingEffects.append { onText(text) }
