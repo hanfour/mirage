@@ -29,6 +29,7 @@ import Testing
         let states: StateRecorder<RemoteSessionState>
         let keyframes: CountGate
         let viewports: StateRecorder<RemoteViewport?>
+        let textResumes: CountGate
     }
 
     private func start() async throws -> Harness {
@@ -39,6 +40,7 @@ import Testing
         let states = StateRecorder<RemoteSessionState>()
         let keyframes = CountGate()
         let viewports = StateRecorder<RemoteViewport?>()
+        let textResumes = CountGate()
         let server = RemoteServer(
             configuration: RemoteServerConfiguration(host: "127.0.0.1", port: 0, token: Self.token, viewerPage: Self.page),
             onTouches: { specs in
@@ -46,13 +48,14 @@ import Testing
                 Task { await touches.record(specs) }
             },
             onText: { text in Task { await texts.record(text) } },
+            onTextResume: { textResumes.increment() },
             onKey: { code in Task { await keys.record(code) } },
             onKeyframeRequested: { keyframes.increment() },
             onViewport: { viewport in Task { await viewports.record(viewport) } },
             onStateChanged: { state in Task { await states.record(state) } })
         let port = try await server.start()
         return Harness(server: server, port: port, touches: touches, keys: keys, texts: texts, touchCalls: touchCalls,
-                       states: states, keyframes: keyframes, viewports: viewports)
+                       states: states, keyframes: keyframes, viewports: viewports, textResumes: textResumes)
     }
 
     private func url(_ port: Int, _ path: String, token: String? = RemoteServerTests.token.value, scheme: String = "http") -> URL {
@@ -335,6 +338,23 @@ import Testing
             let texts = await h.texts.items
             #expect(texts == ["中文🙂"])
             #expect(h.server.stats().invalidInputMessages == 2)
+        }
+    }
+
+    /// 手機端的恢復要真的走到 Mac 的回呼；暫停狀態只送得到手機而解不開，等於沒有出口。
+    @Test func inputForwardsTextResume() async throws {
+        try await withServer { h in
+            let video = webSocket(h.port, "/ws/video")
+            defer { video.cancel(with: .normalClosure, reason: nil) }
+            await h.keyframes.wait(for: 1)
+            let input = webSocket(h.port, "/ws/input")
+            defer { input.cancel(with: .normalClosure, reason: nil) }
+            try await input.send(.string(#"{"type":"textResume"}"#))
+            await h.textResumes.wait(for: 1)
+            // 連線要照常活著，恢復不是一次性的拋棄式訊息。
+            try await input.send(.string(Self.ping))
+            #expect(try await receiveText(input) == Self.ping)
+            #expect(h.server.stats().invalidInputMessages == 0)
         }
     }
 

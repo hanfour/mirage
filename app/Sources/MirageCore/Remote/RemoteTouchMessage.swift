@@ -51,6 +51,9 @@ public struct RemoteViewport: Sendable, Equatable {
 
 public enum RemoteInputMessage: Sendable, Equatable {
     case ping
+    /// 手機端解除文字提交暫停。沒有欄位：它只表達「使用者已核對過欄位，繼續」，
+    /// 不攜帶任何要重送的內容，恢復永遠不重播舊稿。
+    case textResume
     case clientStats(RemoteClientStats)
     case key(KeyCode, time: Double)
     case text(String, time: Double)
@@ -78,6 +81,7 @@ public enum RemoteInputDecodeError: Error, Equatable {
 public enum RemoteTouchMessageDecoder {
     public static let maximumTextUTF16Length = 4096
     private static let pingType = "ping"
+    private static let textResumeType = "textResume"
 
     public static func decode(_ text: String) -> Result<RemoteInputMessage, RemoteInputDecodeError> {
         guard let data = text.data(using: .utf8),
@@ -87,6 +91,7 @@ public enum RemoteTouchMessageDecoder {
         guard let type = fields["type"] as? String else { return .failure(.missingField("type")) }
         if type == "client-stats" { return clientStats(fields) }
         if type == pingType { return .success(.ping) }
+        if type == textResumeType { return .success(.textResume) }
         if type == "viewport" { return viewport(fields) }
         if type == "text" { return textCommit(fields) }
         if type == "key" { return navigationKey(fields) }

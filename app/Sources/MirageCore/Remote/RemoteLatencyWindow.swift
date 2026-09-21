@@ -22,6 +22,9 @@ public struct RemoteLatencySummary: Codable, Sendable, Equatable {
     public var inputCoalesced: Int = 0
     public var emulatorConnected: Bool = false
     public var secondsSinceNewFrame: Double = 0
+    /// 文字提交暫停的原因；nil 代表通道正常。手機端只有這一條路知道自己被拒絕，
+    /// 因為 `onText` 是單向的，送出去沒有回程。
+    public var textPaused: String?
 }
 
 /// 沿用 LatencyWindow 的 nearest-rank 百分位及 TransitWindow 的無效值過濾。

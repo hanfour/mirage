@@ -172,4 +172,62 @@ func receipt(_ stream: AsyncStream<TextCommitResult>) async throws -> TextCommit
         #expect(await fake.clipboard == "host-new")
         #expect(await fake.keys.filter { $0 == "v:true" }.count == 1)
     }
+
+    /// Paste 已送出後失焦：不該把已完成的動作說成結果不明，更不該暫停整條通道。
+    /// 這是手機遙控打字整個失效的路徑：Mac 視窗焦點與遠端送來的文字無關。
+    @Test func focusLossAfterPasteNeitherFailsTheCommitNorPausesTheChannel() async throws {
+        let (queue, fake, _) = setup(policy: try TextSubmissionPolicy())
+        await fake.armPaste { [weak queue] in queue?.invalidateTextSession() }
+        let a = queue.commitText(TextCommit(text: "A", generation: 0))
+        #expect(try await receipt(a).outcome == .submittedUnverified)
+        #expect(queue.textCoordinator.status.paused == nil)
+        let b = queue.commitText(TextCommit(text: "B", generation: queue.textCoordinator.status.generation))
+        #expect(try await receipt(b).outcome == .submittedUnverified)
+        await queue.drained()
+        #expect(await fake.inserted == ["A", "B"])
+    }
+
+    /// 失焦仍必須擋住「還沒貼出去」的舊 session 文字，這條保護不能因為上面那個修法消失。
+    @Test func focusLossBeforePasteStillBlocksTheStaleCommit() async throws {
+        let (queue, fake, _) = setup(policy: try TextSubmissionPolicy(), blockRead: true)
+        let a = queue.commitText(TextCommit(text: "A", generation: 0))
+        await fake.waitForBlockedRead()
+        queue.invalidateTextSession()
+        await fake.unblockRead()
+        #expect(try await receipt(a).outcome == .cancelledBeforeDispatch(.staleSession))
+        #expect(await fake.keys.isEmpty)
+    }
+
+    /// Mac 視窗焦點跟手機送來的文字沒有關係，不該把它丟掉。
+    ///
+    /// 失焦只作廢本機來源尚未送出的交易；遠端的工作階段由 viewer 的連線決定，
+    /// 不由 Mac 的視窗狀態決定。
+    @Test func macFocusLossNeitherDiscardsNorPausesRemoteCommits() async throws {
+        let (queue, fake, _) = setup(policy: try TextSubmissionPolicy(), blockRead: true)
+        let remote = queue.commitText(
+            TextCommit(text: "R", generation: queue.textGeneration(for: .remote), origin: .remote))
+        await fake.waitForBlockedRead()
+        queue.invalidateTextSession()
+        await fake.unblockRead()
+        #expect(try await receipt(remote).outcome == .submittedUnverified)
+        #expect(queue.textCoordinator.status.paused == nil)
+        await queue.drained()
+        #expect(await fake.inserted == ["R"])
+    }
+
+    /// 同一次失焦仍要擋住本機來源、尚未送出的那筆，兩種來源的判定互不干擾。
+    @Test func oneFocusLossBlocksLocalButKeepsRemoteUsable() async throws {
+        let (queue, fake, _) = setup(policy: try TextSubmissionPolicy(), blockRead: true)
+        let local = queue.commitText(
+            TextCommit(text: "L", generation: queue.textGeneration(for: .local), origin: .local))
+        await fake.waitForBlockedRead()
+        queue.invalidateTextSession()
+        await fake.unblockRead()
+        #expect(try await receipt(local).outcome == .cancelledBeforeDispatch(.staleSession))
+        let remote = queue.commitText(
+            TextCommit(text: "R", generation: queue.textGeneration(for: .remote), origin: .remote))
+        #expect(try await receipt(remote).outcome == .submittedUnverified)
+        await queue.drained()
+        #expect(await fake.inserted == ["R"])
+    }
 }

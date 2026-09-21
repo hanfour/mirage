@@ -277,3 +277,33 @@ test('expanded stats occupy at most forty percent and only the toggle intercepts
   button.listeners.click();
   assert.equal(text.hidden, true);
 });
+
+function textState(h, textPaused) {
+  h.sockets[0].onmessage({data: JSON.stringify({type: 'stats', emulatorConnected: true, secondsSinceNewFrame: 0, textPaused})});
+}
+
+test('paused text submission is visible on the phone and resumable from there', () => {
+  const h = harness({search: '?t=abc&stats=0'}), banner = h.elements['#text-warning'];
+  h.sockets[0].onopen();
+  const input = h.sockets[1];
+  assert.equal(banner.hidden, true);
+  textState(h, 'clipboardConflict');
+  assert.equal(banner.hidden, false);
+  assert.equal(banner.textContent, '文字輸入已暫停：剪貼簿被其他程式改動。點這裡核對後恢復');
+  banner.listeners.click();
+  assert.deepEqual(JSON.parse(input.sent.at(-1)), {type: 'textResume'});
+  assert.equal(banner.hidden, true);
+  // Mac 端真的恢復之後，下一則 stats 不會再把橫幅叫回來。
+  textState(h, null);
+  assert.equal(banner.hidden, true);
+});
+
+test('unknown pause reasons still reach the phone instead of being swallowed', () => {
+  const h = harness(), banner = h.elements['#text-warning'];
+  textState(h, 'transport("disconnected")');
+  assert.equal(banner.textContent, '文字輸入已暫停：與模擬器的連線出問題。點這裡核對後恢復');
+  textState(h, 'somethingNobodyMappedYet');
+  assert.equal(banner.textContent, '文字輸入已暫停：somethingNobodyMappedYet。點這裡核對後恢復');
+  textState(h, undefined);
+  assert.equal(banner.hidden, true);
+});

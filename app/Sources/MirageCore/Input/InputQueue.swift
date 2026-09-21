@@ -173,7 +173,8 @@ public final class InputQueue: Sendable {
             let duration = admission.policy.settleDelay.components
             textDiagnostics.record("commit-enqueued", ["commitID": commit.id.uuidString,
                 "textSHA256": TextInputDiagnostics.hash(commit.text), "utf16Length": String(commit.text.utf16.count),
-                "generation": String(commit.generation), "route": "clipboard-w3c-paste",
+                "generation": String(commit.generation), "origin": commit.origin.rawValue,
+                "route": "clipboard-w3c-paste",
                 "settleMS": String(duration.seconds * 1000 + duration.attoseconds / 1_000_000_000_000_000)])
             cont.yield(.text(commit, admission, receipt))
         case .rejected(let result):
@@ -195,9 +196,24 @@ public final class InputQueue: Sendable {
     }
     public func observeGuestClipboard(_ text: String) -> Bool { textCoordinator.observeGuestClipboard(text) }
     public func invalidateTextSession() { textCoordinator.invalidateSession() }
+    /// viewer 換連線時作廢遠端工作階段，與 Mac 視窗焦點無關。
+    public func invalidateRemoteTextSession() { textCoordinator.invalidateRemoteSession() }
+    public func textGeneration(for origin: TextCommitOrigin) -> UInt64 {
+        textCoordinator.generation(for: origin)
+    }
     public func pauseTextSubmissions() { textCoordinator.pause() }
+    /// 恢復是關鍵操作：被拒絕時整條文字通道仍然不通，而呼叫端（手機端尤其）看不到回傳值。
+    /// 這裡留下拒絕的理由，否則只能從外部反覆猜。
     @discardableResult public func resumeTextSubmissions(acknowledgingUncertainty: Bool = false) -> Bool {
+        let before = textCoordinator.status
         let result = textCoordinator.resume(acknowledgingUncertainty: acknowledgingUncertainty)
+        textDiagnostics.record("resume", [
+            "acknowledged": String(acknowledgingUncertainty),
+            "resumed": String(result.resumed),
+            "pausedBefore": before.paused.map { String(describing: $0) } ?? "none",
+            "pendingBefore": String(before.pending),
+            "unresolvedBefore": before.unresolvedUncertainty.map { String(describing: $0.outcome) } ?? "none",
+            "pausedAfter": textCoordinator.status.paused.map { String(describing: $0) } ?? "none"])
         if let revision = result.hostRevision { cont.yield(.clipboard(revision)) }
         return result.resumed
     }
