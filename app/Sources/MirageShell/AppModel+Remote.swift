@@ -66,6 +66,8 @@ extension AppModel {
         remote = nil
         await controller.stop()
         await inputQueue.drained()
+        // 換配對等於換遠端工作階段：舊 viewer 排好但還沒送出的文字不能貼進新的一次連線。
+        inputQueue.invalidateRemoteTextSession()
         _ = controller.secondary.takeLatest() // 新配對不要送出停服前的殘留幀。
         await startRemote(host: controller.host, port: port, token: pairingTokens.token(rotate: true),
                           pullInterval: controller.pullInterval)
@@ -122,6 +124,7 @@ extension AppModel {
         if let controller { await controller.stop() }
         // server.stop 發出的 release 必須在重啟 emulator 連線前送完。
         await inputQueue.drained()
+        inputQueue.invalidateRemoteTextSession()
         remoteAudioForwarder = nil
         await switchSink(to: box, audio: currentAudioSink())
         // generation 已換，server 關閉時送出的 nil 會被擋掉，這裡自己清。

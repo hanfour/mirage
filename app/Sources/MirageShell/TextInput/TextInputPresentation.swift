@@ -41,9 +41,15 @@ final class TextInputPresentation {
         localDraft = ""
         enqueue(text, compositionID: compositionID, eventID: eventID, origin: origin)
     }
+    /// 診斷用的 origin 字串比來源列舉細（區分 input-client／test-harness 等），
+    /// 但工作階段只分本機與遠端兩種。
+    nonisolated private static func commitOrigin(_ origin: String) -> TextCommitOrigin {
+        origin == "remote" ? .remote : .local
+    }
     /// 同步入既有交易佇列；只有結果顯示切回 MainActor，遠端後續 key/touch 不會超車。
     nonisolated func enqueue(_ text: String, compositionID: UUID? = nil, eventID: UUID? = nil, origin: String) {
-        let commit = TextCommit(text: text, generation: queue.textCoordinator.status.generation)
+        let source = Self.commitOrigin(origin)
+        let commit = TextCommit(text: text, generation: queue.textGeneration(for: source), origin: source)
         queue.textDiagnostics.record("commit-request", ["commitID": commit.id.uuidString,
             "compositionID": compositionID?.uuidString ?? "none", "eventID": eventID?.uuidString ?? "none", "origin": origin])
         let stream = queue.commitText(commit)

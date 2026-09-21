@@ -13,13 +13,22 @@ public enum TextCommitOutcome: Sendable, Equatable {
     case rejected(TextCommitIssue)
 }
 
+/// 提交來源。兩者共用 guest 剪貼簿，所以 `paused` 仍是全域的；分開的只有工作階段：
+/// 本機由 Mac 的視窗焦點與輸入法狀態決定，遠端由 viewer 的連線決定。
+public enum TextCommitOrigin: String, Sendable, Equatable, CaseIterable {
+    case local, remote
+}
+
 public struct TextCommit: Sendable {
     public let id: UUID
     public let text: String
     public let generation: UInt64
+    public let origin: TextCommitOrigin
     public let createdAt: Date
-    public init(id: UUID = UUID(), text: String, generation: UInt64, createdAt: Date = Date()) {
-        self.id = id; self.text = text; self.generation = generation; self.createdAt = createdAt
+    public init(id: UUID = UUID(), text: String, generation: UInt64,
+                origin: TextCommitOrigin = .local, createdAt: Date = Date()) {
+        self.id = id; self.text = text; self.generation = generation
+        self.origin = origin; self.createdAt = createdAt
     }
 }
 

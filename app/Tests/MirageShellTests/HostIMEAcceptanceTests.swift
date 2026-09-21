@@ -5,7 +5,10 @@ import MirageCore
 @testable import MirageShell
 
 private actor IMEFailureTransport: InputInjecting, TextCommitTransport {
-    enum Fault: String, CaseIterable { case mismatch, timeout, disconnected, focus, conflict }
+    /// `healthy` 是沒有任何傳輸故障的對照組，只給
+    /// `focusDuringPasteNeitherPausesTheChannelNorReplays` 用：Paste 送出之後失焦
+    /// 不是故障，所以它不屬於底下那組故障參數。
+    enum Fault: String { case mismatch, timeout, disconnected, conflict, healthy }
     let fault: Fault
     var clipboard = ""
     var downs: [String] = []
@@ -28,7 +31,7 @@ private actor IMEFailureTransport: InputInjecting, TextCommitTransport {
 }
 
 @MainActor @Suite struct HostIMEAcceptanceTests {
-    @Test(arguments: IMEFailureTransport.Fault.allCases)
+    @Test(arguments: [IMEFailureTransport.Fault.mismatch, .timeout, .disconnected, .conflict])
     fileprivate func actualViewFailureRetainsDraftPausesAndNeverRetries(_ fault: IMEFailureTransport.Fault) async throws {
         let transport = IMEFailureTransport(fault)
         let evidence = ProcessInfo.processInfo.environment["MIRAGE_IME_FAILURE_EVIDENCE"].map { URL(fileURLWithPath: $0).appendingPathComponent(fault.rawValue) }
@@ -37,7 +40,6 @@ private actor IMEFailureTransport: InputInjecting, TextCommitTransport {
         #expect(diagnostics.error == nil)
         let queue = InputQueue(injector: transport, textTransport: transport,
                                textPolicy: .success(try TextSubmissionPolicy(settleMilliseconds: 1, readbackTimeoutMilliseconds: 5)), textDiagnostics: diagnostics)
-        if fault == .focus { await transport.setSignal { queue.invalidateTextSession() } }
         if fault == .conflict { await transport.setSignal { _ = queue.observeGuestClipboard("external-new-value") } }
         let presentation = TextInputPresentation(queue: queue)
         let view = MirrorMTKView(frame: .zero)
@@ -68,7 +70,7 @@ private actor IMEFailureTransport: InputInjecting, TextCommitTransport {
             #expect(capture.terminationStatus == 0)
         }
         let downCount = await transport.downs.count
-        let dispatched = fault == .timeout || fault == .focus || fault == .conflict
+        let dispatched = fault == .timeout || fault == .conflict
         #expect(downCount == (dispatched ? 2 : 0))
         view.keyDown(with: try MirrorTextInputRoutingTests().event(.keyDown))
         await queue.drained()
@@ -90,6 +92,38 @@ private actor IMEFailureTransport: InputInjecting, TextCommitTransport {
                 "autoReplay": false, "settleMS": 1, "note": "1ms is a fake-transport test value, not a live policy"]
             try JSONSerialization.data(withJSONObject: report, options: [.prettyPrinted, .sortedKeys]).write(to: evidence.appendingPathComponent("result.json"))
         }
+    }
+
+    /// Paste 已經送給 guest 之後視窗失焦：那一筆照常完成，通道不暫停，也不重按 Paste。
+    ///
+    /// 舊行為是把它判成 `indeterminateAfterDispatch` 並設全域 `paused`，於是 Mac 上一次
+    /// 焦點變動就讓手機遙控打字整個失效，且只剩鏡像視窗左下角那顆按鈕能解。
+    @Test func focusDuringPasteNeitherPausesTheChannelNorReplays() async throws {
+        let transport = IMEFailureTransport(.healthy)
+        let queue = InputQueue(injector: transport, textTransport: transport,
+                               textPolicy: .success(try TextSubmissionPolicy(settleMilliseconds: 1, readbackTimeoutMilliseconds: 5)))
+        await transport.setSignal { queue.invalidateTextSession() }
+        let presentation = TextInputPresentation(queue: queue)
+        let view = MirrorMTKView(frame: .zero)
+        view.textInput = presentation
+        view.interpretInput = { _ in
+            view.insertText("保留é", replacementRange: NSRange(location: NSNotFound, length: 0))
+        }
+        view.keyDown(with: try MirrorTextInputRoutingTests().event(.keyDown))
+        await queue.drained()
+        for _ in 0..<100 where presentation.results.isEmpty { await Task.yield() }
+        let first = try #require(presentation.results.first)
+        #expect(first.outcome == .submittedUnverified)
+        #expect(!presentation.paused)
+        #expect(await transport.downs == ["Control", "v"])
+
+        // 通道仍然收件：下一筆真的送得出去，而且不是重播上一筆。
+        view.keyDown(with: try MirrorTextInputRoutingTests().event(.keyDown))
+        await queue.drained()
+        for _ in 0..<100 where presentation.results.count < 2 { await Task.yield() }
+        #expect(await transport.downs == ["Control", "v", "Control", "v"])
+        #expect(presentation.results.count == 2)
+        #expect(presentation.results[1].commit.id != first.commit.id)
     }
 
     @Test func focusCancelsMarkedAndLateUnmarkCannotSubmit() throws {
