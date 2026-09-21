@@ -6,9 +6,8 @@ import Testing
 // 布林一律用 #expect(x)／#expect(!x)：`#expect(bool == bool)` 在本 repo 永遠不紅（見 D35）。
 @Suite struct LaunchPreferencesTests {
     private func withSuite(_ body: (UserDefaults) throws -> Void) throws {
-        let suite = "LaunchPreferencesTests.\(UUID().uuidString)"
-        let defaults = try #require(UserDefaults(suiteName: suite))
-        defer { defaults.removePersistentDomain(forName: suite) }
+        let (defaults, suite) = try #require(TemporaryDefaults.make("LaunchPreferencesTests"))
+        defer { TemporaryDefaults.discard(defaults, suite) }
         try body(defaults)
     }
 

@@ -40,9 +40,8 @@ private final class RemotePortBlocker {
 @Suite(.timeLimit(.minutes(1))) struct AppModelRemoteTests {
     private func withModel(_ tag: String, _ body: (AppModel) async throws -> Void) async throws {
         let (store, dir) = AppModelEditingTests.tempStore(tag)
-        let suite = "MirageRemoteTests.\(UUID().uuidString)"
-        let defaults = try #require(UserDefaults(suiteName: suite))
-        defer { defaults.removePersistentDomain(forName: suite) }
+        let (defaults, suite) = try #require(TemporaryDefaults.make("MirageRemoteTests"))
+        defer { TemporaryDefaults.discard(defaults, suite) }
         let model = AppModel(store: store, pairingTokens: PairingTokenStore(defaults: defaults, environment: [:]),
                              starterBindings: { [] })
         defer { try? FileManager.default.removeItem(at: dir) }

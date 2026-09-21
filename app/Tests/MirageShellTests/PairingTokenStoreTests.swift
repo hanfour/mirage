@@ -5,9 +5,8 @@ import Testing
 
 @Suite struct PairingTokenStoreTests {
     @Test func recreatedStoreKeepsTokenAndRotationReplacesStoredValue() throws {
-        let suite = "PairingTokenStoreTests.\(UUID().uuidString)"
-        let defaults = try #require(UserDefaults(suiteName: suite))
-        defer { defaults.removePersistentDomain(forName: suite) }
+        let (defaults, suite) = try #require(TemporaryDefaults.make("PairingTokenStoreTests"))
+        defer { TemporaryDefaults.discard(defaults, suite) }
         let first = PairingTokenStore(defaults: defaults, environment: [:]).token()
         let recreated = PairingTokenStore(defaults: defaults, environment: [:])
         #expect(recreated.token() == first)
@@ -18,9 +17,8 @@ import Testing
     }
 
     @Test func environmentOverridesWithoutOverwritingSavedValue() throws {
-        let suite = "PairingTokenStoreTests.\(UUID().uuidString)"
-        let defaults = try #require(UserDefaults(suiteName: suite))
-        defer { defaults.removePersistentDomain(forName: suite) }
+        let (defaults, suite) = try #require(TemporaryDefaults.make("PairingTokenStoreTests"))
+        defer { TemporaryDefaults.discard(defaults, suite) }
         let saved = PairingToken.generate()
         defaults.set(saved.value, forKey: PairingTokenStore.key)
         let override = "00112233445566778899aabbccddeeff"
