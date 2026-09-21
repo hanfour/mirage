@@ -260,7 +260,7 @@ async function start() {
       if (typeof event.data === 'string') {
         try {
           const message = JSON.parse(event.data);
-          if (message?.type === 'stats') { macStats = message; renderFrameWarning(message); }
+          if (message?.type === 'stats') { macStats = message; renderFrameWarning(message); renderTextWarning(message); }
           else if (message?.type === 'speech') renderSpeech(message);
         } catch(e) { note('stats JSON error: ' + e.message); }
         return;
@@ -328,6 +328,31 @@ function renderFrameWarning(stats) {
 frameWarning.addEventListener('click', () => {
   dismissedFrameEvent = frameWarningEvent;
   frameWarning.hidden = true;
+});
+// 文字提交暫停：`onText` 是單向的，送出去沒有回程，所以手機端只能從每秒的 stats 知道
+// 自己被拒絕。恢復等同承認「欄位我核對過了」，Mac 端永不重播舊稿。
+const textWarning = document.querySelector('#text-warning');
+const pauseReasons = {
+  clipboardConflict: '剪貼簿被其他程式改動',
+  staleSession: '工作階段已更換',
+  readbackTimeout: '剪貼簿回讀逾時',
+  paused: '已手動暫停',
+  cancelled: '已取消',
+  queueLimit: '待送佇列已滿',
+  queueExpired: '等待過久',
+};
+function pauseText(reason) {
+  if (typeof reason !== 'string' || !reason) return '';
+  if (pauseReasons[reason]) return pauseReasons[reason];
+  return reason.startsWith('transport') ? '與模擬器的連線出問題' : reason;
+}
+function renderTextWarning(stats) {
+  const reason = pauseText(stats.textPaused);
+  textWarning.textContent = reason ? `文字輸入已暫停：${reason}。點這裡核對後恢復` : '';
+  textWarning.hidden = !reason;
+}
+textWarning.addEventListener('click', () => {
+  if (send({type:'textResume'})) { textWarning.hidden = true; }
 });
 let macStats = null;
 function macStatsText() {

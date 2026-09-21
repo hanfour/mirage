@@ -28,6 +28,8 @@ details{background:#000c}summary{padding:8px}
 #stats-toggle{pointer-events:auto;position:absolute;top:env(safe-area-inset-top,0px);left:0;border:0;background:#000b;color:#fff;width:28px;height:28px;padding:0;touch-action:none}
 #frame-warning{position:absolute;top:calc(env(safe-area-inset-top,0px) + 36px);left:50%;transform:translateX(-50%);z-index:3;max-width:90%;padding:12px 16px;border:0;border-radius:6px;background:#b91c1c;color:#fff;font:600 15px/1.5 sans-serif;touch-action:manipulation}
 #frame-warning[hidden]{display:none}
+#text-warning{position:absolute;top:calc(env(safe-area-inset-top,0px) + 92px);left:50%;transform:translateX(-50%);z-index:3;max-width:90%;padding:12px 16px;border:0;border-radius:6px;background:#b45309;color:#fff;font:600 15px/1.5 sans-serif;touch-action:manipulation}
+#text-warning[hidden]{display:none}
 #error{position:absolute;top:env(safe-area-inset-top,0px);right:0;max-width:75vw;padding:8px;background:#7f1d1d;pointer-events:none;white-space:pre-wrap}
 #panel[hidden],details[hidden],#stats-toggle[hidden],#error[hidden]{display:none}
 </style>
@@ -43,6 +45,7 @@ details{background:#000c}summary{padding:8px}
 <button id="nav-handle" type="button" aria-label="顯示導覽列" hidden></button>
 <button id="stats-toggle" type="button" aria-label="收合統計">ⓘ</button>
 <button id="frame-warning" type="button" role="status" aria-label="收起畫面停止通知" hidden></button>
+<button id="text-warning" type="button" aria-label="恢復文字輸入" hidden></button>
 <div id="error" role="alert" hidden></div>
 <div id="stats-text"><div id="panel">Initializing…</div><details open><summary>診斷紀錄（在 ⓘ 上滑動可捲動）</summary><pre id="log"></pre></details></div>
 </div>

@@ -32,6 +32,7 @@ final class RemoteServerCore: @unchecked Sendable {
 
     let configuration: RemoteServerConfiguration
     private let onText: @Sendable (String) -> Void
+    private let onTextResume: @Sendable () -> Void
     private let onKey: @Sendable (KeyCode) -> Void
     private let onTouches: @Sendable ([TouchSpec]) -> Void
     private let onClientStats: @Sendable (RemoteClientStats) -> Void
@@ -70,6 +71,7 @@ final class RemoteServerCore: @unchecked Sendable {
     init(configuration: RemoteServerConfiguration,
          onTouches: @escaping @Sendable ([TouchSpec]) -> Void,
          onText: @escaping @Sendable (String) -> Void = { _ in },
+         onTextResume: @escaping @Sendable () -> Void = {},
          onKey: @escaping @Sendable (KeyCode) -> Void = { _ in },
          onClientStats: @escaping @Sendable (RemoteClientStats) -> Void = { _ in },
          onKeyframeRequested: @escaping @Sendable () -> Void,
@@ -82,6 +84,7 @@ final class RemoteServerCore: @unchecked Sendable {
         self.onTouches = onTouches
         self.onKey = onKey
         self.onText = onText
+        self.onTextResume = onTextResume
         self.onKeyframeRequested = onKeyframeRequested
         self.onViewport = onViewport
         self.onStateChanged = onStateChanged
@@ -388,6 +391,12 @@ final class RemoteServerCore: @unchecked Sendable {
         case .success(.viewport(let viewport)):
             let onViewport = self.onViewport
             pendingEffects.append { onViewport(viewport) }
+            lock.unlock()
+            performEffects()
+            return nil
+        case .success(.textResume):
+            let onTextResume = self.onTextResume
+            pendingEffects.append { onTextResume() }
             lock.unlock()
             performEffects()
             return nil

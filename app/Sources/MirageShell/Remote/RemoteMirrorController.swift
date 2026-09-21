@@ -53,11 +53,14 @@ private final class RemoteAccessUnitSequencer: @unchecked Sendable {
     private var frameHealth = RemoteFrameHealth(startedAt: .now)
     private let inputStatistics: InputStatistics
     private var previousInput: InputStatistics.Snapshot
+    private let textPaused: @Sendable () -> String?
 
-    init(server: RemoteServer, inputStatistics: InputStatistics) {
+    init(server: RemoteServer, inputStatistics: InputStatistics,
+         textPaused: @escaping @Sendable () -> String? = { nil }) {
         self.server = server
         self.inputStatistics = inputStatistics
         self.previousInput = inputStatistics.snapshot()
+        self.textPaused = textPaused
     }
 
     func recordPull(age: Duration, transitMs: Double?, heartbeat: Bool, receivedAt: ContinuousClock.Instant) {
@@ -73,6 +76,7 @@ private final class RemoteAccessUnitSequencer: @unchecked Sendable {
         var summary = window.drain(interval: interval)
         summary.emulatorConnected = emulatorConnected
         summary.secondsSinceNewFrame = frameHealth.secondsSinceNewFrame(now: now)
+        summary.textPaused = textPaused()
         let input = inputStatistics.snapshot()
         summary.inputRPCsPerSecond = input.rpcsPerSecond(since: previousInput, interval: interval)
         summary.inputCoalesced = input.coalesced - previousInput.coalesced
@@ -159,6 +163,8 @@ final class RemoteMirrorController: @unchecked Sendable {
                                                      token: configuration.token, viewerPage: configuration.viewerPage),
             onTouches: { inputQueue.touches($0) },
             onText: onText,
+            // 手機端按下恢復就是「我核對過欄位了」。恢復永不重播舊稿，見 `resume`。
+            onTextResume: { _ = inputQueue.resumeTextSubmissions(acknowledgingUncertainty: true) },
             onKey: { code in
                 inputQueue.key(code, down: true)
                 inputQueue.key(code, down: false)
@@ -172,7 +178,9 @@ final class RemoteMirrorController: @unchecked Sendable {
                 onStateChanged(state)
             })
         self.server = server
-        self.sequencer = RemoteAccessUnitSequencer(server: server, inputStatistics: inputQueue.inputStatistics)
+        self.sequencer = RemoteAccessUnitSequencer(
+            server: server, inputStatistics: inputQueue.inputStatistics,
+            textPaused: { inputQueue.textCoordinator.status.paused.map { String(describing: $0) } })
         self.encoder = makeEncoder()
         relay.attach(self)
     }

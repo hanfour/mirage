@@ -200,4 +200,16 @@ import Testing
         #expect(!released.released[0].down)
     }
 
+
+    /// 手機端要能自己解除文字暫停，否則唯一的恢復入口在 Mac 鏡像視窗左下角，
+    /// 而遙控的正常用法就是那個視窗關著。
+    @Test func textResumeIsAcceptedWithoutFields() {
+        #expect(RemoteTouchMessageDecoder.decode(#"{"type":"textResume"}"#) == .success(.textResume))
+    }
+
+    @Test(arguments: [("textresume", "textresume"), ("TextResume", "TextResume")])
+    func textResumeTypeIsExact(_ type: String, _ reported: String) {
+        let json = #"{"type":"\#(type)"}"#
+        #expect(RemoteTouchMessageDecoder.decode(json) == .failure(.unknownType(reported)))
+    }
 }
