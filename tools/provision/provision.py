@@ -60,7 +60,9 @@ def _resolve() -> list[tuple[versions.Pin, manifest.PackageRef]]:
             host_os=host_os,
             host_arch=host_arch,
         )
-    return versions.resolve_pins(refs)
+    resolved = versions.resolve_pins(refs)
+    versions.validate_pinned_urls(resolved)
+    return resolved
 
 
 def _sdk_rows(sdk_root: str, resolved, upgrade: bool, cache: str) -> list[report.Row]:

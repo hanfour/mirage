@@ -379,6 +379,14 @@ else
     ./scripts/lib/gui_session_selftest.sh 2>&1 | grep "❌" | sed 's/^/   /'
 fi
 
+# first_run_selftest.sh 鎖住首次啟動情境的 completion 順序、空間 gate、下載狀態與 launcher log 解析。
+if ./scripts/lib/first_run_selftest.sh > /dev/null 2>&1; then
+    ok "first_run.sh 驗證解析自我測試通過"
+else
+    fail "first_run.sh 自我測試失敗（重跑 ./scripts/lib/first_run_selftest.sh 看細節）："
+    ./scripts/lib/first_run_selftest.sh 2>&1 | grep "❌" | sed 's/^/   /'
+fi
+
 # backpressure_selftest.sh 是本任務新增的第六支自我測試，鎖住條件輪轉、差值摘要與
 # FOREIGN_MAX 無效分流；這些純函式不需要 emulator，故直接納入閘門 7。
 if ./scripts/lib/backpressure_selftest.sh > /dev/null 2>&1; then

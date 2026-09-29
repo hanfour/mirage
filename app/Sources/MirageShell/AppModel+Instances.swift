@@ -11,12 +11,17 @@ extension AppModel {
     /// 模擬器起停之後不必重開 App。
     func setupInstanceMenu() {
         menuBar?.canRestartSimulator = { [weak self] in
-            guard let self, let avd = self.instanceManagerPresentation.currentAVD,
+            guard let self, !self.instanceManagerPresentation.setupVisible,
+                  let avd = self.instanceManagerPresentation.currentAVD,
                   let launcher = self.instanceManagerPresentation.launcher else { return false }
             return launcher.isManaged(avd)
         }
         menuBar?.instanceEntries = { [weak self] in
             guard let self else { return [] }
+            guard !self.instanceManagerPresentation.setupVisible,
+                  self.instanceManagerPresentation.launcher != nil else {
+                return [InstanceMenu.unavailableEntry()]
+            }
             let table = self.instanceManagerPresentation.entries.isEmpty
                 ? ((try? InstanceTable.bundled().get()) ?? [])
                 : self.instanceManagerPresentation.entries
@@ -25,8 +30,9 @@ extension AppModel {
         }
         menuBar?.onSwitchInstance = { [weak self] entry in
             Task { @MainActor in
-                guard let self else { return }
-                await self.instanceManagerPresentation.launcher?.ensureRunning(entry)
+                guard let self, !self.instanceManagerPresentation.setupVisible,
+                      let launcher = self.instanceManagerPresentation.launcher else { return }
+                await launcher.ensureRunning(entry)
                 await self.switchInstance(to: entry)
             }
         }

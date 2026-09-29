@@ -9,6 +9,29 @@
 # package_app.sh 由 D25 建立，是組 .app 的唯一入口；本檔只負責「啟動它、拉到前景、
 # 收 log、解析」，不重複打包邏輯。
 
+gui_session_sdk_root() {
+    if [ -n "${ANDROID_SDK_ROOT:-}" ]; then
+        printf '%s\n' "$ANDROID_SDK_ROOT"
+    elif [ -n "${ANDROID_HOME:-}" ]; then
+        printf '%s\n' "$ANDROID_HOME"
+    else
+        printf '%s\n' "$HOME/Library/Android/sdk"
+    fi
+}
+
+gui_session_avd_home() {
+    if [ -n "${ANDROID_AVD_HOME:-}" ]; then
+        printf '%s\n' "$ANDROID_AVD_HOME"
+    else
+        printf '%s\n' "$HOME/.android/avd"
+    fi
+}
+
+gui_session_android_environment() {
+    printf 'ANDROID_SDK_ROOT=%s\nANDROID_AVD_HOME=%s\n' \
+        "$(gui_session_sdk_root)" "$(gui_session_avd_home)"
+}
+
 # 打包並啟動 MirageApp，把 stdout/stderr 導向 log。
 #
 # **必須以 .app bundle 啟動，不能直接跑 bare executable**：直接跑時 macOS 不一定把
@@ -49,6 +72,9 @@ gui_session_start() {
     fi
     # 背景模式不建視窗，等視窗或 fps 的腳本會失敗；一律以一般模式啟動，不動使用者的設定。
     local env_args=(--env MIRAGE_BACKGROUND_MODE=0)
+    local android_env
+    while IFS= read -r android_env; do env_args+=(--env "$android_env"); done \
+        < <(gui_session_android_environment)
     local kv
     for kv in "$@"; do env_args+=(--env "$kv"); done
     open -n -a "$bundle/Mirage.app" --stdout "$log" --stderr "$log" ${env_args[@]+"${env_args[@]}"} || return 1

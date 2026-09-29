@@ -175,8 +175,13 @@ def run_round(bundle, log_path, port):
                     action.kill()
 
     try:
+        sdk_root = (os.environ.get("ANDROID_SDK_ROOT") or os.environ.get("ANDROID_HOME")
+                    or str(Path.home() / "Library" / "Android" / "sdk"))
+        avd_home = os.environ.get("ANDROID_AVD_HOME") or str(Path.home() / ".android" / "avd")
         startup = timed_action(["open", "-a", str(bundle), "--stdout", str(log_path),
                                 "--stderr", str(log_path), "--env", "MIRAGE_BACKGROUND_MODE=0",
+                                "--env", f"ANDROID_SDK_ROOT={sdk_root}",
+                                "--env", f"ANDROID_AVD_HOME={avd_home}",
                                 "--env", f"MIRAGE_PORT={port}",
                                 "--env", "MIRAGE_CONN_LOG=1", "--env", "MIRAGE_FPS_LOG=1",
                                 "--env", "NSUnbufferedIO=YES"], 0)

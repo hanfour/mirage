@@ -39,6 +39,7 @@ let package = Package(
                 .copy("Resources/profiles"),
                 .copy("Resources/remote"),
                 .copy("Resources/instances.conf"),
+                .copy("Resources/sdk-spec.json"),
             ],
             swiftSettings: strict
         ),
@@ -67,6 +68,9 @@ let package = Package(
             dependencies: [
                 "MirageCore",
                 .product(name: "Testing", package: "swift-testing"),
+                .product(name: "NIOCore", package: "swift-nio"),
+                .product(name: "NIOPosix", package: "swift-nio"),
+                .product(name: "NIOHTTP1", package: "swift-nio"),
             ],
             swiftSettings: strict
         ),

@@ -99,7 +99,7 @@ struct InstanceStateTests {
 
     @Test func launchFailurePreservesItsReasonAndRequestsDisplay() {
         let reason = InstanceFailure.avdNotFound(
-            URL(fileURLWithPath: "/users/tester/.android/avd/mirage-game.ini"))
+            URL(fileURLWithPath: "/users/tester/Library/Application Support/Mirage/avd/mirage-game.ini"))
         let transition = next(.stopped, .launchFailed(reason))
         #expect(transition.state == .failed(reason))
         #expect(transition.action == .showFailure(reason))

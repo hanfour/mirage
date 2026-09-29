@@ -7,12 +7,15 @@ struct ConnectionBanner: View {
     let avd: String
     let logURL: URL?
     let tableError: InstanceTableError?
+    let specError: SdkSpecError?
     let onRestart: () -> Void
     let onShowLog: () -> Void
 
     var body: some View {
         if let tableError {
             instanceLabel(InstanceBanner.content(for: tableError))
+        } else if let specError {
+            instanceLabel(InstanceBanner.content(for: specError))
         } else if let content = InstanceBanner.content(for: instanceState, avd: avd) {
             instanceLabel(content)
         } else {

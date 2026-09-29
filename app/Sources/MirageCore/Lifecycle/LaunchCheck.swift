@@ -14,14 +14,8 @@ public enum LaunchCheck {
             return .emulatorNotFound(emulator)
         }
 
-        let avdDirectory: URL
-        if let override = environment["ANDROID_AVD_HOME"], !override.isEmpty {
-            avdDirectory = URL(fileURLWithPath: override, isDirectory: true)
-        } else {
-            avdDirectory = homeDirectory
-                .appendingPathComponent(".android", isDirectory: true)
-                .appendingPathComponent("avd", isDirectory: true)
-        }
+        let avdDirectory = MiragePaths.avdDirectory(
+            environment: environment, homeDirectory: homeDirectory)
         let avdConfiguration = avdDirectory.appendingPathComponent(
             "\(instance.avdName).ini", isDirectory: false)
         guard fileExists(avdConfiguration) else {

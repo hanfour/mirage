@@ -343,7 +343,8 @@ final class EmulatorLauncher {
             return
         }
 
-        let plan = LaunchPlan(instance: entry, sdkRoot: sdkRoot, homeDirectory: homeDirectory)
+        let plan = LaunchPlan(instance: entry, sdkRoot: sdkRoot, homeDirectory: homeDirectory,
+                              environment: environment)
         do {
             try createDirectory(plan.logFile.deletingLastPathComponent())
             let process = try spawn(plan)
@@ -421,6 +422,9 @@ final class EmulatorLauncher {
         let process = Process()
         process.executableURL = plan.executable
         process.arguments = plan.arguments
+        var childEnvironment = ProcessInfo.processInfo.environment
+        childEnvironment.merge(plan.environment) { _, resolved in resolved }
+        process.environment = childEnvironment
         process.standardInput = FileHandle.nullDevice
         process.standardOutput = output
         process.standardError = output

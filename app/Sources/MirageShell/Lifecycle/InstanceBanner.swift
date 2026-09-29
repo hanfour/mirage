@@ -32,10 +32,10 @@ enum InstanceBanner {
         case .failed(let failure):
             switch failure {
             case .emulatorNotFound:
-                return Content(text: "找不到 Android SDK。請先執行 tools/provision/provision.py",
+                return Content(text: "找不到 Android SDK。請重新開啟 Mirage 以執行設定",
                                color: .error, showsRestart: false, showsLog: false)
             case .avdNotFound:
-                return Content(text: "找不到模擬器 \(avd)。請先執行 tools/provision/provision.py",
+                return Content(text: "找不到模擬器 \(avd)。請重新開啟 Mirage 以執行設定",
                                color: .error, showsRestart: false, showsLog: false)
             case .avdInUse:
                 return Content(text: "\(avd) 已在其他埠上執行", color: .error,
@@ -60,6 +60,11 @@ enum InstanceBanner {
 
     static func content(for error: InstanceTableError) -> Content {
         Content(text: "實例表格式錯誤：第 \(error.line) 行 \(error.reason)", color: .error,
+                showsRestart: false, showsLog: false)
+    }
+
+    static func content(for error: SdkSpecError) -> Content {
+        Content(text: "SDK 設定檔讀取失敗：\(error.message)", color: .error,
                 showsRestart: false, showsLog: false)
     }
 }

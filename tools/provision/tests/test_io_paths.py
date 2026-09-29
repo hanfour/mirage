@@ -2,6 +2,7 @@
 import hashlib
 import http.server
 import os
+import dataclasses
 from pathlib import Path
 import tempfile
 import threading
@@ -123,7 +124,12 @@ class LocalHttpTests(unittest.TestCase):
                     <url>{key}.zip</url></complete></archive></archives></remotePackage>''')
             self.routes['/' + key] = ('<repository><channel id="channel-0">stable</channel>'
                                       + ''.join(packages) + '</repository>').encode()
-        with patch.object(versions, 'MANIFESTS', {k: self.base + '/' + k for k in versions.MANIFESTS}), \
+        local_pins = tuple(
+            dataclasses.replace(pin, url=self.base + '/' + pin.manifest_key + '.zip')
+            for pin in versions.PINS
+        )
+        with patch.object(versions, 'PINS', local_pins), \
+             patch.object(versions, 'MANIFESTS', {k: self.base + '/' + k for k in versions.MANIFESTS}), \
              patch.object(versions, 'MANIFEST_BASES', {k: self.base + '/' for k in versions.MANIFESTS}), \
              patch('platform.system', return_value='Darwin'), \
              patch('platform.machine', return_value='arm64'):

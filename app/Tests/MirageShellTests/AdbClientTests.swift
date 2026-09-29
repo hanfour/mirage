@@ -100,15 +100,16 @@ struct AdbClientTests {
         #expect(client == nil)
     }
 
-    @Test func standardUsesHomeSdkWhenEnvironmentIsEmpty() throws {
+    // Finder 未提供 SDK override 時，adb 使用 Mirage 的預設 SDK 位置。
+    @Test func standardUsesMirageSdkWhenEnvironmentIsEmpty() throws {
         let client = try #require(AdbClient.standard(
             serial: "s",
             environment: ["ANDROID_SDK_ROOT": "", "ANDROID_HOME": ""],
             homeDirectory: URL(fileURLWithPath: "/users/tester", isDirectory: true),
             isExecutable: { path in
-                #expect(path == "/users/tester/Library/Android/sdk/platform-tools/adb")
+                #expect(path == "/users/tester/Library/Application Support/Mirage/sdk/platform-tools/adb")
                 return true
             }))
-        #expect(client.adbPath.path == "/users/tester/Library/Android/sdk/platform-tools/adb")
+        #expect(client.adbPath.path == "/users/tester/Library/Application Support/Mirage/sdk/platform-tools/adb")
     }
 }

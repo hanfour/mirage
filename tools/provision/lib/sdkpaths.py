@@ -24,9 +24,8 @@ def _first_non_empty(env: dict[str, str], *names: str) -> str | None:
 def sdk_root(env: dict[str, str], home: str) -> str:
     """優先序：ANDROID_SDK_ROOT → ANDROID_HOME → ~/Library/Android/sdk。
 
-    預設值必須與 `app/scripts/lib/verify_common.sh` 及
-    `app/Sources/MirageShell/Detect/AdbClient.swift` 一致——不一致的話，
-    這支腳本裝到 A、驗證腳本去 B 找，會以「adb 不存在」的形式現形。
+    app 刻意使用自己的 SDK 目錄；開發環境由 `gui_session.sh` 設定環境變數，
+    對齊 `verify_common.sh` 的 SDK 路徑。
     """
     explicit = _first_non_empty(env, "ANDROID_SDK_ROOT", "ANDROID_HOME")
     if explicit:

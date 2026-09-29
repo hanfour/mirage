@@ -16,6 +16,23 @@ check() {
     fi
 }
 
+SAVED_ANDROID_SDK_ROOT="${ANDROID_SDK_ROOT-}"
+SAVED_ANDROID_HOME="${ANDROID_HOME-}"
+SAVED_ANDROID_AVD_HOME="${ANDROID_AVD_HOME-}"
+unset ANDROID_SDK_ROOT ANDROID_HOME ANDROID_AVD_HOME
+check "Android 開發環境預設值" "$(gui_session_android_environment)" \
+      "ANDROID_SDK_ROOT=$HOME/Library/Android/sdk
+ANDROID_AVD_HOME=$HOME/.android/avd"
+ANDROID_HOME=/android-home
+check "ANDROID_HOME 作為 SDK 退回值" "$(gui_session_sdk_root)" /android-home
+ANDROID_SDK_ROOT=/sdk-root
+check "ANDROID_SDK_ROOT 優先於 ANDROID_HOME" "$(gui_session_sdk_root)" /sdk-root
+ANDROID_AVD_HOME=/custom/avds
+check "ANDROID_AVD_HOME 覆寫預設值" "$(gui_session_avd_home)" /custom/avds
+if [ -n "$SAVED_ANDROID_SDK_ROOT" ]; then export ANDROID_SDK_ROOT="$SAVED_ANDROID_SDK_ROOT"; else unset ANDROID_SDK_ROOT; fi
+if [ -n "$SAVED_ANDROID_HOME" ]; then export ANDROID_HOME="$SAVED_ANDROID_HOME"; else unset ANDROID_HOME; fi
+if [ -n "$SAVED_ANDROID_AVD_HOME" ]; then export ANDROID_AVD_HOME="$SAVED_ANDROID_AVD_HOME"; else unset ANDROID_AVD_HOME; fi
+
 WORK=$(mktemp -d -t frame_counter_selftest)
 trap 'rm -rf "$WORK"' EXIT
 

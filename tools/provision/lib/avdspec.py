@@ -12,6 +12,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from lib import versions
+from lib.sdk_spec import load_spec
 
 
 @dataclass(frozen=True)
@@ -28,19 +29,13 @@ class AvdSpec:
                     if pin.manifest_key == self.image_manifest) + "/"
 
 
-SPECS = (
+SPECS = tuple(
     AvdSpec(
-        name="mirage-poc",
-        image_manifest="sysimg_default",
-        playstore=False,
-        tag_id="default",
-        tag_display="Default Android System Image",
-    ),
-    AvdSpec(
-        name="mirage-game",
-        image_manifest="sysimg_playstore",
-        playstore=True,
-        tag_id="google_apis_playstore",
-        tag_display="Google Play",
-    ),
+        name=spec["name"],
+        image_manifest=spec["imageManifest"],
+        playstore=spec["playstore"],
+        tag_id=spec["tagId"],
+        tag_display=spec["tagDisplay"],
+    )
+    for spec in load_spec()["avds"]
 )

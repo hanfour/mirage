@@ -18,15 +18,6 @@ public struct SdkLocator: Sendable, Equatable {
     }
 
     public init(environment: [String: String], homeDirectory: URL) {
-        if let sdkRoot = environment["ANDROID_SDK_ROOT"], !sdkRoot.isEmpty {
-            root = URL(fileURLWithPath: sdkRoot, isDirectory: true)
-        } else if let androidHome = environment["ANDROID_HOME"], !androidHome.isEmpty {
-            root = URL(fileURLWithPath: androidHome, isDirectory: true)
-        } else {
-            root = homeDirectory
-                .appendingPathComponent("Library", isDirectory: true)
-                .appendingPathComponent("Android", isDirectory: true)
-                .appendingPathComponent("sdk", isDirectory: true)
-        }
+        root = MiragePaths.sdkRoot(environment: environment, homeDirectory: homeDirectory)
     }
 }
