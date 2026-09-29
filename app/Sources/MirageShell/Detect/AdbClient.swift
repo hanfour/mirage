@@ -20,11 +20,10 @@ struct AdbClient: Sendable {
     static func standard(
         serial: String = "emulator-5554",
         environment env: [String: String] = ProcessInfo.processInfo.environment,
+        homeDirectory: URL = FileManager.default.homeDirectoryForCurrentUser,
         isExecutable: (String) -> Bool = { FileManager.default.isExecutableFile(atPath: $0) }
     ) -> AdbClient? {
-        let sdk = env["ANDROID_SDK_ROOT"] ?? env["ANDROID_HOME"]
-            ?? (NSHomeDirectory() + "/Library/Android/sdk")
-        let adb = URL(fileURLWithPath: sdk).appendingPathComponent("platform-tools/adb")
+        let adb = SdkLocator(environment: env, homeDirectory: homeDirectory).adbBinary
         guard isExecutable(adb.path) else { return nil }
         return AdbClient(adbPath: adb, serial: serial)
     }

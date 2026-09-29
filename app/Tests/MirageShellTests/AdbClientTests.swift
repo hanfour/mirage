@@ -72,4 +72,16 @@ struct AdbClientTests {
         }
         #expect(client == nil)
     }
+
+    @Test func standardUsesHomeSdkWhenEnvironmentIsEmpty() throws {
+        let client = try #require(AdbClient.standard(
+            serial: "s",
+            environment: ["ANDROID_SDK_ROOT": "", "ANDROID_HOME": ""],
+            homeDirectory: URL(fileURLWithPath: "/users/tester", isDirectory: true),
+            isExecutable: { path in
+                #expect(path == "/users/tester/Library/Android/sdk/platform-tools/adb")
+                return true
+            }))
+        #expect(client.adbPath.path == "/users/tester/Library/Android/sdk/platform-tools/adb")
+    }
 }
