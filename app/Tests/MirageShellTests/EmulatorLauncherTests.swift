@@ -352,8 +352,9 @@ private final class BootProbeGate {
     }
 
     func waitUntilEntered() async {
-        guard !didEnter else { return }
-        await withCheckedContinuation { enteredContinuation = $0 }
+        if !didEnter {
+            await withCheckedContinuation { enteredContinuation = $0 }
+        }
     }
 
     func resume(_ result: Bool?) {
