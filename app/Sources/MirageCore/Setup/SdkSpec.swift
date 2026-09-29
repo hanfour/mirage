@@ -34,8 +34,8 @@ public struct SdkSpec: Codable, Equatable, Sendable {
     }
 
     public static func bundled() -> Result<SdkSpec, SdkSpecError> {
-        guard let url = Bundle.module.url(forResource: "sdk-spec", withExtension: "json")
-            ?? Bundle.module.url(forResource: "sdk-spec", withExtension: "json", subdirectory: "Resources")
+        guard let url = MirageResources.bundle.url(forResource: "sdk-spec", withExtension: "json")
+            ?? MirageResources.bundle.url(forResource: "sdk-spec", withExtension: "json", subdirectory: "Resources")
         else {
             return .failure(SdkSpecError(message: "找不到內建的 Resources/sdk-spec.json"))
         }

@@ -98,8 +98,8 @@ public enum InstanceTable {
     }
 
     public static func bundled() -> Result<[InstanceEntry], InstanceTableError> {
-        guard let url = Bundle.module.url(forResource: "instances", withExtension: "conf")
-            ?? Bundle.module.url(forResource: "instances", withExtension: "conf", subdirectory: "Resources")
+        guard let url = MirageResources.bundle.url(forResource: "instances", withExtension: "conf")
+            ?? MirageResources.bundle.url(forResource: "instances", withExtension: "conf", subdirectory: "Resources")
         else {
             return .failure(.init(line: 1, reason: "找不到內建的 Resources/instances.conf"))
         }
