@@ -1,5 +1,4 @@
 import Foundation
-import FoundationXML
 
 public struct SetupMissingItem: Equatable, Sendable {
     public enum Kind: Equatable, Sendable {
