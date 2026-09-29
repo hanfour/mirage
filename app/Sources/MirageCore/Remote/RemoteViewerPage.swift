@@ -1,6 +1,6 @@
 import Foundation
 
-/// 手機頁面的讀取器。這是手機遙控唯一碰 `Bundle.module` 的地方，比照
+/// 手機頁面的讀取器。比照
 /// `BuiltInProfiles.bundledSources()`：`.copy("Resources/remote")` 保留目錄層，所以查表帶
 /// `subdirectory: "remote"`。找不到 bundle 是 SwiftPM 產生的 accessor 直接 `fatalError`
 /// （見 `BuiltInProfiles.swift:55-66` 與債務 D25），回 nil 只代表 bundle 在、檔案缺。
@@ -17,12 +17,12 @@ public enum RemoteViewerPage {
                                  ("/* MIRAGE_VIEWER_INPUT */", "viewer-input")]
 
     public static func bundled() -> Data? {
-        guard let url = Bundle.module.url(forResource: resourceName, withExtension: resourceExtension,
-                                          subdirectory: subdirectory),
+        guard let url = MirageResources.bundle.url(forResource: resourceName, withExtension: resourceExtension,
+                                                   subdirectory: subdirectory),
               var html = try? String(contentsOf: url, encoding: .utf8)
         else { return nil }
         for (marker, name) in inlinedScripts {
-            guard let scriptURL = Bundle.module.url(forResource: name, withExtension: "js", subdirectory: subdirectory),
+            guard let scriptURL = MirageResources.bundle.url(forResource: name, withExtension: "js", subdirectory: subdirectory),
                   let script = try? String(contentsOf: scriptURL, encoding: .utf8) else { return nil }
             html = html.replacingOccurrences(of: marker, with: script)
         }

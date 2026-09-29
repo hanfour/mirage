@@ -52,7 +52,7 @@ enum RemoteHTTPConnection {
         case .viewer:
             return (.ok, viewerPage, htmlType)
         case .manifest:
-            guard let url = Bundle.module.url(forResource: "manifest", withExtension: "webmanifest", subdirectory: "remote"),
+            guard let url = MirageResources.bundle.url(forResource: "manifest", withExtension: "webmanifest", subdirectory: "remote"),
                   let data = try? Data(contentsOf: url) else {
                 return (.notFound, Data("manifest not found\n".utf8), textType)
             }
