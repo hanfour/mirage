@@ -41,7 +41,7 @@ import Testing
         let cancellation = try #require(controller.operationTask)
         let cancelled = await awaitWithWatchdog(.seconds(3)) {
             await cancellation.value
-            return .signaled
+            return SetupTestSignal.signaled
         }
         #expect(cancelled == .finished(.signaled))
         #expect(controller.progressItems.first(where: { $0.key == "package:\(packages[0].installPath)" })?.state == .completed)

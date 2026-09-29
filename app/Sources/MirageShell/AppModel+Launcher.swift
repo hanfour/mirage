@@ -77,7 +77,7 @@ extension AppModel {
             let sdkRoot = MiragePaths.sdkRoot(environment: environment, homeDirectory: home)
             let avdDirectory = MiragePaths.avdDirectory(environment: environment, homeDirectory: home)
             let downloadsDirectory = MiragePaths.downloadsDirectory(homeDirectory: home)
-            let initialCheck = evaluateSetup(spec: spec, sdkRoot: sdkRoot, avdDirectory: avdDirectory)
+            let initialCheck = Self.evaluateSetup(spec: spec, sdkRoot: sdkRoot, avdDirectory: avdDirectory)
             for warning in initialCheck.warnings {
                 print("[setup] warning \(warning.message)")
             }
