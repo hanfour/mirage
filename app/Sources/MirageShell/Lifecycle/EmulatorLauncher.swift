@@ -216,10 +216,13 @@ final class EmulatorLauncher {
             if case .booting = runtime.state {
                 let endpoint = EmulatorEndpoint(host: "localhost", port: runtime.entry.grpcPort)
                 if await isBooted(endpoint) == true {
-                    await send(avd, .booted)
-                    if await configureGuest("emulator-\(runtime.entry.consolePort)",
-                                            "show_ime_with_hard_keyboard", "0") != true {
-                        NSLog("[launcher] %@ 設定 show_ime_with_hard_keyboard 失敗", avd)
+                    if case .booting? = runtimes[avd]?.state {
+                        await send(avd, .booted)
+                        if case .running? = runtimes[avd]?.state,
+                           await configureGuest("emulator-\(runtime.entry.consolePort)",
+                                                "show_ime_with_hard_keyboard", "0") != true {
+                            NSLog("[launcher] %@ 設定 show_ime_with_hard_keyboard 失敗", avd)
+                        }
                     }
                 }
             }

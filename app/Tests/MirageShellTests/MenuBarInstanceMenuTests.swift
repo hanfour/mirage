@@ -10,12 +10,14 @@ import Testing
     private let game = EmulatorInstance(avdName: "mirage-game", consolePort: 5554, grpcPort: 8554, pid: 1)
     private let poc = EmulatorInstance(avdName: "mirage-poc", consolePort: 5556, grpcPort: 8556, pid: 2)
     private let onGame = EmulatorEndpoint(host: "localhost", port: 8554)
+    private let gameEntry = InstanceEntry(avdName: "mirage-game", consolePort: 5554, grpcPort: 8554)
+    private let pocEntry = InstanceEntry(avdName: "mirage-poc", consolePort: 5556, grpcPort: 8556)
     private let action = NSSelectorFromString("instanceTapped:")
 
     @Test func populateBuildsOneItemPerEntryWithCheckAndTarget() throws {
         let menu = NSMenu()
         let target = NSObject()
-        let entries = InstanceMenu.entries(instances: [game, poc], current: onGame)
+        let entries = InstanceMenu.entries(table: [gameEntry, pocEntry], discovered: [game, poc], current: onGame)
 
         MenuBarController.populate(instanceMenu: menu, entries: entries, target: target, action: action)
 
@@ -23,14 +25,14 @@ import Testing
         #expect(menu.items.map(\.state) == [.on, .off])
         #expect(menu.items.allSatisfy { $0.isEnabled })
         #expect(menu.items.allSatisfy { $0.target === target && $0.action == action })
-        let represented = try #require(menu.items[1].representedObject as? EmulatorInstance)
-        #expect(represented == poc)
+        let represented = try #require(menu.items[1].representedObject as? InstanceEntry)
+        #expect(represented == pocEntry)
     }
 
     /// 規格 §3.3：沒有其他實例 → 一個停用項，沒有 action、不打勾。
     @Test func placeholderIsSingleDisabledItem() {
         let menu = NSMenu()
-        let entries = InstanceMenu.entries(instances: [game], current: onGame)
+        let entries = InstanceMenu.entries(table: [gameEntry], discovered: [game], current: onGame)
 
         MenuBarController.populate(instanceMenu: menu, entries: entries, target: NSObject(), action: action)
 
@@ -46,12 +48,13 @@ import Testing
     @Test func populateReplacesPreviousItems() {
         let menu = NSMenu()
         MenuBarController.populate(instanceMenu: menu,
-                                   entries: InstanceMenu.entries(instances: [game, poc], current: onGame),
+                                   entries: InstanceMenu.entries(table: [gameEntry, pocEntry],
+                                                                 discovered: [game, poc], current: onGame),
                                    target: NSObject(), action: action)
         #expect(menu.items.count == 2)
 
         MenuBarController.populate(instanceMenu: menu,
-                                   entries: InstanceMenu.entries(instances: [], current: onGame),
+                                   entries: InstanceMenu.entries(table: [], discovered: [], current: onGame),
                                    target: NSObject(), action: action)
         #expect(menu.items.map(\.title) == [InstanceMenu.placeholderTitle])
     }
