@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 /// 鏡像視窗的內容。原本寫在 `MirageScene` 的 `Window { }` 裡，2026-09-17 抽出來，
@@ -26,7 +27,18 @@ struct MirrorRootView: View {
                     model.mouseCapture.updateCapture(shouldCapture: model.shouldCapture)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
-            ConnectionBanner(state: model.connState)
+            ConnectionBanner(
+                state: model.connState,
+                instanceState: model.instanceManagerPresentation.currentInstanceState,
+                avd: model.instanceManagerPresentation.currentAVD ?? "",
+                logURL: model.instanceManagerPresentation.logURL,
+                tableError: model.instanceManagerPresentation.tableError,
+                onRestart: { Task { await model.restartCurrentInstance() } },
+                onShowLog: {
+                    if let url = model.instanceManagerPresentation.logURL {
+                        NSWorkspace.shared.activateFileViewerSelecting([url])
+                    }
+                })
             keymapOverlayLayer
             // 隱藏按鈕：⌘E 切換編輯模式。用 SwiftUI .keyboardShortcut 走標準
             // performKeyEquivalent 路徑，不需要額外的 NSEvent monitor 生命週期管理，

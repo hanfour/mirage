@@ -84,7 +84,8 @@ import Testing
 
     /// stop() 之後 client 不知道任何 guest 的事；下一台的解析度要等它自己的探測。
     @Test func stopForgetsGuestDisplay() async throws {
-        let probe = ScriptedProbe([.healthy(EmulatorInfo(version: "36.6.11.0", display: (w: 1080, h: 2400)))])
+        let probe = ScriptedProbe([.healthy(EmulatorInfo(
+            version: "36.6.11.0", display: (w: 1080, h: 2400), booted: true))])
         let mock = MockTransport([.yieldThenHang(1)])
         let client = EmulatorClient(host: Self.deadA.host, port: Self.deadA.port,
                                     makeTransport: { _ in mock },

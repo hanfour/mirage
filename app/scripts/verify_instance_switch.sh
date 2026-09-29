@@ -9,7 +9,7 @@
 set -uo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 source "${SCRIPT_DIR}/lib/verify_common.sh"
-source "${SCRIPT_DIR}/lib/emu_instances.sh"
+source "${SCRIPT_DIR}/lib/emu_instances.sh" || exit 1
 source "${SCRIPT_DIR}/lib/load_sentinel.sh"
 
 FIRST="${MIRAGE_FIRST:-mirage-game}"

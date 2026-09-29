@@ -39,6 +39,7 @@ final class AppModel {
     /// 這是 `client.currentEndpoint` 在 MainActor 上的鏡像，不是第二份真相：選單列的
     /// `menuNeedsUpdate` 是同步的，拿不到 actor 裡的值。寫入紀律寫在 `switchInstance`。
     var currentEndpoint: EmulatorEndpoint = EmulatorClient.defaultEndpoint
+    let instanceManagerPresentation = InstanceManagerPresentation()
     /// 序列化選單連續點選；已完成的 Task 可直接 await，下一個要求會替換它。
     @ObservationIgnored var instanceSwitchTask: Task<Void, Never>?
     @ObservationIgnored var streamDemands = StreamDemands()
@@ -179,6 +180,8 @@ final class AppModel {
         if let problem = launchPreferences.backgroundModeOverrideProblem {
             print("[app] 環境變數覆寫無效：\(problem)")
         }
+
+        await prepareInstanceLauncher()
 
         // RECONCILIATION (Task 6 brief vs. this file): the brief's `startLifecycle()`
         // snippet spins up a SECOND `for await s in client.states` loop to feed

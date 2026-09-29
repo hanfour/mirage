@@ -1,20 +1,40 @@
 #!/usr/bin/env bash
-# emu.sh 的純函式層。用法：source "$(dirname "$0")/lib/emu_instances.sh"
+# emu.sh 的實例表與純函式層。用法：source "$(dirname "$0")/lib/emu_instances.sh"
 #
-# **這裡沒有任何 I/O**：不呼叫 pgrep、lsof、adb。emu.sh 把真實的 `pgrep -fl qemu-system`
-# 輸出餵進來，emu_selftest.sh 餵假的。理由與 verify_common.sh 相同——判斷只有一份，
-# 注入故障驗一次就夠。
+# 除了載入共用 instances.conf，不呼叫 pgrep、lsof、adb。emu.sh 把真實的
+# `pgrep -fl qemu-system` 輸出餵進來，emu_selftest.sh 餵假的。
 #
 # 一台實例由三個值決定：AVD 名稱、console 埠（5554、5556、……偶數）、gRPC 埠。
 # 實例名稱就是 AVD 名稱：規格 §3.1 要求每台各自一個 AVD，所以名稱與 AVD 一對一，
 # 不需要第四個識別字。
 
-# 預設實例表。格式：空白分隔的項目，每項 `名稱:console埠:gRPC埠`。
-# 第一項就是不帶 -n 時的預設（mirage-game／5554／8554，與 emu.sh 的 MIRAGE_* 預設值相同）。
-# 第二項用 tools/provision 已宣告的另一台 AVD（tools/provision/lib/avdspec.py 只有這兩台）。
-# 埠號沿用 tools/probe/lib/targets.py 的 5556／8556 慣例。
-# 可用環境變數 MIRAGE_INSTANCES 整份覆寫（emu.sh 負責讀它，這裡只吃參數）。
-EMU_DEFAULT_INSTANCES="mirage-game:5554:8554 mirage-poc:5556:8556"
+# 預設實例表來自 MirageCore 的 bundle 資源。MIRAGE_INSTANCES_FILE 只供測試注入路徑。
+if [ "${MIRAGE_INSTANCES_FILE+x}" = x ]; then
+    EMU_INSTANCES_PATH="$MIRAGE_INSTANCES_FILE"
+else
+    EMU_INSTANCES_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../Sources/MirageCore/Resources" && pwd)" || {
+        echo "❌ 無法定位 instances.conf" >&2
+        return 1
+    }
+    EMU_INSTANCES_PATH="${EMU_INSTANCES_DIR}/instances.conf"
+fi
+if [ ! -r "$EMU_INSTANCES_PATH" ]; then
+    echo "❌ 無法讀取實例表：${EMU_INSTANCES_PATH}" >&2
+    return 1
+fi
+EMU_DEFAULT_INSTANCES="$(awk '
+    /^[[:space:]]*#/ || /^[[:space:]]*$/ { next }
+    {
+        row = $0
+        sub(/^[[:space:]]+/, "", row)
+        sub(/[[:space:]]+$/, "", row)
+        printf "%s%s", separator, row
+        separator = " "
+    }
+' "$EMU_INSTANCES_PATH")" || {
+    echo "❌ 讀取實例表失敗：${EMU_INSTANCES_PATH}" >&2
+    return 1
+}
 
 # 三元組驗證。console 埠必須是 5554–5682 的偶數（emulator -port 的限制，奇數是 adb 埠）。
 emu_validate_triplet() {
@@ -24,12 +44,14 @@ emu_validate_triplet() {
     fi
     case "$port" in
         ''|*[!0-9]*) echo "❌ ${avd}：console 埠 '${port}' 不是整數" >&2; return 1 ;;
+        0[0-9]*) echo "❌ ${avd}：console 埠不可有前導零" >&2; return 1 ;;
     esac
     if [ "$port" -lt 5554 ] || [ "$port" -gt 5682 ] || [ $((port % 2)) -ne 0 ]; then
         echo "❌ ${avd}：console 埠 ${port} 必須是 5554–5682 的偶數" >&2; return 1
     fi
     case "$grpc" in
         ''|*[!0-9]*) echo "❌ ${avd}：gRPC 埠 '${grpc}' 不是整數" >&2; return 1 ;;
+        0[0-9]*) echo "❌ ${avd}：gRPC 埠不可有前導零" >&2; return 1 ;;
     esac
     if [ "$grpc" -lt 1 ] || [ "$grpc" -gt 65535 ]; then
         echo "❌ ${avd}：gRPC 埠 ${grpc} 不在 1–65535" >&2; return 1
@@ -84,9 +106,10 @@ emu_names() {
 
 # emu_table_check [實例表] → AVD／console 埠／gRPC 埠任一重複，或任一三元組無效，回 1。
 emu_table_check() {
-    local table="${1:-$EMU_DEFAULT_INSTANCES}" entry avd port grpc
+    local table="${1-$EMU_DEFAULT_INSTANCES}" entry avd port grpc has_entry=0
     local avds="" ports="" grpcs=""
     for entry in $table; do
+        has_entry=1
         IFS=: read -r avd port grpc <<< "$entry"
         emu_validate_triplet "${avd:-}" "${port:-}" "${grpc:-}" || return 1
         case " $avds " in *" $avd "*) echo "❌ 實例表裡 AVD ${avd} 出現兩次；每台要各自一個 AVD" >&2; return 1 ;; esac
@@ -94,6 +117,10 @@ emu_table_check() {
         case " $grpcs " in *" $grpc "*) echo "❌ 實例表裡 gRPC 埠 ${grpc} 出現兩次" >&2; return 1 ;; esac
         avds="$avds $avd"; ports="$ports $port"; grpcs="$grpcs $grpc"
     done
+    if [ "$has_entry" -eq 0 ]; then
+        echo "❌ 實例表不能是空白" >&2
+        return 1
+    fi
     return 0
 }
 

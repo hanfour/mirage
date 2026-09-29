@@ -99,6 +99,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // 跑在主執行緒、且此刻主執行緒還沒被 semaphore 卡住）用 assumeIsolated 同步呼叫，
         // 完全不牽動 shutdown() 的既有路徑。
         MainActor.assumeIsolated { model.audioPlayer?.stop() }
+        MainActor.assumeIsolated { model.instanceManagerPresentation.launcher?.stopAllOwnedForTermination() }
         let sema = DispatchSemaphore(value: 0)
         Task.detached {
             await model.shutdown()

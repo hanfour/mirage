@@ -398,6 +398,15 @@ else
     ./scripts/lib/emu_selftest.sh 2>&1 | grep "❌" | sed 's/^/   /'
 fi
 
+# instance_lifecycle_selftest.sh 鎖住 launcher log、探索 pid 與所有權 JSON 的解析，
+# 以及自動重開狀態的順序判斷；純函式不需要啟動 app 或模擬器。
+if ./scripts/lib/instance_lifecycle_selftest.sh > /dev/null 2>&1; then
+    ok "instance_lifecycle.sh 自我測試通過"
+else
+    fail "instance_lifecycle.sh 自我測試失敗（重跑 ./scripts/lib/instance_lifecycle_selftest.sh 看細節）："
+    ./scripts/lib/instance_lifecycle_selftest.sh 2>&1 | grep "❌" | sed 's/^/   /'
+fi
+
 echo ""
 # 第九支自我測試：getevent 的 slot 狀態與轉移解析，不需要模擬器。
 if /bin/bash ./scripts/lib/getevent_touch_selftest.sh; then

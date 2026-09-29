@@ -20,11 +20,10 @@ struct AdbClient: Sendable {
     static func standard(
         serial: String = "emulator-5554",
         environment env: [String: String] = ProcessInfo.processInfo.environment,
+        homeDirectory: URL = FileManager.default.homeDirectoryForCurrentUser,
         isExecutable: (String) -> Bool = { FileManager.default.isExecutableFile(atPath: $0) }
     ) -> AdbClient? {
-        let sdk = env["ANDROID_SDK_ROOT"] ?? env["ANDROID_HOME"]
-            ?? (NSHomeDirectory() + "/Library/Android/sdk")
-        let adb = URL(fileURLWithPath: sdk).appendingPathComponent("platform-tools/adb")
+        let adb = SdkLocator(environment: env, homeDirectory: homeDirectory).adbBinary
         guard isExecutable(adb.path) else { return nil }
         return AdbClient(adbPath: adb, serial: serial)
     }
@@ -42,6 +41,23 @@ struct AdbClient: Sendable {
         case .timedOut: return .timeout
         case .failed: return .failure
         }
+    }
+
+    @discardableResult
+    func setSecureSetting(_ key: String, _ value: String) async -> Bool {
+        guard case .completed(let exit, _) = await execute(
+            ["-s", serial, "shell", "settings", "put", "secure", key, value],
+            .seconds(5), true
+        ) else { return false }
+        return exit == 0
+    }
+
+    @discardableResult
+    func emuKill() async -> Bool {
+        guard case .completed(let exit, _) = await execute(
+            ["-s", serial, "emu", "kill"], .seconds(5), true
+        ) else { return false }
+        return exit == 0
     }
 
     /// 安裝 APK：`adb -s <serial> install -r <path>`。失敗原因在 stderr，故合流。

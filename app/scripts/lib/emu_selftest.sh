@@ -10,16 +10,24 @@
 set -uo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 LIB="${SCRIPT_DIR}/emu_instances.sh"
-unset MIRAGE_HEADLESS
+unset MIRAGE_HEADLESS MIRAGE_INSTANCES_FILE
 FAILURES=0
 
 run_case() {
-    ( set +e; source "$LIB" > /dev/null 2>&1; eval "$1" > /dev/null 2>&1 )
+    ( set +e; source "$LIB" > /dev/null 2>&1 || exit $?; eval "$1" > /dev/null 2>&1 )
     echo $?
 }
 
 run_out() {
-    ( set +e; source "$LIB" > /dev/null 2>&1; eval "$1" 2>/dev/null )
+    ( set +e; source "$LIB" > /dev/null 2>&1 || exit $?; eval "$1" 2>/dev/null )
+}
+
+run_missing_config_case() {
+    (
+        MIRAGE_INSTANCES_FILE="${TMPDIR:-/tmp}/mirage-instances-missing-${$}" \
+            bash -c 'source "$1" >/dev/null 2>&1' bash "$LIB" >/dev/null 2>&1
+    )
+    echo $?
 }
 
 check() {
@@ -43,6 +51,15 @@ ${PS_ONE}"
 
 echo "=== emu_instances.sh 自我測試 ==="
 
+echo "--- instances.conf default table ---"
+check "從共用檔案讀取預設表格" \
+      "$(run_out 'printf "%s\\n" "$EMU_DEFAULT_INSTANCES"')" \
+      "mirage-game:5554:8554 mirage-poc:5556:8556"
+check "實例表檔案不存在時 source 失敗" "$(run_missing_config_case)" 1
+check "實例表檔案不存在時 emu.sh 失敗" \
+      "$(MIRAGE_INSTANCES_FILE="${TMPDIR:-/tmp}/mirage-instances-missing-${$}" \
+          "${SCRIPT_DIR}/../emu.sh" status >/dev/null 2>&1; echo $?)" 1
+
 echo "--- emu_should_disable_soft_keyboard ---"
 check "目前是 0 → 不重複 put" "$(run_case 'emu_should_disable_soft_keyboard 0')" 1
 check "目前是 1 → put 0" "$(run_case 'emu_should_disable_soft_keyboard 1')" 0
@@ -55,6 +72,8 @@ check "空表格名稱清單為空" "$(run_out 'emu_names ""')" ""
 
 echo "--- emu_validate_triplet ---"
 check "有效三元組通過" "$(run_case 'emu_validate_triplet a 5554 8554')" 0
+check "console 埠前導零被拒絕" "$(run_case 'emu_validate_triplet a 05554 8554')" 1
+check "gRPC 埠前導零被拒絕" "$(run_case 'emu_validate_triplet a 5554 08554')" 1
 check "空 AVD 被拒絕" "$(run_case 'emu_validate_triplet "" 5554 8554')" 1
 check "gRPC 零被拒絕" "$(run_case 'emu_validate_triplet a 5554 0')" 1
 check "gRPC 超出上限被拒絕" "$(run_case 'emu_validate_triplet a 5554 65536')" 1
@@ -103,6 +122,7 @@ check "同一個 gRPC 埠出現兩次 → 1" \
       "$(run_case 'emu_table_check "a:5554:8554 b:5556:8554"')" 1
 check "表格裡有無效三元組 → 1" \
       "$(run_case 'emu_table_check "a:5554:8554 b:5557:8556"')" 1
+check "空表格 → 1" "$(run_case 'emu_table_check ""')" 1
 
 echo "--- emu_running_instances ---"
 check "一台 → 一行 pid avd console grpc window" \

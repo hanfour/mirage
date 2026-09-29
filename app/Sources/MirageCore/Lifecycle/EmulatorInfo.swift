@@ -8,17 +8,19 @@ import Foundation
 /// 位置的左上一半處——見 `docs/specs/2026-07-28-mirror-never-rendered-investigation.md` §10。
 public struct EmulatorInfo: Equatable, Sendable {
     public let version: String
+    public let booted: Bool
     /// nil = 探測回覆裡沒有可用的 `hw.lcd.*`。呼叫端必須據此**放棄注入**而非猜一個值，
     /// 理由見 `EmulatorClient.sendTap`。
     public let display: (w: Int, h: Int)?
 
-    public init(version: String, display: (w: Int, h: Int)?) {
+    public init(version: String, display: (w: Int, h: Int)?, booted: Bool) {
         self.version = version
         self.display = display
+        self.booted = booted
     }
 
     public static func == (lhs: EmulatorInfo, rhs: EmulatorInfo) -> Bool {
-        lhs.version == rhs.version && lhs.display?.w == rhs.display?.w
+        lhs.version == rhs.version && lhs.booted == rhs.booted && lhs.display?.w == rhs.display?.w
             && lhs.display?.h == rhs.display?.h
     }
 

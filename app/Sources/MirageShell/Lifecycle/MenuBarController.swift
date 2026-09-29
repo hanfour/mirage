@@ -14,6 +14,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
     private let muteItem: NSMenuItem
     private let speechItem: NSMenuItem
     private let backgroundModeItem: NSMenuItem
+    private let restartSimulatorItem: NSMenuItem
     private let forceMenu: NSMenu
     /// 「切換模擬器」子選單。內容每次展開前由 `instanceEntries` 重算（探索檔隨模擬器起停而變）。
     private let instanceMenu: NSMenu
@@ -39,7 +40,9 @@ final class MenuBarController: NSObject, NSMenuDelegate {
     /// 模擬器多開（2026-09-12）：AppModel.setupInstanceMenu() 綁定。前者在子選單展開前
     /// 被呼叫、回傳要顯示的列；後者在使用者選了某一台時被呼叫。
     var instanceEntries: (() -> [InstanceMenuEntry])?
-    var onSwitchInstance: ((EmulatorInstance) -> Void)?
+    var onSwitchInstance: ((InstanceEntry) -> Void)?
+    var onRestartSimulator: (() -> Void)?
+    var canRestartSimulator: (@MainActor () -> Bool)?
 
     /// P1-e：AppModel.startAudio() 綁定 → AudioPlayer.setMuted。
     var onToggleMute: (() -> Void)?
@@ -67,6 +70,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         gameItem = NSMenuItem(title: "遊戲：—", action: nil, keyEquivalent: "")
         muteItem = NSMenuItem(title: "靜音", action: nil, keyEquivalent: "")
         speechItem = NSMenuItem(title: "語音轉文字", action: nil, keyEquivalent: "")
+        restartSimulatorItem = NSMenuItem(title: "重新啟動模擬器", action: nil, keyEquivalent: "")
         // 標題寫明「下次啟動」：打勾當下視窗不會消失，不寫清楚會以為沒反應。
         backgroundModeItem = NSMenuItem(title: "背景模式（下次啟動不開視窗、自動開手機遙控）",
                                         action: nil, keyEquivalent: "")
@@ -88,6 +92,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         instanceMenu.delegate = self
 
         let menu = NSMenu()
+        menu.delegate = self
         menu.addItem(statusMenuItem)
         menu.addItem(audioHealthItem)
         menu.addItem(.separator())
@@ -107,6 +112,10 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         let instanceParent = NSMenuItem(title: "切換模擬器", action: nil, keyEquivalent: "")
         instanceParent.submenu = instanceMenu   // 與「套用 profile」同形：AppKit 自己畫 ▸
         menu.addItem(instanceParent)
+        restartSimulatorItem.action = #selector(restartSimulatorTapped)
+        restartSimulatorItem.target = self
+        restartSimulatorItem.isEnabled = false
+        menu.addItem(restartSimulatorItem)
         let remoteParent = NSMenuItem(title: "手機遙控", action: nil, keyEquivalent: "")
         remoteParent.submenu = remoteMenu   // 與「切換模擬器」同形
         menu.addItem(remoteParent)
@@ -154,6 +163,9 @@ final class MenuBarController: NSObject, NSMenuDelegate {
 
     /// 子選單展開前重算：profile／模擬器讀磁碟，手機遙控讀目前狀態與最新品質回報。
     func menuNeedsUpdate(_ menu: NSMenu) {
+        if let rootMenu = statusItem.menu, menu === rootMenu {
+            restartSimulatorItem.isEnabled = canRestartSimulator?() ?? false
+        }
         if menu === remoteMenu {
             Self.populate(remoteMenu: remoteMenu, entries: remoteEntries?() ?? RemoteMenu.entries(.off),
                           target: self, toggleAction: #selector(remoteToggleTapped),
@@ -249,8 +261,12 @@ final class MenuBarController: NSObject, NSMenuDelegate {
     }
 
     @objc private func instanceTapped(_ sender: NSMenuItem) {
-        guard let instance = sender.representedObject as? EmulatorInstance else { return }
-        onSwitchInstance?(instance)
+        guard let entry = sender.representedObject as? InstanceEntry else { return }
+        onSwitchInstance?(entry)
+    }
+
+    @objc private func restartSimulatorTapped() {
+        onRestartSimulator?()
     }
 
     /// 純佈局：entries → NSMenuItem。抽成 static 是為了測試——建 `MenuBarController` 會在
@@ -265,7 +281,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
             item.target = entry.isEnabled ? target : nil
             item.isEnabled = entry.isEnabled
             item.state = entry.isCurrent ? .on : .off
-            item.representedObject = entry.instance
+            item.representedObject = entry.entry
             menu.addItem(item)
         }
     }
