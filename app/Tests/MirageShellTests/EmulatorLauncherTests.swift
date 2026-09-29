@@ -26,6 +26,36 @@ import Testing
         #expect(launcher.state(for: "mirage-game") == .booting(since: harness.nowValue))
     }
 
+    @Test func overlappingTickReturnsWhileBootProbeIsSuspended() async throws {
+        let ownedFile = temporaryOwnedFile()
+        defer { try? FileManager.default.removeItem(at: ownedFile.deletingLastPathComponent()) }
+        let harness = LauncherHarness()
+        let gate = BootProbeGate()
+        harness.bootProbe = { _ in await gate.probe() }
+        let launcher = harness.makeLauncher(ownedFile: ownedFile)
+
+        await launcher.ensureRunning(harness.game)
+        harness.discovered = [.init(avdName: "mirage-game", consolePort: 5554,
+                                    grpcPort: 8554, pid: 12345)]
+        harness.alive.insert(12345)
+        let firstTick = Task { @MainActor in await launcher.tick() }
+        await gate.waitUntilEntered()
+
+        harness.discovered = []
+        harness.alive.remove(12345)
+        await launcher.tick()
+        #expect(harness.spawnCount == 1)
+
+        gate.resume(false)
+        await firstTick.value
+        await launcher.tick()
+        #expect(launcher.state(for: "mirage-game") == .launching(since: harness.nowValue))
+        #expect(harness.spawnCount == 2)
+
+        await launcher.tick()
+        #expect(harness.spawnCount == 2)
+    }
+
     @Test func managedExitRestartsOnceButSecondExitWithinFiftyNineSecondsFails() async throws {
         let ownedFile = temporaryOwnedFile()
         defer { try? FileManager.default.removeItem(at: ownedFile.deletingLastPathComponent()) }
@@ -118,6 +148,25 @@ import Testing
         #expect(harness.syncKillSerials == ["emulator-5554"])
         #expect(harness.alive == [23456])
         #expect(OwnedInstances.read(from: ownedFile).records.isEmpty)
+    }
+
+    @Test func terminationSignalsAndWaitsForSpawnWithoutDiscoveryRecord() async throws {
+        let ownedFile = temporaryOwnedFile()
+        defer { try? FileManager.default.removeItem(at: ownedFile.deletingLastPathComponent()) }
+        let harness = LauncherHarness()
+        harness.keepSpawnRunningAfterTerminate = true
+        let launcher = harness.makeLauncher(ownedFile: ownedFile)
+
+        await launcher.ensureRunning(harness.game)
+        let spawnPid = try #require(harness.spawnPids.first)
+        #expect(launcher.state(for: "mirage-game") == .launching(since: harness.nowValue))
+        #expect(OwnedInstances.read(from: ownedFile).records.isEmpty)
+
+        launcher.stopAllOwnedForTermination()
+
+        #expect(harness.events.contains("signal-\(spawnPid)"))
+        #expect(harness.terminationSleepCount == 1)
+        #expect(!harness.spawnRunning[0])
     }
 
     @Test func adoptKeepsMatchingPidAndAvdAndDropsMismatches() throws {
@@ -215,10 +264,13 @@ private final class LauncherHarness {
     var syncKillSerials: [String] = []
     var filesExist = true
     var bootResult: Bool?
+    var bootProbe: (@MainActor (EmulatorEndpoint) async -> Bool?)?
     var stopResult: Bool?
     var fileExistsCheck: ((URL) -> Bool)?
     var nowValue = Date(timeIntervalSince1970: 1_000)
     var spawnError: String?
+    var keepSpawnRunningAfterTerminate = false
+    var terminationSleepCount = 0
 
     func makeLauncher(ownedFile: URL, entries: [InstanceEntry]? = nil,
                       spawnError: String? = nil) -> EmulatorLauncher {
@@ -240,7 +292,10 @@ private final class LauncherHarness {
             },
             discover: { self.discovered },
             isAlive: { self.alive.contains($0) },
-            isBooted: { _ in self.bootResult },
+            isBooted: { endpoint in
+                if let bootProbe = self.bootProbe { return await bootProbe(endpoint) }
+                return self.bootResult
+            },
             stopEmulator: { serial in
                 self.events.append("adb-\(serial)")
                 return self.stopResult
@@ -252,6 +307,10 @@ private final class LauncherHarness {
             terminatePid: { pid in
                 self.events.append("signal-\(pid)")
                 self.alive.remove(pid)
+                if !self.keepSpawnRunningAfterTerminate,
+                   let index = self.spawnPids.firstIndex(of: pid) {
+                    self.spawnRunning[index] = false
+                }
             },
             syncEmuKill: { serial in
                 self.syncKillSerials.append(serial)
@@ -267,7 +326,39 @@ private final class LauncherHarness {
             fileExists: { url in self.fileExistsCheck?(url) ?? self.filesExist },
             createDirectory: { _ in },
             sleep: { _ in },
-            terminationSleep: { _ in }
+            terminationSleep: { _ in
+                self.terminationSleepCount += 1
+                if let index = self.spawnRunning.indices.first {
+                    self.spawnRunning[index] = false
+                }
+            }
         )
+    }
+}
+
+@MainActor
+private final class BootProbeGate {
+    private var resultContinuation: CheckedContinuation<Bool?, Never>?
+    private var enteredContinuation: CheckedContinuation<Void, Never>?
+    private var didEnter = false
+
+    func probe() async -> Bool? {
+        await withCheckedContinuation { continuation in
+            resultContinuation = continuation
+            didEnter = true
+            enteredContinuation?.resume()
+            enteredContinuation = nil
+        }
+    }
+
+    func waitUntilEntered() async {
+        guard !didEnter else { return }
+        await withCheckedContinuation { enteredContinuation = $0 }
+    }
+
+    func resume(_ result: Bool?) {
+        let continuation = resultContinuation
+        resultContinuation = nil
+        continuation?.resume(returning: result)
     }
 }

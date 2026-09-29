@@ -58,6 +58,7 @@ final class EmulatorLauncher {
     private let onStateChange: @MainActor (InstanceEntry, InstanceState) -> Void
     private var runtimes: [String: Runtime] = [:]
     private var ownedRecords: [OwnedRecord] = []
+    private var isTicking = false
 
     init(
         entries: [InstanceEntry],
@@ -174,6 +175,10 @@ final class EmulatorLauncher {
     }
 
     func tick() async {
+        guard !isTicking else { return }
+        isTicking = true
+        defer { isTicking = false }
+
         let discovered = discover()
         for avd in runtimes.keys.sorted() {
             guard var runtime = runtimes[avd] else { continue }
@@ -189,6 +194,8 @@ final class EmulatorLauncher {
                 runtime.ownedRecord = record
                 runtimes[avd] = runtime
                 persistOwnedRecords()
+                let spawnPid = runtime.spawned.map { String($0.pid) } ?? "none"
+                print("[launcher] \(instance.avdName) spawnPid=\(spawnPid) discoveryPid=\(instance.pid)")
                 await send(avd, .discoveryFileAppeared)
                 guard let updated = runtimes[avd] else { continue }
                 runtime = updated
@@ -264,13 +271,25 @@ final class EmulatorLauncher {
     }
 
     func stopAllOwnedForTermination() {
+        let unregisteredSpawns = runtimes.values.compactMap { runtime -> SpawnedProcess? in
+            guard runtime.ownedRecord == nil,
+                  let spawned = runtime.spawned,
+                  spawned.isRunning else { return nil }
+            return spawned
+        }
+
         for record in ownedRecords {
             syncEmuKill("emulator-\(record.consolePort)")
+        }
+        for spawned in unregisteredSpawns {
+            terminatePid(spawned.pid)
         }
 
         let clock = ContinuousClock()
         let deadline = clock.now.advanced(by: .seconds(5))
-        while clock.now < deadline && ownedRecords.contains(where: { isAlive($0.pid) }) {
+        while clock.now < deadline
+            && (ownedRecords.contains(where: { isAlive($0.pid) })
+                || unregisteredSpawns.contains(where: { $0.isRunning })) {
             terminationSleep(.milliseconds(100))
         }
         let remaining = ownedRecords.filter { isAlive($0.pid) }

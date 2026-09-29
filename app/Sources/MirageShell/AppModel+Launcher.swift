@@ -22,23 +22,7 @@ final class InstanceManagerPresentation {
     }
 }
 
-@MainActor
-private enum InstanceManagerPresentationStore {
-    private static let values = NSMapTable<AppModel, InstanceManagerPresentation>.weakToStrongObjects()
-
-    static func value(for model: AppModel) -> InstanceManagerPresentation {
-        if let value = values.object(forKey: model) { return value }
-        let value = InstanceManagerPresentation()
-        values.setObject(value, forKey: model)
-        return value
-    }
-}
-
 extension AppModel {
-    var instanceManagerPresentation: InstanceManagerPresentation {
-        InstanceManagerPresentationStore.value(for: self)
-    }
-
     func prepareInstanceLauncher() async {
         let presentation = instanceManagerPresentation
         guard presentation.launcher == nil, presentation.tableError == nil else { return }
