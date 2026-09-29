@@ -11,6 +11,14 @@ import Testing
                                        avd: avd)?.text == "啟動模擬器中…")
     }
 
+    @Test func stoppingMessageHasNoActions() throws {
+        let content = try #require(InstanceBanner.content(for: .stopping, avd: avd))
+        #expect(content.text == "停止模擬器中…")
+        #expect(content.color == .progress)
+        #expect(!content.showsRestart)
+        #expect(!content.showsLog)
+    }
+
     @Test func bootingMessage() {
         #expect(InstanceBanner.content(for: .booting(since: Date(timeIntervalSince1970: 0)),
                                        avd: avd)?.text == "Android 開機中…")

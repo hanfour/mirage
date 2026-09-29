@@ -20,6 +20,9 @@ enum InstanceBanner {
         case .launching:
             return Content(text: "啟動模擬器中…", color: .progress,
                            showsRestart: false, showsLog: false)
+        case .stopping:
+            return Content(text: "停止模擬器中…", color: .progress,
+                           showsRestart: false, showsLog: false)
         case .booting:
             return Content(text: "Android 開機中…", color: .progress,
                            showsRestart: false, showsLog: false)
