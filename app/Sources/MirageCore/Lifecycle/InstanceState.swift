@@ -1,7 +1,7 @@
 import Foundation
 
 public enum InstanceFailure: Sendable, Equatable {
-    case sdkNotFound(URL)
+    case emulatorNotFound(URL)
     case avdNotFound(URL)
     case avdInUse(consolePort: Int)
     case launchTimedOut

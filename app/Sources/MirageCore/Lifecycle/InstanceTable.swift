@@ -51,9 +51,9 @@ public enum InstanceTable {
             let consolePort: Int
             switch parsePort(String(fields[1])) {
             case .success(let port): consolePort = port
-            case .failure:
+            case .failure(let error):
                 return .failure(.init(line: lineNumber,
-                                      reason: "\(avdName)：console 埠不是整數"))
+                                      reason: portErrorMessage(error, avdName: avdName, name: "console")))
             }
             guard (5554...5682).contains(consolePort), consolePort.isMultiple(of: 2) else {
                 return .failure(.init(line: lineNumber,
@@ -63,9 +63,9 @@ public enum InstanceTable {
             let grpcPort: Int
             switch parsePort(String(fields[2])) {
             case .success(let port): grpcPort = port
-            case .failure:
+            case .failure(let error):
                 return .failure(.init(line: lineNumber,
-                                      reason: "\(avdName)：gRPC 埠不是整數"))
+                                      reason: portErrorMessage(error, avdName: avdName, name: "gRPC")))
             }
             guard (1...65535).contains(grpcPort) else {
                 return .failure(.init(line: lineNumber,
@@ -110,13 +110,26 @@ public enum InstanceTable {
         }
     }
 
-    private static func parsePort(_ raw: String) -> Result<Int, InstanceTableError> {
-        guard !raw.isEmpty,
-              raw.utf8.allSatisfy({ (48...57).contains($0) }),
-              let port = Int(raw)
-        else {
-            return .failure(.init(line: 1, reason: "埠必須是整數"))
+    private static func parsePort(_ raw: String) -> Result<Int, PortParseError> {
+        guard !raw.isEmpty, raw.utf8.allSatisfy({ (48...57).contains($0) }) else {
+            return .failure(.notInteger)
         }
+        guard raw.count == 1 || !raw.hasPrefix("0") else {
+            return .failure(.leadingZero)
+        }
+        guard let port = Int(raw) else { return .failure(.notInteger) }
         return .success(port)
+    }
+
+    private static func portErrorMessage(_ error: PortParseError, avdName: String, name: String) -> String {
+        switch error {
+        case .notInteger: "\(avdName)：\(name) 埠不是整數"
+        case .leadingZero: "埠不可有前導零"
+        }
+    }
+
+    private enum PortParseError: Error, Sendable {
+        case notInteger
+        case leadingZero
     }
 }

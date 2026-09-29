@@ -74,13 +74,13 @@ struct LaunchCheckTests {
 
     @Test func reportsMissingEmulatorBeforeOtherFailures() {
         let failure = check(running: [otherConsole]) { _ in false }
-        #expect(failure == .emulatorBinaryNotFound(emulator))
+        #expect(failure == .emulatorNotFound(emulator))
     }
 
     @Test func reportsMissingAvdConfigurationBeforeConflict() {
         let failure = check(running: [otherConsole]) { $0 == emulator }
         let expected = URL(fileURLWithPath: "/users/tester/.android/avd/mirage-game.ini")
-        #expect(failure == .avdConfigurationNotFound(expected))
+        #expect(failure == .avdNotFound(expected))
     }
 
     @Test func usesAndroidAvdHomeOverride() {
@@ -98,7 +98,7 @@ struct LaunchCheckTests {
 
     @Test func reportsSameAvdOnAnotherConsole() {
         let failure = check(running: [otherConsole]) { _ in true }
-        #expect(failure == .avdAlreadyRunning(consolePort: 5556))
+        #expect(failure == .avdInUse(consolePort: 5556))
     }
 
     @Test func sameAvdOnRequestedConsoleIsAllowed() {
@@ -116,7 +116,7 @@ struct LaunchCheckTests {
         environment: [String: String] = [:],
         running: [EmulatorInstance],
         fileExists: (URL) -> Bool
-    ) -> LaunchCheckFailure? {
+    ) -> InstanceFailure? {
         LaunchCheck.failure(instance: instance, sdkRoot: sdkRoot, environment: environment,
                             homeDirectory: home, running: running, fileExists: fileExists)
     }

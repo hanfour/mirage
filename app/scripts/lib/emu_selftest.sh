@@ -72,7 +72,8 @@ check "空表格名稱清單為空" "$(run_out 'emu_names ""')" ""
 
 echo "--- emu_validate_triplet ---"
 check "有效三元組通過" "$(run_case 'emu_validate_triplet a 5554 8554')" 0
-check "帶前導零的有效三元組按十進位通過" "$(run_case 'emu_validate_triplet a 05554 08554')" 0
+check "console 埠前導零被拒絕" "$(run_case 'emu_validate_triplet a 05554 8554')" 1
+check "gRPC 埠前導零被拒絕" "$(run_case 'emu_validate_triplet a 5554 08554')" 1
 check "空 AVD 被拒絕" "$(run_case 'emu_validate_triplet "" 5554 8554')" 1
 check "gRPC 零被拒絕" "$(run_case 'emu_validate_triplet a 5554 0')" 1
 check "gRPC 超出上限被拒絕" "$(run_case 'emu_validate_triplet a 5554 65536')" 1
@@ -117,8 +118,6 @@ check "同一個 AVD 出現兩次 → 1" \
       "$(run_case 'emu_table_check "a:5554:8554 a:5556:8556"')" 1
 check "同一個 console 埠出現兩次 → 1" \
       "$(run_case 'emu_table_check "a:5554:8554 b:5554:8556"')" 1
-check "前導零不會躲過重複 console 埠檢查" \
-      "$(run_case 'emu_table_check "a:5554:8554 b:05554:8556"')" 1
 check "同一個 gRPC 埠出現兩次 → 1" \
       "$(run_case 'emu_table_check "a:5554:8554 b:5556:8554"')" 1
 check "表格裡有無效三元組 → 1" \

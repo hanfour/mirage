@@ -1,11 +1,5 @@
 import Foundation
 
-public enum LaunchCheckFailure: Sendable, Equatable {
-    case emulatorBinaryNotFound(URL)
-    case avdConfigurationNotFound(URL)
-    case avdAlreadyRunning(consolePort: Int)
-}
-
 public enum LaunchCheck {
     public static func failure(
         instance: InstanceEntry,
@@ -14,10 +8,10 @@ public enum LaunchCheck {
         homeDirectory: URL,
         running: [EmulatorInstance],
         fileExists: (URL) -> Bool
-    ) -> LaunchCheckFailure? {
+    ) -> InstanceFailure? {
         let emulator = SdkLocator(sdkRoot: sdkRoot).emulatorBinary
         guard fileExists(emulator) else {
-            return .emulatorBinaryNotFound(emulator)
+            return .emulatorNotFound(emulator)
         }
 
         let avdDirectory: URL
@@ -31,13 +25,13 @@ public enum LaunchCheck {
         let avdConfiguration = avdDirectory.appendingPathComponent(
             "\(instance.avdName).ini", isDirectory: false)
         guard fileExists(avdConfiguration) else {
-            return .avdConfigurationNotFound(avdConfiguration)
+            return .avdNotFound(avdConfiguration)
         }
 
         if let conflict = running.first(where: {
             $0.avdName == instance.avdName && $0.consolePort != instance.consolePort
         }) {
-            return .avdAlreadyRunning(consolePort: conflict.consolePort)
+            return .avdInUse(consolePort: conflict.consolePort)
         }
         return nil
     }

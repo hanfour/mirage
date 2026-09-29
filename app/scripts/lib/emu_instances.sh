@@ -37,37 +37,23 @@ EMU_DEFAULT_INSTANCES="$(awk '
 }
 
 # 三元組驗證。console 埠必須是 5554–5682 的偶數（emulator -port 的限制，奇數是 adb 埠）。
-emu_decimal_value() {
-    local value="$1"
-    while [ "${value#0}" != "$value" ]; do value="${value#0}"; done
-    printf '%s' "${value:-0}"
-}
-
 emu_validate_triplet() {
-    local avd="$1" port="$2" grpc="$3" port_value grpc_value
+    local avd="$1" port="$2" grpc="$3"
     if [ -z "$avd" ]; then
         echo "❌ 實例表項目缺 AVD 名稱" >&2; return 1
     fi
     case "$port" in
         ''|*[!0-9]*) echo "❌ ${avd}：console 埠 '${port}' 不是整數" >&2; return 1 ;;
+        0[0-9]*) echo "❌ ${avd}：console 埠不可有前導零" >&2; return 1 ;;
     esac
-    port_value="$(emu_decimal_value "$port")"
-    if [ "${#port_value}" -gt 5 ]; then
-        echo "❌ ${avd}：console 埠 ${port} 必須是 5554–5682 的偶數" >&2; return 1
-    fi
-    port_value=$((10#$port_value))
-    if [ "$port_value" -lt 5554 ] || [ "$port_value" -gt 5682 ] || [ $((port_value % 2)) -ne 0 ]; then
+    if [ "$port" -lt 5554 ] || [ "$port" -gt 5682 ] || [ $((port % 2)) -ne 0 ]; then
         echo "❌ ${avd}：console 埠 ${port} 必須是 5554–5682 的偶數" >&2; return 1
     fi
     case "$grpc" in
         ''|*[!0-9]*) echo "❌ ${avd}：gRPC 埠 '${grpc}' 不是整數" >&2; return 1 ;;
+        0[0-9]*) echo "❌ ${avd}：gRPC 埠不可有前導零" >&2; return 1 ;;
     esac
-    grpc_value="$(emu_decimal_value "$grpc")"
-    if [ "${#grpc_value}" -gt 5 ]; then
-        echo "❌ ${avd}：gRPC 埠 ${grpc} 不在 1–65535" >&2; return 1
-    fi
-    grpc_value=$((10#$grpc_value))
-    if [ "$grpc_value" -lt 1 ] || [ "$grpc_value" -gt 65535 ]; then
+    if [ "$grpc" -lt 1 ] || [ "$grpc" -gt 65535 ]; then
         echo "❌ ${avd}：gRPC 埠 ${grpc} 不在 1–65535" >&2; return 1
     fi
     return 0
@@ -120,18 +106,16 @@ emu_names() {
 
 # emu_table_check [實例表] → AVD／console 埠／gRPC 埠任一重複，或任一三元組無效，回 1。
 emu_table_check() {
-    local table="${1-$EMU_DEFAULT_INSTANCES}" entry avd port grpc port_value grpc_value has_entry=0
+    local table="${1-$EMU_DEFAULT_INSTANCES}" entry avd port grpc has_entry=0
     local avds="" ports="" grpcs=""
     for entry in $table; do
         has_entry=1
         IFS=: read -r avd port grpc <<< "$entry"
         emu_validate_triplet "${avd:-}" "${port:-}" "${grpc:-}" || return 1
-        port_value="$(emu_decimal_value "$port")"
-        grpc_value="$(emu_decimal_value "$grpc")"
         case " $avds " in *" $avd "*) echo "❌ 實例表裡 AVD ${avd} 出現兩次；每台要各自一個 AVD" >&2; return 1 ;; esac
-        case " $ports " in *" $port_value "*) echo "❌ 實例表裡 console 埠 ${port} 出現兩次" >&2; return 1 ;; esac
-        case " $grpcs " in *" $grpc_value "*) echo "❌ 實例表裡 gRPC 埠 ${grpc} 出現兩次" >&2; return 1 ;; esac
-        avds="$avds $avd"; ports="$ports $port_value"; grpcs="$grpcs $grpc_value"
+        case " $ports " in *" $port "*) echo "❌ 實例表裡 console 埠 ${port} 出現兩次" >&2; return 1 ;; esac
+        case " $grpcs " in *" $grpc "*) echo "❌ 實例表裡 gRPC 埠 ${grpc} 出現兩次" >&2; return 1 ;; esac
+        avds="$avds $avd"; ports="$ports $port"; grpcs="$grpcs $grpc"
     done
     if [ "$has_entry" -eq 0 ]; then
         echo "❌ 實例表不能是空白" >&2

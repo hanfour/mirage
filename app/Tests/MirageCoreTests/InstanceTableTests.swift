@@ -37,6 +37,15 @@ struct InstanceTableTests {
         #expect(error.reason.contains("5554–5682"))
     }
 
+    @Test func rejectsConsolePortWithLeadingZero() throws {
+        let error = try #require(failure("mirage-game:05554:8554"))
+        #expect(error.line == 1)
+        #expect(error.reason == "埠不可有前導零")
+
+        let grpcError = try #require(failure("mirage-game:5554:08554"))
+        #expect(grpcError.reason == "埠不可有前導零")
+    }
+
     @Test func rejectsGrpcPortOutsideRange() throws {
         let error = try #require(failure("game:5554:65536"))
         #expect(error.reason.contains("1–65535"))
