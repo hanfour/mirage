@@ -11,7 +11,10 @@ cd "$(dirname "$0")/../.."
 LOG=/tmp/mirage_reconnect_test.log
 ANIMATE_LOG=/tmp/mirage_reconnect_animate.log
 BOOT_LOG=/tmp/mirage_reboot.log
-SDK="${ANDROID_SDK_ROOT:-$HOME/Library/Android/sdk}"
+ANDROID_SDK_ROOT="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-$HOME/Library/Android/sdk}}"
+ANDROID_AVD_HOME="${ANDROID_AVD_HOME:-$HOME/.android/avd}"
+export ANDROID_SDK_ROOT ANDROID_AVD_HOME
+SDK="$ANDROID_SDK_ROOT"
 ADB="$SDK/platform-tools/adb"
 # D9：**必須指定目標裝置**。沒有它，`"$ADB" shell getprop`（line ~79 的開機等待迴圈）
 # 會打到「唯一連著的裝置」——而開發機上常常插著實體手機，於是這支腳本會去輪詢那支手機

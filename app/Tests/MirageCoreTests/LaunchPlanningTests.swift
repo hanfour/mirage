@@ -29,13 +29,13 @@ struct SdkLocatorTests {
         let locator = SdkLocator(
             environment: ["ANDROID_SDK_ROOT": "", "ANDROID_HOME": ""],
             homeDirectory: home)
-        #expect(locator.root.path == "/users/tester/Library/Android/sdk")
+        #expect(locator.root.path == "/users/tester/Library/Application Support/Mirage/sdk")
     }
 
     @Test func exposesEmulatorAndAdbBinaries() {
         let locator = SdkLocator(environment: [:], homeDirectory: home)
-        #expect(locator.emulatorBinary.path == "/users/tester/Library/Android/sdk/emulator/emulator")
-        #expect(locator.adbBinary.path == "/users/tester/Library/Android/sdk/platform-tools/adb")
+        #expect(locator.emulatorBinary.path == "/users/tester/Library/Application Support/Mirage/sdk/emulator/emulator")
+        #expect(locator.adbBinary.path == "/users/tester/Library/Application Support/Mirage/sdk/platform-tools/adb")
     }
 }
 
@@ -46,7 +46,8 @@ struct LaunchPlanTests {
         let plan = LaunchPlan(
             instance: instance,
             sdkRoot: URL(fileURLWithPath: "/sdk", isDirectory: true),
-            homeDirectory: URL(fileURLWithPath: "/users/tester", isDirectory: true))
+            homeDirectory: URL(fileURLWithPath: "/users/tester", isDirectory: true),
+            environment: ["ANDROID_AVD_HOME": "/avds"])
 
         #expect(plan.executable.path == "/sdk/emulator/emulator")
         #expect(plan.arguments == [
@@ -58,6 +59,10 @@ struct LaunchPlanTests {
             "-no-window",
         ])
         #expect(plan.logFile.path == "/users/tester/Library/Logs/Mirage/emulator-mirage-game.log")
+        #expect(plan.environment == [
+            "ANDROID_SDK_ROOT": "/sdk",
+            "ANDROID_AVD_HOME": "/avds",
+        ])
     }
 }
 
@@ -79,7 +84,7 @@ struct LaunchCheckTests {
 
     @Test func reportsMissingAvdConfigurationBeforeConflict() {
         let failure = check(running: [otherConsole]) { $0 == emulator }
-        let expected = URL(fileURLWithPath: "/users/tester/.android/avd/mirage-game.ini")
+        let expected = URL(fileURLWithPath: "/users/tester/Library/Application Support/Mirage/avd/mirage-game.ini")
         #expect(failure == .avdNotFound(expected))
     }
 
@@ -93,6 +98,19 @@ struct LaunchCheckTests {
         #expect(checked == [
             emulator.path,
             "/custom/avds/mirage-game.ini",
+        ])
+    }
+
+    @Test func emptyAndroidAvdHomeUsesMirageDirectory() {
+        var checked: [String] = []
+        let failure = check(environment: ["ANDROID_AVD_HOME": ""], running: []) {
+            checked.append($0.path)
+            return true
+        }
+        #expect(failure == nil)
+        #expect(checked == [
+            emulator.path,
+            "/users/tester/Library/Application Support/Mirage/avd/mirage-game.ini",
         ])
     }
 
