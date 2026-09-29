@@ -41,9 +41,10 @@ public enum SetupCheck {
         readFile: (URL) throws -> String
     ) -> SetupCheckResult {
         let game = spec.avds.first(where: { $0.name == "mirage-game" })
+        let gameImageManifest = game?.imageManifest
         let packages = spec.packages.filter { package in
             package.path == "emulator" || package.path == "platform-tools"
-                || package.manifestKey == game?.imageManifest
+                || gameImageManifest.map { package.manifestKey == $0 } == true
         }
         var missing: [SetupMissingItem] = []
         var warnings: [SetupVersionWarning] = []

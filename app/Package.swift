@@ -68,6 +68,9 @@ let package = Package(
             dependencies: [
                 "MirageCore",
                 .product(name: "Testing", package: "swift-testing"),
+                .product(name: "NIOCore", package: "swift-nio"),
+                .product(name: "NIOPosix", package: "swift-nio"),
+                .product(name: "NIOHTTP1", package: "swift-nio"),
             ],
             resources: [.copy("Fixtures")],
             swiftSettings: strict

@@ -96,9 +96,10 @@ struct SetupCheckTests {
         includeAvd: Bool = true
     ) -> [String: String] {
         let game = spec.avds.first { $0.name == "mirage-game" }
-        let packages = spec.packages.filter {
-            $0.path == "emulator" || $0.path == "platform-tools"
-                || $0.manifestKey == game?.imageManifest
+        let gameImageManifest = game?.imageManifest
+        let packages = spec.packages.filter { package in
+            package.path == "emulator" || package.path == "platform-tools"
+                || gameImageManifest.map { package.manifestKey == $0 } == true
         }
         var files: [String: String] = [:]
         for package in packages {
