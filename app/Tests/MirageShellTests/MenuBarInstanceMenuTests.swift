@@ -44,6 +44,18 @@ import Testing
         #expect(menu.items[0].state == .off)
     }
 
+    @Test func instanceSwitchingIsDisabledBeforeLauncherExists() {
+        let menu = NSMenu()
+        MenuBarController.populate(instanceMenu: menu, entries: [InstanceMenu.unavailableEntry()],
+                                   target: NSObject(), action: action)
+
+        #expect(menu.items.count == 1)
+        #expect(menu.items[0].title == InstanceMenu.unavailableTitle)
+        #expect(!menu.items[0].isEnabled)
+        #expect(menu.items[0].action == nil)
+        #expect(menu.items[0].target == nil)
+    }
+
     /// 每次展開都重建：上一次的項目不得殘留（與「套用 profile」的 removeAllItems 同一條）。
     @Test func populateReplacesPreviousItems() {
         let menu = NSMenu()

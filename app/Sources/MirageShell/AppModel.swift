@@ -41,7 +41,6 @@ final class AppModel {
     var currentEndpoint: EmulatorEndpoint = EmulatorClient.defaultEndpoint
     let instanceManagerPresentation = InstanceManagerPresentation()
     @ObservationIgnored var setupWindowController: SetupWindowController?
-    @ObservationIgnored var setupContinuation: CheckedContinuation<Void, Never>?
     /// 序列化選單連續點選；已完成的 Task 可直接 await，下一個要求會替換它。
     @ObservationIgnored var instanceSwitchTask: Task<Void, Never>?
     @ObservationIgnored var streamDemands = StreamDemands()
@@ -278,6 +277,7 @@ final class AppModel {
 
     /// 選單列「喚醒／顯示視窗」與 Dock 圖示點擊（`AppDelegate.applicationShouldHandleReopen`）共用。
     func wake() {
+        guard !instanceManagerPresentation.setupVisible else { return }
         lifecycle?.wake(showing: windowController.window())
     }
 

@@ -15,6 +15,11 @@ struct InstanceMenuEntry: Equatable {
 /// `MIRAGE_HOST` 決定且切換不改它（見 `AppModel.switchInstance`）。
 enum InstanceMenu {
     static let placeholderTitle = "沒有其他模擬器"
+    static let unavailableTitle = "設定完成後可切換模擬器"
+
+    static func unavailableEntry() -> InstanceMenuEntry {
+        InstanceMenuEntry(title: unavailableTitle, entry: nil, isCurrent: false, isRunning: false)
+    }
 
     static func title(for entry: InstanceEntry, running: Bool) -> String {
         let suffix = running ? "" : "（未啟動）"

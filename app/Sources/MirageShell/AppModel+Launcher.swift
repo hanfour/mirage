@@ -4,6 +4,8 @@ import Foundation
 import Observation
 import MirageCore
 
+typealias SetupPresenter = @MainActor (SetupController, @MainActor () -> Void) -> Void
+
 @MainActor
 @Observable
 final class InstanceManagerPresentation {
@@ -25,11 +27,16 @@ final class InstanceManagerPresentation {
 }
 
 extension AppModel {
-    func prepareInstanceLauncher() async {
+    // Optional hooks let the missing-setup path return in tests without opening a real window.
+    func prepareInstanceLauncher(
+        environment suppliedEnvironment: [String: String]? = nil,
+        discoverInstances: (() -> [EmulatorInstance])? = nil,
+        presentSetup: SetupPresenter? = nil
+    ) async {
         let presentation = instanceManagerPresentation
         guard presentation.launcher == nil, presentation.tableError == nil,
               presentation.specError == nil else { return }
-        let environment = ProcessInfo.processInfo.environment
+        let environment = suppliedEnvironment ?? ProcessInfo.processInfo.environment
         guard environment["MIRAGE_HOST"] == nil, environment["MIRAGE_PORT"] == nil else { return }
 
         switch InstanceTable.bundled() {
@@ -51,7 +58,8 @@ extension AppModel {
             presentation.tableError = nil
             presentation.specError = nil
 
-            let isExpectedExternalInstance = EmulatorDiscovery.instances().contains {
+            let discoveredInstances = discoverInstances?() ?? EmulatorDiscovery.instances()
+            let isExpectedExternalInstance = discoveredInstances.contains {
                 $0.avdName == first.avdName && $0.consolePort == first.consolePort
             }
             guard !isExpectedExternalInstance else {
@@ -105,25 +113,36 @@ extension AppModel {
                     return Self.evaluateSetup(spec: spec, sdkRoot: sdkRoot, avdDirectory: avdDirectory)
                 })
             presentation.setupVisible = true
-            await withCheckedContinuation { continuation in
-                setupContinuation = continuation
-                setupWindowController = SetupWindowController(controller: setupController) { [weak self] in
-                    guard let self else { return }
-                    self.instanceManagerPresentation.setupVisible = false
-                    self.setupWindowController = nil
-                    if self.launchPreferences.effectiveBackgroundMode {
-                        NSApp.setActivationPolicy(.accessory)
-                    }
-                    self.setupContinuation?.resume()
-                    self.setupContinuation = nil
+            let setupSucceeded: @MainActor () -> Void = { [weak self] in
+                guard let self else { return }
+                self.instanceManagerPresentation.setupVisible = false
+                self.setupWindowController = nil
+                if self.launchPreferences.effectiveBackgroundMode {
+                    NSApp.setActivationPolicy(.accessory)
+                } else {
+                    self.windowController.window().makeKeyAndOrderFront(nil)
                 }
-                setupWindowController?.show()
-                if options.autostart {
-                    setupController.agreed = true
-                    setupController.start()
+                Task { @MainActor in
+                    await self.startInstanceLauncher(entries: entries, environment: environment, home: home)
+                    if self.lifecycle != nil { self.applyBackgroundModeAfterStart() }
                 }
             }
-            await startInstanceLauncher(entries: entries, environment: environment, home: home)
+
+            if let presentSetup {
+                presentSetup(setupController, setupSucceeded)
+            } else {
+                if !launchPreferences.effectiveBackgroundMode {
+                    windowController.window().orderOut(nil)
+                }
+                let windowController = SetupWindowController(
+                    controller: setupController, onSuccessfulClose: setupSucceeded)
+                self.setupWindowController = windowController
+                windowController.show()
+            }
+            if options.autostart {
+                setupController.agreed = true
+                setupController.start()
+            }
         }
     }
 
