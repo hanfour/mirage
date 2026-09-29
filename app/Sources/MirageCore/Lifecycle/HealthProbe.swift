@@ -55,11 +55,6 @@ public struct GrpcHealthProbe: HealthProbe {
         }
     }
 
-    func booted(timeout: Duration) async -> Bool? {
-        guard case .status(let info) = await status(timeout: timeout) else { return nil }
-        return info.booted
-    }
-
     private enum StatusResult: Sendable {
         case status(EmulatorInfo)
         case timedOut

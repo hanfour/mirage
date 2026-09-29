@@ -222,7 +222,14 @@ final class EmulatorLauncher {
 
             if case .booting = runtime.state {
                 let endpoint = EmulatorEndpoint(host: "localhost", port: runtime.entry.grpcPort)
-                if await isBooted(endpoint) == true {
+                let probeStartedAt = ProcessInfo.processInfo.systemUptime
+                NSLog("[launcher] %@ bootProbe start", avd)
+                let bootProbeResult = await isBooted(endpoint)
+                let elapsedMilliseconds = (ProcessInfo.processInfo.systemUptime - probeStartedAt) * 1_000
+                let resultDescription = bootProbeResult.map { $0 ? "true" : "false" } ?? "nil"
+                NSLog("[launcher] %@ bootProbe end result=%@ ms=%.0f",
+                      avd, resultDescription, elapsedMilliseconds)
+                if let booted = bootProbeResult, booted {
                     if case .booting? = runtimes[avd]?.state {
                         await send(avd, .booted)
                         if case .running? = runtimes[avd]?.state,
