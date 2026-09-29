@@ -156,7 +156,7 @@ app 啟動模擬器後，把以下資料寫入 `~/Library/Application Support/Mi
 - `emu.sh` 的參數與行為不變。`emu_selftest.sh` 需要改成從 `instances.conf` 取預設值，並加一條測試：`instances.conf` 讀不到時 `emu.sh` 退出碼非 0。
 - 設了 `MIRAGE_HOST`／`MIRAGE_PORT` 的驗證腳本，app 不管理模擬器。
 - 沒設覆寫、但先用 `emu.sh` 開好模擬器的腳本，app 會接上外部實例，不重開也不停止。`verify_reconnect.sh` 這類會自己殺模擬器的腳本，看到的仍是「重新連線中」，不會被 app 的自動重開干擾。實作時要逐一檢查 `app/scripts/verify_*.sh` 中會停止模擬器的腳本，確認都屬於上述兩種情況。
-- `EmulatorEndpoint.default` 改成從實例表第一行的 gRPC 埠產生，值仍是 8554。
+- `EmulatorEndpoint.default` 維持寫死 `localhost:8554`，另加單元測試檢查它等於實例表第一行的 gRPC 埠。執行期不多一條讀檔失敗的路徑，兩邊不一致時測試會失敗。
 
 ## 6. 測試
 
@@ -186,7 +186,7 @@ app 啟動模擬器後，把以下資料寫入 `~/Library/Application Support/Mi
 
 依序做，每項完成都要過 `ci.sh`：
 
-1. `instances.conf`、`InstanceTable`、`emu_instances.sh` 改讀檔、`emu_selftest.sh` 補測試、`EmulatorEndpoint.default` 改由表產生。
+1. `instances.conf`、`InstanceTable`、`emu_instances.sh` 改讀檔、`emu_selftest.sh` 補測試、`EmulatorEndpoint.default` 與表一致的測試。
 2. `SdkLocator`、`LaunchPlan`、`LaunchCheck` 與單元測試。`AdbClient.standard` 改用 `SdkLocator`。
 3. `InstanceState` 狀態機與單元測試。`EmulatorInfo` 加上 `booted`。
 4. `OwnedInstances` 與單元測試。
