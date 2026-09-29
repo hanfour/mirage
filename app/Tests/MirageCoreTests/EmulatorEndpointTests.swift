@@ -10,6 +10,11 @@ struct EmulatorEndpointTests {
         #expect(e.overrideProblem == nil)
     }
 
+    @Test func defaultPortMatchesFirstBundledInstance() throws {
+        let first = try #require(InstanceTable.bundled().get().first)
+        #expect(first.grpcPort == EmulatorEndpoint.default.port)
+    }
+
     @Test func portOverrideIsApplied() {
         let e = EmulatorEndpoint.resolve(environment: ["MIRAGE_PORT": "8556"])
         #expect(e.host == "localhost")

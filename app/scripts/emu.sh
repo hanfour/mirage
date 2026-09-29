@@ -17,7 +17,7 @@
 # 所有實例共用啟停邏輯，running 一律依 console 埠判斷，status 列出全部。
 set -uo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-source "${SCRIPT_DIR}/lib/emu_instances.sh"
+source "${SCRIPT_DIR}/lib/emu_instances.sh" || exit 1
 SDK="${ANDROID_SDK_ROOT:-$HOME/Library/Android/sdk}"
 EMULATOR="$SDK/emulator/emulator"
 ADB="$SDK/platform-tools/adb"
