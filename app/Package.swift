@@ -72,7 +72,6 @@ let package = Package(
                 .product(name: "NIOPosix", package: "swift-nio"),
                 .product(name: "NIOHTTP1", package: "swift-nio"),
             ],
-            resources: [.copy("Fixtures")],
             swiftSettings: strict
         ),
         .testTarget(

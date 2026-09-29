@@ -1,4 +1,5 @@
 import CryptoKit
+import Darwin
 import Foundation
 import NIOCore
 import NIOHTTP1
@@ -125,6 +126,57 @@ struct PackageInstallerTests {
         #expect(extractionFailed)
         #expect(try String(contentsOf: marker, encoding: .utf8) == "previous install")
     }
+
+    @Test func cancellationStopsDittoAndPreservesThePreviousInstall() async throws {
+        let temporary = try TestDirectory()
+        let archive = try ZipFixture.create(
+            under: temporary.url,
+            files: ["package-root/file": Data("new version".utf8)],
+            executablePaths: [],
+            zipEntries: ["package-root"])
+        let server = try LocalPackageHTTPServer(body: archive.bytes)
+        defer { try? server.stop() }
+        let roots = try InstallRoots(under: temporary.url)
+        let pidFile = temporary.url.appendingPathComponent("ditto.pid")
+        let sleepingDitto = try ZipFixture.sleepingExtractor(under: temporary.url, pidFile: pidFile)
+        let installer = PackageInstaller(
+            sdkRoot: roots.sdk,
+            downloadsDirectory: roots.downloads,
+            dittoExecutable: sleepingDitto)
+        let package = makePackage(url: server.url, installPath: "sample", archive: archive.bytes)
+        let marker = try roots.makeExistingInstall("sample")
+        let installation = Task { try await installer.install(package) }
+        defer { installation.cancel() }
+
+        let foundProcessID = await processID(from: pidFile, timeout: .seconds(5))
+        let processID = try #require(foundProcessID)
+        #expect(processIsRunning(processID))
+        let cancelledAt = ContinuousClock.now
+        installation.cancel()
+        let outcome = await awaitWithWatchdog(.seconds(3)) {
+            do {
+                try await installation.value
+                return InstallerTaskOutcome.succeeded
+            } catch is CancellationError {
+                return .cancelled
+            } catch {
+                return .failed(error.localizedDescription)
+            }
+        }
+
+        #expect(outcome == .finished(.cancelled))
+        #expect(cancelledAt.duration(to: .now) < .seconds(3))
+        #expect(!processIsRunning(processID))
+        #expect(try String(contentsOf: marker, encoding: .utf8) == "previous install")
+        #expect(!FileManager.default.fileExists(
+            atPath: roots.downloads.appendingPathComponent("payload.zip.part").path))
+    }
+}
+
+private enum InstallerTaskOutcome: Equatable, Sendable {
+    case succeeded
+    case cancelled
+    case failed(String)
 }
 
 private struct ArchiveData {
@@ -168,6 +220,15 @@ private enum ZipFixture {
     static func failingExtractor(under root: URL) throws -> URL {
         let script = root.appendingPathComponent("failing-ditto")
         try Data("#!/bin/sh\nexit 17\n".utf8).write(to: script)
+        try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: script.path)
+        return script
+    }
+
+    static func sleepingExtractor(under root: URL, pidFile: URL) throws -> URL {
+        let escapedPath = pidFile.path.replacingOccurrences(of: "'", with: "'\\''")
+        let script = root.appendingPathComponent("sleeping-ditto")
+        let body = "#!/bin/sh\nprintf '%s\\n' \"$$\" > '\(escapedPath)'\nexec /bin/sleep 30\n"
+        try Data(body.utf8).write(to: script)
         try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: script.path)
         return script
     }
@@ -300,4 +361,20 @@ private func makePackage(
 
 private func sha1(_ data: Data) -> String {
     Insecure.SHA1.hash(data: data).map { String(format: "%02x", $0) }.joined()
+}
+
+private func processID(from file: URL, timeout: Duration) async -> Int32? {
+    let deadline = ContinuousClock.now.advanced(by: timeout)
+    while ContinuousClock.now < deadline {
+        if let contents = try? String(contentsOf: file, encoding: .utf8),
+           let processID = Int32(contents.trimmingCharacters(in: .whitespacesAndNewlines)) {
+            return processID
+        }
+        try? await Task.sleep(for: .milliseconds(10))
+    }
+    return nil
+}
+
+private func processIsRunning(_ processID: Int32) -> Bool {
+    Darwin.kill(processID, 0) == 0 || errno == EPERM
 }

@@ -217,7 +217,7 @@ import Testing
         let missingLauncher = missingHarness.makeLauncher(ownedFile: missingFile)
         await missingLauncher.ensureRunning(missingHarness.game)
         #expect(missingLauncher.state(for: "mirage-game") == .failed(.avdNotFound(
-            URL(fileURLWithPath: "/user/.android/avd/mirage-game.ini"))))
+            URL(fileURLWithPath: "/user/Library/Application Support/Mirage/avd/mirage-game.ini"))))
         #expect(missingHarness.spawnCount == 0)
 
         let conflictFile = temporaryOwnedFile()

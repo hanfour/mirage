@@ -37,8 +37,12 @@ struct AvdWriterTests {
     }
 
     private func golden(_ name: String) throws -> String {
-        let url = try #require(Bundle.module.url(
-            forResource: name, withExtension: "ini", subdirectory: "Fixtures/avd"))
+        let fixtureDirectory = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .appendingPathComponent("Fixtures/avd", isDirectory: true)
+        let url = fixtureDirectory.appendingPathComponent("\(name).ini", isDirectory: false)
+        try #require(FileManager.default.fileExists(atPath: url.path))
         return try String(contentsOf: url, encoding: .utf8)
     }
 }

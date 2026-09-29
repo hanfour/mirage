@@ -108,7 +108,7 @@ public struct PackageInstaller: Sendable {
             ".mirage-install-\(UUID().uuidString)", isDirectory: true)
         stagingDirectory = extractionDirectory
         try fileManager.createDirectory(at: extractionDirectory, withIntermediateDirectories: false)
-        try extract(zipURL, into: extractionDirectory)
+        try await extract(zipURL, into: extractionDirectory)
         try Task.checkCancellation()
         let entries = try fileManager.contentsOfDirectory(
             at: extractionDirectory, includingPropertiesForKeys: [.isDirectoryKey])
@@ -138,6 +138,7 @@ public struct PackageInstaller: Sendable {
         defer { try? file.close() }
         var hasher = Insecure.SHA1()
         while true {
+            try Task.checkCancellation()
             let chunk = try file.read(upToCount: 1024 * 1024) ?? Data()
             if chunk.isEmpty { break }
             hasher.update(data: chunk)
@@ -145,7 +146,8 @@ public struct PackageInstaller: Sendable {
         return hasher.finalize().map { String(format: "%02x", $0) }.joined()
     }
 
-    private func extract(_ zip: URL, into directory: URL) throws {
+    private func extract(_ zip: URL, into directory: URL) async throws {
+        try Task.checkCancellation()
         let fileManager = FileManager.default
         let errorLog = directory.deletingLastPathComponent()
             .appendingPathComponent(".mirage-ditto-\(UUID().uuidString).log")
@@ -158,38 +160,46 @@ public struct PackageInstaller: Sendable {
         process.standardInput = FileHandle.nullDevice
         process.standardOutput = FileHandle.nullDevice
         process.standardError = errorOutput
+        let completion = ProcessCompletion(process: process)
+        process.terminationHandler = { process in
+            completion.resolve(process.terminationStatus)
+        }
         do {
             try process.run()
         } catch {
             try? errorOutput.close()
+            if Task.isCancelled { throw CancellationError() }
             throw PackageInstallerError.extractionFailed(error.localizedDescription)
         }
 
-        let deadline = Date().addingTimeInterval(dittoTimeoutSeconds)
-        while process.isRunning && Date() < deadline {
-            Thread.sleep(forTimeInterval: 0.05)
-        }
-        if process.isRunning {
-            process.terminate()
-            let terminationDeadline = Date().addingTimeInterval(2)
-            while process.isRunning && Date() < terminationDeadline {
-                Thread.sleep(forTimeInterval: 0.05)
+        let processExit = Task { await completion.wait() }
+        let timeoutMilliseconds = Int64(max(0, dittoTimeoutSeconds) * 1_000)
+        let outcome = await withTaskCancellationHandler {
+            if let status = await firstOf(timeout: .milliseconds(timeoutMilliseconds), operation: {
+                await processExit.value
+            }) {
+                return DittoOutcome.exited(status)
             }
-            if process.isRunning { _ = Darwin.kill(process.processIdentifier, SIGKILL) }
-            process.waitUntilExit()
-            try? errorOutput.close()
-            throw PackageInstallerError.extractionTimedOut(seconds: Int(dittoTimeoutSeconds))
+            completion.terminate()
+            _ = await processExit.value
+            return DittoOutcome.timedOut
+        } onCancel: {
+            completion.terminate()
         }
-
-        process.waitUntilExit()
         try? errorOutput.close()
-        guard process.terminationStatus == 0 else {
-            let detail = (try? String(contentsOf: errorLog, encoding: .utf8))?
-                .trimmingCharacters(in: .whitespacesAndNewlines)
-            let message = detail.flatMap { $0.isEmpty ? nil : $0 }
-                ?? "ditto 結束碼 \(process.terminationStatus)"
-            throw PackageInstallerError.extractionFailed(
-                message)
+        try Task.checkCancellation()
+
+        switch outcome {
+        case .timedOut:
+            throw PackageInstallerError.extractionTimedOut(seconds: Int(dittoTimeoutSeconds))
+        case .exited(let status):
+            guard status == 0 else {
+                let detail = (try? String(contentsOf: errorLog, encoding: .utf8))?
+                    .trimmingCharacters(in: .whitespacesAndNewlines)
+                let message = detail.flatMap { $0.isEmpty ? nil : $0 }
+                    ?? "ditto 結束碼 \(status)"
+                throw PackageInstallerError.extractionFailed(message)
+            }
         }
     }
 
@@ -263,6 +273,80 @@ public struct PackageInstaller: Sendable {
         var data = try encoder.encode(records)
         data.append(0x0A)
         try data.write(to: recordURL, options: .atomic)
+    }
+}
+
+private enum DittoOutcome: Sendable {
+    case exited(Int32)
+    case timedOut
+}
+
+private final class ProcessCompletion: @unchecked Sendable {
+    private let process: Process
+    private let lock = NSLock()
+    private var status: Int32?
+    private var continuation: CheckedContinuation<Int32, Never>?
+    private var terminationRequested = false
+    private var forceKillTask: Task<Void, Never>?
+
+    init(process: Process) {
+        self.process = process
+    }
+
+    func wait() async -> Int32 {
+        await withCheckedContinuation { continuation in
+            lock.lock()
+            if let status {
+                lock.unlock()
+                continuation.resume(returning: status)
+            } else {
+                self.continuation = continuation
+                lock.unlock()
+            }
+        }
+    }
+
+    func resolve(_ status: Int32) {
+        lock.lock()
+        guard self.status == nil else {
+            lock.unlock()
+            return
+        }
+        self.status = status
+        let continuation = self.continuation
+        self.continuation = nil
+        let forceKillTask = self.forceKillTask
+        self.forceKillTask = nil
+        lock.unlock()
+
+        forceKillTask?.cancel()
+        continuation?.resume(returning: status)
+    }
+
+    func terminate() {
+        lock.lock()
+        guard status == nil, !terminationRequested else {
+            lock.unlock()
+            return
+        }
+        terminationRequested = true
+        lock.unlock()
+
+        if process.isRunning { process.terminate() }
+        let forceKillTask = Task {
+            do {
+                try await Task.sleep(for: .seconds(2))
+            } catch {
+                return
+            }
+            if process.isRunning { _ = Darwin.kill(process.processIdentifier, SIGKILL) }
+        }
+
+        lock.lock()
+        let shouldCancel = status != nil
+        if !shouldCancel { self.forceKillTask = forceKillTask }
+        lock.unlock()
+        if shouldCancel { forceKillTask.cancel() }
     }
 }
 
