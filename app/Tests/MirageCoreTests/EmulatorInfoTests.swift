@@ -36,12 +36,17 @@ import Testing
     /// 送出一個用錯尺寸換算的座標，比不送更糟：畫面有反應但點在錯的地方，而使用者
     /// 會以為是遊戲的問題。
     @Test func infoCarriesVersionAndOptionalDisplay() {
-        let known = EmulatorInfo(version: "37.2.1.0", display: (w: 1080, h: 2400))
+        let known = EmulatorInfo(version: "37.2.1.0", display: (w: 1080, h: 2400), booted: true)
         #expect(known.version == "37.2.1.0")
+        #expect(known.booted)
         #expect(known.display?.w == 1080)
 
-        let unknown = EmulatorInfo(version: "37.2.1.0", display: nil)
+        let unknown = EmulatorInfo(version: "37.2.1.0", display: nil, booted: false)
         #expect(unknown.display == nil)
         #expect(known != unknown)
+
+        let bootedWithoutDisplay = EmulatorInfo(version: "37.2.1.0", display: nil, booted: true)
+        let notBootedWithoutDisplay = EmulatorInfo(version: "37.2.1.0", display: nil, booted: false)
+        #expect(bootedWithoutDisplay != notBootedWithoutDisplay)
     }
 }

@@ -13,7 +13,7 @@ public enum HealthResult: Equatable, Sendable {
 
     /// 便利建構——既有測試多半只關心版本，不必每處都寫出 display。
     public static func healthy(version: String) -> HealthResult {
-        .healthy(EmulatorInfo(version: version, display: nil))
+        .healthy(EmulatorInfo(version: version, display: nil, booted: true))
     }
 }
 
@@ -57,7 +57,8 @@ public struct GrpcHealthProbe: HealthProbe {
                         uniquingKeysWith: { _, latest in latest })
                     return .healthy(EmulatorInfo(
                         version: status.version,
-                        display: EmulatorInfo.displaySize(hardwareConfig: config)))
+                        display: EmulatorInfo.displaySize(hardwareConfig: config),
+                        booted: status.booted))
                 } catch {
                     return .failed
                 }

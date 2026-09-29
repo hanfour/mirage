@@ -37,5 +37,7 @@ final class ScriptedProbe: HealthProbe, @unchecked Sendable {
         #expect(HealthResult.healthy(version: "1") == .healthy(version: "1"))
         #expect(HealthResult.healthy(version: "1") != .healthy(version: "2"))
         #expect(HealthResult.healthy(version: "1") != .failed)
+        #expect(HealthResult.healthy(version: "1") == .healthy(
+            EmulatorInfo(version: "1", display: nil, booted: true)))
     }
 }
