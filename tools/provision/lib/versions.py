@@ -14,10 +14,12 @@ Google 一 bump，先前的版本就從清單上消失——我們原本在跑�
 from __future__ import annotations
 
 from dataclasses import dataclass
+from lib.sdk_spec import load_spec
 
 from lib.manifest import PackageRef, find_ref
 
-ANDROID_TARGET = "android-35"
+_SPEC = load_spec()
+ANDROID_TARGET = _SPEC["androidTarget"]
 
 _REPO_BASE = "https://dl.google.com/android/repository/"
 
@@ -44,45 +46,21 @@ class Pin:
     sha1: str
     size: int
     install_path: str  # 相對 SDK root 的最終目錄
+    url: str = ""
 
 
-PINS = (
+PINS = tuple(
     Pin(
-        manifest_key="repo",
-        path="emulator",
-        channel="stable",
-        revision="37.1.11",
-        sha1="f22f44948a2b7f0a0103645b9a639290eef92426",
-        size=394555844,
-        install_path="emulator",
-    ),
-    Pin(
-        manifest_key="repo",
-        path="platform-tools",
-        channel="stable",
-        revision="37.0.1",
-        sha1="6ae73f4de6452dc57e62ec02b68eed92a4c21661",
-        size=16110554,
-        install_path="platform-tools",
-    ),
-    Pin(
-        manifest_key="sysimg_default",
-        path=f"system-images;{ANDROID_TARGET};default;arm64-v8a",
-        channel="stable",
-        revision="2",
-        sha1="2026a06409db630b56711afdbffb457c1dbaed49",
-        size=769099654,
-        install_path=f"system-images/{ANDROID_TARGET}/default/arm64-v8a",
-    ),
-    Pin(
-        manifest_key="sysimg_playstore",
-        path=f"system-images;{ANDROID_TARGET};google_apis_playstore;arm64-v8a",
-        channel="stable",
-        revision="9",
-        sha1="b01416bc0bca12a85295dad179f9b8a1cae3d1e6",
-        size=1789211399,
-        install_path=f"system-images/{ANDROID_TARGET}/google_apis_playstore/arm64-v8a",
-    ),
+        manifest_key=package["manifestKey"],
+        path=package["path"],
+        channel=package["channel"],
+        revision=package["revision"],
+        sha1=package["sha1"],
+        size=package["size"],
+        install_path=package["installPath"],
+        url=package["url"],
+    )
+    for package in _SPEC["packages"]
 )
 
 
@@ -99,8 +77,8 @@ def _drift(pin: Pin, detail: str) -> PinDriftError:
         f"{pin.path}：{detail}。\n"
         f"manifest 對每個 package 只提供當下最新的一個 revision，所以上游一 bump，"
         f"pin 的版本就會從清單上消失。\n"
-        f"這需要一個決定：確認新版可用之後更新 tools/provision/lib/versions.py 的 "
-        f"PINS 並送出 commit——換環境必須留下紀錄。"
+        f"這需要一個決定：確認新版可用之後更新 app/Sources/MirageCore/Resources/"
+        f"sdk-spec.json 並送出 commit——換環境必須留下紀錄。"
     )
 
 
@@ -122,5 +100,14 @@ def resolve_pins(
             raise _drift(
                 pin, f"revision {ref.revision} 相同但 sha1 不同（pin {pin.sha1}，manifest {ref.sha1}）"
             )
+        if ref.size != pin.size:
+            raise _drift(pin, f"revision {ref.revision} 的 size 不同（pin {pin.size}，manifest {ref.size}）")
         resolved.append((pin, ref))
     return resolved
+
+
+def validate_pinned_urls(resolved: list[tuple[Pin, PackageRef]]) -> None:
+    """拒絕 manifest URL 變動，與版本、checksum 和大小漂移採相同錯誤契約。"""
+    for pin, ref in resolved:
+        if ref.url != pin.url:
+            raise _drift(pin, f"revision {ref.revision} 的 url 不同（pin {pin.url}，manifest {ref.url}）")

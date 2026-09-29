@@ -39,6 +39,7 @@ let package = Package(
                 .copy("Resources/profiles"),
                 .copy("Resources/remote"),
                 .copy("Resources/instances.conf"),
+                .copy("Resources/sdk-spec.json"),
             ],
             swiftSettings: strict
         ),
@@ -68,6 +69,7 @@ let package = Package(
                 "MirageCore",
                 .product(name: "Testing", package: "swift-testing"),
             ],
+            resources: [.copy("Fixtures")],
             swiftSettings: strict
         ),
         .testTarget(
