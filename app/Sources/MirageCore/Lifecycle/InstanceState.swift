@@ -7,6 +7,7 @@ public enum InstanceFailure: Sendable, Equatable {
     case launchTimedOut
     case bootTimedOut
     case abnormalExit
+    case spawnFailed(String)
 }
 
 public enum InstanceState: Sendable, Equatable {

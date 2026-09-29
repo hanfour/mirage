@@ -43,6 +43,23 @@ struct AdbClient: Sendable {
         }
     }
 
+    @discardableResult
+    func setSecureSetting(_ key: String, _ value: String) async -> Bool {
+        guard case .completed(let exit, _) = await execute(
+            ["-s", serial, "shell", "settings", "put", "secure", key, value],
+            .seconds(5), true
+        ) else { return false }
+        return exit == 0
+    }
+
+    @discardableResult
+    func emuKill() async -> Bool {
+        guard case .completed(let exit, _) = await execute(
+            ["-s", serial, "emu", "kill"], .seconds(5), true
+        ) else { return false }
+        return exit == 0
+    }
+
     /// 安裝 APK：`adb -s <serial> install -r <path>`。失敗原因在 stderr，故合流。
     /// run 回 nil（adb 無法啟動/逾時砍）→ 降級為明確 failure，不崩。
     func install(apkURL: URL, timeout: Duration = .seconds(120)) async -> InstallResult {

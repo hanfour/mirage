@@ -45,17 +45,38 @@ public struct GrpcHealthProbe: HealthProbe {
     }
 
     public func probe(timeout: Duration) async -> HealthResult {
-        await withTaskGroup(of: HealthResult.self) { group in
+        switch await status(timeout: timeout) {
+        case .status(let info):
+            return info.booted ? .healthy(info) : .failed
+        case .timedOut:
+            return .timedOut
+        case .failed:
+            return .failed
+        }
+    }
+
+    func booted(timeout: Duration) async -> Bool? {
+        guard case .status(let info) = await status(timeout: timeout) else { return nil }
+        return info.booted
+    }
+
+    private enum StatusResult: Sendable {
+        case status(EmulatorInfo)
+        case timedOut
+        case failed
+    }
+
+    private func status(timeout: Duration) async -> StatusResult {
+        await withTaskGroup(of: StatusResult.self) { group in
             group.addTask {
                 do {
                     let status = try await client.getStatus(.init())
-                    guard status.booted else { return .failed }
                     // hardwareConfig 是 key/value 陣列；重複鍵取後者（實務上不會有，
                     // 但 `uniqueKeysWithValues` 遇到重複會直接 trap，不值得為此冒險）。
                     let config = Dictionary(
                         status.hardwareConfig.entry.map { ($0.key, $0.value) },
                         uniquingKeysWith: { _, latest in latest })
-                    return .healthy(EmulatorInfo(
+                    return .status(EmulatorInfo(
                         version: status.version,
                         display: EmulatorInfo.displaySize(hardwareConfig: config),
                         booted: status.booted))

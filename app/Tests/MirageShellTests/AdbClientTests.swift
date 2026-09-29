@@ -34,6 +34,33 @@ struct AdbClientTests {
         #expect(await client.dumpsysForegroundPackage() == nil)
     }
 
+    @Test func setSecureSettingUsesSecureSettingsCommandAndFiveSecondTimeout() async {
+        let client = AdbClient(adbPath: URL(fileURLWithPath: "/sdk/adb"), serial: "emulator-5554") {
+            path, args, timeout, merge in
+            #expect(path.path == "/sdk/adb")
+            #expect(args == ["-s", "emulator-5554", "shell", "settings", "put", "secure",
+                             "show_ime_with_hard_keyboard", "0"])
+            #expect(timeout == .seconds(5))
+            #expect(merge)
+            return (0, "")
+        }
+
+        #expect(await client.setSecureSetting("show_ime_with_hard_keyboard", "0"))
+    }
+
+    @Test func emuKillUsesFiveSecondTimeout() async {
+        let client = AdbClient(adbPath: URL(fileURLWithPath: "/sdk/adb"), serial: "emulator-5556") {
+            path, args, timeout, merge in
+            #expect(path.path == "/sdk/adb")
+            #expect(args == ["-s", "emulator-5556", "emu", "kill"])
+            #expect(timeout == .seconds(5))
+            #expect(merge)
+            return (0, "")
+        }
+
+        #expect(await client.emuKill())
+    }
+
     // 成功輸出同樣抄自 app/RESULTS-apk-install.md「補測」的活體輸出。
     @Test func installSuccessAndCommand() async {
         let client = AdbClient(adbPath: URL(fileURLWithPath: "/sdk/adb"), serial: "device-7") { path, args, timeout, merge in

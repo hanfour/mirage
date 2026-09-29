@@ -180,6 +180,8 @@ final class AppModel {
             print("[app] 環境變數覆寫無效：\(problem)")
         }
 
+        await prepareInstanceLauncher()
+
         // RECONCILIATION (Task 6 brief vs. this file): the brief's `startLifecycle()`
         // snippet spins up a SECOND `for await s in client.states` loop to feed
         // `menuBar?.updateStatus`. `client.states` is a plain single-continuation
