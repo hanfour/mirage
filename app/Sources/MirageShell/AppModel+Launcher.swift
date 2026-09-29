@@ -11,6 +11,8 @@ final class InstanceManagerPresentation {
     var entries: [InstanceEntry] = []
     var currentInstanceState: InstanceState?
     var tableError: InstanceTableError?
+    var specError: SdkSpecError?
+    var setupVisible = false
     var currentAVD: String?
     var tickTask: Task<Void, Never>?
 
@@ -25,7 +27,8 @@ final class InstanceManagerPresentation {
 extension AppModel {
     func prepareInstanceLauncher() async {
         let presentation = instanceManagerPresentation
-        guard presentation.launcher == nil, presentation.tableError == nil else { return }
+        guard presentation.launcher == nil, presentation.tableError == nil,
+              presentation.specError == nil else { return }
         let environment = ProcessInfo.processInfo.environment
         guard environment["MIRAGE_HOST"] == nil, environment["MIRAGE_PORT"] == nil else { return }
 
@@ -33,6 +36,7 @@ extension AppModel {
         case .failure(let error):
             instanceManagerPresentation.tableError = error
             NSLog("[launcher] 實例表讀取失敗：%@", error.localizedDescription)
+            showLauncherBannerInBackgroundMode()
             return
         case .success(let entries):
             guard let first = entries.first else {
@@ -43,56 +47,165 @@ extension AppModel {
             }
 
             let home = FileManager.default.homeDirectoryForCurrentUser
-            let ownedFile = home.appendingPathComponent(
-                "Library/Application Support/Mirage/owned-instances.json", isDirectory: false)
             presentation.entries = entries
             presentation.tableError = nil
+            presentation.specError = nil
 
-            let launcher = EmulatorLauncher(
-                entries: entries,
-                spawn: EmulatorLauncher.spawnProcess,
-                discover: EmulatorDiscovery.instances,
-                isAlive: Self.pidIsAlive,
-                isBooted: { await BootProbe.isBooted(endpoint: $0, timeout: .seconds(1)) },
-                stopEmulator: { serial in
-                    guard let adb = AdbClient.standard(serial: serial, environment: environment,
-                                                      homeDirectory: home) else { return nil }
-                    return await adb.emuKill()
+            let isExpectedExternalInstance = EmulatorDiscovery.instances().contains {
+                $0.avdName == first.avdName && $0.consolePort == first.consolePort
+            }
+            guard !isExpectedExternalInstance else {
+                await startInstanceLauncher(entries: entries, environment: environment, home: home)
+                return
+            }
+
+            let options = SetupLaunchOptions.parse(environment: environment)
+            for warning in options.warnings {
+                print("[setup] 環境變數覆寫無效：\(warning)")
+            }
+            let spec: SdkSpec
+            switch options.loadSdkSpec() {
+            case .failure(let error):
+                presentation.specError = error
+                NSLog("[launcher] SDK 設定檔讀取失敗：%@", error.localizedDescription)
+                showLauncherBannerInBackgroundMode()
+                return
+            case .success(let loaded):
+                spec = loaded
+            }
+
+            let sdkRoot = MiragePaths.sdkRoot(environment: environment, homeDirectory: home)
+            let avdDirectory = MiragePaths.avdDirectory(environment: environment, homeDirectory: home)
+            let downloadsDirectory = MiragePaths.downloadsDirectory(homeDirectory: home)
+            let initialCheck = evaluateSetup(spec: spec, sdkRoot: sdkRoot, avdDirectory: avdDirectory)
+            for warning in initialCheck.warnings {
+                print("[setup] warning \(warning.message)")
+            }
+            guard !initialCheck.missing.isEmpty else {
+                await startInstanceLauncher(entries: entries, environment: environment, home: home)
+                return
+            }
+
+            let setupController = SetupController(
+                spec: spec,
+                missing: initialCheck.missing,
+                sdkRoot: sdkRoot,
+                avdDirectory: avdDirectory,
+                downloadsDirectory: downloadsDirectory,
+                installer: PackageInstaller(sdkRoot: sdkRoot, downloadsDirectory: downloadsDirectory),
+                availableBytes: {
+                    if let fake = options.fakeAvailableBytes { return fake }
+                    return Self.availableCapacity(at: downloadsDirectory)
                 },
-                configureGuest: { serial, key, value in
-                    guard let adb = AdbClient.standard(serial: serial, environment: environment,
-                                                      homeDirectory: home) else { return nil }
-                    return await adb.setSecureSetting(key, value)
+                writeAVD: {
+                    guard let game = spec.avds.first(where: { $0.name == "mirage-game" }) else { return }
+                    try AvdWriter.write(spec: spec, avd: game, sdkRoot: sdkRoot, avdDirectory: avdDirectory)
                 },
-                syncEmuKill: { serial in
-                    EmulatorLauncher.synchronousEmuKill(
-                        adb: SdkLocator(environment: environment, homeDirectory: home).adbBinary,
-                        serial: serial)
-                },
-                ownedFile: ownedFile,
-                environment: environment,
-                homeDirectory: home,
-                onStateChange: { [weak self, weak presentation] entry, state in
-                    guard let self, let presentation else { return }
-                    if self.currentEndpoint.port == entry.grpcPort {
-                        presentation.currentInstanceState = state
+                evaluateSetup: {
+                    return Self.evaluateSetup(spec: spec, sdkRoot: sdkRoot, avdDirectory: avdDirectory)
+                })
+            presentation.setupVisible = true
+            await withCheckedContinuation { continuation in
+                setupContinuation = continuation
+                setupWindowController = SetupWindowController(controller: setupController) { [weak self] in
+                    guard let self else { return }
+                    self.instanceManagerPresentation.setupVisible = false
+                    self.setupWindowController = nil
+                    if self.launchPreferences.effectiveBackgroundMode {
+                        NSApp.setActivationPolicy(.accessory)
                     }
-                    self.updateCurrentInstancePresentation()
+                    self.setupContinuation?.resume()
+                    self.setupContinuation = nil
                 }
-            )
-            presentation.launcher = launcher
-            launcher.adoptOnLaunch()
-            updateCurrentInstancePresentation()
-            await launcher.ensureRunning(first)
-            presentation.tickTask?.cancel()
-            presentation.tickTask = Task { @MainActor in
-                while !Task.isCancelled {
-                    try? await Task.sleep(for: .seconds(2))
-                    guard !Task.isCancelled else { break }
-                    await launcher.tick()
+                setupWindowController?.show()
+                if options.autostart {
+                    setupController.agreed = true
+                    setupController.start()
                 }
             }
+            await startInstanceLauncher(entries: entries, environment: environment, home: home)
         }
+    }
+
+    private func startInstanceLauncher(
+        entries: [InstanceEntry], environment: [String: String], home: URL
+    ) async {
+        let presentation = instanceManagerPresentation
+        guard let first = entries.first else { return }
+        let ownedFile = home.appendingPathComponent(
+            "Library/Application Support/Mirage/owned-instances.json", isDirectory: false)
+        let launcher = EmulatorLauncher(
+            entries: entries,
+            spawn: EmulatorLauncher.spawnProcess,
+            discover: EmulatorDiscovery.instances,
+            isAlive: Self.pidIsAlive,
+            isBooted: { await BootProbe.isBooted(endpoint: $0, timeout: .seconds(1)) },
+            stopEmulator: { serial in
+                guard let adb = AdbClient.standard(serial: serial, environment: environment,
+                                                  homeDirectory: home) else { return nil }
+                return await adb.emuKill()
+            },
+            configureGuest: { serial, key, value in
+                guard let adb = AdbClient.standard(serial: serial, environment: environment,
+                                                  homeDirectory: home) else { return nil }
+                return await adb.setSecureSetting(key, value)
+            },
+            syncEmuKill: { serial in
+                EmulatorLauncher.synchronousEmuKill(
+                    adb: SdkLocator(environment: environment, homeDirectory: home).adbBinary,
+                    serial: serial)
+            },
+            ownedFile: ownedFile,
+            environment: environment,
+            homeDirectory: home,
+            onStateChange: { [weak self, weak presentation] entry, state in
+                guard let self, let presentation else { return }
+                if self.currentEndpoint.port == entry.grpcPort {
+                    presentation.currentInstanceState = state
+                }
+                self.updateCurrentInstancePresentation()
+            }
+        )
+        presentation.launcher = launcher
+        launcher.adoptOnLaunch()
+        updateCurrentInstancePresentation()
+        await launcher.ensureRunning(first)
+        presentation.tickTask?.cancel()
+        presentation.tickTask = Task { @MainActor in
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(2))
+                guard !Task.isCancelled else { break }
+                await launcher.tick()
+            }
+        }
+    }
+
+    private static func evaluateSetup(spec: SdkSpec, sdkRoot: URL, avdDirectory: URL) -> SetupCheckResult {
+        let fileManager = FileManager.default
+        return SetupCheck.evaluate(
+            spec: spec,
+            sdkRoot: sdkRoot,
+            avdDirectory: avdDirectory,
+            fileExists: { fileManager.fileExists(atPath: $0.path) },
+            readFile: { try String(contentsOf: $0, encoding: .utf8) })
+    }
+
+    private static func availableCapacity(at directory: URL) -> Int64 {
+        let fileManager = FileManager.default
+        var volume = directory
+        while !fileManager.fileExists(atPath: volume.path), volume.path != "/" {
+            volume.deleteLastPathComponent()
+        }
+        let values = try? volume.resourceValues(forKeys: [.volumeAvailableCapacityForImportantUsageKey])
+        return values?.volumeAvailableCapacityForImportantUsage ?? 0
+    }
+
+    private func showLauncherBannerInBackgroundMode() {
+        guard launchPreferences.effectiveBackgroundMode else { return }
+        let window = windowController.window()
+        NSApp.setActivationPolicy(.regular)
+        window.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
     }
 
     func restartCurrentInstance() async {

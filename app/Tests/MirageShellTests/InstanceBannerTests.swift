@@ -32,7 +32,7 @@ import Testing
         let maybeContent = InstanceBanner.content(
             for: .failed(.emulatorNotFound(URL(fileURLWithPath: "/sdk"))), avd: avd)
         let content = try #require(maybeContent)
-        #expect(content.text == "找不到 Android SDK。請先執行 tools/provision/provision.py")
+        #expect(content.text == "找不到 Android SDK。請重新開啟 Mirage 以執行設定")
         #expect(!content.showsRestart)
         #expect(!content.showsLog)
     }
@@ -40,7 +40,7 @@ import Testing
     @Test func missingAvdNamesTheInstance() {
         let content = InstanceBanner.content(for: .failed(.avdNotFound(URL(fileURLWithPath: "/avd.ini"))),
                                              avd: avd)
-        #expect(content?.text == "找不到模擬器 mirage-game。請先執行 tools/provision/provision.py")
+        #expect(content?.text == "找不到模擬器 mirage-game。請重新開啟 Mirage 以執行設定")
     }
 
     @Test func avdInUseMessageNamesTheInstance() {
@@ -96,5 +96,13 @@ import Testing
     @Test func instanceTableErrorIncludesLineAndReason() {
         let content = InstanceBanner.content(for: InstanceTableError(line: 4, reason: "埠重複"))
         #expect(content.text == "實例表格式錯誤：第 4 行 埠重複")
+    }
+
+    @Test func sdkSpecErrorUsesErrorBannerStyle() {
+        let content = InstanceBanner.content(for: SdkSpecError(message: "讀取失敗"))
+        #expect(content.text == "SDK 設定檔讀取失敗：讀取失敗")
+        #expect(content.color == .error)
+        #expect(!content.showsRestart)
+        #expect(!content.showsLog)
     }
 }

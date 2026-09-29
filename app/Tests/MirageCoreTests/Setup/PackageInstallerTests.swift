@@ -21,10 +21,13 @@ struct PackageInstallerTests {
         let roots = try InstallRoots(under: temporary.url)
         let package = makePackage(url: server.url, installPath: "platform-tools", archive: archive.bytes)
         let progress = ProgressLog()
+        let stages = InstallStageLog()
         let existingRecords = roots.sdk.appendingPathComponent(".mirage-provision.json")
         try Data("{\"emulator\":\"37.1.11\"}".utf8).write(to: existingRecords)
 
-        try await roots.installer.install(package) { written, expected in
+        try await roots.installer.install(package, stage: { stage in
+            stages.record(stage)
+        }) { written, expected in
             progress.record(written: written, expected: expected)
         }
 
@@ -33,6 +36,7 @@ struct PackageInstallerTests {
         let mode = (attributes[.posixPermissions] as? NSNumber)?.intValue ?? 0
         #expect((mode & 0o111) != 0)
         #expect(progress.count > 0)
+        #expect(stages.values == [.verifying, .extracting])
         #expect(!FileManager.default.fileExists(
             atPath: roots.downloads.appendingPathComponent("payload.zip.part").path))
         let recordsURL = roots.sdk.appendingPathComponent(".mirage-provision.json")
@@ -283,6 +287,21 @@ private final class ProgressLog: @unchecked Sendable {
     func record(written: Int64, expected: Int64) {
         lock.lock(); defer { lock.unlock() }
         writes += 1
+    }
+}
+
+private final class InstallStageLog: @unchecked Sendable {
+    private let lock = NSLock()
+    private var recorded: [PackageInstallStage] = []
+
+    var values: [PackageInstallStage] {
+        lock.lock(); defer { lock.unlock() }
+        return recorded
+    }
+
+    func record(_ stage: PackageInstallStage) {
+        lock.lock(); defer { lock.unlock() }
+        recorded.append(stage)
     }
 }
 

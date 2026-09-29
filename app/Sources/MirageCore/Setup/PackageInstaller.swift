@@ -35,7 +35,20 @@ public enum PackageInstallerError: Error, Equatable, LocalizedError, Sendable {
     }
 }
 
-public struct PackageInstaller: Sendable {
+public enum PackageInstallStage: Equatable, Sendable {
+    case verifying
+    case extracting
+}
+
+public protocol PackageInstalling: Sendable {
+    func install(
+        _ package: SdkPackageSpec,
+        stage: @escaping @Sendable (PackageInstallStage) async -> Void,
+        progress: @escaping @Sendable (Int64, Int64) -> Void
+    ) async throws
+}
+
+public struct PackageInstaller: PackageInstalling, Sendable {
     private let sdkRoot: URL
     private let downloadsDirectory: URL
     private let dittoExecutable: URL
@@ -55,6 +68,7 @@ public struct PackageInstaller: Sendable {
 
     public func install(
         _ package: SdkPackageSpec,
+        stage: @escaping @Sendable (PackageInstallStage) async -> Void = { _ in },
         progress: @escaping @Sendable (Int64, Int64) -> Void = { _, _ in }
     ) async throws {
         let fileManager = FileManager.default
@@ -95,6 +109,7 @@ public struct PackageInstaller: Sendable {
         }
         try Task.checkCancellation()
 
+        await stage(.verifying)
         let actualSize = try fileSize(at: zipURL)
         guard actualSize == package.size else {
             throw PackageInstallerError.sizeMismatch(expected: package.size, actual: actualSize)
@@ -108,6 +123,7 @@ public struct PackageInstaller: Sendable {
             ".mirage-install-\(UUID().uuidString)", isDirectory: true)
         stagingDirectory = extractionDirectory
         try fileManager.createDirectory(at: extractionDirectory, withIntermediateDirectories: false)
+        await stage(.extracting)
         try await extract(zipURL, into: extractionDirectory)
         try Task.checkCancellation()
         let entries = try fileManager.contentsOfDirectory(
