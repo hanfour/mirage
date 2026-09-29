@@ -397,7 +397,11 @@ run_s3() {
     if ! quit_gui "$bundle"; then passed=0; fi
     ACTIVE_BUNDLE=""
     if [ "$passed" -eq 1 ]; then
-        record_result "S3-r${round}" PASS "沒有設定階段，launcher 已要求啟動"
+        if [ "$require_running" -eq 1 ]; then
+            record_result "S3-r${round}" PASS "沒有設定階段，launcher 已要求啟動，150 秒內進入 running"
+        else
+            record_result "S3-r${round}" PASS "沒有設定階段，launcher 已要求啟動（假 emulator，不判 running）"
+        fi
     else
         record_result "S3-r${round}" FAIL "第二次啟動驗證失敗"
         print_evidence "S3-r${round}" "$log" "$sdk" "$avd"
