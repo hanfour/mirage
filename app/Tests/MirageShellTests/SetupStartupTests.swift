@@ -23,7 +23,7 @@ import Testing
         let environment = [
             "ANDROID_SDK_ROOT": sdkRoot.path,
             "ANDROID_AVD_HOME": avdDirectory.path,
-            SetupLaunchOptions.fakeAvailableBytesKey: "100000000000",
+            SetupLaunchOptions.availableBytesKey: "100000000000",
         ]
         let presenter = SetupPresenterRecorder()
         let preparation = Task { @MainActor in
