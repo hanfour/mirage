@@ -106,6 +106,23 @@ record_result() {
     echo "[${label}] ${status}${details:+：${details}}"
 }
 
+# launcher 的 running 由 gRPC getStatus().booted 判定；重新啟動後 adb 要再過幾秒才會重新連上新行程。
+# 2026-09-30 實測：running 之後立刻查，wm size 得到 "device offline"、下一項得到 "not found"，
+# 稍後的查詢才成功（同一輪 CPU 與記憶體通過、較早的 wm size 失敗）。所以查 guest 前先等 adb 回報開機完成。
+wait_for_guest_adb() {
+    local timeout="$1" started="$SECONDS" value
+    while [ $((SECONDS - started)) -lt "${timeout}" ]; do
+        value="$("${ADB}" -s "${SERIAL}" shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" || true
+        if [ "${value}" = "1" ]; then
+            GUEST_ADB_WAIT=$((SECONDS - started))
+            return 0
+        fi
+        sleep 2
+    done
+    GUEST_ADB_WAIT=$((SECONDS - started))
+    return 1
+}
+
 wait_for_running_count() {
     local log="$1" expected="$2" timeout="$3" started="$SECONDS" count
     while [ "$((SECONDS - started))" -lt "${timeout}" ]; do
@@ -293,6 +310,11 @@ run_v1() {
         record_result "V1-r${round} managed 標記" FAIL "找不到 ${MARKER_FILENAME}"
     fi
 
+    if wait_for_guest_adb 60; then
+        record_result "V1-r${round} guest adb 就緒" PASS "${GUEST_ADB_WAIT} 秒"
+    else
+        record_result "V1-r${round} guest adb 就緒" FAIL "60 秒內 adb 沒有回報 sys.boot_completed=1"
+    fi
     LAST_WM_OUTPUT="$("${ADB}" -s "${SERIAL}" shell wm size 2>&1)" || true
     if avd_settings_wm_size_matches "${LAST_WM_OUTPUT}" "${EXPECTED_RESOLUTION}"; then
         record_result "V1-r${round} guest resolution" PASS "${EXPECTED_RESOLUTION}"
@@ -348,6 +370,11 @@ run_v2() {
         record_result "V2-r${round} running" PASS "150 秒內進入 running"
     else
         record_result "V2-r${round} running" FAIL "150 秒內未進入 running"
+    fi
+    if wait_for_guest_adb 60; then
+        record_result "V2-r${round} guest adb 就緒" PASS "${GUEST_ADB_WAIT} 秒"
+    else
+        record_result "V2-r${round} guest adb 就緒" FAIL "60 秒內 adb 沒有回報 sys.boot_completed=1"
     fi
     LAST_WM_OUTPUT="$("${ADB}" -s "${SERIAL}" shell wm size 2>&1)" || true
     LAST_CPU_OUTPUT="$("${ADB}" -s "${SERIAL}" shell nproc 2>/dev/null)"
