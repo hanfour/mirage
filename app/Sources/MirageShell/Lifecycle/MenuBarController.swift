@@ -281,7 +281,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
     }
 
     static func addVolumeItems(to menu: NSMenu, target: AnyObject?, action: Selector?) {
-        for (title, key) in [("音量調高", "AudioVolumeUp"), ("音量調低", "AudioVolumeDown")] {
+        for (title, key) in [("音量調高", AndroidKey.volumeUp), ("音量調低", AndroidKey.volumeDown)] {
             let item = NSMenuItem(title: title, action: action, keyEquivalent: "")
             item.target = target
             item.representedObject = key

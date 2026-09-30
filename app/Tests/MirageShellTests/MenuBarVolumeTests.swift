@@ -20,3 +20,11 @@ import Testing
         #expect(sent == ["AudioVolumeUp", "AudioVolumeDown"])
     }
 }
+
+/// 鎖住實際送出的字串：選單與快捷鍵都讀 `AndroidKey`，這條測試是兩條路徑共同的守門。
+@Suite struct AndroidKeyNameTests {
+    @Test func volumeKeysUseEmulatorW3CNames() {
+        #expect(AndroidKey.volumeUp == "AudioVolumeUp")
+        #expect(AndroidKey.volumeDown == "AudioVolumeDown")
+    }
+}

@@ -50,11 +50,11 @@ struct MirrorRootView: View {
                 .keyboardShortcut("e", modifiers: .command)
                 .frame(width: 0, height: 0)
                 .opacity(0)
-            Button("") { model.sendAndroidKey("AudioVolumeUp") }
+            Button("") { model.sendAndroidKey(AndroidKey.volumeUp) }
                 .keyboardShortcut(.upArrow, modifiers: .command)
                 .frame(width: 0, height: 0)
                 .opacity(0)
-            Button("") { model.sendAndroidKey("AudioVolumeDown") }
+            Button("") { model.sendAndroidKey(AndroidKey.volumeDown) }
                 .keyboardShortcut(.downArrow, modifiers: .command)
                 .frame(width: 0, height: 0)
                 .opacity(0)
