@@ -43,8 +43,8 @@ extension AppModel {
                 fileManager.fileExists(atPath: $0.path)
             }
             let temporary = directory.appendingPathComponent(".mirage-\(UUID().uuidString).tmp")
-            try data.write(to: temporary)
             defer { try? fileManager.removeItem(at: temporary) }
+            try data.write(to: temporary)
             try fileManager.moveItem(at: temporary, to: destination)
             print("[screenshot] saved \(destination.path) bytes=\(data.count)")
             if let customDirectory {
