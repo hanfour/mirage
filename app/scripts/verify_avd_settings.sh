@@ -54,8 +54,10 @@ SERIAL="emulator-5554"
 export ANDROID_SERIAL="${SERIAL}"
 PRIMARY_AVD_NAME="mirage-game"
 SETTINGS_OVERRIDE='cores=2;ramMB=3072;resolution=720x1600'
-# 開發機空間不足以滿足 emulator 預設分割區首次建立時約 9.8 GB 的需求；縮小分割區不影響 CPU、記憶體或解析度驗證。
-TEST_DATA_PARTITION_BYTES=2147483648
+# 開發機空間不足以滿足 emulator 預設分割區（8 GiB）首次建立時約 9.8 GB 的需求；縮小分割區不影響 CPU、記憶體或解析度驗證。
+# 值是 6 GiB 而不是更小：2026-09-30 實測設 2 GiB 時，emulator 開機後把 config.ini 改回 6442450944，
+# 並回報 need 7372.80 MB（= 6144 MiB × 1.2），推斷 Play 映像要求的最小分割區是 6 GiB。設更小等於沒設。
+TEST_DATA_PARTITION_BYTES=6442450944
 DATA_PARTITION_SIZE_KEY='disk.dataPartition.size'
 EXPECTED_CORES="$(avd_settings_override_value "${SETTINGS_OVERRIDE}" cores)"
 EXPECTED_RAM_MB="$(avd_settings_override_value "${SETTINGS_OVERRIDE}" ramMB)"
