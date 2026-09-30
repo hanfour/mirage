@@ -32,6 +32,8 @@ import Testing
     @Test func commandCombinationsAreNeverForwarded() {
         #expect(KeyTranslate.w3c(virtualKey: 8, characters: "c", hasCommand: true) == nil)
         #expect(KeyTranslate.w3c(virtualKey: 36, characters: "\r", hasCommand: true) == nil)
+        #expect(KeyTranslate.w3c(virtualKey: 126, characters: nil, hasCommand: true) == nil)
+        #expect(KeyTranslate.w3c(virtualKey: 125, characters: nil, hasCommand: true) == nil)
     }
 
     /// 沒有字元又不是已知特殊鍵 → nil，不猜。

@@ -124,6 +124,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         menu.addItem(withTitle: "返回", action: #selector(backTapped), keyEquivalent: "").target = self
         menu.addItem(withTitle: "主畫面", action: #selector(homeTapped), keyEquivalent: "").target = self
         menu.addItem(withTitle: "最近任務", action: #selector(recentsTapped), keyEquivalent: "").target = self
+        Self.addVolumeItems(to: menu, target: self, action: #selector(volumeTapped(_:)))
         menu.addItem(.separator())
         menu.addItem(gameItem)
         menu.addItem(withTitle: "停用 keymap", action: #selector(disableTapped), keyEquivalent: "").target = self
@@ -201,6 +202,9 @@ final class MenuBarController: NSObject, NSMenuDelegate {
     @objc private func backTapped() { onAndroidKey?("GoBack") }
     @objc private func homeTapped() { onAndroidKey?("GoHome") }
     @objc private func recentsTapped() { onAndroidKey?("AppSwitch") }
+    @objc private func volumeTapped(_ sender: NSMenuItem) {
+        Self.dispatchAndroidKey(sender) { [weak self] key in self?.onAndroidKey?(key) }
+    }
     @objc private func disableTapped() { onDisable?() }
     @objc private func autoTapped() { onAuto?() }
     @objc private func forceTapped(_ sender: NSMenuItem) {
@@ -267,6 +271,20 @@ final class MenuBarController: NSObject, NSMenuDelegate {
 
     @objc private func restartSimulatorTapped() {
         onRestartSimulator?()
+    }
+
+    static func addVolumeItems(to menu: NSMenu, target: AnyObject?, action: Selector?) {
+        for (title, key) in [("音量調高", "AudioVolumeUp"), ("音量調低", "AudioVolumeDown")] {
+            let item = NSMenuItem(title: title, action: action, keyEquivalent: "")
+            item.target = target
+            item.representedObject = key
+            menu.addItem(item)
+        }
+    }
+
+    static func dispatchAndroidKey(_ sender: NSMenuItem, onAndroidKey: (String) -> Void) {
+        guard let key = sender.representedObject as? String else { return }
+        onAndroidKey(key)
     }
 
     /// 純佈局：entries → NSMenuItem。抽成 static 是為了測試——建 `MenuBarController` 會在

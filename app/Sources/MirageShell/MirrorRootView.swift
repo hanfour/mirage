@@ -50,6 +50,14 @@ struct MirrorRootView: View {
                 .keyboardShortcut("e", modifiers: .command)
                 .frame(width: 0, height: 0)
                 .opacity(0)
+            Button("") { model.sendAndroidKey("AudioVolumeUp") }
+                .keyboardShortcut(.upArrow, modifiers: .command)
+                .frame(width: 0, height: 0)
+                .opacity(0)
+            Button("") { model.sendAndroidKey("AudioVolumeDown") }
+                .keyboardShortcut(.downArrow, modifiers: .command)
+                .frame(width: 0, height: 0)
+                .opacity(0)
             InstallBanner(state: model.installState)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
                 .allowsHitTesting(false)
