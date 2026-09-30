@@ -12,6 +12,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
     private let gameItem: NSMenuItem
     private let audioHealthItem: NSMenuItem
     private let muteItem: NSMenuItem
+    private let screenshotItem: NSMenuItem
     private let speechItem: NSMenuItem
     private let backgroundModeItem: NSMenuItem
     private let restartSimulatorItem: NSMenuItem
@@ -42,6 +43,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
     var instanceEntries: (() -> [InstanceMenuEntry])?
     var onSwitchInstance: ((InstanceEntry) -> Void)?
     var onRestartSimulator: (() -> Void)?
+    var onTakeScreenshot: (() -> Void)?
     var canRestartSimulator: (@MainActor () -> Bool)?
 
     /// P1-e：AppModel.startAudio() 綁定 → AudioPlayer.setMuted。
@@ -69,6 +71,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         statusMenuItem = NSMenuItem(title: "狀態：—", action: nil, keyEquivalent: "")
         gameItem = NSMenuItem(title: "遊戲：—", action: nil, keyEquivalent: "")
         muteItem = NSMenuItem(title: "靜音", action: nil, keyEquivalent: "")
+        screenshotItem = NSMenuItem(title: "截圖（存到桌面）", action: nil, keyEquivalent: "")
         speechItem = NSMenuItem(title: "語音轉文字", action: nil, keyEquivalent: "")
         restartSimulatorItem = NSMenuItem(title: "重新啟動模擬器", action: nil, keyEquivalent: "")
         // 標題寫明「下次啟動」：打勾當下視窗不會消失，不寫清楚會以為沒反應。
@@ -125,6 +128,9 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         menu.addItem(withTitle: "主畫面", action: #selector(homeTapped), keyEquivalent: "").target = self
         menu.addItem(withTitle: "最近任務", action: #selector(recentsTapped), keyEquivalent: "").target = self
         Self.addVolumeItems(to: menu, target: self, action: #selector(volumeTapped(_:)))
+        screenshotItem.action = #selector(screenshotTapped)
+        screenshotItem.target = self
+        menu.addItem(screenshotItem)
         menu.addItem(.separator())
         menu.addItem(gameItem)
         menu.addItem(withTitle: "停用 keymap", action: #selector(disableTapped), keyEquivalent: "").target = self
@@ -205,6 +211,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
     @objc private func volumeTapped(_ sender: NSMenuItem) {
         Self.dispatchAndroidKey(sender) { [weak self] key in self?.onAndroidKey?(key) }
     }
+    @objc private func screenshotTapped() { onTakeScreenshot?() }
     @objc private func disableTapped() { onDisable?() }
     @objc private func autoTapped() { onAuto?() }
     @objc private func forceTapped(_ sender: NSMenuItem) {

@@ -58,6 +58,10 @@ struct MirrorRootView: View {
                 .keyboardShortcut(.downArrow, modifiers: .command)
                 .frame(width: 0, height: 0)
                 .opacity(0)
+            Button("") { Task { await model.takeScreenshot() } }
+                .keyboardShortcut("s", modifiers: .command)
+                .frame(width: 0, height: 0)
+                .opacity(0)
             InstallBanner(state: model.installState)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
                 .allowsHitTesting(false)
@@ -66,6 +70,11 @@ struct MirrorRootView: View {
                 NSPasteboard.general.setString(text, forType: .string)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
+            ScreenshotOverlay(notice: model.screenshotNotice) { id in
+                model.dismissScreenshotNotice(id)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
+            .allowsHitTesting(false)
         }
         // **setter 刻意什麼都不做**（2026-07-30，D5 階段 B 終審 I1）。
         //
