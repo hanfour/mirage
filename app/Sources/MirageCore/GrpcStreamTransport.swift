@@ -39,6 +39,9 @@ public final class GrpcChannelBox: @unchecked Sendable {
             eventLoopGroup: group
         ) {
             $0.maximumReceiveMessageLength = 16 * 1024 * 1024
+            // 預設 16 KB 會讓一幀 7 MB 切成約 440 個 DATA frame、每個都跑一次 HTTP/2 狀態機。
+            // 調到上限後 898×1996、60 fps 三輪交錯量測每幀 CPU 約降 5%（2026-09-30）。
+            $0.http2.maxFrameSize = 16_777_215
         }
         client = Android_Emulation_Control_EmulatorControllerAsyncClient(
             channel: channel,
