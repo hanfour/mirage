@@ -130,6 +130,7 @@ final class AppModel {
     /// 語音轉文字（2026-09-16）。`speechText` 是給字幕浮層看的，所以要被觀察；
     /// 其餘是實作細節，標 ObservationIgnored 免得每包樣本都觸發畫面重算。
     var speechText = ""
+    var screenshotNotice: ScreenshotNotice?
     @ObservationIgnored var speechEnabled = false
     @ObservationIgnored var speechTranscriber: SpeechTranscriber?
     @ObservationIgnored var speechSegmenter = SpeechSegmenter()
@@ -236,10 +237,7 @@ final class AppModel {
         // D6：走同一條佇列。原本這裡自己開一個 Task 循序 await 兩次——那一對內部確實
         // 有序，但它與鍵位映射送出的事件之間仍然沒有順序，實體鍵可以插進一組 down/up
         // 中間。改走佇列之後「一台 guest 只有一種輸入順序」才是真的。
-        menuBar?.onAndroidKey = { [inputQueue] w3c in
-            inputQueue.key(.key(w3c), down: true)
-            inputQueue.key(.key(w3c), down: false)
-        }
+        setupGuestActions()
         setupFullScreen()
         setupInstanceMenu()
         setupRemoteMenu()
