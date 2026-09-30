@@ -54,6 +54,9 @@ SERIAL="emulator-5554"
 export ANDROID_SERIAL="${SERIAL}"
 PRIMARY_AVD_NAME="mirage-game"
 SETTINGS_OVERRIDE='cores=2;ramMB=3072;resolution=720x1600'
+# 開發機空間不足以滿足 emulator 預設分割區首次建立時約 9.8 GB 的需求；縮小分割區不影響 CPU、記憶體或解析度驗證。
+TEST_DATA_PARTITION_BYTES=2147483648
+DATA_PARTITION_SIZE_KEY='disk.dataPartition.size'
 EXPECTED_CORES="$(avd_settings_override_value "${SETTINGS_OVERRIDE}" cores)"
 EXPECTED_RAM_MB="$(avd_settings_override_value "${SETTINGS_OVERRIDE}" ramMB)"
 EXPECTED_RESOLUTION="$(avd_settings_override_value "${SETTINGS_OVERRIDE}" resolution)"
@@ -151,7 +154,7 @@ start_app() {
     shift 3
     ACTIVE_BUNDLE="${bundle}"
     export ANDROID_SDK_ROOT ANDROID_AVD_HOME="${avd_home}"
-    unset ANDROID_HOME MIRAGE_HOST MIRAGE_PORT MIRAGE_AVD MIRAGE_GRPC
+    unset ANDROID_HOME MIRAGE_HOST MIRAGE_PORT MIRAGE_AVD MIRAGE_GRPC MIRAGE_SETUP_DATA_PARTITION_BYTES
     if [ "${BUILD_READY}" -eq 1 ]; then
         export MIRAGE_SKIP_BUILD=1
     else
@@ -208,7 +211,7 @@ print_evidence() {
     [ -n "${LAST_MEM_OUTPUT}" ] && printf 'adb /proc/meminfo:\n%s\n' "${LAST_MEM_OUTPUT}"
     if [ -n "${config}" ] && [ -r "${config}" ]; then
         echo "config.ini 設定欄位："
-        for key in hw.cpu.ncore hw.ramSize hw.lcd.width hw.lcd.height hw.lcd.density; do
+        for key in hw.cpu.ncore hw.ramSize hw.lcd.width hw.lcd.height hw.lcd.density "${DATA_PARTITION_SIZE_KEY}"; do
             value="$(avd_settings_config_value "${config}" "${key}" 2>/dev/null || true)"
             printf '  %s = %s\n' "${key}" "${value:-（缺少）}"
         done
@@ -218,7 +221,7 @@ print_evidence() {
 
 run_v1() {
     local round="$1" log="${LOG_DIR}/v1-round-${1}.log" bundle="${WORK}/v1-round-${1}-bundle"
-    local avd_home config marker failures_before="${FAILURES}"
+    local avd_home config marker failures_before="${FAILURES}" partition_size=""
     avd_home="$(mktemp -d "${WORK}/v1-avd-r${round}.XXXXXX")" || {
         record_result "V1-r${round}" FAIL "無法建立暫存 AVD_HOME"
         return 0
@@ -230,7 +233,8 @@ run_v1() {
     LAST_MEM_OUTPUT=""
     echo "=== round ${round}/${ROUNDS} V1：暫存 AVD ==="
     if ! start_app "${log}" "${bundle}" "${avd_home}" \
-        "MIRAGE_SETUP_AUTOSTART=1" "MIRAGE_SETTINGS_AUTOAPPLY=${SETTINGS_OVERRIDE}"; then
+        "MIRAGE_SETUP_AUTOSTART=1" "MIRAGE_SETTINGS_AUTOAPPLY=${SETTINGS_OVERRIDE}" \
+        "MIRAGE_SETUP_DATA_PARTITION_BYTES=${TEST_DATA_PARTITION_BYTES}"; then
         record_result "V1-r${round} 啟動" FAIL "gui_session_start 失敗"
         print_evidence "V1-r${round}" "${log}" "${config}"
         quit_app || true
@@ -270,6 +274,16 @@ run_v1() {
         record_result "V1-r${round} config.ini" PASS "CPU、RAM、解析度與 density 都符合"
     else
         record_result "V1-r${round} config.ini" FAIL "config.ini 欄位值不符或檔案缺少"
+    fi
+    if [ -r "${config}" ]; then
+        partition_size="$(avd_settings_config_value "${config}" "${DATA_PARTITION_SIZE_KEY}" 2>/dev/null || true)"
+    fi
+    if [ "${partition_size}" = "${TEST_DATA_PARTITION_BYTES}" ]; then
+        record_result "V1-r${round} data partition" PASS \
+            "${DATA_PARTITION_SIZE_KEY}=${TEST_DATA_PARTITION_BYTES}"
+    else
+        record_result "V1-r${round} data partition" FAIL \
+            "${DATA_PARTITION_SIZE_KEY}=${partition_size:-（缺少）}，預期 ${TEST_DATA_PARTITION_BYTES}"
     fi
     if [ -f "${marker}" ]; then
         record_result "V1-r${round} managed 標記" PASS "AVD 有 Mirage managed 標記"

@@ -11,7 +11,12 @@ public enum AvdWriterError: Error, Equatable, LocalizedError, Sendable {
 }
 
 public enum AvdWriter {
-    public static func renderConfig(spec: SdkSpec, avd: SdkAvdSpec, sdkRoot: URL) throws -> String {
+    public static func renderConfig(
+        spec: SdkSpec,
+        avd: SdkAvdSpec,
+        sdkRoot: URL,
+        configOverrides: [String: String] = [:]
+    ) throws -> String {
         guard let image = spec.packages.first(where: { $0.manifestKey == avd.imageManifest }) else {
             throw AvdWriterError.missingImagePackage(avd.imageManifest)
         }
@@ -21,6 +26,7 @@ public enum AvdWriter {
             directory.appendingPathComponent(String(component), isDirectory: true)
         }
         var values = spec.configBase
+        values.merge(configOverrides) { _, override in override }
         values.merge([
             "avd.id": avd.name,
             "avd.name": avd.name,
@@ -49,13 +55,15 @@ public enum AvdWriter {
         avd: SdkAvdSpec,
         sdkRoot: URL,
         avdDirectory: URL,
-        fileManager: FileManager = .default
+        fileManager: FileManager = .default,
+        configOverrides: [String: String] = [:]
     ) throws {
         let avdDataDirectory = avdDirectory.appendingPathComponent("\(avd.name).avd", isDirectory: true)
         try fileManager.createDirectory(at: avdDataDirectory, withIntermediateDirectories: true)
         try fileManager.createDirectory(at: avdDirectory, withIntermediateDirectories: true)
 
-        let config = try renderConfig(spec: spec, avd: avd, sdkRoot: sdkRoot)
+        let config = try renderConfig(spec: spec, avd: avd, sdkRoot: sdkRoot,
+                                      configOverrides: configOverrides)
         let pointer = renderPointerIni(spec: spec, avd: avd, avdDirectory: avdDirectory)
         let marker = avdDataDirectory.appendingPathComponent(
             AvdSettings.managedMarkerFilename, isDirectory: false)

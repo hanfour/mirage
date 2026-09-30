@@ -7,6 +7,7 @@ public enum SetupSpace {
     public static let dataPartitionSpaceMultiplier = 1.2
     public static let dataPartitionSizeKey = "disk.dataPartition.size"
     public static let defaultDataPartitionBytes: Int64 = 8 * 1024 * 1024 * 1024
+    public static let minimumTestDataPartitionBytes: Int64 = 1024 * 1024 * 1024
 
     public static func resolvedDataPartitionBytes(
         in configBase: [String: String]

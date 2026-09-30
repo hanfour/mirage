@@ -40,6 +40,29 @@ struct AvdWriterTests {
                 AvdWriter.renderConfig(spec: spec, avd: game, sdkRoot: sdkRoot))
     }
 
+    @Test func writeAppliesConfigOverrideWithoutChangingOtherValues() throws {
+        let spec = try SdkSpec.bundled().get()
+        let game = try #require(spec.avds.first { $0.name == "mirage-game" })
+        let temporaryRoot = FileManager.default.temporaryDirectory
+            .appendingPathComponent("avd-writer-override-\(UUID().uuidString)", isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: temporaryRoot) }
+        let avdDirectory = temporaryRoot.appendingPathComponent("avd", isDirectory: true)
+        let sdkRoot = temporaryRoot.appendingPathComponent("sdk", isDirectory: true)
+        let partitionBytes = SetupSpace.minimumTestDataPartitionBytes
+        let overrides = [SetupSpace.dataPartitionSizeKey: String(partitionBytes)]
+
+        try AvdWriter.write(spec: spec, avd: game, sdkRoot: sdkRoot,
+                            avdDirectory: avdDirectory, configOverrides: overrides)
+
+        let config = avdDirectory.appendingPathComponent("mirage-game.avd/config.ini")
+        let written = try String(contentsOf: config, encoding: .utf8)
+        let base = try AvdWriter.renderConfig(spec: spec, avd: game, sdkRoot: sdkRoot)
+        let originalPartitionBytes = try #require(spec.configBase[SetupSpace.dataPartitionSizeKey])
+        let originalLine = "\(SetupSpace.dataPartitionSizeKey) = \(originalPartitionBytes)"
+        let updatedLine = "\(SetupSpace.dataPartitionSizeKey) = \(partitionBytes)"
+        #expect(written == base.replacingOccurrences(of: originalLine, with: updatedLine))
+    }
+
     private func golden(_ name: String) throws -> String {
         let fixtureDirectory = URL(fileURLWithPath: #filePath)
             .deletingLastPathComponent()

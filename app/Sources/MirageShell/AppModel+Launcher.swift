@@ -101,6 +101,7 @@ extension AppModel {
                 sdkRoot: sdkRoot,
                 avdDirectory: avdDirectory,
                 downloadsDirectory: downloadsDirectory,
+                dataPartitionBytesOverride: options.testDataPartitionBytes,
                 installer: PackageInstaller(sdkRoot: sdkRoot, downloadsDirectory: downloadsDirectory),
                 availableBytes: {
                     if let fake = options.fakeAvailableBytes { return fake }
@@ -108,7 +109,15 @@ extension AppModel {
                 },
                 writeAVD: {
                     guard let game = spec.avds.first(where: { $0.name == "mirage-game" }) else { return }
-                    try AvdWriter.write(spec: spec, avd: game, sdkRoot: sdkRoot, avdDirectory: avdDirectory)
+                    var configOverrides: [String: String] = [:]
+                    if let partitionBytes = options.testDataPartitionBytes {
+                        configOverrides[SetupSpace.dataPartitionSizeKey] = String(partitionBytes)
+                    }
+                    try AvdWriter.write(spec: spec, avd: game, sdkRoot: sdkRoot,
+                                        avdDirectory: avdDirectory, configOverrides: configOverrides)
+                    if let partitionBytes = options.testDataPartitionBytes {
+                        print("[setup] test data partition override=\(partitionBytes)")
+                    }
                 },
                 evaluateSetup: {
                     return Self.evaluateSetup(spec: spec, sdkRoot: sdkRoot, avdDirectory: avdDirectory)

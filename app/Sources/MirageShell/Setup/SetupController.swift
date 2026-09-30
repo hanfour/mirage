@@ -65,6 +65,7 @@ final class SetupController {
         sdkRoot: URL,
         avdDirectory: URL,
         downloadsDirectory: URL,
+        dataPartitionBytesOverride: Int64? = nil,
         installer: any PackageInstalling,
         availableBytes: @escaping @MainActor () -> Int64,
         writeAVD: @escaping @MainActor () throws -> Void,
@@ -74,10 +75,15 @@ final class SetupController {
         self.sdkRoot = sdkRoot
         self.avdDirectory = avdDirectory
         self.downloadsDirectory = downloadsDirectory
-        let partition = SetupSpace.resolvedDataPartitionBytes(in: spec.configBase)
-        dataPartitionBytes = partition.bytes
-        if partition.usedDefault {
-            print("[setup] warning \(SetupSpace.dataPartitionSizeKey) 缺少或不是正整數，使用預設值 \(SetupSpace.defaultDataPartitionBytes) bytes")
+        if let dataPartitionBytesOverride {
+            dataPartitionBytes = dataPartitionBytesOverride
+        } else {
+            let partition = SetupSpace.resolvedDataPartitionBytes(in: spec.configBase)
+            dataPartitionBytes = partition.bytes
+            if partition.usedDefault {
+                print("[setup] warning \(SetupSpace.dataPartitionSizeKey) 缺少或不是正整數，"
+                    + "使用預設值 \(SetupSpace.defaultDataPartitionBytes) bytes")
+            }
         }
         self.installer = installer
         readAvailableBytes = availableBytes
