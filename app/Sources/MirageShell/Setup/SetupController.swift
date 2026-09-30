@@ -43,6 +43,7 @@ final class SetupController {
     let sdkRoot: URL
     let avdDirectory: URL
     let downloadsDirectory: URL
+    let dataPartitionBytes: Int64
     var agreed = false
     var phase: SetupPhase = .intro
     var missingItems: [SetupMissingItem]
@@ -73,6 +74,11 @@ final class SetupController {
         self.sdkRoot = sdkRoot
         self.avdDirectory = avdDirectory
         self.downloadsDirectory = downloadsDirectory
+        let partition = SetupSpace.resolvedDataPartitionBytes(in: spec.configBase)
+        dataPartitionBytes = partition.bytes
+        if partition.usedDefault {
+            print("[setup] warning \(SetupSpace.dataPartitionSizeKey) 缺少或不是正整數，使用預設值 \(SetupSpace.defaultDataPartitionBytes) bytes")
+        }
         self.installer = installer
         readAvailableBytes = availableBytes
         self.availableBytes = availableBytes()
@@ -93,7 +99,9 @@ final class SetupController {
         for item in progressItems { log(item) }
     }
 
-    var requiredBytes: Int64 { SetupSpace.required(for: evaluateSetup().missing) }
+    var requiredBytes: Int64 {
+        SetupSpace.required(for: evaluateSetup().missing, dataPartitionBytes: dataPartitionBytes)
+    }
 
     var canStart: Bool {
         !cancellationPending && operationTask == nil
@@ -109,7 +117,7 @@ final class SetupController {
     func start() {
         guard operationTask == nil, !cancellationPending, phase == .intro || isFailed else { return }
         let result = evaluateSetup()
-        let required = SetupSpace.required(for: result.missing)
+        let required = SetupSpace.required(for: result.missing, dataPartitionBytes: dataPartitionBytes)
         refreshAvailableSpace()
         let allowed = SetupGate.canStart(agreed: agreed, required: required, available: availableBytes)
         print("[setup] gate canStart=\(allowed) required=\(required) available=\(availableBytes)")
