@@ -27,6 +27,10 @@ public struct InstanceTableError: Error, Equatable, LocalizedError {
 }
 
 public enum InstanceTable {
+    public static func primaryEntry(in entries: [InstanceEntry]) -> InstanceEntry? {
+        entries.first
+    }
+
     public static func parse(_ text: String) -> Result<[InstanceEntry], InstanceTableError> {
         var entries: [InstanceEntry] = []
         var avdLines: [String: Int] = [:]

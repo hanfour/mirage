@@ -16,6 +16,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
     private let speechItem: NSMenuItem
     private let backgroundModeItem: NSMenuItem
     private let restartSimulatorItem: NSMenuItem
+    private let settingsItem: NSMenuItem
     private let forceMenu: NSMenu
     /// 「切換模擬器」子選單。內容每次展開前由 `instanceEntries` 重算（探索檔隨模擬器起停而變）。
     private let instanceMenu: NSMenu
@@ -43,8 +44,10 @@ final class MenuBarController: NSObject, NSMenuDelegate {
     var instanceEntries: (() -> [InstanceMenuEntry])?
     var onSwitchInstance: ((InstanceEntry) -> Void)?
     var onRestartSimulator: (() -> Void)?
+    var onOpenSettings: (@MainActor () -> Void)?
     var onTakeScreenshot: (() -> Void)?
     var canRestartSimulator: (@MainActor () -> Bool)?
+    var canOpenSettings: (@MainActor () -> Bool)?
 
     /// P1-e：AppModel.startAudio() 綁定 → AudioPlayer.setMuted。
     var onToggleMute: (() -> Void)?
@@ -74,6 +77,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         screenshotItem = NSMenuItem(title: "截圖（存到桌面）", action: nil, keyEquivalent: "")
         speechItem = NSMenuItem(title: "語音轉文字", action: nil, keyEquivalent: "")
         restartSimulatorItem = NSMenuItem(title: "重新啟動模擬器", action: nil, keyEquivalent: "")
+        settingsItem = NSMenuItem(title: "設定…", action: nil, keyEquivalent: "")
         // 標題寫明「下次啟動」：打勾當下視窗不會消失，不寫清楚會以為沒反應。
         backgroundModeItem = NSMenuItem(title: "背景模式（下次啟動不開視窗、自動開手機遙控）",
                                         action: nil, keyEquivalent: "")
@@ -101,6 +105,10 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         menu.addItem(.separator())
         menu.addItem(withTitle: "喚醒", action: #selector(wakeTapped), keyEquivalent: "").target = self
         menu.addItem(withTitle: "顯示視窗", action: #selector(showTapped), keyEquivalent: "").target = self
+        settingsItem.action = #selector(settingsTapped)
+        settingsItem.target = self
+        settingsItem.isEnabled = false
+        menu.addItem(settingsItem)
         menu.addItem(withTitle: "遊戲模式（全螢幕）", action: #selector(fullScreenTapped),
                      keyEquivalent: "").target = self
         muteItem.action = #selector(muteTapped)
@@ -172,6 +180,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
     func menuNeedsUpdate(_ menu: NSMenu) {
         if let rootMenu = statusItem.menu, menu === rootMenu {
             restartSimulatorItem.isEnabled = canRestartSimulator?() ?? false
+            settingsItem.isEnabled = canOpenSettings?() ?? false
         }
         if menu === remoteMenu {
             Self.populate(remoteMenu: remoteMenu, entries: remoteEntries?() ?? RemoteMenu.entries(.off),
@@ -212,6 +221,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         Self.dispatchAndroidKey(sender) { [weak self] key in self?.onAndroidKey?(key) }
     }
     @objc private func screenshotTapped() { onTakeScreenshot?() }
+    @objc private func settingsTapped() { onOpenSettings?() }
     @objc private func disableTapped() { onDisable?() }
     @objc private func autoTapped() { onAuto?() }
     @objc private func forceTapped(_ sender: NSMenuItem) {

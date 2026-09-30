@@ -16,6 +16,13 @@ extension AppModel {
                   let launcher = self.instanceManagerPresentation.launcher else { return false }
             return launcher.isManaged(avd)
         }
+        menuBar?.canOpenSettings = { [weak self] in
+            guard let self else { return false }
+            return !self.instanceManagerPresentation.setupVisible
+                && self.instanceManagerPresentation.launcher != nil
+                && InstanceTable.primaryEntry(in: self.instanceManagerPresentation.entries) != nil
+        }
+        menuBar?.onOpenSettings = { [weak self] in self?.showSettingsWindow() }
         menuBar?.instanceEntries = { [weak self] in
             guard let self else { return [] }
             guard !self.instanceManagerPresentation.setupVisible,

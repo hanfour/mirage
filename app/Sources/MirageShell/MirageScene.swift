@@ -21,10 +21,15 @@ struct MirageScene: App {
         setvbuf(stdout, nil, _IOLBF, 0)
     }
 
-    /// 鏡像視窗改由 `MirrorWindowController`（AppKit）建立，這裡只留空的 `Settings` 場景，
-    /// 讓 SwiftUI 繼續提供主選單（⌘Q、編輯選單）。「設定…」項目沒有內容，拿掉。
+    /// 鏡像視窗改由 `MirrorWindowController`（AppKit）建立；Settings 場景讓 SwiftUI 提供主選單。
     var body: some Scene {
         Settings { EmptyView() }
-            .commands { CommandGroup(replacing: .appSettings) {} }
+            .commands {
+                CommandGroup(replacing: .appSettings) {
+                    Button("設定…") { appDelegate.model?.showSettingsWindow() }
+                        .keyboardShortcut(",", modifiers: .command)
+                        .disabled(appDelegate.model?.instanceManagerPresentation.setupVisible ?? true)
+                }
+            }
     }
 }

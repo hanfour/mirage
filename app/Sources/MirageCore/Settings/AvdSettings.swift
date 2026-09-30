@@ -76,7 +76,10 @@ public enum AvdSettings {
         Resolution(width: 1080, height: 2400, density: 420),
         Resolution(width: 1440, height: 3200, density: 560),
     ]
-    private static let autoApplyKeys = ["cores", "ramMB", "resolution"]
+    private static let autoApplyCoresKey = "cores"
+    private static let autoApplyRAMKey = "ramMB"
+    private static let autoApplyResolutionKey = "resolution"
+    private static let autoApplyKeys = [autoApplyCoresKey, autoApplyRAMKey, autoApplyResolutionKey]
     private static let bytesPerMB: UInt64 = 1_048_576
 
     public static func options(hostProcessorCount: Int, hostMemoryBytes: UInt64) -> Options {
@@ -171,21 +174,21 @@ public enum AvdSettings {
             return .failure(.missingField(key))
         }
 
-        guard let coresText = fields[autoApplyKeys[0]], let cores = Int(coresText),
+        guard let coresText = fields[autoApplyCoresKey], let cores = Int(coresText),
               options(hostProcessorCount: hostProcessorCount, hostMemoryBytes: hostMemoryBytes)
                 .cores.contains(cores) else {
-            return .failure(.invalidValue(fields[autoApplyKeys[0]] ?? ""))
+            return .failure(.invalidValue(fields[autoApplyCoresKey] ?? ""))
         }
-        guard let ramText = fields[autoApplyKeys[1]], let ramMB = Int(ramText),
+        guard let ramText = fields[autoApplyRAMKey], let ramMB = Int(ramText),
               options(hostProcessorCount: hostProcessorCount, hostMemoryBytes: hostMemoryBytes)
                 .ramMB.contains(ramMB) else {
-            return .failure(.invalidValue(fields[autoApplyKeys[1]] ?? ""))
+            return .failure(.invalidValue(fields[autoApplyRAMKey] ?? ""))
         }
-        guard let resolutionText = fields[autoApplyKeys[2]],
+        guard let resolutionText = fields[autoApplyResolutionKey],
               let resolution = resolutionOptions.first(where: {
                   "\($0.width)x\($0.height)" == resolutionText
               }) else {
-            return .failure(.invalidValue(fields[autoApplyKeys[2]] ?? ""))
+            return .failure(.invalidValue(fields[autoApplyResolutionKey] ?? ""))
         }
         return .success(Values(cores: cores, ramMB: ramMB, resolution: resolution))
     }
