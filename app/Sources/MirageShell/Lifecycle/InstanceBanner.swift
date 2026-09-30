@@ -52,6 +52,10 @@ enum InstanceBanner {
             case .spawnFailed(let reason):
                 return Content(text: "無法啟動模擬器：\(reason)", color: .error,
                                showsRestart: true, showsLog: true)
+            case .insufficientDisk(let availableMB, let neededMB):
+                return Content(
+                    text: "磁碟空間不足：需要 \(gigabytes(neededMB)) GB，可用 \(gigabytes(availableMB)) GB",
+                    color: .error, showsRestart: false, showsLog: true)
             }
         case .stopped, .running, .external:
             return nil
@@ -66,5 +70,10 @@ enum InstanceBanner {
     static func content(for error: SdkSpecError) -> Content {
         Content(text: "SDK 設定檔讀取失敗：\(error.message)", color: .error,
                 showsRestart: false, showsLog: false)
+    }
+
+    private static func gigabytes(_ megabytes: Double) -> String {
+        String(format: "%.1f", locale: Locale(identifier: "en_US_POSIX"),
+               arguments: [megabytes / 1024])
     }
 }

@@ -8,6 +8,7 @@ public enum InstanceFailure: Sendable, Equatable {
     case bootTimedOut
     case abnormalExit
     case spawnFailed(String)
+    case insufficientDisk(availableMB: Double, neededMB: Double)
 }
 
 public enum InstanceState: Sendable, Equatable {
@@ -49,6 +50,7 @@ public enum InstanceState: Sendable, Equatable {
                                             lastRestartAt: nil)
         case (.stopped, .launchFailed(let failure)),
              (.launching(_), .launchFailed(let failure)),
+             (.booting(_), .launchFailed(let failure)),
              (.restarting, .launchFailed(let failure)):
             return failed(failure)
         case (.failed(_), .userRestartRequested):
