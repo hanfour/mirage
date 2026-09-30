@@ -17,7 +17,7 @@ struct AvdWriterTests {
             == pointerGolden)
     }
 
-    @Test func writeCreatesAvdDirectoryAndAtomicallyWritesBothFiles() throws {
+    @Test func writeCreatesAvdDirectoryAndAtomicallyWritesAllFiles() throws {
         let spec = try SdkSpec.bundled().get()
         let game = try #require(spec.avds.first { $0.name == "mirage-game" })
         let temporaryRoot = FileManager.default.temporaryDirectory
@@ -30,8 +30,12 @@ struct AvdWriterTests {
 
         let config = avdDirectory.appendingPathComponent("mirage-game.avd/config.ini")
         let pointer = avdDirectory.appendingPathComponent("mirage-game.ini")
+        let marker = avdDirectory.appendingPathComponent(
+            "mirage-game.avd/\(AvdSettings.managedMarkerFilename)")
         #expect(FileManager.default.fileExists(atPath: config.path))
         #expect(FileManager.default.fileExists(atPath: pointer.path))
+        #expect(try String(contentsOf: marker, encoding: .utf8) == AvdSettings.managedMarkerContent)
+        #expect(AvdSettings.isManaged(at: config.deletingLastPathComponent()))
         #expect(try String(contentsOf: config, encoding: .utf8) ==
                 AvdWriter.renderConfig(spec: spec, avd: game, sdkRoot: sdkRoot))
     }

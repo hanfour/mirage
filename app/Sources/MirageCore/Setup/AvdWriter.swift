@@ -57,9 +57,12 @@ public enum AvdWriter {
 
         let config = try renderConfig(spec: spec, avd: avd, sdkRoot: sdkRoot)
         let pointer = renderPointerIni(spec: spec, avd: avd, avdDirectory: avdDirectory)
+        let marker = avdDataDirectory.appendingPathComponent(
+            AvdSettings.managedMarkerFilename, isDirectory: false)
         try Data(config.utf8).write(
             to: avdDataDirectory.appendingPathComponent("config.ini", isDirectory: false), options: .atomic)
         try Data(pointer.utf8).write(
             to: avdDirectory.appendingPathComponent("\(avd.name).ini", isDirectory: false), options: .atomic)
+        try Data(AvdSettings.managedMarkerContent.utf8).write(to: marker, options: .atomic)
     }
 }
