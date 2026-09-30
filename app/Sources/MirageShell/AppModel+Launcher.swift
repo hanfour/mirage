@@ -184,7 +184,8 @@ extension AppModel {
                     presentation.currentInstanceState = state
                 }
                 self.updateCurrentInstancePresentation()
-                guard entry.avdName == InstanceTable.primaryEntry(in: presentation.entries)?.avdName else {
+                guard let primary = InstanceTable.primaryEntry(in: presentation.entries),
+                      entry.avdName == primary.avdName else {
                     return
                 }
                 switch state {

@@ -415,6 +415,14 @@ else
     ./scripts/lib/instance_lifecycle_selftest.sh 2>&1 | grep "❌" | sed 's/^/   /'
 fi
 
+# AVD 設定 GUI 驗證器的純解析函式：wm size、guest CPU／RAM、config 欄位與 settings log。
+if /bin/bash ./scripts/lib/avd_settings_selftest.sh > /dev/null 2>&1; then
+    ok "avd_settings.sh 純函式自我測試通過"
+else
+    fail "avd_settings.sh 自我測試失敗（重跑 ./scripts/lib/avd_settings_selftest.sh 看細節）："
+    /bin/bash ./scripts/lib/avd_settings_selftest.sh 2>&1 | grep "❌" | sed 's/^/   /'
+fi
+
 echo ""
 # 第九支自我測試：getevent 的 slot 狀態與轉移解析，不需要模擬器。
 if /bin/bash ./scripts/lib/getevent_touch_selftest.sh; then

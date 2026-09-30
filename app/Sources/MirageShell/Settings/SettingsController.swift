@@ -87,9 +87,11 @@ final class SettingsController {
 
     private var isManagedAndActive: Bool {
         guard launcherIsManaged(avdName) else { return false }
-        return switch instanceState(avdName) {
-        case .launching?, .booting?, .running?, .restarting?, .stopping?: true
-        default: false
+        switch instanceState(avdName) {
+        case .launching?, .booting?, .running?, .restarting?, .stopping?:
+            return true
+        default:
+            return false
         }
     }
 
