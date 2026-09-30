@@ -99,6 +99,20 @@ import Testing
         #expect(state.events.isEmpty)
     }
 
+    @Test func testDataPartitionOverrideIsIncludedInRequiredSpace() throws {
+        let spec = try SdkSpec.bundled().get()
+        let state = SetupTestState(missing: allMissing(spec))
+        let controller = makeController(
+            spec: spec, state: state, installer: FakePackageInstaller(state: state),
+            dataPartitionBytesOverride: SetupSpace.minimumTestDataPartitionBytes)
+        let zippedBytes = requiredPackages(spec).reduce(Int64(0)) { $0 + $1.size }
+        let expected = Int64((Double(zippedBytes) * SetupSpace.extractionMultiplier).rounded(.up))
+            + Int64((Double(SetupSpace.minimumTestDataPartitionBytes)
+                     * SetupSpace.dataPartitionSpaceMultiplier).rounded(.up))
+
+        #expect(controller.requiredBytes == expected)
+    }
+
     @Test func finalSetupCheckMustBeEmptyToSucceed() async throws {
         let spec = try SdkSpec.bundled().get()
         let packages = requiredPackages(spec)
@@ -119,7 +133,8 @@ import Testing
         spec: SdkSpec,
         state: SetupTestState,
         installer: FakePackageInstaller,
-        availableBytes: Int64 = 100_000_000_000
+        availableBytes: Int64 = 100_000_000_000,
+        dataPartitionBytesOverride: Int64? = nil
     ) -> SetupController {
         let root = URL(fileURLWithPath: "/tmp/setup-controller-tests", isDirectory: true)
         return SetupController(
@@ -128,6 +143,7 @@ import Testing
             sdkRoot: root.appendingPathComponent("sdk", isDirectory: true),
             avdDirectory: root.appendingPathComponent("avd", isDirectory: true),
             downloadsDirectory: root.appendingPathComponent("downloads", isDirectory: true),
+            dataPartitionBytesOverride: dataPartitionBytesOverride,
             installer: installer,
             availableBytes: { availableBytes },
             writeAVD: { state.completeAVD() },

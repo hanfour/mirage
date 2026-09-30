@@ -17,6 +17,7 @@ final class InstanceManagerPresentation {
     var setupVisible = false
     var currentAVD: String?
     var tickTask: Task<Void, Never>?
+    var settingsAutoApplyAttempted = false
 
     var logURL: URL? {
         guard let currentAVD else { return nil }
@@ -46,7 +47,7 @@ extension AppModel {
             showLauncherBannerInBackgroundMode()
             return
         case .success(let entries):
-            guard let first = entries.first else {
+            guard let first = InstanceTable.primaryEntry(in: entries) else {
                 let error = InstanceTableError(line: 1, reason: "實例表沒有任何實例")
                 instanceManagerPresentation.tableError = error
                 NSLog("[launcher] 實例表讀取失敗：%@", error.localizedDescription)
@@ -100,6 +101,7 @@ extension AppModel {
                 sdkRoot: sdkRoot,
                 avdDirectory: avdDirectory,
                 downloadsDirectory: downloadsDirectory,
+                dataPartitionBytesOverride: options.testDataPartitionBytes,
                 installer: PackageInstaller(sdkRoot: sdkRoot, downloadsDirectory: downloadsDirectory),
                 availableBytes: {
                     if let fake = options.fakeAvailableBytes { return fake }
@@ -107,7 +109,15 @@ extension AppModel {
                 },
                 writeAVD: {
                     guard let game = spec.avds.first(where: { $0.name == "mirage-game" }) else { return }
-                    try AvdWriter.write(spec: spec, avd: game, sdkRoot: sdkRoot, avdDirectory: avdDirectory)
+                    var configOverrides: [String: String] = [:]
+                    if let partitionBytes = options.testDataPartitionBytes {
+                        configOverrides[SetupSpace.dataPartitionSizeKey] = String(partitionBytes)
+                    }
+                    try AvdWriter.write(spec: spec, avd: game, sdkRoot: sdkRoot,
+                                        avdDirectory: avdDirectory, configOverrides: configOverrides)
+                    if let partitionBytes = options.testDataPartitionBytes {
+                        print("[setup] test data partition override=\(partitionBytes)")
+                    }
                 },
                 evaluateSetup: {
                     return Self.evaluateSetup(spec: spec, sdkRoot: sdkRoot, avdDirectory: avdDirectory)
@@ -150,7 +160,7 @@ extension AppModel {
         entries: [InstanceEntry], environment: [String: String], home: URL
     ) async {
         let presentation = instanceManagerPresentation
-        guard let first = entries.first else { return }
+        guard let first = InstanceTable.primaryEntry(in: entries) else { return }
         let ownedFile = home.appendingPathComponent(
             "Library/Application Support/Mirage/owned-instances.json", isDirectory: false)
         let launcher = EmulatorLauncher(
@@ -183,6 +193,18 @@ extension AppModel {
                     presentation.currentInstanceState = state
                 }
                 self.updateCurrentInstancePresentation()
+                guard let primary = InstanceTable.primaryEntry(in: presentation.entries),
+                      entry.avdName == primary.avdName else {
+                    return
+                }
+                switch state {
+                case .running, .external:
+                    Task { @MainActor [weak self] in
+                        await self?.applySettingsAutoApplyIfNeeded(entry: entry, environment: environment)
+                    }
+                default:
+                    break
+                }
             }
         )
         presentation.launcher = launcher

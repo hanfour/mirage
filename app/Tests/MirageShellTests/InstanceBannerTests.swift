@@ -77,6 +77,14 @@ import Testing
         #expect(content.showsLog)
     }
 
+    @Test func insufficientDiskShowsCapacityAndLogOnly() throws {
+        let content = try #require(InstanceBanner.content(
+            for: .failed(.insufficientDisk(availableMB: 5_190.41, neededMB: 9_830.40)), avd: avd))
+        #expect(content.text == "磁碟空間不足：需要 9.6 GB，可用 5.1 GB")
+        #expect(!content.showsRestart)
+        #expect(content.showsLog)
+    }
+
     @Test func runningUsesConnectionBanner() {
         #expect(InstanceBanner.content(for: .running, avd: avd) == nil)
     }

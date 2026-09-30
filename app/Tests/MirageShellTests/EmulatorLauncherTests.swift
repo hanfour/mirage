@@ -86,6 +86,25 @@ import Testing
         #expect(harness.spawnCount == 2)
     }
 
+    @Test func insufficientDiskLogFailureDoesNotSpawnReplacement() async throws {
+        let ownedFile = temporaryOwnedFile()
+        defer { try? FileManager.default.removeItem(at: ownedFile.deletingLastPathComponent()) }
+        let harness = LauncherHarness()
+        harness.logTail = "FATAL | Not enough space to create userdata partition. Available: 5190.41 MB at /var/folders/…/mirage-game.avd, need 9830.40 MB."
+        let launcher = harness.makeLauncher(ownedFile: ownedFile)
+
+        await launcher.ensureRunning(harness.game)
+        harness.spawnRunning[0] = false
+        await launcher.tick()
+
+        #expect(launcher.state(for: "mirage-game") == .failed(
+            .insufficientDisk(availableMB: 5_190.41, neededMB: 9_830.40)))
+        #expect(harness.spawnCount == 1)
+        #expect(harness.readLogPaths.count == 1)
+        #expect(harness.readLogPaths.first?.lastPathComponent == "emulator-mirage-game.log")
+        #expect(harness.readLogByteLimits == [EmulatorLauncher.logTailLimitBytes])
+    }
+
     @Test func externalInstanceExitDoesNotSpawnReplacement() async throws {
         let ownedFile = temporaryOwnedFile()
         defer { try? FileManager.default.removeItem(at: ownedFile.deletingLastPathComponent()) }
@@ -271,6 +290,9 @@ private final class LauncherHarness {
     var spawnError: String?
     var keepSpawnRunningAfterTerminate = false
     var terminationSleepCount = 0
+    var logTail: String?
+    var readLogPaths: [URL] = []
+    var readLogByteLimits: [Int] = []
 
     func makeLauncher(ownedFile: URL, entries: [InstanceEntry]? = nil,
                       spawnError: String? = nil) -> EmulatorLauncher {
@@ -331,6 +353,11 @@ private final class LauncherHarness {
                 if let index = self.spawnRunning.indices.first {
                     self.spawnRunning[index] = false
                 }
+            },
+            readLogTail: { url, maximumBytes in
+                self.readLogPaths.append(url)
+                self.readLogByteLimits.append(maximumBytes)
+                return self.logTail
             }
         )
     }

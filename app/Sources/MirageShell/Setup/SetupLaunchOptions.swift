@@ -5,10 +5,12 @@ struct SetupLaunchOptions: Equatable {
     static let specFileKey = "MIRAGE_SDK_SPEC_FILE"
     static let autostartKey = "MIRAGE_SETUP_AUTOSTART"
     static let availableBytesKey = "MIRAGE_SETUP_FAKE_AVAILABLE_BYTES"
+    static let dataPartitionBytesKey = "MIRAGE_SETUP_DATA_PARTITION_BYTES"
 
     let specFile: URL?
     let autostart: Bool
     let fakeAvailableBytes: Int64?
+    let testDataPartitionBytes: Int64?
     let warnings: [String]
 
     static func parse(environment: [String: String]) -> SetupLaunchOptions {
@@ -47,8 +49,23 @@ struct SetupLaunchOptions: Equatable {
             fakeAvailableBytes = nil
         }
 
+        let testDataPartitionBytes: Int64?
+        if let raw = environment[dataPartitionBytesKey] {
+            if let parsed = Int64(raw), parsed >= SetupSpace.minimumTestDataPartitionBytes {
+                testDataPartitionBytes = parsed
+            } else {
+                warnings.append("\(dataPartitionBytesKey)=\(oneLine(raw)) 不是至少 "
+                    + "\(SetupSpace.minimumTestDataPartitionBytes) bytes 的整數，已忽略")
+                testDataPartitionBytes = nil
+            }
+        } else {
+            testDataPartitionBytes = nil
+        }
+
         return SetupLaunchOptions(specFile: specFile, autostart: autostart,
-                                  fakeAvailableBytes: fakeAvailableBytes, warnings: warnings)
+                                  fakeAvailableBytes: fakeAvailableBytes,
+                                  testDataPartitionBytes: testDataPartitionBytes,
+                                  warnings: warnings)
     }
 
     private static func oneLine(_ value: String) -> String {

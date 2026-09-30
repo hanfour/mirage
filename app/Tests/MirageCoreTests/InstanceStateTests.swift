@@ -105,6 +105,15 @@ struct InstanceStateTests {
         #expect(transition.action == .showFailure(reason))
     }
 
+    @Test func insufficientDiskLaunchFailureIsAcceptedDuringLaunchAndBoot() {
+        let failure = InstanceFailure.insufficientDisk(availableMB: 5_190.41, neededMB: 9_830.40)
+        for state in [InstanceState.launching(since: origin), .booting(since: origin)] {
+            let transition = next(state, .launchFailed(failure))
+            #expect(transition.state == .failed(failure))
+            #expect(transition.action == .showFailure(failure))
+        }
+    }
+
     @Test func stopRequestAndProcessExitDoNotRestart() {
         let stopping = next(.running, .stopRequested)
         #expect(stopping.state == .stopping)

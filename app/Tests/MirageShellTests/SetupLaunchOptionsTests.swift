@@ -17,11 +17,13 @@ import Testing
             SetupLaunchOptions.specFileKey: file.path,
             SetupLaunchOptions.autostartKey: "1",
             SetupLaunchOptions.availableBytesKey: "123456",
+            SetupLaunchOptions.dataPartitionBytesKey: String(SetupSpace.minimumTestDataPartitionBytes),
         ])
 
         #expect(options.specFile == file)
         #expect(options.autostart)
         #expect(options.fakeAvailableBytes == 123_456)
+        #expect(options.testDataPartitionBytes == SetupSpace.minimumTestDataPartitionBytes)
         #expect(options.warnings.isEmpty)
         #expect(try options.loadSdkSpec().get() == original)
     }
@@ -31,12 +33,14 @@ import Testing
             SetupLaunchOptions.specFileKey: "",
             SetupLaunchOptions.autostartKey: "yes",
             SetupLaunchOptions.availableBytesKey: "-1",
+            SetupLaunchOptions.dataPartitionBytesKey: String(SetupSpace.minimumTestDataPartitionBytes - 1),
         ])
 
         #expect(options.specFile == nil)
         #expect(!options.autostart)
         #expect(options.fakeAvailableBytes == nil)
-        #expect(options.warnings.count == 3)
+        #expect(options.testDataPartitionBytes == nil)
+        #expect(options.warnings.count == 4)
     }
 
     @Test func specReadFailureReturnsTheSameErrorTypeAsBundleFailure() {

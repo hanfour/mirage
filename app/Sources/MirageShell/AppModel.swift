@@ -41,6 +41,7 @@ final class AppModel {
     var currentEndpoint: EmulatorEndpoint = EmulatorClient.defaultEndpoint
     let instanceManagerPresentation = InstanceManagerPresentation()
     @ObservationIgnored var setupWindowController: SetupWindowController?
+    @ObservationIgnored var settingsWindowController: SettingsWindowController?
     /// 序列化選單連續點選；已完成的 Task 可直接 await，下一個要求會替換它。
     @ObservationIgnored var instanceSwitchTask: Task<Void, Never>?
     @ObservationIgnored var streamDemands = StreamDemands()

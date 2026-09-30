@@ -14,6 +14,16 @@ struct InstanceTableTests {
         ])
     }
 
+    @Test func primaryEntryUsesTheFirstParsedInstance() throws {
+        let entries = try InstanceTable.parse("""
+            mirage-game:5554:8554
+            mirage-poc:5556:8556
+            """).get()
+
+        #expect(InstanceTable.primaryEntry(in: entries) == entries[0])
+        #expect(InstanceTable.primaryEntry(in: []) == nil)
+    }
+
     @Test func ignoresBlankLinesAndComments() throws {
         let entries = try InstanceTable.parse("""
             # default instance

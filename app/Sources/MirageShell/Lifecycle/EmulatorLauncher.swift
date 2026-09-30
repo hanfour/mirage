@@ -31,6 +31,7 @@ final class EmulatorLauncher {
         var lastRestartAt: Date?
         var spawned: SpawnedProcess?
         var ownedRecord: OwnedRecord?
+        var launchPlan: LaunchPlan?
     }
 
     typealias StopEmulator = @MainActor (String) async -> Bool?
@@ -56,9 +57,11 @@ final class EmulatorLauncher {
     private let sleep: @MainActor (Duration) async -> Void
     private let terminationSleep: @MainActor (Duration) -> Void
     private let onStateChange: @MainActor (InstanceEntry, InstanceState) -> Void
+    private let readLogTail: @MainActor (URL, Int) -> String?
     private var runtimes: [String: Runtime] = [:]
     private var ownedRecords: [OwnedRecord] = []
     private var isTicking = false
+    static let logTailLimitBytes = 64 * 1024
 
     init(
         entries: [InstanceEntry],
@@ -85,7 +88,20 @@ final class EmulatorLauncher {
             Thread.sleep(forTimeInterval: Double($0.components.seconds)
                          + Double($0.components.attoseconds) / 1e18)
         },
-        onStateChange: @escaping @MainActor (InstanceEntry, InstanceState) -> Void = { _, _ in }
+        onStateChange: @escaping @MainActor (InstanceEntry, InstanceState) -> Void = { _, _ in },
+        readLogTail: @escaping @MainActor (URL, Int) -> String? = { url, maximumBytes in
+            guard maximumBytes > 0, let handle = try? FileHandle(forReadingFrom: url) else { return nil }
+            defer { try? handle.close() }
+            do {
+                let length = try handle.seekToEnd()
+                let start = length > UInt64(maximumBytes) ? length - UInt64(maximumBytes) : 0
+                try handle.seek(toOffset: start)
+                guard let data = try handle.readToEnd() else { return "" }
+                return String(decoding: data, as: UTF8.self)
+            } catch {
+                return nil
+            }
+        }
     ) {
         self.entries = entries
         self.spawn = spawn
@@ -107,6 +123,7 @@ final class EmulatorLauncher {
         self.sleep = sleep
         self.terminationSleep = terminationSleep
         self.onStateChange = onStateChange
+        self.readLogTail = readLogTail
     }
 
     func state(for avd: String) -> InstanceState? { runtimes[avd]?.state }
@@ -144,7 +161,8 @@ final class EmulatorLauncher {
             let since = now()
             let state = InstanceState.booting(since: since)
             runtimes[record.avd] = Runtime(entry: entry, state: state,
-                                           lastRestartAt: nil, spawned: nil, ownedRecord: record)
+                                           lastRestartAt: nil, spawned: nil, ownedRecord: record,
+                                           launchPlan: nil)
             logChange(entry.avdName, old: .stopped, event: "adopted", new: state)
             onStateChange(entry, state)
         }
@@ -163,14 +181,14 @@ final class EmulatorLauncher {
         }) {
             let old: InstanceState = .stopped
             runtimes[entry.avdName] = Runtime(entry: entry, state: .external, lastRestartAt: nil,
-                                              spawned: nil, ownedRecord: nil)
+                                              spawned: nil, ownedRecord: nil, launchPlan: nil)
             logChange(entry.avdName, old: old, event: "discovered", new: .external)
             onStateChange(entry, .external)
             return
         }
 
         runtimes[entry.avdName] = Runtime(entry: entry, state: .stopped, lastRestartAt: nil,
-                                          spawned: nil, ownedRecord: nil)
+                                          spawned: nil, ownedRecord: nil, launchPlan: nil)
         await send(entry.avdName, .launchRequested)
     }
 
@@ -208,14 +226,29 @@ final class EmulatorLauncher {
                 exited = runtime.spawned.map { !$0.isRunning } ?? false
             }
             if exited {
+                let plan = runtime.launchPlan ?? makeLaunchPlan(for: runtime.entry)
+                let logText = readLogTail(plan.logFile, Self.logTailLimitBytes) ?? ""
+                let exitEvent: InstanceEvent
+                let isStarting: Bool
+                switch runtime.state {
+                case .launching, .booting: isStarting = true
+                default: isStarting = false
+                }
+                if isStarting, let space = InsufficientDiskLogParser.parse(logText) {
+                    exitEvent = .launchFailed(.insufficientDisk(
+                        availableMB: space.availableMB, neededMB: space.neededMB))
+                } else {
+                    exitEvent = .processExited
+                }
                 if let record = runtime.ownedRecord {
                     ownedRecords = OwnedInstances.removing(record, from: ownedRecords)
                     persistOwnedRecords()
                 }
                 runtime.ownedRecord = nil
                 runtime.spawned = nil
+                runtime.launchPlan = nil
                 runtimes[avd] = runtime
-                await send(avd, .processExited)
+                await send(avd, exitEvent)
                 guard let updated = runtimes[avd] else { continue }
                 runtime = updated
             }
@@ -335,6 +368,7 @@ final class EmulatorLauncher {
     }
 
     private func launch(_ entry: InstanceEntry) async {
+        let plan = makeLaunchPlan(for: entry)
         let sdkRoot = SdkLocator(environment: environment, homeDirectory: homeDirectory).root
         if let failure = LaunchCheck.failure(instance: entry, sdkRoot: sdkRoot,
                                              environment: environment, homeDirectory: homeDirectory,
@@ -343,19 +377,24 @@ final class EmulatorLauncher {
             return
         }
 
-        let plan = LaunchPlan(instance: entry, sdkRoot: sdkRoot, homeDirectory: homeDirectory,
-                              environment: environment)
         do {
             try createDirectory(plan.logFile.deletingLastPathComponent())
             let process = try spawn(plan)
             if var runtime = runtimes[entry.avdName] {
                 runtime.spawned = process
+                runtime.launchPlan = plan
                 runtimes[entry.avdName] = runtime
             }
             await send(entry.avdName, .launchStarted)
         } catch {
             await send(entry.avdName, .launchFailed(.spawnFailed(error.localizedDescription)))
         }
+    }
+
+    private func makeLaunchPlan(for entry: InstanceEntry) -> LaunchPlan {
+        let sdkRoot = SdkLocator(environment: environment, homeDirectory: homeDirectory).root
+        return LaunchPlan(instance: entry, sdkRoot: sdkRoot, homeDirectory: homeDirectory,
+                          environment: environment)
     }
 
     private func stop(_ entry: InstanceEntry) async {
