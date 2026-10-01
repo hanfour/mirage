@@ -10,7 +10,9 @@ extension AppModel {
     static func makeWindowController(for model: AppModel) -> MirrorWindowController {
         MirrorWindowController { [weak model] in
             guard let model else { return NSView() }
-            return NSHostingView(rootView: MirrorRootView(model: model))
+            let host = NSHostingView(rootView: MirrorRootView(model: model))
+            host.safeAreaRegions = []
+            return host
         }
     }
 

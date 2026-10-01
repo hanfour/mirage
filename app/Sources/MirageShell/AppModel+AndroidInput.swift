@@ -2,8 +2,10 @@ import MirageCore
 
 /// guest 的 Android 實體鍵（W3C key 名稱）。選單列與鏡像視窗快捷鍵都用這裡的值，
 /// 只寫一份：兩處各寫字串時，改到一處另一處就會送出不同的鍵，而測試只看得到其中一邊。
-/// 模擬器接受這兩個名稱已實測（guest getevent 收到 KEY_VOLUMEUP／KEY_VOLUMEDOWN）。
+/// 音量鍵名稱已實測（guest getevent 收到 KEY_VOLUMEUP／KEY_VOLUMEDOWN）。
 enum AndroidKey {
+    static let home = "GoHome"
+    static let recents = "AppSwitch"
     static let volumeUp = "AudioVolumeUp"
     static let volumeDown = "AudioVolumeDown"
 }
@@ -11,6 +13,8 @@ enum AndroidKey {
 extension AppModel {
     func setupGuestActions() {
         menuBar?.onAndroidKey = { [weak self] key in self?.sendAndroidKey(key) }
+        windowController.onAndroidKey = { [weak self] key in self?.sendAndroidKey(key) }
+        windowController.setAndroidActionsEnabled(connState == .connected)
         menuBar?.onTakeScreenshot = { [weak self] in
             Task { @MainActor in await self?.takeScreenshot() }
         }

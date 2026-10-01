@@ -13,7 +13,8 @@ struct MirrorRootView: View {
             // loadKeymap() 完成、@Observable 觸發重繪時把值同步進 Coordinator。
             MirrorView(client: model.client, box: model.box,
                        controller: model.keymap, isEditing: model.editing, textInput: model.textInput,
-                       queue: model.inputQueue,
+                       queue: model.inputQueue, isConnected: model.connState == .connected,
+                       isMouseCaptured: { model.mouseCapture.captured },
                        onFrameSize: { w, h in model.frameSize = (w: w, h: h) },
                        onStreamDemand: { w, h in await model.updateWindowStreamDemand(width: w, height: h) })
                 .dropDestination(for: URL.self) { urls, _ in
@@ -43,9 +44,9 @@ struct MirrorRootView: View {
                     })
             }
             keymapOverlayLayer
-            // 隱藏按鈕：⌘E 切換編輯模式。用 SwiftUI .keyboardShortcut 走標準
+            // 隱藏按鈕：快捷鍵走 SwiftUI .keyboardShortcut 的標準
             // performKeyEquivalent 路徑，不需要額外的 NSEvent monitor 生命週期管理，
-            // 也不會和 MirrorMTKView.keyDown（一般字元鍵）互相搶事件。
+            // 也不會和 MirrorMTKView.keyDown（一般字元鍵）互相搶事件。⌘E 切換編輯模式。
             Button("") { model.toggleEditing() }
                 .keyboardShortcut("e", modifiers: .command)
                 .frame(width: 0, height: 0)
@@ -56,6 +57,14 @@ struct MirrorRootView: View {
                 .opacity(0)
             Button("") { model.sendAndroidKey(AndroidKey.volumeDown) }
                 .keyboardShortcut(.downArrow, modifiers: .command)
+                .frame(width: 0, height: 0)
+                .opacity(0)
+            Button("") { model.sendAndroidKey(AndroidKey.home) }
+                .keyboardShortcut("1", modifiers: .command)
+                .frame(width: 0, height: 0)
+                .opacity(0)
+            Button("") { model.sendAndroidKey(AndroidKey.recents) }
+                .keyboardShortcut("2", modifiers: .command)
                 .frame(width: 0, height: 0)
                 .opacity(0)
             Button("") { Task { await model.takeScreenshot() } }

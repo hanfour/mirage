@@ -12,6 +12,7 @@ final class KeymapController {
     private var engine: KeymapEngine?
     private var editing = false
     private var textMode = false
+    var onLoseFocus: (@MainActor () -> Void)?
     func setTextMode(_ on: Bool) {
         guard textMode != on else { return }
         queue.invalidateTextSession()
@@ -84,6 +85,7 @@ final class KeymapController {
 
     /// 失焦後 keyUp 未必會投遞，立即釋放 guest 端的觸點與直通鍵（D11）。
     func loseFocus() {
+        onLoseFocus?()
         queue.invalidateTextSession()
         releaseEverything()
     }

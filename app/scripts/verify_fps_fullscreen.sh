@@ -412,7 +412,7 @@ run_ab_sink() {
     AB_LAT_P95=""
 
     for round_attempt in $(seq 1 "$ROUND_RETRY_MAX"); do
-        defaults delete com.mirage.app "NSWindow Frame mirage-mirror" > /dev/null 2>&1 || true
+        defaults delete com.mirage.app "NSWindow Frame mirage-mirror-v2" > /dev/null 2>&1 || true
 
         log=$(mktemp -t d64_mirage)
         bundle=$(mktemp -d -t d64_bundle)
@@ -690,11 +690,10 @@ for round in $(seq 1 "$ROUNDS"); do
     ROUND_CONVERGED=0
     LATEST_ATTACH=""
     for round_attempt in $(seq 1 "$ROUND_RETRY_MAX"); do
-        # 清掉上一次嘗試／上次手動測試留下的視窗尺寸持久化紀錄（SwiftUI 的 `Window(id:)`
-        # 用 `NSWindow` frame-autosave 把尺寸寫進這個 domain）。**不清的話這次啟動的
+        # 清掉上一次嘗試／上次手動測試留下的視窗尺寸持久化紀錄。**不清的話這次啟動的
         # 起始視窗狀態取決於上一次怎麼結束**——診斷時實測過 kill 前殘留的視窗尺寸會被
         # 下次啟動原封 restore，讓「收不收斂」變成看上一次臉色，不是獨立事件。
-        defaults delete com.mirage.app "NSWindow Frame mirage-mirror" > /dev/null 2>&1 || true
+        defaults delete com.mirage.app "NSWindow Frame mirage-mirror-v2" > /dev/null 2>&1 || true
 
         LOG=$(mktemp -t d45_mirage)
         BUNDLE=$(mktemp -d -t d45_bundle)
