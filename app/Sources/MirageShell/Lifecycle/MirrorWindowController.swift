@@ -24,6 +24,8 @@ final class MirrorWindowController {
     private var titlebarInteraction: MirrorTitlebarInteractionView?
     private var titlebarVisible = false
     private var androidActionsEnabled = false
+    private var fullScreenWaiter: (target: Bool, continuation: CheckedContinuation<Bool, Never>)?
+    private var fullScreenTimeoutTask: Task<Void, Never>?
     private nonisolated(unsafe) var windowObservers: [NSObjectProtocol] = []
 
     var onAndroidKey: ((String) -> Void)? {
@@ -41,6 +43,29 @@ final class MirrorWindowController {
     }
 
     var existingWindow: NSWindow? { created }
+    var isTitlebarVisible: Bool { titlebarVisible }
+
+    func setTitlebarVisibleForTest(_ visible: Bool) {
+        setTitlebarVisible(visible)
+    }
+
+    func setFullScreenForTest(_ on: Bool) async -> Bool {
+        let target = window()
+        guard target.styleMask.contains(.fullScreen) != on else { return true }
+
+        return await withCheckedContinuation { continuation in
+            fullScreenWaiter = (on, continuation)
+            fullScreenTimeoutTask = Task { @MainActor [weak self] in
+                do {
+                    try await Task.sleep(for: .seconds(15))
+                } catch {
+                    return
+                }
+                self?.finishFullScreenWaiter(target: on, completed: false)
+            }
+            target.toggleFullScreen(nil)
+        }
+    }
 
     func window() -> NSWindow {
         if let created { return created }
@@ -113,6 +138,7 @@ final class MirrorWindowController {
                         if let actions = self.titlebarActions {
                             self.setTitlebarViewsVisible(true, animated: false, in: window, actions: actions)
                         }
+                        self.finishFullScreenWaiter(target: true, completed: true)
                     } else if notification.name == NSWindow.didExitFullScreenNotification {
                         self.titlebarInteraction?.customBehaviorEnabled = true
                         self.titlebarVisible = false
@@ -120,6 +146,7 @@ final class MirrorWindowController {
                         if let actions = self.titlebarActions {
                             self.setTitlebarViewsVisible(false, animated: false, in: window, actions: actions)
                         }
+                        self.finishFullScreenWaiter(target: false, completed: true)
                     } else if window.styleMask.contains(.fullScreen) {
                         self.titlebarInteraction?.customBehaviorEnabled = false
                         self.setTitlebarVisible(true, animated: false)
@@ -131,6 +158,14 @@ final class MirrorWindowController {
             }
             windowObservers.append(observer)
         }
+    }
+
+    private func finishFullScreenWaiter(target: Bool, completed: Bool) {
+        guard let waiter = fullScreenWaiter, waiter.target == target else { return }
+        fullScreenWaiter = nil
+        fullScreenTimeoutTask?.cancel()
+        fullScreenTimeoutTask = nil
+        waiter.continuation.resume(returning: completed)
     }
 
     private func setTitlebarVisible(_ visible: Bool, animated: Bool = true) {

@@ -23,6 +23,8 @@ final class AppModel {
     let launchPreferences: LaunchPreferences
     /// 鏡像視窗。init 最後才能設定（需要 self），所以是 IUO；建立它不會建立視窗。
     @ObservationIgnored var windowController: MirrorWindowController!
+    /// 僅在 MIRAGE_TEST_CONTROL 存在時建立；一般啟動不載入測試通道狀態。
+    @ObservationIgnored var testControlChannel: TestControlChannel?
     var remote: RemoteMirrorController?
     var remoteMenuState: RemoteMenuState = .off
     /// enable／disable／disconnect 都會 await，MainActor 期間會重入；進行中就忽略新要求。
@@ -256,6 +258,12 @@ final class AppModel {
         watcher?.start()
         // 背景模式的休眠或叫回視窗要用到 AppLifecycle，所以放在它建立之後。
         applyBackgroundModeAfterStart()
+        if testControlChannel == nil,
+           let path = ProcessInfo.processInfo.environment["MIRAGE_TEST_CONTROL"] {
+            let channel = TestControlChannel(model: self, path: path)
+            testControlChannel = channel
+            channel.start()
+        }
     }
 
     private func applyGuestClipboard(_ text: String) {

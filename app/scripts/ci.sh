@@ -451,6 +451,11 @@ if python3 -m unittest discover -s scripts/lib -p remote_client_selftest.py; the
 else
     fail "remote_client.py 純函式自我測試失敗"
 fi
+if python3 -m unittest discover -s scripts/lib -p mirage_ctl_selftest.py; then
+    ok "mirage_ctl.py Unix socket 用戶端自我測試通過"
+else
+    fail "mirage_ctl.py 自我測試失敗"
+fi
 # stdlib node:test 執行真正的 viewer.html，用假解碼器／時鐘，不連網或開 App。
 if node --test ./scripts/lib/remote_viewer_selftest.cjs; then
     ok "viewer 閒置 flush 與 keyframe 恢復測試通過"
