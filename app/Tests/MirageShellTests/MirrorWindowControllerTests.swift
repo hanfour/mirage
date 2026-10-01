@@ -26,7 +26,7 @@ import Testing
         #expect(builds == 1)
     }
 
-    @Test func windowIsConfiguredForMirroring() {
+    @Test func windowIsConfiguredForMirroring() throws {
         let name = "MirrorWindowControllerTests.\(UUID().uuidString)"
         let window = MirrorWindowController(autosaveName: name) { NSView() }.window()
         #expect(window.collectionBehavior.contains(.fullScreenPrimary))
