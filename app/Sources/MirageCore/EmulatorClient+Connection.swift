@@ -1,5 +1,22 @@
 import Foundation
 
+private final class TransportOverrideWarning: @unchecked Sendable {
+    private let lock = NSLock()
+    private var didPrint = false
+
+    func printOnce(_ message: String) {
+        lock.lock()
+        let shouldPrint = !didPrint
+        didPrint = true
+        lock.unlock()
+        if shouldPrint { print(message) }
+    }
+}
+
+private enum DisplayTransportLog {
+    static let invalidOverride = TransportOverrideWarning()
+}
+
 /// 連線 reducer、健康探測與 channel / 串流操作；共用 EmulatorClient 的 actor 隔離。
 extension EmulatorClient {
     // MARK: - 純轉移（reducer 語意不變，只發布狀態、回傳 effect）
@@ -63,7 +80,7 @@ extension EmulatorClient {
     }
 
     /// 依探測回報的 emulator 版本與 `MIRAGE_TRANSPORT` 環境變數決定 display transport，
-    /// 並印一次性觀測訊息。
+    /// 並印出選擇結果。
     ///
     /// 「該選哪一種」交給 `DisplayTransportSelector.choose(...)`（純函式，逐行單元測試
     /// 窮舉覆蓋，見 DisplayTransportSelectorTests）；這裡只剩下「讀環境變數 + 選出來之後
@@ -71,10 +88,8 @@ extension EmulatorClient {
     /// 環境變數在此讀取（而非傳給選擇器內部讀取）是刻意的：讓 `choose` 保持純函式、
     /// 可窮舉測試，副作用留在呼叫端。
     ///
-    /// MMAP 預設關閉，需同時滿足兩個條件（見 DisplayTransportSelector 上的裁決說明）：
-    /// `MIRAGE_TRANSPORT=mmap`（使用者主動選擇加入）**且**版本 ≥37（36.x 收到 MMAP 請求
-    /// 會 SIGSEGV 弄死使用者的 VM，見 MmapVersionGate）。過關就用 FallbackTransport
-    /// 包起來——MMAP 若實際不寫入（前 3 幀全零）會自動無縫降級到 raw RGBA。
+    /// emulator 37 以上預設使用 MMAP 並用 FallbackTransport 包起來。`MIRAGE_TRANSPORT=raw`
+    /// 可強制 raw；36.x 或版本未知一律只用 raw，避免舊 emulator 收到 MMAP 請求時崩潰。
     ///
     /// **執行緒安全前提**：`EmulatorClient` 是 actor，本方法與 `attachStream()`（唯一讀取
     /// `transport` 並呼叫 `frames()` 的地方）皆在 actor 隔離下序列執行——`transport` 不會
@@ -83,19 +98,28 @@ extension EmulatorClient {
     /// 若未來有呼叫端脫離這條 actor 序列，需要重新檢視那個檢查。
     private func makeDisplayTransport() {
         guard let boxCh = channelBox else { return }
-        let mmapOptIn = ProcessInfo.processInfo.environment["MIRAGE_TRANSPORT"] == "mmap"
-        switch DisplayTransportSelector.choose(emulatorVersion: emulatorVersion, mmapOptIn: mmapOptIn) {
+        let transportOverride = ProcessInfo.processInfo.environment["MIRAGE_TRANSPORT"]
+        if let transportOverride, transportOverride != "raw", transportOverride != "mmap" {
+            DisplayTransportLog.invalidOverride.printOnce(
+                "[transport] MIRAGE_TRANSPORT 值「\(transportOverride)」無效，忽略並使用預設"
+            )
+        }
+        switch DisplayTransportSelector.choose(
+            emulatorVersion: emulatorVersion,
+            transportOverride: transportOverride
+        ) {
         case .mmapWithRawFallback:
             transport = FallbackTransport(primary: makeMmapTransport(boxCh),
                                           secondary: makeTransport(boxCh))
-            print("[transport] mmap enabled (experimental, emulator \(emulatorVersion))")
+            let selection = transportOverride == "mmap" ? "MIRAGE_TRANSPORT=mmap" : "預設"
+            print("[transport] mmap（\(selection)，emulator \(emulatorVersion)；MIRAGE_TRANSPORT=raw 可改回）")
         case .rawOnly:
             transport = makeTransport(boxCh)
-            if mmapOptIn {
-                let v = emulatorVersion.isEmpty ? "unknown" : emulatorVersion
-                print("[transport] raw rgba (emulator \(v) < 37, mmap unavailable)")
+            let version = emulatorVersion.isEmpty ? "unknown" : emulatorVersion
+            if transportOverride == "raw" {
+                print("[transport] raw rgba（MIRAGE_TRANSPORT=raw，emulator \(version)）")
             } else {
-                print("[transport] raw rgba (default; set MIRAGE_TRANSPORT=mmap to try mmap)")
+                print("[transport] raw rgba（emulator \(version) 未達 MMAP 支援版本 37）")
             }
         }
     }
@@ -212,7 +236,7 @@ extension EmulatorClient {
         clipboardTask = nil
         clipboardCall = nil
         // 顯示串流的顯式取消。音訊（detachAudio）與剪貼簿（clipboardCall?.cancel()）
-        // 早就有這一步，唯獨**預設開啟**的這條沒有——`pump.detach()` 只取消 Swift Task，
+        // 早就有這一步，唯獨顯示串流這條沒有——`pump.detach()` 只取消 Swift Task，
         // 而 Task 取消中斷不了已 in-flight 的 `next()`（見 DisplayTransport.cancelStream 的說明）。
         transport?.cancelStream()
         transport = nil

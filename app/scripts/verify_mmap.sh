@@ -2,11 +2,10 @@
 # P1 MMAP transport 活體驗證：確認 streamScreenshot + 共享記憶體真的寫入資料。
 # 用法：verify_mmap.sh    （需 emulator-5554 正在跑）
 #
-# **本腳本量兩條路徑，不是一條**（D39，2026-08-05 改）：
+# **本腳本量兩條路徑，不是一條**（D39，2026-08-05 加入）：
 #   Python(grpcio) 對照  → emulator 的 MMAP 寫入端本身正不正常
-#   Swift(grpc-swift)    → 產品實際會走的那條路徑正不正常
-# 只量 Swift 那條時，紅燈分不出「上游壞了」與「只有我們的 client 壞了」，
-# 而這兩者的下一步完全相反。D39 之前這個對照是手工搭的，只做過一次。
+#   Swift(grpc-swift)    → Mirage 使用的 MMAP 路徑正不正常
+# 先前的兩條路徑曾出現不同結果；2026-10-01 重測已接近相同更新率，恢復原因仍未查明。
 set -uo pipefail
 
 # D60(a)：在建置、寫日誌及量測之前檢查主機磁碟，失敗直接中止。
@@ -71,21 +70,30 @@ echo "=== 前置：偵測 emulator 版本（決定下方活體測試會不會被
 ( cd "$HARNESS" && "$PY" - <<'PYEOF'
 import sys
 sys.path.insert(0, "gen")
+import importlib.util
+import os
 import grpc
 from google.protobuf import empty_pb2
 import emulator_controller_pb2_grpc as ecg
+auth_path = os.path.abspath("../../tools/probe/lib/grpc_auth.py")
+spec = importlib.util.spec_from_file_location("mirage_probe_grpc_auth", auth_path)
+grpc_auth = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(grpc_auth)
 try:
-    stub = ecg.EmulatorControllerStub(grpc.insecure_channel("localhost:8554"))
+    metadata = grpc_auth.auth_metadata(8554)
+    channel = grpc.intercept_channel(
+        grpc.insecure_channel("localhost:8554"), grpc_auth.AuthInterceptor(metadata))
+    stub = ecg.EmulatorControllerStub(channel)
     status = stub.getStatus(empty_pb2.Empty(), timeout=5)
     print(f"偵測到 emulator 版本：{status.version}")
+    channel.close()
 except grpc.RpcError as err:
     print(f"版本偵測失敗：{err.code().name}: {err.details()}")
 PYEOF
 ) || echo "版本偵測失敗（不影響下方測試本身的版本閘，測試會自行再查一次）"
 
 # **先 build 再供應動畫**：測試 target 冷的時候 build 要一分多鐘，而 animate 是計時的。
-# D39 第一次跑就踩到——animate 40 秒早就結束，測試才開始等幀，於是等了 109 秒才湊滿
-# 3 幀。build 放在計時器外面，animate 的秒數才真的等於「畫面在動的時間」。
+# build 放在計時器外面，animate 的秒數才真的等於「畫面在動的時間」。
 echo ""
 echo "=== 前置：預先 build 測試 target（不計入動畫窗口）==="
 swift build --build-tests > /dev/null 2>&1
@@ -107,42 +115,24 @@ echo "=== 前置：動畫供應器（streamScreenshot 是變化驅動，靜止�
 ( cd "$HARNESS" && "$PY" animate.py --seconds "$ANIM_SECONDS" >/tmp/mirage_anim.log 2>&1 & )
 sleep 4
 
-# **這一條是硬斷言，Swift 那條不是**——因為它現在是綠的。它一旦轉紅，代表 emulator
-# 的 MMAP 寫入端壞了（或動畫沒供應成功），那時 Swift 的紅燈就沒有判讀價值，整次量測
-# 都不可信，應該中止而不是繼續往下印。
+# **這一條是硬斷言**。它一旦轉紅，代表 emulator 的 MMAP 寫入端未觀察到持續更新，
+# 或動畫沒有供應成功；後續 Swift 測試就沒有判讀價值，整次量測應該中止。
 echo ""
 echo "=== 對照組：Python(grpcio) 是否拿得到持續更新的幀 ==="
-( cd "$HARNESS" && "$PY" mmap_client_parity.py --width 540 --height 1200 ) 2>&1 | tail -6
+( cd "$HARNESS" && "$PY" mmap_client_parity.py --width 898 --height 1996 ) 2>&1 | tail -6
 PARITY_STATUS=${PIPESTATUS[0]}
 assert_ok "Python 對照（emulator 側 MMAP 寫入）" "$PARITY_STATUS"
 
 echo ""
 echo "=== 量測：MmapStreamTransport 活體（產品路徑）==="
-echo "MMAP 預設關閉（見 DisplayTransportSelector 裁決），本測試需 MIRAGE_TRANSPORT=mmap"
-echo "才會實際執行。**已知現況（D39，2026-08-05）**：37.1.11 / 37.2.1 / 37.2.3 三個"
-echo "emulator 版本行為一致，而同條件的 Python 對照皆正常——缺陷在 client 側，與版本無關。"
-echo "**它不是「凍結」而是更新率只有約 27.5%**（Swift 約 15Hz vs Python 約 50Hz）；下面這條"
-echo "測試只取 3 幀（約 150ms），在 15Hz 下必然全同，所以它報的是紅燈但理由是錯的（D52）。"
-MIRAGE_TRANSPORT=mmap MIRAGE_LIVE=1 MIRAGE_LIVE_MMAP=1 swift test --filter MmapStreamLiveTests 2>&1 \
+echo "取樣至少 120 幀、解析度 898x1996，且相異畫面比例須達 80%。"
+MIRAGE_TRANSPORT=mmap MIRAGE_LIVE=1 MIRAGE_LIVE_MMAP=1 MIRAGE_MMAP_FRAMES=120 \
+  swift test --filter MmapStreamLiveTests 2>&1 \
   | grep -E "\[mmap-live\]|Test run with|✘"
 MMAP_STATUS=${PIPESTATUS[0]}
+assert_ok "MmapStreamLiveTests（至少 120 幀、80% 相異率）" "$MMAP_STATUS"
 
-# **這一條刻意不 `assert_ok`，而且理由要寫下來。** MMAP 的低更新率是已知的產品缺陷，
-# 把它做成硬性閘門會產生一支永遠紅的腳本，而「永遠紅的燈」訓練人去無視紅燈——那正是
-# D24 的病理。折衷是：**明確印出退出碼**，但不因它中止；上面的 Python 對照與下面的
-# 殘留檢查才是本腳本會中止的斷言。
-if [ "$MMAP_STATUS" -eq 0 ]; then
-  echo "🎉 MmapStreamLiveTests 通過（退出碼 0）——**狀態已改變**。"
-  echo "   Swift 路徑現在拿得到持續更新的幀了。請重新評估 DisplayTransportSelector"
-  echo "   的預設，並更新 app/RESULTS-mmap.md 的裁決（D16／D39）。"
-else
-  echo "⚠️  MmapStreamLiveTests 失敗（退出碼 ${MMAP_STATUS}）：這是**已知且預期**的結果。"
-  echo "   對照組同時是綠的 → 缺陷在 grpc-swift 這條路徑上，不在 emulator。"
-  echo "   刻意不讓它中止本腳本——但它不再是靜默丟棄，退出碼現在看得見。"
-fi
-
-# **量測後回檢（D54／D50）**。量測前的門檻擋不住「開始時安靜、擷取途中才飆高」，
-# 那正是 D50 記載的形狀：D45 有兩個樣本因此被污染，靠人工比對既有基準才被識別。
+# **量測後回檢（D54／D50）**。量測前的門檻擋不住「開始時安靜、擷取途中才飆高」。
 # 這裡不猜門檻，只做一件事——把前後兩個負載都印出來，並在明顯上升時明講。
 echo ""
 echo "=== 收尾：量測期間的負載變化 ==="
@@ -153,15 +143,10 @@ if awk -v a="$LOAD_BEFORE" -v b="$LOAD_AFTER" 'BEGIN { exit !(b > a * 1.5 && b >
   echo "   （量測前的門檻擋不住這種情況，這就是 D50 的形狀。）"
 fi
 
-# **這段警語不是客套，是這批數字唯一誠實的讀法**（D54）。2026-08-05 的根因調查裡，
-# 同一份 Swift 測試在同一天量到 1、2、5、13、15、16、17、18、75、92、102、103、
-# 109、110、119——差 100 倍以上，而其中一次「同版本、更低負載卻更差 7 倍」的變數
-# 至今不明。文件一度把某次量到的 27.5% 寫成「穩定基準」，幾小時後就被自己推翻。
+# 仍需在相同的 emulator、畫面內容和主機負載下比較結果；2026-08-05 曾出現明顯的跨次波動，
+# 2026-10-01 的三輪交錯數據列於 app/RESULTS-mmap.md。
 echo ""
-echo "⚠️  **不要單獨引用上面任何一個 distinct 絕對值。** 這條路徑的量測已知極不穩定"
-echo "   （同一天、同一份測試量到 1 到 119），且造成波動的變數尚未完全查明（D54）。"
-echo "   唯一穩定的是**方向**：Python 應該接近滿分，Swift 遠低於它。要做比較時，"
-echo "   在同一次跑次內比兩者，不要跨跑次比絕對值。"
+echo "⚠️  比較不同跑次時，請一併記錄 emulator、畫面內容與主機負載。"
 
 echo ""
 echo "=== 驗收線 6：跑完不得有映射檔殘留（close() 的 unlink 有沒有生效）==="

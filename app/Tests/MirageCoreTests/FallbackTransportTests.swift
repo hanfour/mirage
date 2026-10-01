@@ -124,6 +124,26 @@ private func collect(_ stream: AsyncThrowingStream<Frame, Error>,
         #expect(err == nil)
     }
 
+    /// 串流已送出幀後判定 MMAP 不可用，當前串流接上 raw，後續 frames() 也直接使用 raw。
+    @Test func lateMmapUnusableUsesRawForCurrentAndLaterSubscriptions() async {
+        let primary = ScriptedTransport([
+            .framesThenError([1], TransportError.mmapUnusable("內容停止更新")),
+            .frames([8]),
+        ])
+        let secondary = ScriptedTransport([.frames([2]), .frames([3])])
+        let fallback = FallbackTransport(primary: primary, secondary: secondary)
+
+        let (firstTags, firstError) = await collect(fallback.frames(width: 4, height: 4), max: 10)
+        let (laterTags, laterError) = await collect(fallback.frames(width: 4, height: 4), max: 10)
+
+        #expect(firstTags == [1, 2])
+        #expect(firstError == nil)
+        #expect(laterTags == [3])
+        #expect(laterError == nil)
+        #expect(primary.subscribeCount == 1)
+        #expect(secondary.subscribeCount == 2)
+    }
+
     /// primary 正常結束（非錯誤）→ 不降級，串流照常結束。
     @Test func primaryFinishingCleanlyDoesNotFallBack() async {
         let primary = ScriptedTransport([.frames([4])])

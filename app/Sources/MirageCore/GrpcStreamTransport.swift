@@ -98,7 +98,7 @@ public final class GrpcChannelBox: @unchecked Sendable {
     deinit { shutdown() }
 }
 
-/// 預設的顯示 transport：`streamScreenshot` 直送 raw RGBA。
+/// raw RGBA 顯示 transport：`streamScreenshot` 直送 protobuf payload，供手動選擇或 MMAP 降級使用。
 ///
 /// **是 class 而非 struct**：必須長期持有底層 call 才能讓 `cancelStream()` 搆得到它。
 /// 結構與生命週期完全比照 `GrpcAudioTransport`——同樣的問題、同樣的解法。
@@ -120,9 +120,9 @@ public final class GrpcStreamTransport: DisplayTransport, @unchecked Sendable {
         let log = ProcessInfo.processInfo.environment["MIRAGE_CONN_LOG"] == "1"
         // 用 makeStreamScreenshotCall 而非便利方法 client.streamScreenshot(_:)——後者只回傳
         // GRPCAsyncResponseStream，丟棄底層的 GRPCAsyncServerStreamingCall，於是沒有任何辦法
-        // 顯式取消這條 RPC。MMAP 與音訊兩條路徑早就改用 make*Call 了（見
-        // MmapStreamTransport.frames 與 GrpcAudioTransport.packets 的註解），唯獨這條
-        // **預設開啟**的路徑一直沒改，而它正是 NIO 拆除死鎖的燃料。
+        // 顯式取消這條 RPC。MMAP 與音訊路徑也用 make*Call（見 MmapStreamTransport.frames
+        // 與 GrpcAudioTransport.packets 的註解），這條 raw 備援路徑也必須能在拆 channel 前取消，
+        // 否則未解決的 NIO promise 可能造成 teardown 死鎖。
         let call = channel.client.makeStreamScreenshotCall(format)
         // 重入保護，理由同 GrpcAudioTransport.packets()：setStreamSize 換源與重連都會
         // 再次呼叫 frames()，若不先取消舊 call 就覆蓋，舊 RPC 會被孤兒化、cancelStream()

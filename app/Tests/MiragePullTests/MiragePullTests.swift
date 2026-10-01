@@ -8,6 +8,7 @@ import Testing
 private final class RecordingTransport: DisplayTransport, @unchecked Sendable {
     enum Behavior {
         case framesThenHang([Data])
+        case frames([Data])
         case noFrames
         case error(TransportError)
     }
@@ -38,6 +39,11 @@ private final class RecordingTransport: DisplayTransport, @unchecked Sendable {
             for payload in payloads {
                 continuation.yield(Frame(width: width, height: height, rgba: payload))
             }
+        case .frames(let payloads):
+            for payload in payloads {
+                continuation.yield(Frame(width: width, height: height, rgba: payload))
+            }
+            continuation.finish()
         case .noFrames:
             break
         case .error(let error):
@@ -168,6 +174,23 @@ private func closeListener(_ listener: Channel, group: EventLoopGroup) async {
         #expect(result.status == .error)
         #expect(result.exitCode == 1)
         #expect((result.error ?? "").count > 0)
+    }
+
+    @Test func mmapMeasurementReportsRgbaAfterFallback() async {
+        let mmap = RecordingTransport(.error(.mmapUnusable("內容停止更新")))
+        let raw = RecordingTransport(.frames([Data([1, 2, 3, 255])]))
+        let fallback = FallbackTransport(primary: mmap, secondary: raw)
+
+        let result = await MiragePull.measure(
+            transport: fallback,
+            duration: .seconds(1),
+            width: 1,
+            height: 1,
+            transportName: "mmap"
+        )
+
+        #expect(result.transport == "rgba")
+        #expect(result.frames == 1)
     }
 
     @Test func jsonContainsBaselineFieldsAndClient() throws {

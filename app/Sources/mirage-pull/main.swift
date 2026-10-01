@@ -9,6 +9,7 @@ struct MiragePullCommand {
         var seconds = 20
         var width = 900
         var height = 2000
+        var transport = PullTransport.rgba
         var json = false
         var help = false
 
@@ -27,6 +28,12 @@ struct MiragePullCommand {
                 case "--height":
                     let value = try Self.nextValue(arguments, index: &index, flag: "--height")
                     height = try Self.positiveInt(value, flag: "--height")
+                case "--transport":
+                    let value = try Self.nextValue(arguments, index: &index, flag: "--transport")
+                    guard let selected = PullTransport(rawValue: value) else {
+                        throw CommandLineError.invalidTransport(value)
+                    }
+                    transport = selected
                 case "--json":
                     json = true
                 case "--help", "-h":
@@ -62,12 +69,14 @@ struct MiragePullCommand {
         case invalidArgument(String)
         case missingValue(String)
         case invalidValue(String, String)
+        case invalidTransport(String)
 
         var description: String {
             switch self {
             case .invalidArgument(let value): return "不支援的參數：\(value)"
             case .missingValue(let flag): return "參數缺少值：\(flag)"
             case .invalidValue(let flag, let value): return "\(flag) 必須是正整數：\(value)"
+            case .invalidTransport(let value): return "--transport 只支援 rgba 或 mmap：\(value)"
             }
         }
     }
@@ -85,7 +94,8 @@ struct MiragePullCommand {
                 endpoint: endpoint,
                 duration: .seconds(Int64(options.seconds)),
                 width: options.width,
-                height: options.height
+                height: options.height,
+                transport: options.transport
             )
 
             if options.json {
@@ -106,7 +116,7 @@ struct MiragePullCommand {
         }
     }
 
-    private static let usage = "用法：mirage-pull [--endpoint host:port] [--seconds N] [--width N] [--height N] [--json]"
+    private static let usage = "用法：mirage-pull [--endpoint host:port] [--seconds N] [--width N] [--height N] [--transport rgba|mmap] [--json]"
 
     private static func writeError(_ message: String) {
         FileHandle.standardError.write(Data((message + "\n").utf8))

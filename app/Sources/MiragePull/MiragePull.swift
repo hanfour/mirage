@@ -27,6 +27,11 @@ public enum PullStatus: String, Codable, Equatable, Sendable {
     }
 }
 
+public enum PullTransport: String, Sendable {
+    case rgba
+    case mmap
+}
+
 public struct PullResult: Encodable, Equatable, Sendable {
     public let status: PullStatus
     public let error: String?
@@ -169,12 +174,7 @@ public enum MiragePull {
     public static let transportName = "rgba"
 
     public static func fingerprint(of data: Data) -> UInt64 {
-        var hash: UInt64 = 14_695_981_039_346_656_037
-        for index in stride(from: 0, to: data.count, by: 64) {
-            hash ^= UInt64(data[index])
-            hash &*= 1_099_511_628_211
-        }
-        return hash
+        MmapSupport.fingerprint(of: data)
     }
 
     /// 在送出 gRPC RPC 前確認端點有 TCP listener，並重用產品 channel 的 event loop。
@@ -199,20 +199,23 @@ public enum MiragePull {
         transport: any DisplayTransport,
         duration: Duration,
         width: Int,
-        height: Int
+        height: Int,
+        transportName: String = "rgba"
     ) async -> PullResult {
         guard duration > .zero else {
             return invalidResult(
                 message: "量測秒數必須大於 0",
                 width: width,
-                height: height
+                height: height,
+                transport: transportName
             )
         }
         guard width > 0, height > 0 else {
             return invalidResult(
                 message: "畫面尺寸必須大於 0",
                 width: width,
-                height: height
+                height: height,
+                transport: transportName
             )
         }
 
@@ -263,6 +266,8 @@ public enum MiragePull {
             error: failureMessage
         )
         let fps = elapsed > 0 ? Double(frameCount) / elapsed : 0
+        let actualTransport = (transport as? FallbackTransport)?.isUsingSecondary == true
+            ? PullTransport.rgba.rawValue : transportName
         return PullResult(
             status: status,
             error: failureMessage,
@@ -271,7 +276,7 @@ public enum MiragePull {
             elapsed: elapsed,
             width: width,
             height: height,
-            transport: transportName,
+            transport: actualTransport,
             distinct: distinct,
             client: clientName
         )
@@ -281,20 +286,23 @@ public enum MiragePull {
         endpoint: PullEndpoint,
         duration: Duration,
         width: Int,
-        height: Int
+        height: Int,
+        transport mode: PullTransport = .rgba
     ) async -> PullResult {
         guard duration > .zero else {
             return invalidResult(
                 message: "量測秒數必須大於 0",
                 width: width,
-                height: height
+                height: height,
+                transport: mode.rawValue
             )
         }
         guard width > 0, height > 0 else {
             return invalidResult(
                 message: "畫面尺寸必須大於 0",
                 width: width,
-                height: height
+                height: height,
+                transport: mode.rawValue
             )
         }
 
@@ -304,18 +312,53 @@ public enum MiragePull {
                 let result = invalidResult(
                     message: withMessage("UNAVAILABLE", probeError),
                     width: width,
-                    height: height
+                    height: height,
+                    transport: mode.rawValue
                 )
                 channel.shutdown()
                 try? await Task.sleep(for: .milliseconds(200))
                 return result
             }
-            let transport = GrpcStreamTransport(channel: channel)
+            if case .mmap = mode {
+                let health = await GrpcHealthProbe(channel: channel).probe(timeout: .seconds(5))
+                guard case .healthy(let emulatorInfo) = health else {
+                    channel.shutdown()
+                    try? await Task.sleep(for: .milliseconds(200))
+                    return invalidResult(
+                        message: "emulator 健康探測失敗，無法確認 MMAP 支援版本",
+                        width: width,
+                        height: height,
+                        transport: mode.rawValue
+                    )
+                }
+                guard MmapVersionGate.allows(versionString: emulatorInfo.version) else {
+                    channel.shutdown()
+                    try? await Task.sleep(for: .milliseconds(200))
+                    return invalidResult(
+                        message: "emulator \(emulatorInfo.version) 不支援 MMAP，需使用 37 以上版本",
+                        width: width,
+                        height: height,
+                        transport: mode.rawValue
+                    )
+                }
+            }
+            let rawTransport = GrpcStreamTransport(channel: channel)
+            let displayTransport: any DisplayTransport
+            switch mode {
+            case .rgba:
+                displayTransport = rawTransport
+            case .mmap:
+                displayTransport = FallbackTransport(
+                    primary: MmapStreamTransport(channel: channel),
+                    secondary: rawTransport
+                )
+            }
             let result = await measure(
-                transport: transport,
+                transport: displayTransport,
                 duration: duration,
                 width: width,
-                height: height
+                height: height,
+                transportName: mode.rawValue
             )
             channel.shutdown()
             try? await Task.sleep(for: .milliseconds(200))
@@ -324,12 +367,18 @@ public enum MiragePull {
             return invalidResult(
                 message: message(for: error),
                 width: width,
-                height: height
+                height: height,
+                transport: mode.rawValue
             )
         }
     }
 
-    private static func invalidResult(message: String, width: Int, height: Int) -> PullResult {
+    private static func invalidResult(
+        message: String,
+        width: Int,
+        height: Int,
+        transport: String = "rgba"
+    ) -> PullResult {
         PullResult(
             status: .error,
             error: message,
@@ -338,7 +387,7 @@ public enum MiragePull {
             elapsed: 0,
             width: width,
             height: height,
-            transport: transportName,
+            transport: transport,
             distinct: 0,
             client: clientName
         )

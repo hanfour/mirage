@@ -24,12 +24,14 @@ public final class FallbackTransport: DisplayTransport, @unchecked Sendable {
         lock.lock(); defer { lock.unlock() }; return fellBack
     }
 
-    private func markFallenBack() {
+    public var isUsingSecondary: Bool { hasFallenBack }
+
+    private func markFallenBack(reason: String) {
         lock.lock()
         let first = !fellBack
         fellBack = true
         lock.unlock()
-        if first { print("[transport] mmap unusable, falling back to raw rgba") }
+        if first { print("[transport] mmap \(reason)，改用 raw rgba") }
     }
 
     public func frames(width: Int, height: Int) -> AsyncThrowingStream<Frame, Error> {
@@ -43,11 +45,11 @@ public final class FallbackTransport: DisplayTransport, @unchecked Sendable {
                     }
                     cont.finish()                       // primary 正常結束，不降級
                 } catch let err as TransportError {
-                    guard case .mmapUnusable = err else {
+                    guard case .mmapUnusable(let reason) = err else {
                         cont.finish(throwing: err)      // 斷線等其他錯誤照常傳播
                         return
                     }
-                    self.markFallenBack()
+                    self.markFallenBack(reason: reason)
                     await self.drainSecondary(into: cont, width: width, height: height)
                 } catch {
                     cont.finish(throwing: error)
