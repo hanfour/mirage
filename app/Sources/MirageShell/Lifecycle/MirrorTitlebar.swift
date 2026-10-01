@@ -23,6 +23,10 @@ final class MirrorTitlebarActionsController: NSTitlebarAccessoryViewController {
         stack.alignment = .centerY
         stack.distribution = .fill
         stack.spacing = 4
+        stack.edgeInsets = NSEdgeInsets(top: 0, left: 0, bottom: 0, right: 8)
+        // 標題列配件依 view 的 frame 決定佔多寬；不給尺寸時寬度是 0，貼在右緣的按鈕會
+        // 溢出到視窗外（實測主畫面按鈕落在視窗右緣外 26 pt）。
+        stack.frame = NSRect(origin: .zero, size: stack.fittingSize)
         view = stack
     }
 
@@ -41,6 +45,8 @@ final class MirrorTitlebarActionsController: NSTitlebarAccessoryViewController {
         button.imagePosition = .imageOnly
         button.imageScaling = .scaleProportionallyDown
         button.bezelStyle = .texturedRounded
+        // iPhone 鏡像輸出的標題列圖示是單色，不用系統強調色。
+        button.contentTintColor = .labelColor
         button.toolTip = label
         button.setAccessibilityLabel(label)
         button.setAccessibilityRole(.button)
