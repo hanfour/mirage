@@ -18,7 +18,11 @@ final class Renderer: NSObject, MTKViewDelegate {
     private let device: MTLDevice
     private let blitter: MirrorBlitter
     private let box: any FrameSink
-    private var texture: MTLTexture?
+    private lazy var frames = LinearFrameTextures(device: device)
+    private var texture: MTLTexture? { frames.texture }
+    /// 因三組 texture 都在使用中而略過的上傳次數；印在 draw 行的 uploadskip，與 box 的 dropped 分開。
+    private var skippedUploads = 0
+    private var reportedSkippedUploads = 0
     // AUTHORIZED FIX（Task 6 review CRITICAL：滑鼠映射採實際幀尺寸——proto 縮放合約 can-be-less）
     private(set) var lastFrameSize: (w: Int, h: Int)?
     /// P1-e：幀尺寸變動時通知容器重算 letterbox（含遊戲轉向時的長寬比翻轉）。
@@ -65,7 +69,9 @@ final class Renderer: NSObject, MTKViewDelegate {
         }
 
         let arrived = box.takeLatest()
-        if let arrived { upload(arrived) }
+        // 三組 linear texture 都還在被 GPU 讀時這一幀不上傳，畫面沿用上一幀，不算 present。
+        let uploaded = arrived.map { upload($0) } ?? false
+        if arrived != nil, !uploaded { skippedUploads += 1 }
         // 注意這裡**沒有**尺寸相符的檢查。取樣繪製對來源與目的尺寸沒有任何要求——
         // 那正是重點：emulator 回什麼尺寸不受我們控制（proto 縮放合約 can-be-less，
         // 實測請求 562 會回 561），把它放進不變式就是把顯示的正確性交給運氣。
@@ -75,10 +81,11 @@ final class Renderer: NSObject, MTKViewDelegate {
               let buffer = blitter.makeCommandBuffer() else {
             recordDrawTiming(intervalMs: drawIntervalMs,
                              durationMs: nil,
-                             outcome: timingOutcome(hasFrame: arrived != nil,
+                             outcome: timingOutcome(hasFrame: uploaded,
                                                     noDrawable: textureAvailable))
             return
         }
+        frames.markInUse(by: buffer)
         blitter.encode(texture, into: drawable.texture, on: buffer)
         buffer.present(drawable)
         buffer.commit()
@@ -87,10 +94,10 @@ final class Renderer: NSObject, MTKViewDelegate {
         }
         recordDrawTiming(intervalMs: drawIntervalMs,
                          durationMs: durationMs,
-                         outcome: timingOutcome(hasFrame: arrived != nil,
+                         outcome: timingOutcome(hasFrame: uploaded,
                                                 noDrawable: false))
         // 只有走到這裡才算一幀：新幀確實被送上螢幕。
-        if let arrived {
+        if let arrived, uploaded {
             countPresentedFrame()
             recordLatency(since: arrived.receivedAt, transitMs: arrived.transitMs)
         }
@@ -162,37 +169,31 @@ final class Renderer: NSObject, MTKViewDelegate {
             // present 時檢查，維持既有 fps／frames 的行為。
             print("[app] fps=\(report.fps)")
             print("[app] frames arrived=\(frameWindow.arrived) dropped=\(frameWindow.dropped) presented=\(frameWindow.presented)")
-            print(String(format: "[app] draw calls=%d gap20=%d maxgap=%dms in_p95=%.1fms nodrawable=%d noframe=%d",
+            print(String(format: "[app] draw calls=%d gap20=%d maxgap=%dms in_p95=%.1fms nodrawable=%d noframe=%d uploadskip=%d",
                          drawWindow.calls,
                          drawWindow.gapOver20ms,
                          drawWindow.maxGapMs,
                          drawWindow.inP95Ms,
                          drawWindow.noDrawable,
-                         drawWindow.noFrame))
+                         drawWindow.noFrame,
+                         skippedUploads - reportedSkippedUploads))
+            reportedSkippedUploads = skippedUploads
         }
     }
 
     /// 不再需要 `MTKView`：drawable 的尺寸交回給 MTKView 自己管（`autoResizeDrawable`
     /// 的預設行為，跟著視窗走），取樣繪製不要求它與幀尺寸有任何關係。
-    private func upload(_ frame: Frame) {
+    private func upload(_ frame: Frame) -> Bool {
         // AUTHORIZED FIX（Task 6 review CRITICAL：滑鼠映射採實際幀尺寸——proto 縮放合約 can-be-less）
         lastFrameSize = (frame.width, frame.height)
-        if texture?.width != frame.width || texture?.height != frame.height {
-            let desc = MTLTextureDescriptor.texture2DDescriptor(
-                pixelFormat: .rgba8Unorm,
-                width: frame.width, height: frame.height, mipmapped: false)
-            desc.usage = [.shaderRead]
-            texture = device.makeTexture(descriptor: desc)
-            // P1-e：長寬比的唯一權威是 MirrorContainerView——它依實際幀尺寸擺放
-            // MirrorMTKView，取樣縮放因此不會變形。
-            onFrameSize?(frame.width, frame.height)
+        let sizeChanged = texture?.width != frame.width || texture?.height != frame.height
+        let uploaded = frame.rgba.withUnsafeBytes { raw in
+            frames.upload(raw, width: frame.width, height: frame.height)
         }
-        frame.rgba.withUnsafeBytes { raw in
-            guard let base = raw.baseAddress else { return }
-            texture?.replace(region: MTLRegionMake2D(0, 0, frame.width, frame.height),
-                             mipmapLevel: 0, withBytes: base,
-                             bytesPerRow: frame.width * 4)
-        }
+        // P1-e：長寬比的唯一權威是 MirrorContainerView——它依實際幀尺寸擺放
+        // MirrorMTKView，取樣縮放因此不會變形。
+        if uploaded, sizeChanged { onFrameSize?(frame.width, frame.height) }
+        return uploaded
     }
 
     func mtkView(_ view: MTKView, drawableSizeWillChange size: CGSize) {}
