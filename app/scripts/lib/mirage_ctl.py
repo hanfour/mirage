@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""透過 Mirage 的測試控制 Unix socket 傳送滑鼠、捲動與鍵盤事件。"""
+"""透過 Mirage 的測試控制 Unix socket 傳送滑鼠、捲動、鍵盤與手把事件。"""
 import argparse
 import json
 import socket
@@ -89,6 +89,18 @@ def parser():
     key.add_argument("--modifiers", nargs="*", choices=("cmd", "shift", "option", "control"), default=[])
     key.add_argument("--action", choices=("press", "down", "up"), default="press")
 
+    gamepad = commands.add_parser("gamepad", help="送出手把狀態快照")
+    gamepad.add_argument("--buttons", nargs="*", choices=(
+        "a", "b", "x", "y", "leftShoulder", "rightShoulder", "leftTrigger", "rightTrigger",
+        "dpadUp", "dpadDown", "dpadLeft", "dpadRight", "leftThumbstickButton",
+        "rightThumbstickButton", "menu", "options"), default=[])
+    gamepad.add_argument("--left-x", type=float, default=0)
+    gamepad.add_argument("--left-y", type=float, default=0)
+    gamepad.add_argument("--right-x", type=float, default=0)
+    gamepad.add_argument("--right-y", type=float, default=0)
+    gamepad.add_argument("--left-trigger", type=float, default=0)
+    gamepad.add_argument("--right-trigger", type=float, default=0)
+
     titlebar = commands.add_parser("titlebar", help="設定標題列顯示狀態")
     titlebar.add_argument("--visible", type=_boolean, required=True)
 
@@ -113,6 +125,11 @@ def command_from_args(args):
     if args.command == "key":
         return {"cmd": "key", "keyCode": args.key_code, "modifiers": args.modifiers,
                 "action": args.action}
+    if args.command == "gamepad":
+        return {"cmd": "gamepad", "buttons": args.buttons,
+                "leftStick": {"x": args.left_x, "y": args.left_y},
+                "rightStick": {"x": args.right_x, "y": args.right_y},
+                "leftTrigger": args.left_trigger, "rightTrigger": args.right_trigger}
     if args.command == "titlebar":
         return {"cmd": "titlebar", "visible": args.visible}
     if args.command == "fullscreen":

@@ -102,6 +102,18 @@ private func profileWithWAndJ() -> KeymapProfile {
         #expect(spy.keyCalls.first?.0 == .key("a"))
     }
 
+    @Test func emptyProfileUsesBasicGamepadAndroidActions() async throws {
+        let spy = SpyInjector()
+        let emptyProfile = KeymapProfile(gameId: "g", version: 1, bindings: [])
+        let c = KeymapController(queue: InputQueue(injector: spy), profile: emptyProfile)
+        c.handleGamepadSnapshot(GamepadSnapshot(buttons: [.b]))
+        await spy.keyGate.wait(for: 2)
+
+        #expect(!c.hasProfile)
+        #expect(spy.keyCalls.map { $0.0 } == [.key("GoBack"), .key("GoBack")])
+        #expect(spy.keyCalls.map { $0.1 } == [true, false])
+    }
+
     /// 編輯模式（⌘E）不得把**新的** down 送進 guest——使用者正在改鍵位，不是在玩。
     ///
     /// **柵欄是 positive control，不是計時器。** 這條原本兩個斷言都是否定的

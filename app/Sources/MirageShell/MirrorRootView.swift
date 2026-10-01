@@ -136,6 +136,10 @@ struct MirrorRootView: View {
                               onSelect: { model.selectBinding($0) },
                               onMove: { model.moveSelectedBinding(to: $0) },
                               onSave: { model.saveEditorSession() },
+                              onAddTap: { model.addTapBinding() },
+                              onDeleteSelected: { model.deleteSelectedBinding() },
+                              onRebindSelected: { model.beginRebindingSelectedBinding() },
+                              onClearGamepad: { model.clearSelectedGamepadBinding() },
                               onRadius: { model.setSelectedRadius($0) },
                               onSensitivity: { model.setSelectedSensitivity($0) })
         } else if !model.isFullScreen {

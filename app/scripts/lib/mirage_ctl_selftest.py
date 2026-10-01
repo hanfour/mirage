@@ -103,6 +103,24 @@ class MirageControlClientTests(unittest.TestCase):
             "steps": 25, "interval_ms": 12, "unit": "norm", "momentum": 3,
         }])
 
+    def test_gamepad_cli_sends_complete_snapshot(self):
+        server = FakeServer([{"ok": True}])
+        server.start()
+        stdout, stderr = io.StringIO(), io.StringIO()
+        with patch.object(mirage_ctl.socket, "socket", return_value=FakeConnection(server.client)), \
+                contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+            result = mirage_ctl.main(["/fake/control.sock", "gamepad", "--buttons", "a", "dpadUp",
+                                      "--left-x", "0.25", "--left-y", "1", "--right-x", "-0.5",
+                                      "--left-trigger", "0.6"])
+        server.join()
+        self.assertEqual(result, 0, stderr.getvalue())
+        self.assertEqual(server.requests, [{
+            "cmd": "gamepad", "buttons": ["a", "dpadUp"],
+            "leftStick": {"x": 0.25, "y": 1.0},
+            "rightStick": {"x": -0.5, "y": 0.0},
+            "leftTrigger": 0.6, "rightTrigger": 0.0,
+        }])
+
     def test_ok_false_exits_nonzero_and_prints_server_error(self):
         server = FakeServer([{"ok": False, "error": "未知的 cmd：bad"}])
         server.start()

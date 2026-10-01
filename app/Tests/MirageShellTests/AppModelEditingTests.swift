@@ -272,14 +272,14 @@ import Testing
 
         model.moveSelectedBinding(to: NormPoint(x: 0.25, y: 0.4))
 
-        if case .tap(_, let at) = try #require(model.editorSession?.items.first?.binding) {
+        if case .tap(_, let at, _) = try #require(model.editorSession?.items.first?.binding) {
             #expect(at == NormPoint(x: 0.25, y: 0.4))
         } else {
             Issue.record("期待 .tap")
         }
         #expect(try #require(model.editorSession).isDirty)
         // 即時套用：`profile` 與引擎都要看到新位置，否則離開編輯後才會突然跳位。
-        if case .tap(_, let at) = try #require(model.profile?.bindings.first) {
+        if case .tap(_, let at, _) = try #require(model.profile?.bindings.first) {
             #expect(at == NormPoint(x: 0.25, y: 0.4))
         } else {
             Issue.record("期待 .tap")
@@ -420,7 +420,7 @@ import Testing
         #expect(!model.editing)
         #expect(model.editorSession == nil)
         let saved = try store.load(gameId: "com.game.leavesave")
-        if case .tap(_, let at) = try #require(saved.bindings.first) {
+        if case .tap(_, let at, _) = try #require(saved.bindings.first) {
             #expect(at == NormPoint(x: 0.2, y: 0.2))
         } else { Issue.record("期待 .tap") }
         #expect(model.profile == saved)               // 存完之後生效的是存下的那份
@@ -452,7 +452,7 @@ import Testing
         #expect(try #require(model.editorSession).isDirty, "沒寫出去就還是髒的，存檔鍵要維持可按")
         #expect(model.pendingLeaveConfirmation, "提示要留著，使用者才有機會重試或改選捨棄")
         // 變更本身也要原封不動，不能只是旗標對了。
-        if case .tap(_, let at) = try #require(model.editorSession?.items.first?.binding) {
+        if case .tap(_, let at, _) = try #require(model.editorSession?.items.first?.binding) {
             #expect(at == NormPoint(x: 0.2, y: 0.2))
         } else { Issue.record("期待 .tap") }
     }
@@ -579,7 +579,7 @@ import Testing
         #expect(!model.pendingLeaveConfirmation)
         #expect(model.editing)
         #expect(try #require(model.editorSession).isDirty)
-        if case .tap(_, let at) = try #require(model.editorSession?.items.first?.binding) {
+        if case .tap(_, let at, _) = try #require(model.editorSession?.items.first?.binding) {
             #expect(at == NormPoint(x: 0.2, y: 0.2))
         } else { Issue.record("期待 .tap") }
     }

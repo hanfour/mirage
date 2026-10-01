@@ -91,6 +91,8 @@ final class AppModel {
     // P1-c: 鍵位映射——KeymapController 橋接輸入、profile 供 overlay/編輯器讀寫、
     // editing 由 ⌘E 切換、mouseCapture 管 look 模式的游標鎖定。
     var keymap: KeymapController?
+    @ObservationIgnored var gamepadMonitor: GamepadMonitor?
+    var gamepadConnectionName: String?
     var profile: KeymapProfile?
     var editing = false
     /// 編輯中的 binding 清單與選取狀態。非編輯時為 nil。

@@ -7,14 +7,15 @@ import SwiftUI
 /// 超過一半寬度，鏡像被壓窄後拖出來的位置不準——**吃高度比吃寬度便宜**。而且 `.look`
 /// 在畫面上沒有任何視覺標記（`KeymapOverlay` 對它畫 `EmptyView`），純直接操作碰不到它，
 /// 清單是它唯一的棲身之處。
-///
-/// 階段 B **不含**「＋新增」「刪除」「改鍵」——那是階段 C。
 struct EditorDrawer: View {
     let session: EditorSession
     let onSelect: (UUID?) -> Void
     let onSave: () -> Void
-    /// 選中項的參數區。階段 B 由 Task 7 填入半徑／靈敏度滑桿；此刻先留空插槽，
-    /// 讓清單與參數區的版面關係在這個 task 就定下來。
+    let onAddTap: () -> Void
+    let onDeleteSelected: () -> Void
+    let onRebindSelected: () -> Void
+    let onClearGamepad: () -> Void
+    /// 選中項的參數與操作區，由抽屜持有 session、由組合層建立內容。
     ///
     /// **不加 `@ViewBuilder`**：這個屬性已經明確回傳 `AnyView`，加了只會讓讀的人
     /// 以為可以寫多語句的 view builder，實際上型別擋著。
@@ -26,8 +27,11 @@ struct EditorDrawer: View {
                 Text("BINDING · \(session.items.count)")
                     .font(.caption2).foregroundStyle(.secondary)
                 Spacer()
+                Button(action: onAddTap) { Image(systemName: "plus") }
+                    .help("新增點擊鍵")
+                    .accessibilityLabel("新增點擊鍵")
                 Button("存檔", action: onSave)
-                    .disabled(!session.isDirty)
+                    .disabled(!session.isDirty || !session.canSave)
                 Text("完成 ⌘E").font(.caption2).foregroundStyle(.secondary)
             }
             Divider()
@@ -64,8 +68,8 @@ struct EditorDrawer: View {
         switch b {
         case .joystick(let u, let d, let l, let r, _, _):
             return "◎ 搖桿　\(key(u)) \(key(l)) \(key(d)) \(key(r))"
-        case .tap(let k, _):
-            return "● 點擊　\(key(k))"
+        case .tap(let k, _, let gamepad):
+            return "● 點擊　\(key(k))\(gamepad.map { "　\($0.displayName)" } ?? "")"
         case .look:
             return "↗ 視角　滑鼠"
         }

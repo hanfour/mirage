@@ -12,6 +12,11 @@ final class KeymapController {
     private var engine: KeymapEngine?
     private var editing = false
     private var textMode = false
+    private var gamepadDiffer = GamepadSnapshotDiffer()
+    private var fallbackGamepad = GamepadFallbackMachine()
+    var onCaptureKeyboardKey: (@MainActor (KeyCode) -> Bool)?
+    var onCaptureGamepadButton: (@MainActor (GamepadButton) -> Bool)?
+    var onAndroidKey: (@MainActor (String) -> Void)?
     var onLoseFocus: (@MainActor () -> Void)?
     func setTextMode(_ on: Bool) {
         guard textMode != on else { return }
@@ -51,7 +56,7 @@ final class KeymapController {
     /// 而那與 guest 實體解析度在本機相差兩倍——P1-c 起所有觸點都偏在左上一半處。
     init(queue: InputQueue, profile: KeymapProfile?) {
         self.queue = queue
-        if let profile { self.engine = KeymapEngine(profile: profile) }
+        if let profile, !profile.bindings.isEmpty { self.engine = KeymapEngine(profile: profile) }
     }
 
     /// 進編輯模式時，把所有還按著的直通鍵補送 up。
@@ -80,7 +85,41 @@ final class KeymapController {
     func reload(_ profile: KeymapProfile?) {
         queue.invalidateTextSession()
         releaseEverything()
-        engine = profile.map(KeymapEngine.init(profile:))
+        if let profile, !profile.bindings.isEmpty {
+            engine = KeymapEngine(profile: profile)
+        } else {
+            engine = nil
+        }
+    }
+
+    /// 實體手把與測試控制通道共用的快照入口。
+    func handleGamepadSnapshot(_ snapshot: GamepadSnapshot) {
+        let events = gamepadDiffer.update(snapshot)
+        guard !events.isEmpty else { return }
+
+        if let engine {
+            var frame: TouchFrame?
+            for event in events {
+                if editing, case .buttonDown(let button) = event,
+                   onCaptureGamepadButton?(button) == true {
+                    continue
+                }
+                frame = engine.applyGamepad(event)
+            }
+            emit(frame)
+        } else {
+            for event in events { dispatchFallback(fallbackGamepad.apply(event)) }
+        }
+    }
+
+    /// 以外層提供的經過時間推進右搖桿視角或無 profile 拖曳捲動。
+    func tickGamepad(dt: Double) {
+        guard !editing, !textMode else { return }
+        if let engine {
+            emit(engine.gamepadLookTick(dt: dt))
+        } else {
+            dispatchFallback(fallbackGamepad.tick(dt: dt))
+        }
     }
 
     /// 失焦後 keyUp 未必會投遞，立即釋放 guest 端的觸點與直通鍵（D11）。
@@ -91,6 +130,8 @@ final class KeymapController {
     }
 
     private func releaseEverything() {
+        gamepadDiffer.reset()
+        dispatchFallback(fallbackGamepad.cancel())
         // 進入編輯前的 reload 已釋放 guest 觸點；編輯期間 emit 全程被擋，route 也
         // 不接受新的直通 down，所以不會新增待釋放輸入。略過可避免 applyToSession
         // 每拖動一次就因 reload 送出一幀多餘的釋放快照。
@@ -112,6 +153,7 @@ final class KeymapController {
 
     private func route(_ code: KeyCode, down: Bool) {
         guard !textMode else { return }
+        if down, editing, onCaptureKeyboardKey?(code) == true { return }
         // 第一順位：已經送出 down 的直通鍵，它的 up 一定要送。
         // 不受編輯模式影響、也不受「這顆鍵現在綁不綁」影響——按住期間使用者可能按了
         // ⌘E，也可能存檔換了 profile 讓這顆鍵變成綁定鍵。任何一種情況下漏掉這個 up，
@@ -158,6 +200,7 @@ final class KeymapController {
             guard isDown != wasDown else { continue }
             if isDown {
                 pressedModifiers.insert(code)
+                if editing, code != .key("Meta"), onCaptureKeyboardKey?(code) == true { continue }
                 emit(engine?.apply(.keyDown(code)))
             } else {
                 pressedModifiers.remove(code)
@@ -169,5 +212,23 @@ final class KeymapController {
     private func emit(_ frame: TouchFrame?) {
         guard let frame, !editing, !textMode else { return }
         queue.touches(frame.touches)
+    }
+
+    private func dispatchFallback(_ actions: [GamepadFallbackAction]) {
+        for action in actions {
+            switch action {
+            case .androidKey(let key):
+                if let onAndroidKey {
+                    onAndroidKey(key)
+                } else {
+                    queue.key(.key(key), down: true)
+                    queue.key(.key(key), down: false)
+                }
+            case .touchDown(let point), .touchMove(let point):
+                queue.tap(nx: point.x, ny: point.y, down: true)
+            case .touchUp(let point):
+                queue.tap(nx: point.x, ny: point.y, down: false)
+            }
+        }
     }
 }

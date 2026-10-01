@@ -37,9 +37,10 @@ import Testing
         let target = s.items[1].id
         let moved = s.selecting(target).movingSelected(to: NormPoint(x: 0.1, y: 0.2))
         #expect(moved.isDirty)
-        if case .tap(let key, let at) = moved.items[1].binding {
+        if case .tap(let key, let at, let gamepad) = moved.items[1].binding {
             #expect(key == .key("j"))                 // 鍵沒被動到
             #expect(at == NormPoint(x: 0.1, y: 0.2))
+            #expect(gamepad == nil)
         } else {
             Issue.record("期待 .tap，實得 \(moved.items[1].binding)")
         }
@@ -152,5 +153,70 @@ import Testing
         #expect(again.items.map(\.binding) == base.items.map(\.binding))
         #expect(!again.isDirty)
         #expect(again.selectedID == nil)              // 新 session 從未選取起算
+    }
+
+    @Test func addingAndDeletingTapPreservesOtherBindingOrder() throws {
+        let base = EditorSession(profile: sample())
+        let originalIDs = base.items.map(\.id)
+        let removedMiddle = base.selecting(originalIDs[1]).deletingSelected()
+        #expect(removedMiddle.items.map(\.id) == [originalIDs[0], originalIDs[2]])
+
+        let added = base.addingTap(at: NormPoint(x: 0.5, y: 0.5))
+        #expect(added.items.map(\.id).prefix(3).elementsEqual(originalIDs))
+        #expect(added.items.count == 4)
+        #expect(added.selectedID == added.items.last?.id)
+        #expect(added.rebindingID == added.selectedID)
+        #expect(!added.canSave)
+
+        let removed = added.deletingSelected()
+        #expect(removed.items.map(\.id) == originalIDs)
+        #expect(removed.items.map(\.binding) == base.items.map(\.binding))
+        #expect(removed.selectedID == nil)
+    }
+
+    @Test func capturesKeyboardAndGamepadKeysAndSupportsEscapeAndClear() throws {
+        let base = EditorSession(profile: sample())
+        let tapID = base.items[1].id
+        let keyboard = base.selecting(tapID).beginningRebindSelected()
+            .capturingKeyboardKey(.key("q"))
+        #expect(keyboard.rebindingID == nil)
+        guard case .tap(let key, _, let gamepad) = keyboard.items[1].binding else {
+            Issue.record("期待 .tap")
+            return
+        }
+        #expect(key == .key("q"))
+        #expect(gamepad == nil)
+
+        let gamepad = keyboard.beginningRebindSelected().capturingGamepadButton(.rightShoulder)
+        guard case .tap(let reboundKey, _, let button) = gamepad.items[1].binding else {
+            Issue.record("期待 .tap")
+            return
+        }
+        #expect(reboundKey == .key("q"))
+        #expect(button == .rightShoulder)
+
+        let cancelled = gamepad.beginningRebindSelected().cancelRebinding()
+        #expect(cancelled.rebindingID == nil)
+        #expect(cancelled.items == gamepad.items)
+        let cleared = gamepad.clearingSelectedGamepadButton()
+        guard case .tap(_, _, let clearedButton) = cleared.items[1].binding else {
+            Issue.record("期待 .tap")
+            return
+        }
+        #expect(clearedButton == nil)
+        #expect(cleared.isDirty)
+    }
+
+    @Test func capturesNewTapKeyboardKeyAndMarksItSaveable() throws {
+        let added = EditorSession(profile: KeymapProfile(gameId: "g", version: 1, bindings: []))
+            .addingTap(at: NormPoint(x: 0.5, y: 0.5))
+        let captured = added.capturingKeyboardKey(.key("r"))
+        #expect(captured.canSave)
+        #expect(captured.isDirty)
+        guard case .tap(let key, _, _) = try #require(captured.items.first).binding else {
+            Issue.record("期待 .tap")
+            return
+        }
+        #expect(key == .key("r"))
     }
 }

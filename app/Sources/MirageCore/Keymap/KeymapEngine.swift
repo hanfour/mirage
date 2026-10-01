@@ -28,7 +28,7 @@ public enum InputEvent: Sendable, Equatable {
 /// 鍵位映射引擎：離散事件 → 當前多指觸點快照。純轉移（無 IO），可窮舉測試。
 public final class KeymapEngine {
     private struct JoystickSlot { let id: Int; let up, down, left, right: KeyCode; let center: NormPoint; let radius: Double }
-    private struct TapSlot { let id: Int; let key: KeyCode; let at: NormPoint }
+    private struct TapSlot { let id: Int; let key: KeyCode; let at: NormPoint; let gamepad: GamepadButton? }
     private struct LookSlot { let id: Int; let activation: KeyCode?; let sensitivity: Double }
 
     private let joystick: JoystickSlot?
@@ -36,8 +36,11 @@ public final class KeymapEngine {
     private let look: LookSlot?
 
     private var pressed: Set<KeyCode> = []
+    private var pressedGamepad: Set<GamepadButton> = []
+    private var leftStick = GamepadVector.zero
+    private var rightStick = GamepadVector.zero
     private var lookPoint = NormPoint(x: 0.5, y: 0.5)
-    private var lookDown = false
+    private var mouseLookDown = false
 
     public init(profile: KeymapProfile) {
         var next = 1
@@ -48,8 +51,8 @@ public final class KeymapEngine {
             switch b {
             case .joystick(let u, let d, let l, let r, let c, let rad):
                 js = JoystickSlot(id: next, up: u, down: d, left: l, right: r, center: c, radius: rad); next += 1
-            case .tap(let key, let at):
-                tapSlots.append(TapSlot(id: next, key: key, at: at)); next += 1
+            case .tap(let key, let at, let gamepad):
+                tapSlots.append(TapSlot(id: next, key: key, at: at, gamepad: gamepad)); next += 1
             case .look(let act, let sens):
                 lk = LookSlot(id: next, activation: act, sensitivity: sens); next += 1
             }
@@ -73,9 +76,32 @@ public final class KeymapEngine {
             if let look, isLookGateOpen(look) {
                 lookPoint = NormPoint.clamped(x: lookPoint.x + dx * look.sensitivity / 1000,
                                               y: lookPoint.y + dy * look.sensitivity / 1000)
-                lookDown = true
+                mouseLookDown = true
             }
         }
+        return snapshot()
+    }
+
+    /// 套用一個由兩份快照差異產生的手把事件。
+    public func applyGamepad(_ event: GamepadEvent) -> TouchFrame {
+        switch event {
+        case .buttonDown(let button): pressedGamepad.insert(button)
+        case .buttonUp(let button): pressedGamepad.remove(button)
+        case .leftStickChanged(let value): leftStick = value
+        case .rightStickChanged(let value): rightStick = value
+        }
+        return snapshot()
+    }
+
+    /// 右搖桿視角每一個外層計時週期呼叫一次。右搖桿不受 look.activation 限制。
+    public func gamepadLookTick(dt: Double) -> TouchFrame? {
+        guard let look, rightStick.magnitude > 0.15, dt.isFinite, dt > 0 else { return nil }
+        // 以既有滑鼠 sensitivity 換算合成像素位移，讓滿偏的正規化速度約為半個畫面/秒。
+        let pixelsPerSecond = 500 / look.sensitivity
+        let dx = rightStick.x * pixelsPerSecond * dt
+        let dy = -rightStick.y * pixelsPerSecond * dt
+        lookPoint = NormPoint.clamped(x: lookPoint.x + dx * look.sensitivity / 1000,
+                                      y: lookPoint.y + dy * look.sensitivity / 1000)
         return snapshot()
     }
 
@@ -84,7 +110,10 @@ public final class KeymapEngine {
     /// 或切換 profile 的釋放過程讓視角瞬間跳回畫面正中。
     public func releaseAll() -> TouchFrame {
         pressed.removeAll()
-        lookDown = false
+        pressedGamepad.removeAll()
+        leftStick = .zero
+        rightStick = .zero
+        mouseLookDown = false
         return snapshot()
     }
 
@@ -115,27 +144,38 @@ public final class KeymapEngine {
     /// 放開啟動鍵時若 gate 因此關閉，收回 look 觸點——避免殘留 down=true 的幽靈觸點。
     private func releaseLookIfGateClosed(for releasedKey: KeyCode) {
         guard let look, let activation = look.activation, activation == releasedKey else { return }
-        lookDown = false
+        mouseLookDown = false
     }
 
     private func snapshot() -> TouchFrame {
         var out: [TouchSpec] = []
         if let j = joystick {
-            let v = JoystickMath.vector(up: pressed.contains(j.up), down: pressed.contains(j.down),
-                                        left: pressed.contains(j.left), right: pressed.contains(j.right))
-            let active = v.dx != 0 || v.dy != 0
+            let stickActive = leftStick.magnitude > 0.15
+            let keyboard = JoystickMath.vector(up: pressed.contains(j.up), down: pressed.contains(j.down),
+                                               left: pressed.contains(j.left), right: pressed.contains(j.right))
+            let dx = stickActive ? leftStick.x : keyboard.dx
+            let dy = stickActive ? -leftStick.y : keyboard.dy
+            let active = stickActive || keyboard.dx != 0 || keyboard.dy != 0
             // D12：`center ± radius` 會越界（圓心貼邊 + 大半徑）。夾取放在這裡而不是
             // `validated()`：載入期拒絕會讓使用者既有的 profile 突然消失（見計畫的偏離說明）。
-            let p = NormPoint.clamped(x: j.center.x + v.dx * j.radius,
-                                      y: j.center.y + v.dy * j.radius)
+            let p = NormPoint.clamped(x: j.center.x + dx * j.radius,
+                                      y: j.center.y + dy * j.radius)
             out.append(TouchSpec(identifier: j.id, point: active ? p : j.center, down: active))
         }
         for t in taps {
-            out.append(TouchSpec(identifier: t.id, point: t.at, down: pressed.contains(t.key)))
+            let keyDown = pressed.contains(t.key)
+            let gamepadDown = t.gamepad.map(pressedGamepad.contains) ?? false
+            out.append(TouchSpec(identifier: t.id, point: t.at, down: keyDown || gamepadDown))
         }
         if let look {
-            out.append(TouchSpec(identifier: look.id, point: lookPoint, down: lookDown))
+            let stickDown = rightStick.magnitude > 0.15
+            out.append(TouchSpec(identifier: look.id, point: lookPoint,
+                                 down: mouseLookDown || stickDown))
         }
         return TouchFrame(touches: out)
     }
+}
+
+private extension GamepadVector {
+    var magnitude: Double { (x * x + y * y).squareRoot() }
 }

@@ -32,7 +32,7 @@ struct KeymapOverlay: View {
     @ViewBuilder
     private func marker(for b: MirageCore.Binding, in rect: FitRect) -> some View {
         switch b {
-        case .tap(let key, let at):
+        case .tap(let key, let at, _):
             let p = EditorGeometry.viewPoint(for: at, in: rect)
             Circle().stroke(.white.opacity(0.5)).frame(width: 44, height: 44)
                 .position(x: p.x, y: p.y)

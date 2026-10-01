@@ -139,7 +139,7 @@ import Testing
         let src = try writeSource(dir, name: "a.json", body: json)
         let bindings = BuiltInProfiles.starterBindings(from: [src])
         #expect(bindings.count == 1)
-        if case .tap(let key, _) = bindings[0] { #expect(key == .key("z")) }
+        if case .tap(let key, _, _) = bindings[0] { #expect(key == .key("z")) }
         else { Issue.record("期待 .tap，實得 \(bindings[0])") }
     }
 

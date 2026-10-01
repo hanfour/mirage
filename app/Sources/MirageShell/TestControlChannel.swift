@@ -142,6 +142,8 @@ final class TestControlChannel {
             case .up:
                 try postKey(keyCode: keyCode, modifiers: modifiers, down: false)
             }
+        case .gamepad(let snapshot):
+            model.receiveGamepad(snapshot)
         case .titlebar(let visible):
             model.windowController.setTitlebarVisibleForTest(visible)
         case .fullscreen(let on):

@@ -19,6 +19,33 @@ import Testing
         #expect(decoded == profile)
     }
 
+    @Test func bundledAndUserProfilesWithoutGamepadSurviveStoreRoundTrip() throws {
+        let testDirectory = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+        let appDirectory = testDirectory.deletingLastPathComponent().deletingLastPathComponent()
+        let bundledDirectory = appDirectory
+            .appendingPathComponent("Sources/MirageCore/Resources/profiles", isDirectory: true)
+        let bundledFiles = try FileManager.default.contentsOfDirectory(
+            at: bundledDirectory, includingPropertiesForKeys: nil
+        ).filter { $0.pathExtension == "json" }.sorted { $0.lastPathComponent < $1.lastPathComponent }
+        #expect(!bundledFiles.isEmpty)
+
+        let userFixture = testDirectory.appendingPathComponent("Fixtures/profiles/user-profile.json")
+        let sources = bundledFiles + [userFixture]
+        let storeDirectory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("mirage-profile-compat-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: storeDirectory, withIntermediateDirectories: true)
+        let store = ProfileStore(directory: storeDirectory)
+
+        for source in sources {
+            let data = try Data(contentsOf: source)
+            let profile = try JSONDecoder().decode(KeymapProfile.self, from: data)
+            try store.save(profile)
+            let loaded = try store.load(gameId: profile.gameId)
+            #expect(loaded == profile)
+        }
+    }
+
     @Test func validProfilePassesValidation() throws {
         #expect(throws: Never.self) { try sampleProfile().validated() }
     }
