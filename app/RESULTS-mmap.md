@@ -1,5 +1,24 @@
 # Streaming MMAP Transport 驗收結果
 
+## 2026-10-01 重測：MMAP 改為預設
+
+在 emulator 37.1.11、macOS 26.6.2、898×1996、Pixel Flow 遊戲畫面上，以 `mirage-pull` 直連
+做三輪交錯量測。MMAP 的 fps 與 raw RGBA 相當，接收端與 qemu CPU 使用率較低：
+
+| | raw RGBA | MMAP |
+| --- | --- | --- |
+| fps | 59.3–60.0 | 59.6–59.9 |
+| 30 秒內不同畫面數 | 1779–1800 | 1789–1797 |
+| 接收端 CPU | 34.7–36.4% | 12.6–13.1% |
+| qemu CPU | 216–232% | 173–186% |
+
+因此 emulator 37 以上預設採 MMAP，`MIRAGE_TRANSPORT=raw` 可強制回到 raw RGBA；低於 37 或
+版本未知時仍只用 raw，避免舊版收到 MMAP 請求後崩潰。通知連續 120 幀的映射內容指紋相同時，
+Mirage 會用 unary `getScreenshot` 取 raw RGBA 確認；只有尺寸相同且內容不同才切換 raw。
+重測結果與 2026-08-05 先前的 grpc-swift 異常不同，恢復原因仍未查明，不能推論根因已定位。
+
+以下章節保留先前驗收與根因調查的紀錄；其中預設停用 MMAP 的裁決已由本次重測更新。
+
 - **日期**：2026-07-27
 - **模擬器**：Android emulator canary，`localhost:8554`（共享資源，全程未殺／重啟／`loadSnapshot`），
   版本 `37.2.1.0`（`37.2.1-15875889`，`getStatus` 回報）

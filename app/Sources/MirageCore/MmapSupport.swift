@@ -1,6 +1,6 @@
 import Foundation
 
-/// MMAP 傳輸的純函式支援：路徑產生、handle 組裝、全零判定。
+/// MMAP 傳輸的純函式支援：路徑產生、handle 組裝、全零判定與取樣指紋。
 /// 全部無副作用、無 I/O，故可完整單元測試。
 public enum MmapSupport {
     /// RGBA8888 的緩衝區位元組數。任一維度 <= 0 → 0（呼叫端據此拒絕掛載）。
@@ -29,6 +29,16 @@ public enum MmapSupport {
     /// 取樣點恰好落在畫面的黑色區域而誤判。判定完成後這條檢查不再執行，穩態零開銷。
     public static func isBlank(_ data: Data) -> Bool {
         data.allSatisfy { $0 == 0 }
+    }
+
+    /// 以每 64 位元組一個取樣點計算 FNV 指紋，與 mirage-pull 的量測方式一致。
+    public static func fingerprint(of data: Data) -> UInt64 {
+        var hash: UInt64 = 14_695_981_039_346_656_037
+        for index in stride(from: 0, to: data.count, by: 64) {
+            hash ^= UInt64(data[index])
+            hash &*= 1_099_511_628_211
+        }
+        return hash
     }
 }
 
@@ -77,6 +87,73 @@ public struct MmapBlankProbe {
     }
 }
 
+/// 偵測通知持續抵達、但映射內容沒有改變的狀態機。只收指紋、時間與外層比對結果，
+/// 不執行 gRPC 或讀取映射區，方便用固定時間值單元測試冷卻行為。
+struct MmapStallDetector {
+    enum Decision: Equatable {
+        case deliver
+        case compareRaw(repeatedNotifications: Int)
+    }
+
+    enum RawComparison: Equatable {
+        case same
+        case different
+        case failed(String)
+        case incomparable(width: Int, height: Int)
+    }
+
+    enum Resolution: Equatable {
+        case continueMmap
+        case unusable(repeatedNotifications: Int)
+        case comparisonFailed(String)
+        case incomparable(width: Int, height: Int)
+    }
+
+    private let frameThreshold: Int
+    private let cooldown: TimeInterval
+    private var previousFingerprint: UInt64?
+    private var repeatedNotifications = 0
+    private var comparisonAllowedAt: TimeInterval?
+
+    init(frameThreshold: Int = 120, cooldown: TimeInterval = 30) {
+        self.frameThreshold = frameThreshold
+        self.cooldown = cooldown
+    }
+
+    mutating func observe(fingerprint: UInt64, at now: TimeInterval) -> Decision {
+        if previousFingerprint == fingerprint {
+            repeatedNotifications += 1
+        } else {
+            previousFingerprint = fingerprint
+            repeatedNotifications = 1
+        }
+
+        guard repeatedNotifications >= frameThreshold,
+              comparisonAllowedAt.map({ now >= $0 }) ?? true else {
+            return .deliver
+        }
+        return .compareRaw(repeatedNotifications: repeatedNotifications)
+    }
+
+    mutating func resolve(_ comparison: RawComparison, at now: TimeInterval) -> Resolution {
+        let repeated = repeatedNotifications
+        previousFingerprint = nil
+        repeatedNotifications = 0
+
+        switch comparison {
+        case .same:
+            comparisonAllowedAt = now + cooldown
+            return .continueMmap
+        case .different:
+            return .unusable(repeatedNotifications: repeated)
+        case .failed(let message):
+            return .comparisonFailed(message)
+        case .incomparable(let width, let height):
+            return .incomparable(width: width, height: height)
+        }
+    }
+}
+
 /// MMAP 版本安全閘：穩定版 emulator（36.x）收到 MMAP 請求會 SIGSEGV
 /// （phase0/RESULTS-0b.md，2/2 確定性重現），主版號 ≥37 才允許。解析失敗一律拒絕。
 ///
@@ -92,55 +169,22 @@ public enum MmapVersionGate {
 
 /// `EmulatorClient.makeDisplayTransport()` 該建哪種 display transport 的**決策結果**。
 public enum DisplayTransportChoice: Equatable, Sendable {
-    case mmapWithRawFallback     // >=37 且 MIRAGE_TRANSPORT=mmap opt-in：MMAP 為主、raw RGBA 為降級後備
-    case rawOnly                 // <37 或版本未知：只用 raw RGBA（36.x 收 MMAP 會 SIGSEGV）
+    case mmapWithRawFallback     // >=37：MMAP 為主、raw RGBA 為降級後備
+    case rawOnly                 // <37、版本未知或 MIRAGE_TRANSPORT=raw
 }
 
-/// 依 emulator 版本與使用者是否選擇加入決定 display transport 的種類。純決策，不建構任何
-/// 東西、不碰 gRPC，故可完整單元測試——選路邏輯不該為了被測而去建真 channel（Task 6 審查
-/// Important 1 教訓：先前把選路跟真 `MmapStreamTransport`/`GrpcChannelBox` 的建構綁在一起測，
-/// 逼得單元測試建立真實 channel，在完整套件並行執行時把既有 NIO teardown 競態的命中率從
-/// 0% 推到約 75%）。`EmulatorClient.makeDisplayTransport()` 呼叫本函式取得結果後，
-/// 建構部分退化成一個純 switch。
-///
-/// **預設為 raw RGBA、MMAP 需顯式選擇加入（2026-07-27 裁決）**：
-///
-/// 活體驗證發現 MMAP 在 emulator 37.2.1.0 上會凍結——Swift client 只收到映射區的**一次**
-/// 寫入，之後畫面不再更新；而同一時刻、同尺寸的 Python client 完全正常（連續 5 幀相異、
-/// 相隔約 15ms）。三輪排查推翻了 8 個以上假設（protobuf 編碼、暖機、執行緒數、檔案建立
-/// 語意、gRPC API 選擇、讀取端快取、畫面尺寸、guest 動畫是否在跑），根因尚未鎖定。
-///
-/// 更關鍵的是，現有降級機制**攔不住**這個失敗模式：`MmapBlankProbe`／`FallbackTransport`
-/// 的判定依據是「前幾幀全零」，但畫面通常不是全零（例如黑色像素的 RGBA 是
-/// `00 00 00 FF`，非全零），會直接通過探測。使用者看到的是一張沒有任何降級或錯誤訊號的
-/// 壞畫面——比乾脆不支援 MMAP 更糟。
-///
-/// ⚠️ **上面兩段寫的「凍結」在 2026-08-05 的根因調查中被推翻，但結論不變。** 實際不是
-/// 凍結而是**更新率只有約 27.5%**（Swift 約 15Hz vs Python 約 50Hz）——原描述來自
-/// `MmapStreamLiveTests` 只取 3 幀（約 150ms）的窗口，在 15Hz 下必然全同。所以使用者
-/// 看到的不是靜止畫面，而是**嚴重掉幀**的畫面；降級機制同樣攔不住（非全零），預設收回
-/// raw 這個裁決仍然成立。詳見 `app/RESULTS-mmap.md`「2026-08-05 根因調查」。
-///
-/// 所以先把預設收回 raw、MMAP 留著但要靠環境變數 `MIRAGE_TRANSPORT=mmap` 主動選擇加入
-/// 才會啟用——啟用仍需**兩個條件同時成立**：`mmapOptIn == true` **且**版本 ≥37
-/// （版本閘是獨立的安全互鎖，36.x 收到 MMAP 請求會 SIGSEGV，見 MmapVersionGate，
-/// 與「MMAP 在 37.x 上是否真的可用」無關，故不可移除）。
-///
-/// **2026-08-05 重驗（D39）更正**：原本這裡寫著「上游 b/537802959 已標記 fixed 但含修正
-/// 的 build 尚未發布，等新版再驗」。實測 37.1.11(stable)／37.2.1(canary)／37.2.3(dev)
-/// 三個版本，Swift 全部凍結、同條件的 Python client 全部正常——**凍結與 emulator 版本
-/// 無關，不要再等新版**。要恢復預設，該做的是查 grpc-swift 這條路徑，不是升 emulator。
-///
-/// 同一次重驗還推翻了「MMAP 幫不上 fps」：在全螢幕解析度 898×1996 上，raw RGBA 這條路徑
-/// 撞到約 273 MiB/s 的吞吐天花板、fps 掉到 40.0，而 MMAP 是 56.7（驗收線 7 的門檻是 55）。
-/// 原結論是在 540×1200 量的，那個解析度只用到 147 MiB/s、根本沒到天花板。
-/// 兩者的完整數據與限定條件見 `app/RESULTS-mmap.md` 的「2026-08-05 重驗」一節。
-///
-/// **未來若要把預設改回 MMAP**：必須先在真模擬器上重新做一次活體驗證（`verify_mmap.sh`
-/// 現在會同時跑 Python 對照組），確認凍結問題確實消失，不能只憑上游 issue 狀態恢復預設。
+/// 依 emulator 版本與環境變數決定 display transport。純決策，不建構 transport 或 gRPC。
+/// emulator 37 以上預設使用 MMAP 並保留 raw RGBA 降級；`MIRAGE_TRANSPORT=raw` 強制 raw，
+/// `mmap` 與未設定相同。其他值由呼叫端視為未設定並記錄一次警告。
+/// 2026-10-01 重測（898×1996）raw 為 59.3–60.0 fps、MMAP 為 59.6–59.9 fps，接收端 CPU
+/// 為 34.7–36.4% 對 12.6–13.1%；grpc-swift 畫面恢復的原因仍未查明。
 public enum DisplayTransportSelector {
-    public static func choose(emulatorVersion: String, mmapOptIn: Bool) -> DisplayTransportChoice {
-        guard mmapOptIn, MmapVersionGate.allows(versionString: emulatorVersion) else {
+    public static func choose(
+        emulatorVersion: String,
+        transportOverride: String?
+    ) -> DisplayTransportChoice {
+        guard transportOverride != "raw",
+              MmapVersionGate.allows(versionString: emulatorVersion) else {
             return .rawOnly
         }
         return .mmapWithRawFallback

@@ -4,29 +4,19 @@ import GRPC
 
 /// `streamScreenshot` + MMAP 共享記憶體的 DisplayTransport。
 ///
-/// **實驗性、預設關閉**：需 `MIRAGE_TRANSPORT=mmap` 主動選擇加入（見
-/// `DisplayTransportSelector`）。**已知拿不到足夠的更新率**——同一台 emulator、同條件的
-/// Python client 拿得到約 50Hz 的內容更新，這條只有約 **15Hz**（交錯量測基準：Python
-/// 400/400、Swift 109–110/400）。根因未鎖定；D39（2026-08-05）在 37.1.11／37.2.1／37.2.3
-/// 三版上重驗結果一致，**與 emulator 版本無關**，缺陷在 grpc-swift 這條路徑上。
-///
-/// **先前這裡寫的是「凍結」，那是錯的**：那個描述來自 `MmapStreamLiveTests` 只取 3 幀
-/// （約 150ms）的窗口，在 15Hz 下必然全同。它一直在更新，只是慢。這個更正很重要——
-/// 「凍結」會把人導向「emulator 沒寫」，而實際要查的是「為什麼只有 1/3.6 的速率」。
-/// 完整交叉驗證與已排除的 9 個假設見 `app/RESULTS-mmap.md`。
+/// emulator 37 以上預設使用，並由 `FallbackTransport` 在偵測到內容停止更新時切回 raw。
+/// 2026-10-01 交錯重測（898×1996）：raw 59.3–60.0 fps、MMAP 59.6–59.9 fps；接收端 CPU
+/// 34.7–36.4% 對 12.6–13.1%，qemu CPU 216–232% 對 173–186%。先前 grpc-swift 畫面異常的
+/// 原因仍未查明；重測條件與完整數字見 `app/RESULTS-mmap.md`。
 ///
 /// 相對於 `GrpcStreamTransport`（raw RGBA payload 走 protobuf），本實作讓 emulator 直接把
 /// 像素寫進我們提供的映射區，通知訊息的 payload 為空。**下面這組數字是 Python harness
-/// （grpcio 直連，不經過本型別）量到的主機能力上限，不是本型別的實測收益**——本型別的
-/// 活體驗證顯示它在真實環境下拿不到持續更新的畫面，見上段「已知凍結」：client 每幀
+/// （grpcio 直連，不經過本型別）量到的主機能力上限，不是本型別的實測收益：client 每幀
 /// CPU 8.0 → 0.7 ms、經 gRPC 的位元組 272 → 0 MiB/s（900×2000，spec §1.1）。
 public struct MmapStreamTransport: DisplayTransport {
-    /// 前幾幀若映射區全零就判定 host 寫入端無作用 → 丟 .mmapUnusable 讓上層降級。
+    /// 前幾幀若映射區全零就判定 host 寫入端無作用，丟 .mmapUnusable 讓上層降級。
     /// 偏誤方向刻意：寧可誤降級（只是多花 CPU、畫面正確）也不要誤啟用（黑畫面）。
-    /// **已知的凍結失敗模式不會被這個探測攔下**——凍結的幀是重複寫入前的最後一次真實內容，
-    /// 不是全零（黑色像素的 RGBA 是 `00 00 00 FF`），會直接通過探測、判定為可用。
-    /// 探測本體（含「串流提早結束」這條路徑）在 `MmapSupport.swift` 的 `MmapBlankProbe`，
-    /// 拆成純狀態機是因為它可以完整單元測試，而本檔案（需要真 channel）不行。
+    /// 探測本體在 `MmapSupport.swift` 的 `MmapBlankProbe`，拆成純狀態機以便完整單元測試。
     static let blankProbeFrames = 3
 
     private let channel: GrpcChannelBox
@@ -60,10 +50,13 @@ public struct MmapStreamTransport: DisplayTransport {
         let callBox = MmapScreenshotCallBox(call)
         let responses = call.responseStream
 
+        let channel = self.channel
         return AsyncThrowingStream { continuation in
-            let task = Task {
+            // 快照指紋與 unary raw 比對不繼承呼叫端的 actor 隔離，避免跑在 UI actor 上。
+            let task = Task.detached {
                 await Self.consume(responses: responses, buffer: buffer,
-                                   width: width, height: height, into: continuation)
+                                   width: width, height: height, channel: channel,
+                                   into: continuation)
             }
             continuation.onTermination = { _ in
                 task.cancel()
@@ -100,10 +93,11 @@ public struct MmapStreamTransport: DisplayTransport {
     /// 乾淨結束）。
     private static func consume(
         responses: GRPCAsyncResponseStream<Android_Emulation_Control_Image>,
-        buffer: MmapBuffer, width: Int, height: Int,
+        buffer: MmapBuffer, width: Int, height: Int, channel: GrpcChannelBox,
         into continuation: AsyncThrowingStream<Frame, Error>.Continuation
     ) async {
         var probe = MmapBlankProbe(frameBudget: blankProbeFrames)
+        var stallDetector = MmapStallDetector()
         do {
             for try await _ in responses {
                 if Task.isCancelled { return }
@@ -117,6 +111,37 @@ public struct MmapStreamTransport: DisplayTransport {
                     return
                 case .deliver:
                     continuation.yield(Frame(width: width, height: height, rgba: data, transitMs: nil))
+                    let fingerprint = MmapSupport.fingerprint(of: data)
+                    let decision = stallDetector.observe(
+                        fingerprint: fingerprint,
+                        at: ProcessInfo.processInfo.systemUptime
+                    )
+                    guard case .compareRaw = decision else { continue }
+
+                    let comparison = await compareWithRaw(
+                        client: channel.client,
+                        snapshot: data,
+                        width: width,
+                        height: height
+                    )
+                    if Task.isCancelled { return }
+                    let resolution = stallDetector.resolve(
+                        comparison,
+                        at: ProcessInfo.processInfo.systemUptime
+                    )
+                    switch resolution {
+                    case .continueMmap:
+                        continue
+                    case .unusable(let count):
+                        continuation.finish(throwing: TransportError.mmapUnusable(
+                            "內容停止更新（連續 \(count) 次通知相同、raw 比對不同）"
+                        ))
+                        return
+                    case .comparisonFailed(let message):
+                        print("[transport] mmap raw 比對失敗：\(message)，暫不判定不可用")
+                    case .incomparable(let rawWidth, let rawHeight):
+                        print("[transport] mmap raw 比對尺寸不同（\(rawWidth)x\(rawHeight)），無法判定內容")
+                    }
                 }
             }
             if probe.endedWithoutContent() {
@@ -127,6 +152,36 @@ public struct MmapStreamTransport: DisplayTransport {
             }
         } catch {
             continuation.finish(throwing: TransportError.unavailable("\(error)"))
+        }
+    }
+
+    /// 用同一條已帶授權 metadata 的 client 取 raw RGBA。`getScreenshot` 刻意不傳 callOptions，
+    /// 否則會蓋掉 GrpcChannelBox 建立 client 時設定的 token header。
+    private static func compareWithRaw(
+        client: Android_Emulation_Control_EmulatorControllerAsyncClient,
+        snapshot: Data,
+        width: Int,
+        height: Int
+    ) async -> MmapStallDetector.RawComparison {
+        var format = Android_Emulation_Control_ImageFormat()
+        format.format = .rgba8888
+        format.width = UInt32(width)
+        format.height = UInt32(height)
+
+        do {
+            let image = try await client.getScreenshot(format)
+            let rawWidth = Int(image.format.width)
+            let rawHeight = Int(image.format.height)
+            guard rawWidth == width, rawHeight == height else {
+                return .incomparable(width: rawWidth, height: rawHeight)
+            }
+            let expectedByteCount = MmapSupport.byteCount(width: width, height: height)
+            guard image.image.count == expectedByteCount else {
+                return .failed("raw RGBA 位元組數為 \(image.image.count)，預期 \(expectedByteCount)")
+            }
+            return image.image == snapshot ? .same : .different
+        } catch {
+            return .failed(String(describing: error))
         }
     }
 }
