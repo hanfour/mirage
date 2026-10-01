@@ -212,7 +212,7 @@ tagged_median() {
     case "$tag:$field" in
         frames:arrived|frames:dropped|frames:presented \
         |transit:p50|transit:p95|inject:p50|inject:p95 \
-        |draw:calls|draw:gap20|draw:maxgap|draw:in_p95|draw:nodrawable|draw:noframe) ;;
+        |draw:calls|draw:gap20|draw:maxgap|draw:in_p95|draw:nodrawable|draw:noframe|draw:uploadskip) ;;
         *) echo 0; return 0 ;;
     esac
     [ -r "$log" ] || { echo 0; return 0; }

@@ -321,6 +321,7 @@ GAP20_VALS=""
 MAXGAP_VALS=""
 IN_P95_VALS=""
 NODRAWABLE_VALS=""
+UPLOADSKIP_VALS=""
 # **獨立於 `ROUNDS` 的訊號**：`ROUNDS` 數的是有幾輪產生了 `[round N]`（有效樣本數），
 # `SIZE_OK` 答的是不同的問題——這次執行有沒有踩到「解析度收斂失敗」這個故障模式本身。
 # 兩者不能合併：即使最後 `ROUNDS` 湊滿了，若中途有輪次耗盡 `ROUND_RETRY_MAX` 仍未收斂
@@ -384,7 +385,7 @@ ab_print_result() {
         echo "[round ${round} sink=${sink}] guest=${AB_G:-（未量到）} arrived=${AB_A:-（無資料）} presented=${AB_P:-（無資料）} dropped=${AB_D:-（無資料）} mirage=（無資料） baseline=（無資料） ratio=（無資料） lat_p50=${AB_LAT_P50:-（無資料）} lat_p95=${AB_LAT_P95:-（無資料）}"
     fi
     if [ -n "$AB_M" ]; then
-        echo "[round ${round} sink=${sink} draw] gap20=${AB_GAP20} maxgap=${AB_MAXGAP}ms in_p95=${AB_IN_P95}ms nodrawable=${AB_NODRAWABLE} noframe=${AB_NOFRAME}"
+        echo "[round ${round} sink=${sink} draw] gap20=${AB_GAP20} maxgap=${AB_MAXGAP}ms in_p95=${AB_IN_P95}ms nodrawable=${AB_NODRAWABLE} noframe=${AB_NOFRAME} uploadskip=${AB_UPLOADSKIP}"
     fi
 }
 
@@ -392,7 +393,7 @@ run_ab_sink() {
     local round="$1" sink="$2"
     local log="" bundle="" round_converged=0 latest_attach=""
     local round_attempt sink_line before lat_before
-    local m a d p gap20 maxgap in_p95 nodrawable noframe
+    local m a d p gap20 maxgap in_p95 nodrawable noframe uploadskip
     local g="" gf gd gw b="" be="" base_out base_rc r
 
     AB_VALID=0
@@ -406,6 +407,7 @@ run_ab_sink() {
     AB_IN_P95=""
     AB_NODRAWABLE=""
     AB_NOFRAME=""
+    AB_UPLOADSKIP=""
     AB_B=""
     AB_R=""
     AB_LAT_P50=""
@@ -474,6 +476,7 @@ run_ab_sink() {
     in_p95=$(tagged_median "$log" draw in_p95 "$before")
     nodrawable=$(tagged_median "$log" draw nodrawable "$before")
     noframe=$(tagged_median "$log" draw noframe "$before")
+    uploadskip=$(tagged_median "$log" draw uploadskip "$before")
     AB_LAT_P50=$(latency_median "$log" p50 "$lat_before")
     AB_LAT_P95=$(latency_median "$log" p95 "$lat_before")
 
@@ -497,6 +500,7 @@ run_ab_sink() {
     AB_IN_P95="$in_p95"
     AB_NODRAWABLE="$nodrawable"
     AB_NOFRAME="$noframe"
+    AB_UPLOADSKIP="$uploadskip"
 
     gui_session_cleanup "$bundle"
     sleep 3
@@ -790,9 +794,10 @@ for round in $(seq 1 "$ROUNDS"); do
     IN_P95=$(tagged_median "$LOG" draw in_p95 "$BEFORE")
     NODRAWABLE=$(tagged_median "$LOG" draw nodrawable "$BEFORE")
     NOFRAME=$(tagged_median "$LOG" draw noframe "$BEFORE")
+    UPLOADSKIP=$(tagged_median "$LOG" draw uploadskip "$BEFORE")
     echo "   Mirage 側：中位數 ${M} fps（取樣 $(fps_samples "$LOG") 筆，量測前已有 ${BEFORE} 筆）"
     echo "   幀計數窗口：arrived=${A} presented=${P} dropped=${D}（跳過量測前 ${BEFORE} 筆）"
-    echo "   draw 時序：gap20=${GAP20} maxgap=${MAXGAP}ms in_p95=${IN_P95}ms nodrawable=${NODRAWABLE} noframe=${NOFRAME}"
+    echo "   draw 時序：gap20=${GAP20} maxgap=${MAXGAP}ms in_p95=${IN_P95}ms nodrawable=${NODRAWABLE} noframe=${NOFRAME} uploadskip=${UPLOADSKIP}"
 
     G=""
     if [ -z "$GUEST_RAW" ]; then
@@ -893,6 +898,7 @@ for round in $(seq 1 "$ROUNDS"); do
         MAXGAP_VALS="${MAXGAP_VALS}${MAXGAP}\n"
         IN_P95_VALS="${IN_P95_VALS}${IN_P95}\n"
         NODRAWABLE_VALS="${NODRAWABLE_VALS}${NODRAWABLE}\n"
+        UPLOADSKIP_VALS="${UPLOADSKIP_VALS}${UPLOADSKIP}\n"
     fi
     if [ -n "$M" ] && [ -n "$B" ]; then
         R=$(awk -v m="$M" -v b="$B" 'BEGIN { printf "%d", (b > 0) ? m * 100 / b : 0 }')
@@ -902,7 +908,7 @@ for round in $(seq 1 "$ROUNDS"); do
         echo "[round ${round}] guest=${G} arrived=${A} presented=${P} dropped=${D} mirage=${M} baseline=（無資料，見上方對照組訊息）——本輪僅計入 Mirage 側，不計入 ratio"
     fi
     if [ -n "$M" ]; then
-        echo "[round ${round} draw] gap20=${GAP20} maxgap=${MAXGAP}ms in_p95=${IN_P95}ms nodrawable=${NODRAWABLE} noframe=${NOFRAME}"
+        echo "[round ${round} draw] gap20=${GAP20} maxgap=${MAXGAP}ms in_p95=${IN_P95}ms nodrawable=${NODRAWABLE} noframe=${NOFRAME} uploadskip=${UPLOADSKIP}"
     fi
     rm -f "$LOG"
 done
@@ -930,6 +936,7 @@ GAP20M=$(median_of "$GAP20_VALS")
 MAXGAPM=$(median_of "$MAXGAP_VALS")
 IN_P95M=$(median_one_decimal_of "$IN_P95_VALS")
 NODRAWABLEM=$(median_of "$NODRAWABLE_VALS")
+UPLOADSKIPM=$(median_of "$UPLOADSKIP_VALS")
 # === 離散度（D56）===
 #
 # **只印中位數會把判定的不確定性藏起來。** 2026-08-06 同一顆 build、同一天量到
@@ -951,6 +958,7 @@ echo "GAP20_MEDIAN=${GAP20M}"
 echo "MAXGAP_MEDIAN=${MAXGAPM}"
 echo "IN_P95_MEDIAN=${IN_P95M}"
 echo "NODRAWABLE_MEDIAN=${NODRAWABLEM}"
+echo "UPLOADSKIP_MEDIAN=${UPLOADSKIPM}"
 echo "BASELINE_MEDIAN=${BM:-無資料（對照組本輪全數失敗／被排除，見上方各輪訊息；不影響驗收線 7 的判定）}"
 if [ -n "$MM" ] && [ -n "$BM" ]; then
     echo "RATIO_PCT=$(awk -v m="$MM" -v b="$BM" 'BEGIN { printf "%d", (b > 0) ? m * 100 / b : 0 }')"

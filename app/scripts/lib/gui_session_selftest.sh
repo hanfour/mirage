@@ -39,19 +39,19 @@ trap 'rm -rf "$WORK"' EXIT
 printf '%s\n' \
     '[app] fps=61' \
     '[app] frames arrived=12 dropped=2 presented=10' \
-    '[app] draw calls=60 gap20=1 maxgap=21ms in_p95=3.4ms nodrawable=0 noframe=2' \
+    '[app] draw calls=60 gap20=1 maxgap=21ms in_p95=3.4ms nodrawable=0 noframe=2 uploadskip=0' \
     '[app] lat p50=12.3ms p95=18.9ms n=57' \
     '[app] fps=59' \
     '[app] frames arrived=14 dropped=3 presented=11' \
-    '[app] draw calls=59 gap20=2 maxgap=41ms in_p95=4.5ms nodrawable=1 noframe=3' \
+    '[app] draw calls=59 gap20=2 maxgap=41ms in_p95=4.5ms nodrawable=1 noframe=3 uploadskip=1' \
     '[app] lat p50=13.3ms p95=19.9ms n=58' \
     '[app] fps=57' \
     '[app] frames arrived=16 dropped=4 presented=12' \
-    '[app] draw calls=58 gap20=3 maxgap=61ms in_p95=5.6ms nodrawable=2 noframe=4' \
+    '[app] draw calls=58 gap20=3 maxgap=61ms in_p95=5.6ms nodrawable=2 noframe=4 uploadskip=2' \
     '[app] lat p50=14.3ms p95=20.9ms n=59' \
     '[app] fps=55' \
     '[app] frames arrived=18 dropped=5 presented=13' \
-    '[app] draw calls=57 gap20=4 maxgap=81ms in_p95=6.7ms nodrawable=3 noframe=5' \
+    '[app] draw calls=57 gap20=4 maxgap=81ms in_p95=6.7ms nodrawable=3 noframe=5 uploadskip=3' \
     '[app] lat p50=15.3ms p95=21.9ms n=60' \
     > "$WORK/mixed.log"
 
@@ -89,10 +89,14 @@ check "draw nodrawable 中位數" \
       "$(tagged_median "$WORK/mixed.log" draw nodrawable)" 1
 check "draw noframe 中位數" \
       "$(tagged_median "$WORK/mixed.log" draw noframe)" 3
+check "draw uploadskip 中位數" \
+      "$(tagged_median "$WORK/mixed.log" draw uploadskip)" 1
 check "draw 跳過前一行的 maxgap 中位數" \
       "$(tagged_median "$WORK/mixed.log" draw maxgap 1)" 61
 check "draw 跳過前一行的 in_p95 中位數" \
       "$(tagged_median "$WORK/mixed.log" draw in_p95 1)" 5.6
+check "draw 跳過前一行的 uploadskip 中位數" \
+      "$(tagged_median "$WORK/mixed.log" draw uploadskip 1)" 2
 
 echo ""
 echo "=== latency_median ==="
