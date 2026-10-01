@@ -55,6 +55,20 @@ set_frontmost_bundle() {
     osascript -e "tell application id \"${bundle}\" to activate" >/dev/null 2>&1
 }
 
+# 依 PID 正常結束 Mirage（走 applicationWillTerminate，會刪 socket）。不能用 bundle id 的 quit：
+# 測試用 .app 與使用者平常用的 Mirage 同一個 bundle id，會把使用者的也關掉。
+# gui_session_cleanup 用 pkill（SIGTERM），不走 app 的結束流程，socket 會留下。
+quit_mirage_gracefully() {
+    local pid="$1" attempt
+    [[ "${pid}" =~ ^[0-9]+$ ]] || return 1
+    osascript -l JavaScript -e "ObjC.import('AppKit'); var a = \$.NSRunningApplication.runningApplicationWithProcessIdentifier(${pid}); a ? a.terminate : false" >/dev/null 2>&1
+    for attempt in $(seq 1 50); do
+        kill -0 "${pid}" 2>/dev/null || return 0
+        sleep 0.2
+    done
+    return 1
+}
+
 host_cursor_position() {
     swift -e 'import CoreGraphics; let p = CGEvent(source: nil)!.location; print(String(format: "%.3f,%.3f", p.x, p.y))' \
         2>/dev/null
@@ -187,18 +201,18 @@ if [ "$?" -ne 0 ]; then exit 1; fi
 
 echo "=== 背景鍵盤快捷鍵 ==="
 "${ADB}" -s "${TARGET_SERIAL}" shell am start -a android.settings.SETTINGS < /dev/null >/dev/null
-wait_for_focus 'com\.android\.settings' "⌘1 前置狀態 Settings" || exit 1
+wait_for_focus 'com\.(google\.)?android\.settings' "⌘1 前置狀態 Settings" || exit 1
 request_control key --key-code 18 --modifiers cmd --action press >/dev/null || exit 1
 wait_for_focus 'com\.google\.android\.apps\.nexuslauncher|com\.android\.launcher3' \
     "⌘1 回到 Android 主畫面" || exit 1
 "${ADB}" -s "${TARGET_SERIAL}" shell am start -a android.settings.SETTINGS < /dev/null >/dev/null
-wait_for_focus 'com\.android\.settings' "⌘2 前置狀態 Settings" || exit 1
+wait_for_focus 'com\.(google\.)?android\.settings' "⌘2 前置狀態 Settings" || exit 1
 request_control key --key-code 19 --modifiers cmd --action press >/dev/null || exit 1
 wait_for_overview_panel "⌘2 開啟最近任務" || exit 1
 
 echo "=== 標題列按鈕與觸控板捲動 ==="
 "${ADB}" -s "${TARGET_SERIAL}" shell am start -a android.settings.SETTINGS < /dev/null >/dev/null
-wait_for_focus 'com\.android\.settings' "標題列主畫面按鈕前置狀態 Settings" || exit 1
+wait_for_focus 'com\.(google\.)?android\.settings' "標題列主畫面按鈕前置狀態 Settings" || exit 1
 request_control titlebar --visible true >/dev/null || exit 1
 STATE="$(request_control state)" || exit 1
 python3 - "${STATE}" <<'PY' || exit 1
@@ -361,10 +375,14 @@ ups = [value for value in ids if value.lower() == "ffffffff"]
 assert len(downs) == 1 and len(ups) == 1, f"app 圖示點擊沒有完整送達 guest：down={len(downs)} up={len(ups)}"
 print("✅ app 圖示點擊送達 guest，觸點已放開")
 PY
-wait_for_focus 'com\.android\.settings' "點選 Settings app 圖示" || exit 1
+wait_for_focus 'com\.(google\.)?android\.settings' "點選 Settings app 圖示" || exit 1
 
 echo "=== 使用者狀態與通道清理 ==="
-gui_session_cleanup "${BUNDLE}"
+MIRAGE_PID="$(request_control state | python3 -c 'import json,sys; print(json.load(sys.stdin)["pid"])')" || exit 1
+if ! quit_mirage_gracefully "${MIRAGE_PID}"; then
+    echo "❌ Mirage（pid ${MIRAGE_PID}）10 秒內沒有正常結束"
+    exit 1
+fi
 SESSION_RUNNING=0
 for attempt in 1 2 3 4 5 6 7 8 9 10; do
     [ ! -e "${SOCKET}" ] && break
@@ -390,6 +408,9 @@ if [ -e "${SOCKET}" ]; then
 fi
 gui_session_cleanup "${BUNDLE}"
 SESSION_RUNNING=0
+# gui_session_start 會把 Mirage 拉到前景；這一段驗的是「沒開通道」，前景改變不是通道造成的，切回去再斷言。
+set_frontmost_bundle "${ORIGINAL_FRONTMOST}" || true
+sleep 0.5
 assert_equals "未開啟通道時 socket 不存在" "$(test ! -e "${SOCKET}" && printf absent)" "absent"
 assert_equals "結束後真實游標位置" "$(host_cursor_position)" "${ORIGINAL_CURSOR}"
 assert_equals "結束後前景 app" "$(frontmost_bundle)" "${ORIGINAL_FRONTMOST}"

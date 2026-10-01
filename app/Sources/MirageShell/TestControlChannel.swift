@@ -228,6 +228,13 @@ final class TestControlChannel {
         NSApp.postEvent(event, atStart: false)
     }
 
+    private typealias SetWindowLocation = @convention(c) (CGEvent, CGPoint) -> Void
+    /// CoreGraphics 未公開的函式，只在測試控制通道使用。找不到時捲動指令回錯誤。
+    private static let setWindowLocation: SetWindowLocation? = {
+        guard let symbol = dlsym(UnsafeMutableRawPointer(bitPattern: -2), "CGEventSetWindowLocation") else { return nil }
+        return unsafeBitCast(symbol, to: SetWindowLocation.self)
+    }()
+
     private func postScroll(point: TestControlPoint, dx: Double, dy: Double,
                             phase: TestControlScrollPhase, unit: TestControlUnit) throws {
         guard let window = model?.windowController.window(), let contentView = window.contentView else {
@@ -253,12 +260,25 @@ final class TestControlChannel {
         event.setIntegerValueField(.mouseEventWindowUnderMousePointer, value: Int64(window.windowNumber))
         event.setIntegerValueField(.mouseEventWindowUnderMousePointerThatCanHandleThisEvent,
                                    value: Int64(window.windowNumber))
+        // 欄位 51 未公開，但 NSEvent(cgEvent:) 的 windowNumber 只看它（91／92 不影響）。2026-10-01 在
+        // macOS 26 逐一試 0 到 200 號欄位確認。下方仍檢查轉換結果，系統改版失效時會回錯誤而不是送錯事件。
+        event.setIntegerValueField(CGEventField(rawValue: 51)!, value: Int64(window.windowNumber))
+        // 設了欄位 51 之後，NSEvent 的 locationInWindow 不再由 event.location 換算，而是讀
+        // CGEventSetWindowLocation 設的視窗座標（原點在視窗左上），沒設時固定落在視窗左下角。
+        guard let setWindowLocation = Self.setWindowLocation else {
+            throw TestControlProtocolError.invalid("找不到 CGEventSetWindowLocation，無法指定捲動位置")
+        }
+        setWindowLocation(event, CGPoint(x: windowPoint.x, y: window.frame.height - windowPoint.y))
         guard let converted = NSEvent(cgEvent: event) else {
             throw TestControlProtocolError.invalid("CGEvent 無法轉成 NSEvent")
         }
         let expectedPhase = eventPhase(phase)
         guard converted.windowNumber == window.windowNumber else {
             throw TestControlProtocolError.invalid("捲動事件 windowNumber 不符，實際為 \(converted.windowNumber)")
+        }
+        guard abs(converted.locationInWindow.x - windowPoint.x) < 0.5,
+              abs(converted.locationInWindow.y - windowPoint.y) < 0.5 else {
+            throw TestControlProtocolError.invalid("捲動事件位置不符，實際為 \(converted.locationInWindow)，期待 \(windowPoint)")
         }
         guard converted.phase == expectedPhase else {
             throw TestControlProtocolError.invalid("捲動事件 phase 不符，實際為 \(converted.phase.rawValue)")
@@ -314,19 +334,22 @@ final class TestControlChannel {
         try? await Task.sleep(for: .milliseconds(Int64(milliseconds)))
     }
 
+    /// CGEvent 欄位 99 用 CGScrollPhase 的數值（began 1、changed 2、ended 4），不是 NSEvent.Phase
+    /// （began 1、changed 4、ended 8）。用錯會讓 changed 被轉成 ended。
     private func scrollPhaseValue(_ phase: TestControlScrollPhase) -> UInt64 {
         switch phase {
-        case .began: return UInt64(NSEvent.Phase.began.rawValue)
-        case .changed: return UInt64(NSEvent.Phase.changed.rawValue)
-        case .ended: return UInt64(NSEvent.Phase.ended.rawValue)
+        case .began: return UInt64(CGScrollPhase.began.rawValue)
+        case .changed: return UInt64(CGScrollPhase.changed.rawValue)
+        case .ended: return UInt64(CGScrollPhase.ended.rawValue)
         case .momentumChanged, .momentumEnded: return 0
         }
     }
 
+    /// 欄位 123 用 CGMomentumScrollPhase（begin 1、continue 2、end 3）。
     private func momentumPhaseValue(_ phase: TestControlScrollPhase) -> UInt64 {
         switch phase {
-        case .momentumChanged: return UInt64(NSEvent.Phase.changed.rawValue)
-        case .momentumEnded: return UInt64(NSEvent.Phase.ended.rawValue)
+        case .momentumChanged: return UInt64(CGMomentumScrollPhase.continuous.rawValue)
+        case .momentumEnded: return UInt64(CGMomentumScrollPhase.end.rawValue)
         case .began, .changed, .ended: return 0
         }
     }

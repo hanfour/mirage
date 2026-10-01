@@ -152,6 +152,10 @@ final class MirrorMTKView: MTKView {
         return (n.x, n.y)
     }
 
+    /// Mirage 不在前景時，點畫面的第一下也送進 Android（同時切到前景），與 iPhone 鏡像輸出相同。
+    /// 預設的 false 會讓第一下只用來啟用視窗，使用者要點兩次；測試控制通道在背景點擊也會被吞掉。
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+
     override func mouseDown(with event: NSEvent) {
         leftMouseDown = true
         cancelTouchpadDrag()
