@@ -43,7 +43,8 @@ import Testing
             Issue.record("十字鍵按住時應持續移動觸點")
             return
         }
-        #expect(abs(dpadPoint.y - 0.6) < 1e-9)
+        // 十字鍵下要看下面的內容：手指往上拖（y 變小），內容往上捲。
+        #expect(abs(dpadPoint.y - 0.4) < 1e-9)
         #expect(machine.apply(.buttonUp(.dpadDown)) == [.touchUp(dpadPoint)])
 
         #expect(machine.apply(.leftStickChanged(GamepadVector(x: 0, y: 0.5))) == [.touchDown(center)])
@@ -52,7 +53,8 @@ import Testing
             Issue.record("左搖桿按住時應持續移動觸點")
             return
         }
-        #expect(abs(stickPoint.y - 0.45) < 1e-9)
+        // 左搖桿往上推要看上面的內容：手指往下拖（y 變大）。
+        #expect(abs(stickPoint.y - 0.55) < 1e-9)
         #expect(machine.apply(.leftStickChanged(.zero)) == [.touchUp(stickPoint)])
     }
 

@@ -180,12 +180,12 @@ import Testing
         let keyboard = base.selecting(tapID).beginningRebindSelected()
             .capturingKeyboardKey(.key("q"))
         #expect(keyboard.rebindingID == nil)
-        guard case .tap(let key, _, let gamepad) = keyboard.items[1].binding else {
+        guard case .tap(let key, _, let keyboardGamepad) = keyboard.items[1].binding else {
             Issue.record("期待 .tap")
             return
         }
         #expect(key == .key("q"))
-        #expect(gamepad == nil)
+        #expect(keyboardGamepad == nil)
 
         let gamepad = keyboard.beginningRebindSelected().capturingGamepadButton(.rightShoulder)
         guard case .tap(let reboundKey, _, let button) = gamepad.items[1].binding else {

@@ -15,12 +15,14 @@ private final class SpyInjector: InputInjecting, @unchecked Sendable {
     /// D24：等待改用計數閘門，不再輪詢。見 `CountGate` 的說明。
     let keyGate = CountGate()
     let touchGate = CountGate()
+    let tapGate = CountGate()
 
     var touchCalls: Int { lock.lock(); defer { lock.unlock() }; return _touchFrames.count }
     /// 存下每一幀的內容（不只計數）：要斷言「引擎狀態沒被編輯模式弄髒」就得看觸點本身，
     /// 光數次數看不出搖桿停在哪裡、是不是 down。
     var touchFrames: [[TouchSpec]] { lock.lock(); defer { lock.unlock() }; return _touchFrames }
     var keyCalls: [(KeyCode, Bool)] { lock.lock(); defer { lock.unlock() }; return _keyCalls }
+    var tapCalls: [(Double, Double, Bool)] { lock.lock(); defer { lock.unlock() }; return _tapCalls }
 
     func sendTouches(_ touches: [TouchSpec]) async {
         lock.lock(); _touchFrames.append(touches); lock.unlock()
@@ -34,6 +36,7 @@ private final class SpyInjector: InputInjecting, @unchecked Sendable {
     /// tap，但仍如實記錄——回傳空實作等於在假件裡埋一個「送出去卻查不到」的盲區。
     func sendTap(nx: Double, ny: Double, down: Bool) async {
         lock.lock(); _tapCalls.append((nx, ny, down)); lock.unlock()
+        tapGate.increment()
     }
 }
 
@@ -100,6 +103,25 @@ private func profileWithWAndJ() -> KeymapProfile {
         c.handleKeyDown(.key("a"))
         await spy.keyGate.wait(for: 1)
         #expect(spy.keyCalls.first?.0 == .key("a"))
+    }
+
+    /// 沒有 profile 時文字模式幾乎一直開著，手把的每幀推進不能被它擋住，
+    /// 否則十字鍵捲動只有按下沒有移動（2026-10-01 實機查到）。方向：十字鍵下手指往上（y 變小）。
+    @Test func gamepadScrollAdvancesWhileTextModeIsOn() async throws {
+        let spy = SpyInjector()
+        let c = KeymapController(queue: InputQueue(injector: spy), profile: nil)
+        c.setTextMode(true)
+        c.handleGamepadSnapshot(GamepadSnapshot(buttons: [.dpadDown]))
+        c.tickGamepad(dt: 0.1)
+        // 有上限的等待：swift-testing 的 .timeLimit 在這個工具鏈不生效，用 gate.wait 的話
+        // 錯誤版本只會送一個 tap，測試會永遠卡住而不是變紅。
+        for _ in 0..<200 where spy.tapGate.current < 2 { try await Task.sleep(for: .milliseconds(10)) }
+
+        let taps = spy.tapCalls
+        let pressedTwice = taps.count >= 2 && taps[0].2 && taps[1].2
+        let movedUp = taps.count >= 2 && taps[1].1 < taps[0].1
+        #expect(pressedTwice)
+        #expect(movedUp)
     }
 
     @Test func emptyProfileUsesBasicGamepadAndroidActions() async throws {

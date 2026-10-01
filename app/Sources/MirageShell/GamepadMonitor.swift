@@ -9,6 +9,9 @@ final class GamepadMonitor {
     private var timer: Timer?
     private var lastTick: TimeInterval?
     private var foreground = false
+    /// 測試控制通道送入非中立的手把狀態時為 true：Mirage 在背景也要推進每幀計時，
+    /// 否則十字鍵捲動、右搖桿視角在測試裡只會有按下沒有移動。產品路徑（實體手把）不受影響。
+    private var testOverride = false
     private nonisolated(unsafe) var observers: [NSObjectProtocol] = []
 
     var onSnapshot: (@MainActor (GamepadSnapshot) -> Void)?
@@ -64,7 +67,7 @@ final class GamepadMonitor {
         if active {
             refreshController()
             startTimer()
-        } else {
+        } else if !testOverride {
             timer?.invalidate()
             timer = nil
             lastTick = nil
@@ -98,12 +101,24 @@ final class GamepadMonitor {
         if foreground { resynchronize() }
     }
 
+    /// 測試控制通道專用。非中立狀態時讓每幀計時在背景也運作，回到中立且不在前景時停止。
+    func setTestOverride(active: Bool) {
+        testOverride = active
+        if active {
+            startTimer()
+        } else if !foreground {
+            timer?.invalidate()
+            timer = nil
+            lastTick = nil
+        }
+    }
+
     private func startTimer() {
         guard timer == nil else { return }
         lastTick = ProcessInfo.processInfo.systemUptime
         let next = Timer(timeInterval: 1.0 / 60.0, repeats: true) { [weak self] _ in
             MainActor.assumeIsolated {
-                guard let self, self.foreground else { return }
+                guard let self, self.foreground || self.testOverride else { return }
                 let now = ProcessInfo.processInfo.systemUptime
                 let dt = max(0, now - (self.lastTick ?? now))
                 self.lastTick = now
@@ -126,7 +141,7 @@ final class GamepadMonitor {
         for (button, input) in discrete where input.isPressed { buttons.insert(button) }
         if gamepad.leftThumbstickButton?.isPressed == true { buttons.insert(.leftThumbstickButton) }
         if gamepad.rightThumbstickButton?.isPressed == true { buttons.insert(.rightThumbstickButton) }
-        if gamepad.buttonMenu?.isPressed == true { buttons.insert(.menu) }
+        if gamepad.buttonMenu.isPressed { buttons.insert(.menu) }
         if gamepad.buttonOptions?.isPressed == true { buttons.insert(.options) }
 
         return GamepadSnapshot(

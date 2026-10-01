@@ -12,6 +12,8 @@ final class KeymapController {
     private var engine: KeymapEngine?
     private var editing = false
     private var textMode = false
+    /// 測試控制通道的 state 用：目前鍵盤是否走文字輸入（此時鍵位映射暫停）。
+    var isTextMode: Bool { textMode }
     private var gamepadDiffer = GamepadSnapshotDiffer()
     private var fallbackGamepad = GamepadFallbackMachine()
     var onCaptureKeyboardKey: (@MainActor (KeyCode) -> Bool)?
@@ -114,7 +116,9 @@ final class KeymapController {
 
     /// 以外層提供的經過時間推進右搖桿視角或無 profile 拖曳捲動。
     func tickGamepad(dt: Double) {
-        guard !editing, !textMode else { return }
+        // 只有編輯器擋手把。文字模式只決定鍵盤送到哪裡，沒有 profile 時它幾乎一直開著，
+        // 擋住的話無 profile 的十字鍵捲動永遠不會移動（2026-10-01 實機查到）。
+        guard !editing else { return }
         if let engine {
             emit(engine.gamepadLookTick(dt: dt))
         } else {

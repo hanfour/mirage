@@ -166,7 +166,8 @@ public struct GamepadFallbackMachine: Sendable {
 
     public mutating func tick(dt: Double) -> [GamepadFallbackAction] {
         guard let point = scrollPoint, dt.isFinite, dt > 0 else { return [] }
-        let nextY = point.y - scrollDirection * 0.6 * dt
+        // 方向對齊「看下面的內容」：十字鍵下（direction < 0）時手指往上拖，內容往上捲。
+        let nextY = point.y + scrollDirection * 0.6 * dt
         guard nextY < 0 || nextY > 1 else {
             let next = NormPoint.clamped(x: point.x, y: nextY)
             guard next != point else { return [] }
