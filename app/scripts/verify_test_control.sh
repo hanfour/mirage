@@ -15,6 +15,9 @@ NO_CONTROL_LOG="${WORK}/no-control.log"
 SOCKET="${WORK}/control.sock"
 EVENT_LOG="${WORK}/getevent.log"
 UI_XML="${WORK}/launcher.xml"
+OVERVIEW_XML="${WORK}/overview.xml"
+OVERVIEW_DEVICE_PATH="/sdcard/mirage-test-control-overview.xml"
+OVERVIEW_RESOURCE_ID="com.google.android.apps.nexuslauncher:id/overview_panel"
 GETEVENT_PID=""
 SESSION_RUNNING=0
 
@@ -76,6 +79,55 @@ wait_for_focus() {
     return 1
 }
 
+dump_guest_ui() {
+    local device_path="$1" host_path="$2"
+    "${ADB}" -s "${TARGET_SERIAL}" shell uiautomator dump "${device_path}" < /dev/null \
+        >/dev/null 2>&1 || return 1
+    "${ADB}" -s "${TARGET_SERIAL}" pull "${device_path}" "${host_path}" < /dev/null \
+        >/dev/null 2>&1
+}
+
+guest_drawer_state() {
+    python3 - "$1" <<'PY'
+import sys
+import xml.etree.ElementTree as ET
+
+root = ET.parse(sys.argv[1]).getroot()
+drawer_search = False
+settings_icon = False
+for node in root.iter("node"):
+    text = (node.get("text") or "").strip().lower()
+    description = (node.get("content-desc") or "").strip().lower()
+    resource_id = (node.get("resource-id") or "").lower()
+    bounds = node.get("bounds", "")
+    label = f"{text} {description}"
+    if (("search" in label and ("phone" in label or "app" in label))
+            or "all apps" in label or "search_container_all_apps" in resource_id):
+        drawer_search = True
+    if text == "settings" or description == "settings":
+        settings_icon = bounds.startswith("[") and "][" in bounds
+print("open" if drawer_search and settings_icon else "closed")
+PY
+}
+
+wait_for_overview_panel() {
+    local description="$1" deadline=$((SECONDS + 10)) found=""
+    : > "${OVERVIEW_XML}"
+    while [ "${SECONDS}" -lt "${deadline}" ]; do
+        if dump_guest_ui "${OVERVIEW_DEVICE_PATH}" "${OVERVIEW_XML}" \
+            && grep -Fq "resource-id=\"${OVERVIEW_RESOURCE_ID}\"" "${OVERVIEW_XML}"; then
+            echo "✅ ${description}：${OVERVIEW_RESOURCE_ID}"
+            return 0
+        fi
+        sleep 0.5
+    done
+    dump_guest_ui "${OVERVIEW_DEVICE_PATH}" "${OVERVIEW_XML}" || true
+    found="$(grep -oEi 'resource-id="[^"]*overview[^"]*"' "${OVERVIEW_XML}" 2>/dev/null | sort -u || true)"
+    if [ -z "${found}" ]; then found="（未找到 overview 相關 resource-id）"; fi
+    echo "❌ ${description}：10 秒內未找到 ${OVERVIEW_RESOURCE_ID}；dump 內的 overview resource-id：${found}"
+    return 1
+}
+
 request_control() {
     python3 "${SCRIPT_DIR}/lib/mirage_ctl.py" "${SOCKET}" "$@"
 }
@@ -134,15 +186,19 @@ PY
 if [ "$?" -ne 0 ]; then exit 1; fi
 
 echo "=== 背景鍵盤快捷鍵 ==="
+"${ADB}" -s "${TARGET_SERIAL}" shell am start -a android.settings.SETTINGS < /dev/null >/dev/null
+wait_for_focus 'com\.android\.settings' "⌘1 前置狀態 Settings" || exit 1
 request_control key --key-code 18 --modifiers cmd --action press >/dev/null || exit 1
 wait_for_focus 'com\.google\.android\.apps\.nexuslauncher|com\.android\.launcher3' \
     "⌘1 回到 Android 主畫面" || exit 1
 "${ADB}" -s "${TARGET_SERIAL}" shell am start -a android.settings.SETTINGS < /dev/null >/dev/null
-sleep 2
+wait_for_focus 'com\.android\.settings' "⌘2 前置狀態 Settings" || exit 1
 request_control key --key-code 19 --modifiers cmd --action press >/dev/null || exit 1
-wait_for_focus 'recents|overview|quickstep|systemui' "⌘2 開啟最近任務" || exit 1
+wait_for_overview_panel "⌘2 開啟最近任務" || exit 1
 
 echo "=== 標題列按鈕與觸控板捲動 ==="
+"${ADB}" -s "${TARGET_SERIAL}" shell am start -a android.settings.SETTINGS < /dev/null >/dev/null
+wait_for_focus 'com\.android\.settings' "標題列主畫面按鈕前置狀態 Settings" || exit 1
 request_control titlebar --visible true >/dev/null || exit 1
 STATE="$(request_control state)" || exit 1
 python3 - "${STATE}" <<'PY' || exit 1
@@ -197,6 +253,16 @@ ups = [value for value in ids if value.lower() == "ffffffff"]
 assert len(downs) == 1 and len(ups) == 1, f"上緣點擊沒有完整送達 guest：down={len(downs)} up={len(ups)}"
 print("✅ 標題列隱藏後，上緣點擊送達 guest")
 PY
+wait_for_focus 'com\.google\.android\.apps\.nexuslauncher|com\.android\.launcher3' \
+    "觸控板捲動前置狀態 launcher 主畫面" || exit 1
+
+if ! dump_guest_ui "/sdcard/mirage-test-control.xml" "${UI_XML}"; then
+    echo "❌ 無法擷取捲動前的 Android UI hierarchy。"
+    exit 1
+fi
+DRAWER_STATE="$(guest_drawer_state "${UI_XML}")" || exit 1
+assert_equals "捲動前 app 抽屜狀態" "${DRAWER_STATE}" "closed"
+echo "動作前狀態：launcher 主畫面，app 抽屜關閉"
 
 : > "${EVENT_LOG}"
 "${ADB}" -s "${TARGET_SERIAL}" shell getevent -l /dev/input/event1 < /dev/null \
@@ -239,33 +305,26 @@ print(f"✅ guest 收到一次按下與放開，ABS_MT_POSITION_Y {positions[0]}
 PY
 if [ "$?" -ne 0 ]; then exit 1; fi
 
-"${ADB}" -s "${TARGET_SERIAL}" shell uiautomator dump /sdcard/mirage-test-control.xml < /dev/null >/dev/null
-"${ADB}" -s "${TARGET_SERIAL}" pull /sdcard/mirage-test-control.xml "${UI_XML}" < /dev/null >/dev/null
-STATE="$(request_control state)" || exit 1
-read -r APP_X APP_Y <<< "$(python3 - "${UI_XML}" "${STATE}" <<'PY'
-import json
+if ! dump_guest_ui "/sdcard/mirage-test-control.xml" "${UI_XML}"; then
+    echo "❌ 無法擷取捲動後的 Android UI hierarchy。"
+    exit 1
+fi
+DRAWER_STATE="$(guest_drawer_state "${UI_XML}")" || exit 1
+assert_equals "捲動後 app 抽屜狀態" "${DRAWER_STATE}" "open"
+read -r APP_X APP_Y <<< "$(python3 - "${UI_XML}" <<'PY'
 import re
 import sys
 import xml.etree.ElementTree as ET
 
 root = ET.parse(sys.argv[1]).getroot()
-state = json.loads(sys.argv[2])
-content = state["contentSize"]
-drawer = False
 settings = []
 for node in root.iter("node"):
     text = (node.get("text") or "").strip()
     description = (node.get("content-desc") or "").strip()
-    resource_id = (node.get("resource-id") or "").lower()
-    label = f"{text} {description}".lower()
-    if ("search" in label and ("phone" in label or "app" in label)) \
-            or "all apps" in label or "search_container_all_apps" in resource_id:
-        drawer = True
     if text.lower() == "settings" or description.lower() == "settings":
         match = re.fullmatch(r"\[(\d+),(\d+)\]\[(\d+),(\d+)\]", node.get("bounds", ""))
         if match:
             settings.append(tuple(map(int, match.groups())))
-assert drawer, "app 抽屜搜尋列沒有出現在 UI hierarchy"
 assert settings, "app 抽屜裡找不到 Settings 圖示"
 bounds = re.fullmatch(r"\[(\d+),(\d+)\]\[(\d+),(\d+)\]", root.find("node").get("bounds", ""))
 assert bounds, "無法解析 guest 螢幕尺寸"
@@ -281,7 +340,7 @@ if [ -z "${APP_X:-}" ] || [ -z "${APP_Y:-}" ]; then
     echo "❌ 無法讀取 Settings app 圖示座標。"
     exit 1
 fi
-echo "✅ app 抽屜已開啟"
+echo "動作前狀態：app 抽屜已開啟，Settings app 圖示座標已取得"
 : > "${EVENT_LOG}"
 "${ADB}" -s "${TARGET_SERIAL}" shell getevent -l /dev/input/event1 < /dev/null \
     > "${EVENT_LOG}" 2>&1 &
