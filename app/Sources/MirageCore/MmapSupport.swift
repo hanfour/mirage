@@ -5,8 +5,25 @@ import Foundation
 public enum MmapSupport {
     /// RGBA8888 的緩衝區位元組數。任一維度 <= 0 → 0（呼叫端據此拒絕掛載）。
     public static func byteCount(width: Int, height: Int) -> Int {
-        guard width > 0, height > 0 else { return 0 }
-        return width * height * 4
+        rgbaByteCount(width: width, height: height) ?? 0
+    }
+
+    static func rgbaByteCount(width: Int, height: Int) -> Int? {
+        guard width > 0, height > 0 else { return nil }
+        let (pixels, pixelOverflow) = width.multipliedReportingOverflow(by: height)
+        guard !pixelOverflow else { return nil }
+        let (bytes, byteOverflow) = pixels.multipliedReportingOverflow(by: 4)
+        return byteOverflow ? nil : bytes
+    }
+
+    /// 依通知回報的實際尺寸取映射緩衝區開頭的緊密排列 RGBA 像素。
+    /// emulator 可能回傳比請求少一列或一欄，超過映射長度或尺寸為零時回傳 nil。
+    public static func frame(width: Int, height: Int, buffer: Data) -> Frame? {
+        guard let bytes = rgbaByteCount(width: width, height: height), bytes <= buffer.count else {
+            return nil
+        }
+        let rgba = bytes == buffer.count ? buffer : Data(buffer.prefix(bytes))
+        return Frame(width: width, height: height, rgba: rgba)
     }
 
     /// 每次掛載都用**唯一**路徑。

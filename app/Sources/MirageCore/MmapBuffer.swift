@@ -39,9 +39,14 @@ public final class MmapBuffer: @unchecked Sendable {
     /// 映射區的 view（`Data(bytesNoCopy:)`），渲染器會讀到正在被覆寫的記憶體 → 撕裂畫面。
     /// 已量化：複製只值 0.2 ms/幀（見 spec §1.1），拿它換正確性極為划算。
     public func snapshot() -> Data {
+        snapshot(byteCount: byteCount) ?? Data()
+    }
+
+    /// 只複製指定長度，供 emulator 實際尺寸小於請求尺寸時避免多複製填充區。
+    public func snapshot(byteCount requestedByteCount: Int) -> Data? {
         lock.lock(); defer { lock.unlock() }
-        guard let base else { return Data() }
-        return Data(bytes: base, count: byteCount)
+        guard let base, requestedByteCount > 0, requestedByteCount <= byteCount else { return nil }
+        return Data(bytes: base, count: requestedByteCount)
     }
 
     /// `munmap` + `close(fd)` + `unlink`。冪等——重複呼叫不得崩潰。

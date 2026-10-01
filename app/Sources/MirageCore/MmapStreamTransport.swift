@@ -55,7 +55,7 @@ public struct MmapStreamTransport: DisplayTransport {
             // 快照指紋與 unary raw 比對不繼承呼叫端的 actor 隔離，避免跑在 UI actor 上。
             let task = Task.detached {
                 await Self.consume(responses: responses, buffer: buffer,
-                                   width: width, height: height, channel: channel,
+                                   bufferByteCount: size, channel: channel,
                                    into: continuation)
             }
             continuation.onTermination = { _ in
@@ -87,22 +87,41 @@ public struct MmapStreamTransport: DisplayTransport {
     /// （`dropChannel()` 拆 channel 前的顯式取消）。`cancel()` 冪等，重複呼叫無害。
     public func cancelStream() { latest.take()?.cancel() }
 
-    /// 消費 `responseStream`：每個通知代表映射區已有新內容，讀出快照、餵給探測狀態機，
+    /// 消費 `responseStream`：依通知尺寸複製實際像素，餵給探測狀態機，
     /// 依判定結果 yield / 跳過 / 判定不可用。串流自然結束時另外檢查探測是否完成——見
     /// `MmapBlankProbe.endedWithoutContent` 的說明（Critical 修正：提早結束不得放行成
     /// 乾淨結束）。
     private static func consume(
         responses: GRPCAsyncResponseStream<Android_Emulation_Control_Image>,
-        buffer: MmapBuffer, width: Int, height: Int, channel: GrpcChannelBox,
+        buffer: MmapBuffer, bufferByteCount: Int, channel: GrpcChannelBox,
         into continuation: AsyncThrowingStream<Frame, Error>.Continuation
     ) async {
         var probe = MmapBlankProbe(frameBudget: blankProbeFrames)
         var stallDetector = MmapStallDetector()
+        var didLogInvalidFrame = false
         do {
-            for try await _ in responses {
+            for try await image in responses {
                 if Task.isCancelled { return }
-                let data = buffer.snapshot()
-                switch probe.observe(isBlank: MmapSupport.isBlank(data)) {
+                let frameWidth = Int(image.format.width)
+                let frameHeight = Int(image.format.height)
+                guard let pixelByteCount = MmapSupport.rgbaByteCount(
+                    width: frameWidth,
+                    height: frameHeight
+                ), pixelByteCount <= bufferByteCount,
+                      let pixels = buffer.snapshot(byteCount: pixelByteCount),
+                      let frame = MmapSupport.frame(
+                        width: frameWidth,
+                        height: frameHeight,
+                        buffer: pixels
+                      ) else {
+                    if !didLogInvalidFrame {
+                        print("[transport] mmap 通知尺寸無效（\(frameWidth)x\(frameHeight)，映射 \(bufferByteCount) 位元組），略過畫面")
+                        didLogInvalidFrame = true
+                    }
+                    continue
+                }
+
+                switch probe.observe(isBlank: MmapSupport.isBlank(frame.rgba)) {
                 case .stillProbing:
                     continue        // 還在探測窗口內且全零：不送出黑幀
                 case .unusable:
@@ -110,8 +129,8 @@ public struct MmapStreamTransport: DisplayTransport {
                         "前 \(blankProbeFrames) 幀映射區皆全零"))
                     return
                 case .deliver:
-                    continuation.yield(Frame(width: width, height: height, rgba: data, transitMs: nil))
-                    let fingerprint = MmapSupport.fingerprint(of: data)
+                    continuation.yield(frame)
+                    let fingerprint = MmapSupport.fingerprint(of: frame.rgba)
                     let decision = stallDetector.observe(
                         fingerprint: fingerprint,
                         at: ProcessInfo.processInfo.systemUptime
@@ -120,9 +139,9 @@ public struct MmapStreamTransport: DisplayTransport {
 
                     let comparison = await compareWithRaw(
                         client: channel.client,
-                        snapshot: data,
-                        width: width,
-                        height: height
+                        snapshot: frame.rgba,
+                        width: frame.width,
+                        height: frame.height
                     )
                     if Task.isCancelled { return }
                     let resolution = stallDetector.resolve(

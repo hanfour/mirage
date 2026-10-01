@@ -320,12 +320,22 @@ public enum MiragePull {
                 return result
             }
             if case .mmap = mode {
-                let status = try await channel.client.getStatus(.init())
-                guard MmapVersionGate.allows(versionString: status.version) else {
+                let health = await GrpcHealthProbe(channel: channel).probe(timeout: .seconds(5))
+                guard case .healthy(let emulatorInfo) = health else {
                     channel.shutdown()
                     try? await Task.sleep(for: .milliseconds(200))
                     return invalidResult(
-                        message: "emulator \(status.version) 不支援 MMAP，需使用 37 以上版本",
+                        message: "emulator 健康探測失敗，無法確認 MMAP 支援版本",
+                        width: width,
+                        height: height,
+                        transport: mode.rawValue
+                    )
+                }
+                guard MmapVersionGate.allows(versionString: emulatorInfo.version) else {
+                    channel.shutdown()
+                    try? await Task.sleep(for: .milliseconds(200))
+                    return invalidResult(
+                        message: "emulator \(emulatorInfo.version) 不支援 MMAP，需使用 37 以上版本",
                         width: width,
                         height: height,
                         transport: mode.rawValue

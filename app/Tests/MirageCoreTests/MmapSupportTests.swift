@@ -40,6 +40,55 @@ import Testing
         #expect(MmapSupport.byteCount(width: 900, height: 2000) == 900 * 2000 * 4)
         #expect(MmapSupport.byteCount(width: 0, height: 100) == 0)
         #expect(MmapSupport.byteCount(width: -1, height: 100) == 0)
+        #expect(MmapSupport.byteCount(width: Int.max, height: Int.max) == 0)
+    }
+
+    /// emulator 可能少回一欄；共享區前段依實際寬度緊密排列，Frame 只取實際像素長度。
+    @Test func frameUses859By1910PrefixFrom860By1910Buffer() throws {
+        let actualByteCount = MmapSupport.byteCount(width: 859, height: 1910)
+        let requestedByteCount = MmapSupport.byteCount(width: 860, height: 1910)
+        var buffer = Data(repeating: 0x37, count: actualByteCount)
+        buffer.append(Data(repeating: 0xE5, count: requestedByteCount - actualByteCount))
+
+        let frame = try #require(MmapSupport.frame(width: 859, height: 1910, buffer: buffer))
+
+        #expect(frame.width == 859)
+        #expect(frame.height == 1910)
+        #expect(frame.rgba.count == actualByteCount)
+        #expect(frame.rgba[actualByteCount - 1] == 0x37)
+        #expect(frame.isValid)
+    }
+
+    @Test func frameUses898By1995PrefixFrom898By1996Buffer() throws {
+        let actualByteCount = MmapSupport.byteCount(width: 898, height: 1995)
+        let requestedByteCount = MmapSupport.byteCount(width: 898, height: 1996)
+        let buffer = Data(repeating: 0x5A, count: requestedByteCount)
+
+        let frame = try #require(MmapSupport.frame(width: 898, height: 1995, buffer: buffer))
+
+        #expect(frame.width == 898)
+        #expect(frame.height == 1995)
+        #expect(frame.rgba.count == actualByteCount)
+        #expect(frame.isValid)
+    }
+
+    @Test func frameRejectsZeroDimensions() {
+        let zeroWidth = MmapSupport.frame(width: 0, height: 1910, buffer: Data(count: 4)) == nil
+        let zeroHeight = MmapSupport.frame(width: 859, height: 0, buffer: Data(count: 4)) == nil
+
+        #expect(zeroWidth)
+        #expect(zeroHeight)
+    }
+
+    @Test func frameRejectsPixelsLargerThanTheMappedBuffer() {
+        let expectedByteCount = MmapSupport.byteCount(width: 4, height: 2)
+        let rejected = MmapSupport.frame(
+            width: 4,
+            height: 2,
+            buffer: Data(count: expectedByteCount - 1)
+        ) == nil
+
+        #expect(rejected)
     }
 
     @Test func isBlankDetectsAllZero() {
