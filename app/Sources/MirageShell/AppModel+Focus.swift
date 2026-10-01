@@ -29,6 +29,7 @@ extension AppModel {
             // 跳轉——跳轉會延後一個 runloop tick，游標會有一瞬間「還沒抓回來」的空窗。
             MainActor.assumeIsolated {
                 guard let self else { return }
+                self.gamepadMonitor?.resynchronize()
                 self.mouseCapture.updateCapture(shouldCapture: self.shouldCapture)
             }
         }

@@ -38,6 +38,7 @@ extension AppModel {
     /// 這是刻意的取捨——寧可沒有 profile，也不要載入一份與當前遊戲無關的。
     func loadKeymap() {
         keymap = KeymapController(queue: inputQueue, profile: nil)
+        configureGamepadCapture()
         mouseCapture.updateCapture(shouldCapture: shouldCapture)
     }
 
@@ -129,6 +130,7 @@ extension AppModel {
             profileSaveError = nil
             profile = p
             keymap?.reload(p)
+            if !editing { gamepadMonitor?.resynchronize() }
             return true
         } catch {
             print("[keymap] profile save failed: \(error)")
@@ -140,6 +142,22 @@ extension AppModel {
     /// overlay 與抽屜共用的選取入口。兩邊都呼叫這裡，狀態因此只有一份。
     func selectBinding(_ id: UUID?) {
         editorSession = editorSession?.selecting(id)
+    }
+
+    func addTapBinding() {
+        applyToSession { $0.addingTap(at: NormPoint(x: 0.5, y: 0.5)) }
+    }
+
+    func deleteSelectedBinding() {
+        applyToSession { $0.deletingSelected() }
+    }
+
+    func beginRebindingSelectedBinding() {
+        editorSession = editorSession?.beginningRebindSelected()
+    }
+
+    func clearSelectedGamepadBinding() {
+        applyToSession { $0.clearingSelectedGamepadButton() }
     }
 
     /// 拖曳落點寫回 session 並**即時套用**到 `profile` 與引擎。
@@ -181,6 +199,7 @@ extension AppModel {
     /// 代價是選取會被清掉——可接受，且比一份版本號對不上的 session 安全。
     func saveEditorSession() {
         guard let session = editorSession else { return }
+        guard session.canSave else { return }
         let p = session.profile()
         // 寫檔失敗就**保持髒**（I1）：重建 session 會把 `isDirty` 歸零，而抽屜的存檔鍵
         // `.disabled(!session.isDirty)` 會跟著變灰——那是「已存好」的視覺訊號。使用者
@@ -288,6 +307,7 @@ extension AppModel {
         case .active(let p): keymap?.reload(p); profile = p
         case .inactive:      keymap?.reload(nil); profile = nil
         }
+        gamepadMonitor?.resynchronize()
         menuBar?.updateGame(package: currentPackage, active: keymap?.hasProfile == true)
         // Task 7：偵測切換 profile（含變成 .inactive）後，捕捉狀態也要跟著重新判斷——
         // 否則例如「原本無 profile 未捕捉，偵測到遊戲切成 active」的情況會漏掉 capture()。

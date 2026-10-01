@@ -1,0 +1,19 @@
+{
+  "gameId" : "com.example.userprofile",
+  "version" : 7,
+  "bindings" : [
+    {
+      "tap" : {
+        "at" : {
+          "x" : 0.64,
+          "y" : 0.73
+        },
+        "key" : {
+          "key" : {
+            "_0" : "q"
+          }
+        }
+      }
+    }
+  ]
+}

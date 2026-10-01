@@ -1,5 +1,6 @@
 import CoreFoundation
 import Foundation
+import MirageCore
 
 enum TestControlUnit: String, Equatable {
     case points = "pt"
@@ -40,6 +41,7 @@ enum TestControlCommand {
     case scroll(point: TestControlPoint, dx: Double, dy: Double, steps: Int,
                 intervalMilliseconds: Int, momentum: Int, unit: TestControlUnit)
     case key(keyCode: UInt16, modifiers: [String], action: TestControlKeyAction)
+    case gamepad(GamepadSnapshot)
     case titlebar(visible: Bool)
     case fullscreen(on: Bool)
 }
@@ -107,6 +109,20 @@ enum TestControlProtocol {
                 throw TestControlProtocolError.invalid("key action 必須是 press、down 或 up")
             }
             return .key(keyCode: UInt16(rawCode), modifiers: try modifiers(in: object), action: action)
+        case "gamepad":
+            let rawButtons = try strings("buttons", in: object)
+            guard Set(rawButtons).count == rawButtons.count,
+                  rawButtons.allSatisfy({ GamepadButton(rawValue: $0) != nil }) else {
+                throw TestControlProtocolError.invalid("buttons 含未知或重複的手把鍵")
+            }
+            let left = try vector("leftStick", in: object)
+            let right = try vector("rightStick", in: object)
+            let buttons = Set(rawButtons.compactMap { GamepadButton(rawValue: $0) })
+            return .gamepad(GamepadSnapshot(
+                buttons: buttons,
+                leftStick: left, rightStick: right,
+                leftTrigger: try number("leftTrigger", in: object, range: 0...1),
+                rightTrigger: try number("rightTrigger", in: object, range: 0...1)))
         case "titlebar":
             return .titlebar(visible: try boolean("visible", in: object))
         case "fullscreen":
@@ -198,6 +214,21 @@ enum TestControlProtocol {
             throw TestControlProtocolError.invalid("modifiers 只接受 cmd、shift、option、control，且不可重複")
         }
         return values
+    }
+
+    private static func strings(_ key: String, in object: [String: Any]) throws -> [String] {
+        guard let values = object[key] as? [String] else {
+            throw TestControlProtocolError.invalid("缺少有效字串陣列：\(key)")
+        }
+        return values
+    }
+
+    private static func vector(_ key: String, in object: [String: Any]) throws -> GamepadVector {
+        guard let value = object[key] as? [String: Any] else {
+            throw TestControlProtocolError.invalid("缺少有效欄位：\(key)")
+        }
+        return GamepadVector(x: try number("x", in: value, range: -1...1),
+                             y: try number("y", in: value, range: -1...1))
     }
 
     private static func string(_ key: String, in object: [String: Any]) throws -> String {

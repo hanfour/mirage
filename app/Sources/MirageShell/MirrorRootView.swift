@@ -12,7 +12,7 @@ struct MirrorRootView: View {
             // P1-c: model.keymap 起始為 nil（非同步載入），MirrorView.updateNSView 會在
             // loadKeymap() 完成、@Observable 觸發重繪時把值同步進 Coordinator。
             MirrorView(client: model.client, box: model.box,
-                       controller: model.keymap, isEditing: model.editing, textInput: model.textInput,
+                       controller: model.keymap, isEditing: model.editing, hasProfile: model.profile != nil, textInput: model.textInput,
                        queue: model.inputQueue, isConnected: model.connState == .connected,
                        isMouseCaptured: { model.mouseCapture.captured },
                        onFrameSize: { w, h in model.frameSize = (w: w, h: h) },
@@ -136,6 +136,10 @@ struct MirrorRootView: View {
                               onSelect: { model.selectBinding($0) },
                               onMove: { model.moveSelectedBinding(to: $0) },
                               onSave: { model.saveEditorSession() },
+                              onAddTap: { model.addTapBinding() },
+                              onDeleteSelected: { model.deleteSelectedBinding() },
+                              onRebindSelected: { model.beginRebindingSelectedBinding() },
+                              onClearGamepad: { model.clearSelectedGamepadBinding() },
                               onRadius: { model.setSelectedRadius($0) },
                               onSensitivity: { model.setSelectedSensitivity($0) })
         } else if !model.isFullScreen {

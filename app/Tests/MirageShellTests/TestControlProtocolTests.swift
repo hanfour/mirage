@@ -1,4 +1,5 @@
 import Foundation
+import MirageCore
 import Testing
 @testable import MirageShell
 
@@ -40,6 +41,24 @@ import Testing
             try TestControlProtocol.point(
                 TestControlPoint(x: 101, y: 20), unit: .points, width: 100, height: 80)
         }
+    }
+
+    @Test func decodesGamepadSnapshotAndRejectsInvalidValues() throws {
+        let request = #"{"cmd":"gamepad","buttons":["a","dpadUp"],"leftStick":{"x":0.25,"y":1},"rightStick":{"x":-0.5,"y":0},"leftTrigger":0.51,"rightTrigger":0.5}"#
+        let command = try TestControlProtocol.decode(Data(request.utf8))
+        guard case .gamepad(let snapshot) = command else {
+            Issue.record("gamepad 命令沒有解析成快照")
+            return
+        }
+        #expect(snapshot.buttons == [.a, .dpadUp])
+        #expect(snapshot.leftStick == GamepadVector(x: 0.25, y: 1))
+        #expect(snapshot.rightStick == GamepadVector(x: -0.5, y: 0))
+        #expect(snapshot.leftTrigger == 0.51)
+        #expect(snapshot.rightTrigger == 0.5)
+
+        let invalid = #"{"cmd":"gamepad","buttons":["home"],"leftStick":{"x":0,"y":0},"rightStick":{"x":0,"y":0},"leftTrigger":0,"rightTrigger":0}"#
+        let rejected = (try? TestControlProtocol.decode(Data(invalid.utf8))) == nil
+        #expect(rejected)
     }
 
     @Test func rejectsMissingFieldsInvalidValuesAndUnknownCommands() throws {

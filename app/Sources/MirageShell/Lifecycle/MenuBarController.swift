@@ -10,6 +10,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
     private let onShow: () -> Void
     private let statusMenuItem: NSMenuItem
     private let gameItem: NSMenuItem
+    private let gamepadItem: NSMenuItem
     private let audioHealthItem: NSMenuItem
     private let muteItem: NSMenuItem
     private let screenshotItem: NSMenuItem
@@ -73,6 +74,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         statusItem.button?.title = "🪞"
         statusMenuItem = NSMenuItem(title: "狀態：—", action: nil, keyEquivalent: "")
         gameItem = NSMenuItem(title: "遊戲：—", action: nil, keyEquivalent: "")
+        gamepadItem = NSMenuItem(title: "手把：未連接", action: nil, keyEquivalent: "")
         muteItem = NSMenuItem(title: "靜音", action: nil, keyEquivalent: "")
         screenshotItem = NSMenuItem(title: "截圖（存到桌面）", action: nil, keyEquivalent: "")
         speechItem = NSMenuItem(title: "語音轉文字", action: nil, keyEquivalent: "")
@@ -145,6 +147,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         menu.addItem(screenshotItem)
         menu.addItem(.separator())
         menu.addItem(gameItem)
+        menu.addItem(gamepadItem)
         menu.addItem(withTitle: "停用 keymap", action: #selector(disableTapped), keyEquivalent: "").target = self
         menu.addItem(withTitle: "恢復自動偵測", action: #selector(autoTapped), keyEquivalent: "").target = self
         let forceParent = NSMenuItem(title: "套用 profile", action: nil, keyEquivalent: "")
@@ -161,6 +164,10 @@ final class MenuBarController: NSObject, NSMenuDelegate {
     func updateGame(package: String?, active: Bool) {
         let pkg = package ?? "—"
         gameItem.title = "遊戲：\(pkg)　\(active ? "[keymap ✓]" : "[直接 tap]")"
+    }
+
+    func updateGamepad(name: String?) {
+        gamepadItem.title = name.map { "手把：已連接（\($0)）" } ?? "手把：未連接"
     }
 
     /// 勾選狀態反映目前是否靜音（AppKit 自動畫 ✓）。

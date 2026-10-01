@@ -12,6 +12,13 @@ final class KeymapController {
     private var engine: KeymapEngine?
     private var editing = false
     private var textMode = false
+    /// 測試控制通道的 state 用：目前鍵盤是否走文字輸入（此時鍵位映射暫停）。
+    var isTextMode: Bool { textMode }
+    private var gamepadDiffer = GamepadSnapshotDiffer()
+    private var fallbackGamepad = GamepadFallbackMachine()
+    var onCaptureKeyboardKey: (@MainActor (KeyCode) -> Bool)?
+    var onCaptureGamepadButton: (@MainActor (GamepadButton) -> Bool)?
+    var onAndroidKey: (@MainActor (String) -> Void)?
     var onLoseFocus: (@MainActor () -> Void)?
     func setTextMode(_ on: Bool) {
         guard textMode != on else { return }
@@ -45,6 +52,10 @@ final class KeymapController {
     ///
     /// `AppModel.shouldCapture` 本來就自己寫了 `&& !editing`，游標捕捉行為不受影響。
     var hasProfile: Bool { engine != nil }
+    /// 手把走 profile 或走基本操作的判斷。與 hasProfile 分開：空 profile 仍算「有 profile」
+    /// （滑鼠點擊不直通，既有行為），但它沒有任何綁定，手把要用基本操作。
+    private var profileHasBindings = false
+    private var gamepadEngine: KeymapEngine? { profileHasBindings ? engine : nil }
 
     /// 不再收 `guestSize`：`TouchFrame` 的觸點已經是正規化座標，換算成 guest 像素所需的
     /// 實體螢幕解析度由 `EmulatorClient` 從健康探測取得。原本這裡存的是**串流幀尺寸**，
@@ -52,6 +63,7 @@ final class KeymapController {
     init(queue: InputQueue, profile: KeymapProfile?) {
         self.queue = queue
         if let profile { self.engine = KeymapEngine(profile: profile) }
+        self.profileHasBindings = !(profile?.bindings.isEmpty ?? true)
     }
 
     /// 進編輯模式時，把所有還按著的直通鍵補送 up。
@@ -81,6 +93,39 @@ final class KeymapController {
         queue.invalidateTextSession()
         releaseEverything()
         engine = profile.map(KeymapEngine.init(profile:))
+        profileHasBindings = !(profile?.bindings.isEmpty ?? true)
+    }
+
+    /// 實體手把與測試控制通道共用的快照入口。
+    func handleGamepadSnapshot(_ snapshot: GamepadSnapshot) {
+        let events = gamepadDiffer.update(snapshot)
+        guard !events.isEmpty else { return }
+
+        if let engine = gamepadEngine {
+            var frame: TouchFrame?
+            for event in events {
+                if editing, case .buttonDown(let button) = event,
+                   onCaptureGamepadButton?(button) == true {
+                    continue
+                }
+                frame = engine.applyGamepad(event)
+            }
+            emit(frame)
+        } else {
+            for event in events { dispatchFallback(fallbackGamepad.apply(event)) }
+        }
+    }
+
+    /// 以外層提供的經過時間推進右搖桿視角或無 profile 拖曳捲動。
+    func tickGamepad(dt: Double) {
+        // 只有編輯器擋手把。文字模式只決定鍵盤送到哪裡，沒有 profile 時它幾乎一直開著，
+        // 擋住的話無 profile 的十字鍵捲動永遠不會移動（2026-10-01 實機查到）。
+        guard !editing else { return }
+        if let engine = gamepadEngine {
+            emit(engine.gamepadLookTick(dt: dt))
+        } else {
+            dispatchFallback(fallbackGamepad.tick(dt: dt))
+        }
     }
 
     /// 失焦後 keyUp 未必會投遞，立即釋放 guest 端的觸點與直通鍵（D11）。
@@ -91,6 +136,8 @@ final class KeymapController {
     }
 
     private func releaseEverything() {
+        gamepadDiffer.reset()
+        dispatchFallback(fallbackGamepad.cancel())
         // 進入編輯前的 reload 已釋放 guest 觸點；編輯期間 emit 全程被擋，route 也
         // 不接受新的直通 down，所以不會新增待釋放輸入。略過可避免 applyToSession
         // 每拖動一次就因 reload 送出一幀多餘的釋放快照。
@@ -112,6 +159,7 @@ final class KeymapController {
 
     private func route(_ code: KeyCode, down: Bool) {
         guard !textMode else { return }
+        if down, editing, onCaptureKeyboardKey?(code) == true { return }
         // 第一順位：已經送出 down 的直通鍵，它的 up 一定要送。
         // 不受編輯模式影響、也不受「這顆鍵現在綁不綁」影響——按住期間使用者可能按了
         // ⌘E，也可能存檔換了 profile 讓這顆鍵變成綁定鍵。任何一種情況下漏掉這個 up，
@@ -158,6 +206,7 @@ final class KeymapController {
             guard isDown != wasDown else { continue }
             if isDown {
                 pressedModifiers.insert(code)
+                if editing, code != .key("Meta"), onCaptureKeyboardKey?(code) == true { continue }
                 emit(engine?.apply(.keyDown(code)))
             } else {
                 pressedModifiers.remove(code)
@@ -169,5 +218,23 @@ final class KeymapController {
     private func emit(_ frame: TouchFrame?) {
         guard let frame, !editing, !textMode else { return }
         queue.touches(frame.touches)
+    }
+
+    private func dispatchFallback(_ actions: [GamepadFallbackAction]) {
+        for action in actions {
+            switch action {
+            case .androidKey(let key):
+                if let onAndroidKey {
+                    onAndroidKey(key)
+                } else {
+                    queue.key(.key(key), down: true)
+                    queue.key(.key(key), down: false)
+                }
+            case .touchDown(let point), .touchMove(let point):
+                queue.tap(nx: point.x, ny: point.y, down: true)
+            case .touchUp(let point):
+                queue.tap(nx: point.x, ny: point.y, down: false)
+            }
+        }
     }
 }

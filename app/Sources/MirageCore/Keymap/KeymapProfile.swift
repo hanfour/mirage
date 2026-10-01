@@ -2,7 +2,7 @@ import Foundation
 
 /// 單一綁定：tap（技能鍵）、joystick（方向移動）、look（滑鼠視角）。不可變值型別。
 public enum Binding: Sendable, Codable, Equatable {
-    case tap(key: KeyCode, at: NormPoint)
+    case tap(key: KeyCode, at: NormPoint, gamepad: GamepadButton? = nil)
     case joystick(up: KeyCode, down: KeyCode, left: KeyCode, right: KeyCode,
                   center: NormPoint, radius: Double)   // radius 為正規化半徑
     case look(activation: KeyCode?, sensitivity: Double)  // activation=nil 表 always-on
@@ -29,7 +29,7 @@ public extension KeymapProfile {
     func validated() throws -> KeymapProfile {
         for b in bindings {
             switch b {
-            case .tap(_, let at):
+            case .tap(_, let at, _):
                 guard at.isValid else { throw ProfileError.invalidCoordinate }
             case .joystick(_, _, _, _, let center, let radius):
                 guard center.isValid else { throw ProfileError.invalidCoordinate }

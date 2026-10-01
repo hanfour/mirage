@@ -41,7 +41,7 @@ struct EditorOverlay: View {
     private func marker(for item: EditorSession.Item, in rect: FitRect) -> some View {
         let selected = session.selectedID == item.id
         switch item.binding {
-        case .tap(let key, let at):
+        case .tap(let key, let at, _):
             let p = EditorGeometry.viewPoint(for: at, in: rect)
             Circle()
                 .stroke(selected ? Color.accentColor : .white.opacity(0.5), lineWidth: selected ? 2 : 1)

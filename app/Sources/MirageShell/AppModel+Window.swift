@@ -37,6 +37,7 @@ extension AppModel {
         startLifecycle()
         seedBuiltInProfiles()
         loadKeymap()
+        startGamepadMonitoring()
         startDetection()
     }
 }

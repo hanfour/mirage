@@ -142,6 +142,9 @@ final class TestControlChannel {
             case .up:
                 try postKey(keyCode: keyCode, modifiers: modifiers, down: false)
             }
+        case .gamepad(let snapshot):
+            model.gamepadMonitor?.setTestOverride(active: snapshot != .neutral)
+            model.receiveGamepad(snapshot)
         case .titlebar(let visible):
             model.windowController.setTitlebarVisibleForTest(visible)
         case .fullscreen(let on):
@@ -178,6 +181,9 @@ final class TestControlChannel {
             "connected": model.connState == .connected,
             "connection": AppModel.label(model.connState),
             "buttons": buttons,
+            "profile": model.profile?.gameId ?? NSNull(),
+            "keymapHasProfile": model.keymap?.hasProfile ?? false,
+            "textMode": model.keymap?.isTextMode ?? false,
         ]
     }
 

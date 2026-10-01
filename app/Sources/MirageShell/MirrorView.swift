@@ -243,6 +243,10 @@ struct MirrorView: NSViewRepresentable {
     var controller: KeymapController?
     /// D22：由 `AppModel.editing` 驅動，透過 `updateNSView` 逐次同步進 Coordinator。
     var isEditing: Bool
+    /// 由外層傳入 `model.profile != nil`，讓 profile 切換時 SwiftUI 重跑 updateNSView 重設文字模式。
+    /// 原本只讀 `controller?.hasProfile`：自動偵測換上 profile 時 controller 是原地 reload，
+    /// SwiftUI 不知道要更新，文字模式卡在開著，整套鍵位映射（鍵盤與手把）都沒有作用（2026-10-01 實機查到）。
+    var hasProfile: Bool = false
     var textInput: TextInputPresentation? = nil
     /// D6：tap 與鍵位映射的觸控／鍵盤共用**同一條**佇列（由 `AppModel` 持有），
     /// 否則兩條佇列各自有序、彼此無序，切換 profile 的瞬間仍會對調。
@@ -293,7 +297,8 @@ struct MirrorView: NSViewRepresentable {
     }
 
     private func configureText(_ view: MirrorMTKView, coordinator: Coordinator) {
-        let enabled = !isEditing && (textInput?.usesText(hasProfile: controller?.hasProfile == true) ?? (controller?.hasProfile != true))
+        let profileActive = hasProfile || controller?.hasProfile == true
+        let enabled = !isEditing && (textInput?.usesText(hasProfile: profileActive) ?? !profileActive)
         controller?.setTextMode(enabled)
         view.textInput = textInput
         view.textMode = enabled

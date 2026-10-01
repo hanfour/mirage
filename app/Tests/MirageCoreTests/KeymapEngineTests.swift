@@ -33,6 +33,99 @@ import Testing
         #expect(try !#require(up.touches.first { $0.identifier == 2 }).down)
     }
 
+    @Test func gamepadTapAndKeyboardShareOneTouchUntilBothAreReleased() throws {
+        let e = KeymapEngine(profile: KeymapProfile(gameId: "g", version: 1, bindings: [
+            .tap(key: .key("j"), at: NormPoint(x: 0.6, y: 0.7), gamepad: .a),
+        ]))
+        let keyboardDown = e.apply(.keyDown(.key("j")))
+        let gamepadDown = e.applyGamepad(.buttonDown(.a))
+        let keyboardUp = e.apply(.keyUp(.key("j")))
+        #expect(try #require(keyboardDown.touches.first).down)
+        #expect(try #require(gamepadDown.touches.first).down)
+        #expect(try #require(keyboardUp.touches.first).down)
+        #expect(keyboardUp.touches.count == 1)
+        let released = e.applyGamepad(.buttonUp(.a))
+        let gamepadTouchIsUp = try !#require(released.touches.first).down
+        #expect(gamepadTouchIsUp)
+    }
+
+    @Test func leftStickUsesHalfRadiusAndFlipsScreenY() throws {
+        let e = engine()
+        let halfRight = e.applyGamepad(.leftStickChanged(GamepadVector(x: 0.5, y: 0)))
+        let rightTouch = try #require(halfRight.touches.first { $0.identifier == 1 })
+        #expect(rightTouch.down)
+        #expect(abs(rightTouch.point.x - 0.25) < 1e-9)
+        #expect(abs(rightTouch.point.y - 0.75) < 1e-9)
+
+        let halfUp = e.applyGamepad(.leftStickChanged(GamepadVector(x: 0, y: 0.5)))
+        let upTouch = try #require(halfUp.touches.first { $0.identifier == 1 })
+        #expect(abs(upTouch.point.y - 0.70) < 1e-9)
+        #expect(upTouch.down)
+    }
+
+    @Test func leftStickDeadZoneReleasesThenRestoresKeyboardWASD() throws {
+        let e = engine()
+        _ = e.apply(.keyDown(.key("d")))
+        let stickOverridesKeyboard = e.applyGamepad(.leftStickChanged(GamepadVector(x: -0.5, y: 0)))
+        let overridden = try #require(stickOverridesKeyboard.touches.first { $0.identifier == 1 })
+        #expect(abs(overridden.point.x - 0.15) < 1e-9)
+
+        let deadZone = e.applyGamepad(.leftStickChanged(GamepadVector(x: 0.1, y: 0)))
+        let restored = try #require(deadZone.touches.first { $0.identifier == 1 })
+        #expect(restored.down)
+        #expect(abs(restored.point.x - 0.3) < 1e-9)
+
+        _ = e.apply(.keyUp(.key("d")))
+        let released = e.applyGamepad(.leftStickChanged(.zero))
+        let stickTouchIsUp = try !#require(released.touches.first { $0.identifier == 1 }).down
+        #expect(stickTouchIsUp)
+    }
+
+    @Test func rightStickUsesInjectedTimeAndIgnoresLookActivation() throws {
+        let e = KeymapEngine(profile: KeymapProfile(gameId: "g", version: 1, bindings: [
+            .look(activation: .key("Shift"), sensitivity: 1.5),
+        ]))
+        let started = e.applyGamepad(.rightStickChanged(GamepadVector(x: 0.5, y: 0.5)))
+        #expect(try #require(started.touches.first).down)
+        let moved = try #require(e.gamepadLookTick(dt: 0.5))
+        let touch = try #require(moved.touches.first)
+        #expect(touch.down)
+        #expect(abs(touch.point.x - 0.625) < 1e-9)
+        #expect(abs(touch.point.y - 0.375) < 1e-9)
+
+        let released = e.applyGamepad(.rightStickChanged(.zero))
+        let lookTouchIsUp = try !#require(released.touches.first).down
+        #expect(lookTouchIsUp)
+    }
+
+    @Test func rightStickMaximumSpeedIsHalfScreenPerSecond() throws {
+        let e = KeymapEngine(profile: KeymapProfile(gameId: "g", version: 1, bindings: [
+            .look(activation: nil, sensitivity: 2),
+        ]))
+        _ = e.applyGamepad(.rightStickChanged(GamepadVector(x: 1, y: 0)))
+        let moved = try #require(e.gamepadLookTick(dt: 0.25))
+        let touch = try #require(moved.touches.first)
+        #expect(abs(touch.point.x - 0.625) < 1e-9)
+    }
+
+    @Test func releaseAllLiftsGamepadTapAndBothStickTouches() throws {
+        let e = KeymapEngine(profile: KeymapProfile(gameId: "g", version: 1, bindings: [
+            .joystick(up: .key("w"), down: .key("s"), left: .key("a"), right: .key("d"),
+                      center: NormPoint(x: 0.2, y: 0.75), radius: 0.1),
+            .tap(key: .key("j"), at: NormPoint(x: 0.8, y: 0.8), gamepad: .a),
+            .look(activation: nil, sensitivity: 1.5),
+        ]))
+        _ = e.applyGamepad(.buttonDown(.a))
+        _ = e.applyGamepad(.leftStickChanged(GamepadVector(x: 0.5, y: 0)))
+        let active = e.applyGamepad(.rightStickChanged(GamepadVector(x: 0, y: 0.5)))
+        let activeCount = active.touches.filter(\.down).count
+        #expect(activeCount == 3)
+
+        let released = e.releaseAll()
+        let allReleased = released.touches.allSatisfy { !$0.down }
+        #expect(allReleased)
+    }
+
     @Test func joystickRightMovesTouchFromCenter() throws {
         let e = engine()
         let f = e.apply(.keyDown(.key("d")))          // 向右

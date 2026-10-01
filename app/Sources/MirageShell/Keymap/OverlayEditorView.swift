@@ -12,6 +12,10 @@ struct OverlayEditorView: View {
     let onSelect: (UUID?) -> Void
     let onMove: (NormPoint) -> Void
     let onSave: () -> Void
+    let onAddTap: () -> Void
+    let onDeleteSelected: () -> Void
+    let onRebindSelected: () -> Void
+    let onClearGamepad: () -> Void
     let onRadius: (Double) -> Void
     let onSensitivity: (Double) -> Void
 
@@ -29,12 +33,18 @@ struct OverlayEditorView: View {
         ZStack(alignment: .bottom) {
             EditorOverlay(session: session, frameSize: frameSize,
                           onSelect: onSelect, onMove: onMove, onRadius: onRadius)
-            EditorDrawer(session: session, onSelect: onSelect, onSave: onSave) {
+            EditorDrawer(session: session, onSelect: onSelect, onSave: onSave,
+                         onAddTap: onAddTap, onDeleteSelected: onDeleteSelected,
+                         onRebindSelected: onRebindSelected, onClearGamepad: onClearGamepad) {
                 if let id = session.selectedID,
                    let item = session.items.first(where: { $0.id == id }) {
                     AnyView(EditorInspector(binding: item.binding,
+                                            isRebinding: session.rebindingID == id,
                                             onRadius: onRadius,
-                                            onSensitivity: onSensitivity))
+                                            onSensitivity: onSensitivity,
+                                            onDelete: onDeleteSelected,
+                                            onRebind: onRebindSelected,
+                                            onClearGamepad: onClearGamepad))
                 } else {
                     AnyView(EmptyView())
                 }
