@@ -20,6 +20,7 @@ final class MirrorWindowController {
     private var created: NSWindow?
     private weak var delegate: NSWindowDelegate?
     private(set) var titlebarActions: MirrorTitlebarActionsController?
+    private var titlebarBackdrop: MirrorTitlebarBackdropView?
     private var titlebarInteraction: MirrorTitlebarInteractionView?
     private var titlebarVisible = false
     private var androidActionsEnabled = false
@@ -64,6 +65,13 @@ final class MirrorWindowController {
         actions.setEnabled(androidActionsEnabled)
         window.addTitlebarAccessoryViewController(actions)
         titlebarActions = actions
+
+        let backdrop = MirrorTitlebarBackdropView(frame: NSRect(
+            x: 0, y: contentView.bounds.height - MirrorTitlebarBackdropView.height,
+            width: contentView.bounds.width, height: MirrorTitlebarBackdropView.height))
+        backdrop.autoresizingMask = [.width, .minYMargin]
+        contentView.addSubview(backdrop, positioned: .above, relativeTo: nil)
+        titlebarBackdrop = backdrop
 
         let interaction = MirrorTitlebarInteractionView(frame: contentView.bounds)
         interaction.autoresizingMask = [.width, .height]
@@ -148,6 +156,7 @@ final class MirrorWindowController {
         let buttons: [NSButton] = [NSWindow.ButtonType.closeButton, .miniaturizeButton, .zoomButton]
             .compactMap { window.standardWindowButton($0) }
         let views: [NSView] = buttons.map { $0 as NSView } + [actions.view]
+            + [titlebarBackdrop].compactMap { $0 }
         if visible {
             views.forEach { $0.isHidden = false }
             buttons.forEach { $0.isEnabled = true }

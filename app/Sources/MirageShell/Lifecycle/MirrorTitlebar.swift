@@ -44,9 +44,12 @@ final class MirrorTitlebarActionsController: NSTitlebarAccessoryViewController {
         button.image = NSImage(systemSymbolName: symbol, accessibilityDescription: label)
         button.imagePosition = .imageOnly
         button.imageScaling = .scaleProportionallyDown
-        button.bezelStyle = .texturedRounded
-        // iPhone 鏡像輸出的標題列圖示是單色，不用系統強調色。
-        button.contentTintColor = .labelColor
+        button.isBordered = false
+        // 標題列疊在 Android 畫面上，背後是深色模糊遮罩，圖示固定白色。
+        // contentTintColor 對這種按鈕不生效（實測仍是系統強調色），改用 palette 顏色。
+        button.image = button.image?.withSymbolConfiguration(
+            NSImage.SymbolConfiguration(pointSize: 15, weight: .regular)
+                .applying(NSImage.SymbolConfiguration(paletteColors: [.white])))
         button.toolTip = label
         button.setAccessibilityLabel(label)
         button.setAccessibilityRole(.button)
@@ -107,4 +110,31 @@ final class MirrorTitlebarInteractionView: NSView {
     }
 
     @objc private func windowDidResignKey() { onHoverChanged?(false) }
+}
+
+/// 標題列出現時墊在後面的深色模糊遮罩。標題列疊在 Android 畫面上，
+/// 沒有遮罩時按鈕與狀態列圖示混在一起。只負責顯示，不接收滑鼠事件。
+@MainActor
+final class MirrorTitlebarBackdropView: NSVisualEffectView {
+    static let height: CGFloat = 32
+
+    override init(frame frameRect: NSRect) {
+        super.init(frame: frameRect)
+        material = .hudWindow
+        blendingMode = .withinWindow
+        state = .active
+        appearance = NSAppearance(named: .darkAqua)
+        // 只有模糊時，底下是淺色畫面會變成中灰；再疊一層半透明黑，淺色畫面上也看得清楚按鈕。
+        let tint = NSView(frame: bounds)
+        tint.autoresizingMask = [.width, .height]
+        tint.wantsLayer = true
+        tint.layer?.backgroundColor = NSColor.black.withAlphaComponent(0.35).cgColor
+        addSubview(tint)
+        alphaValue = 0
+        isHidden = true
+    }
+
+    required init?(coder: NSCoder) { nil }
+
+    override func hitTest(_ point: NSPoint) -> NSView? { nil }
 }
