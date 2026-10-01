@@ -64,7 +64,10 @@ import Testing
             response = TestControlProtocol.failureResponse(for: error)
         }
         let responseObject = try #require(try JSONSerialization.jsonObject(with: response) as? [String: Any])
-        #expect(!((responseObject["ok"] as? Bool) ?? true))
-        #expect((responseObject["error"] as? String)?.contains("未知的 cmd") ?? false)
+        // 先算成 Bool 再斷言：#expect 展開 `!(x as? Bool ?? true)` 時會把中間值算錯（實測 ok=false 仍判失敗）。
+        let succeeded = (responseObject["ok"] as? Bool) ?? true
+        let mentionsUnknown = (responseObject["error"] as? String)?.contains("未知的 cmd") ?? false
+        #expect(!succeeded)
+        #expect(mentionsUnknown)
     }
 }
