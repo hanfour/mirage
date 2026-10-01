@@ -52,13 +52,18 @@ final class KeymapController {
     ///
     /// `AppModel.shouldCapture` 本來就自己寫了 `&& !editing`，游標捕捉行為不受影響。
     var hasProfile: Bool { engine != nil }
+    /// 手把走 profile 或走基本操作的判斷。與 hasProfile 分開：空 profile 仍算「有 profile」
+    /// （滑鼠點擊不直通，既有行為），但它沒有任何綁定，手把要用基本操作。
+    private var profileHasBindings = false
+    private var gamepadEngine: KeymapEngine? { profileHasBindings ? engine : nil }
 
     /// 不再收 `guestSize`：`TouchFrame` 的觸點已經是正規化座標，換算成 guest 像素所需的
     /// 實體螢幕解析度由 `EmulatorClient` 從健康探測取得。原本這裡存的是**串流幀尺寸**，
     /// 而那與 guest 實體解析度在本機相差兩倍——P1-c 起所有觸點都偏在左上一半處。
     init(queue: InputQueue, profile: KeymapProfile?) {
         self.queue = queue
-        if let profile, !profile.bindings.isEmpty { self.engine = KeymapEngine(profile: profile) }
+        if let profile { self.engine = KeymapEngine(profile: profile) }
+        self.profileHasBindings = !(profile?.bindings.isEmpty ?? true)
     }
 
     /// 進編輯模式時，把所有還按著的直通鍵補送 up。
@@ -87,11 +92,8 @@ final class KeymapController {
     func reload(_ profile: KeymapProfile?) {
         queue.invalidateTextSession()
         releaseEverything()
-        if let profile, !profile.bindings.isEmpty {
-            engine = KeymapEngine(profile: profile)
-        } else {
-            engine = nil
-        }
+        engine = profile.map(KeymapEngine.init(profile:))
+        profileHasBindings = !(profile?.bindings.isEmpty ?? true)
     }
 
     /// 實體手把與測試控制通道共用的快照入口。
@@ -99,7 +101,7 @@ final class KeymapController {
         let events = gamepadDiffer.update(snapshot)
         guard !events.isEmpty else { return }
 
-        if let engine {
+        if let engine = gamepadEngine {
             var frame: TouchFrame?
             for event in events {
                 if editing, case .buttonDown(let button) = event,
@@ -119,7 +121,7 @@ final class KeymapController {
         // 只有編輯器擋手把。文字模式只決定鍵盤送到哪裡，沒有 profile 時它幾乎一直開著，
         // 擋住的話無 profile 的十字鍵捲動永遠不會移動（2026-10-01 實機查到）。
         guard !editing else { return }
-        if let engine {
+        if let engine = gamepadEngine {
             emit(engine.gamepadLookTick(dt: dt))
         } else {
             dispatchFallback(fallbackGamepad.tick(dt: dt))

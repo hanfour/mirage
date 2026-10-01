@@ -131,7 +131,8 @@ private func profileWithWAndJ() -> KeymapProfile {
         c.handleGamepadSnapshot(GamepadSnapshot(buttons: [.b]))
         await spy.keyGate.wait(for: 2)
 
-        #expect(!c.hasProfile)
+        // 空 profile 仍算有 profile（滑鼠不直通，既有行為），但沒有綁定，手把用基本操作。
+        #expect(c.hasProfile)
         #expect(spy.keyCalls.map { $0.0 } == [.key("GoBack"), .key("GoBack")])
         #expect(spy.keyCalls.map { $0.1 } == [true, false])
     }
