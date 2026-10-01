@@ -133,8 +133,12 @@ final class MenuBarController: NSObject, NSMenuDelegate {
 
         menu.addItem(.separator())
         menu.addItem(withTitle: "返回", action: #selector(backTapped), keyEquivalent: "").target = self
-        menu.addItem(withTitle: "主畫面", action: #selector(homeTapped), keyEquivalent: "").target = self
-        menu.addItem(withTitle: "最近任務", action: #selector(recentsTapped), keyEquivalent: "").target = self
+        let homeItem = menu.addItem(withTitle: "主畫面", action: #selector(homeTapped), keyEquivalent: "1")
+        homeItem.target = self
+        homeItem.keyEquivalentModifierMask = .command
+        let recentsItem = menu.addItem(withTitle: "最近任務", action: #selector(recentsTapped), keyEquivalent: "2")
+        recentsItem.target = self
+        recentsItem.keyEquivalentModifierMask = .command
         Self.addVolumeItems(to: menu, target: self, action: #selector(volumeTapped(_:)))
         screenshotItem.action = #selector(screenshotTapped)
         screenshotItem.target = self
@@ -215,8 +219,8 @@ final class MenuBarController: NSObject, NSMenuDelegate {
     @objc private func speechTapped() { onToggleSpeech?() }
     @objc private func backgroundModeTapped() { onToggleBackgroundMode?() }
     @objc private func backTapped() { onAndroidKey?("GoBack") }
-    @objc private func homeTapped() { onAndroidKey?("GoHome") }
-    @objc private func recentsTapped() { onAndroidKey?("AppSwitch") }
+    @objc private func homeTapped() { onAndroidKey?(AndroidKey.home) }
+    @objc private func recentsTapped() { onAndroidKey?(AndroidKey.recents) }
     @objc private func volumeTapped(_ sender: NSMenuItem) {
         Self.dispatchAndroidKey(sender) { [weak self] key in self?.onAndroidKey?(key) }
     }

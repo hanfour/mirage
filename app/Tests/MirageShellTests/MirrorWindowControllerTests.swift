@@ -26,7 +26,7 @@ import Testing
         #expect(builds == 1)
     }
 
-    @Test func windowIsConfiguredForMirroring() {
+    @Test func windowIsConfiguredForMirroring() throws {
         let name = "MirrorWindowControllerTests.\(UUID().uuidString)"
         let window = MirrorWindowController(autosaveName: name) { NSView() }.window()
         #expect(window.collectionBehavior.contains(.fullScreenPrimary))
@@ -34,8 +34,20 @@ import Testing
         #expect(!window.isReleasedWhenClosed)
         #expect(window.title == "Mirage")
         #expect(window.contentMinSize == MirrorWindowController.minimumContentSize)
+        #expect(window.styleMask.contains(.titled))
+        #expect(window.styleMask.contains(.fullSizeContentView))
+        #expect(window.titlebarAppearsTransparent)
+        #expect(window.titleVisibility == .hidden)
         #expect(window.styleMask.contains(.closable))
         #expect(window.styleMask.contains(.resizable))
+        #expect(MirrorWindowController.defaultAutosaveName == "mirage-mirror-v2")
+        #expect(MirrorWindowController.initialContentSize == NSSize(width: 324, height: 720))
+        let actionWindowController = MirrorWindowController(
+            autosaveName: "MirrorWindowControllerTests.actions.\(UUID().uuidString)") { NSView() }
+        _ = actionWindowController.window()
+        let actions = try #require(actionWindowController.titlebarActions)
+        #expect(actions.buttons.map { $0.toolTip ?? "" } == ["主畫面（⌘1）", "最近任務（⌘2）"])
+        #expect(actions.buttons.allSatisfy { !$0.isEnabled })
     }
 
     @Test func delegateAttachedBeforeCreationIsApplied() {

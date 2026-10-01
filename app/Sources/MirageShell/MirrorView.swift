@@ -15,7 +15,11 @@ final class MirrorMTKView: MTKView {
     var diagnosticEventID: UUID?
     var compositionID = UUID()
     nonisolated(unsafe) var textWindowObservers: [NSObjectProtocol] = []
-    deinit { for observer in textWindowObservers { NotificationCenter.default.removeObserver(observer) } }
+    nonisolated(unsafe) private var touchpadScrollMonitor: Any?
+    deinit {
+        for observer in textWindowObservers { NotificationCenter.default.removeObserver(observer) }
+        if let touchpadScrollMonitor { NSEvent.removeMonitor(touchpadScrollMonitor) }
+    }
 
     var ownedKeys: [UInt16: [KeyCode]] = [:]
     var observedGeneration: UInt64?
@@ -27,11 +31,15 @@ final class MirrorMTKView: MTKView {
     var interpretInput: (([NSEvent]) -> Void)?
 
     var onMouse: ((_ nx: Double, _ ny: Double, _ down: Bool) -> Void)?
+    var isTouchpadScrollEnabled: @MainActor () -> Bool = { false }
+    private(set) var isDispatchingTouchpadAction = false
     var onResize: ((_ pixelSize: CGSize) -> Void)?
     // P1-c 鍵位映射：keyDown/keyUp 已解碼為 KeyCode；look 用原始 mouseMoved delta（未關聯游標時為 raw）。
     var onKey: ((_ code: KeyCode, _ down: Bool) -> Void)?
     var onMouseMovedDelta: ((_ dx: Double, _ dy: Double) -> Void)?
     var onFlagsChanged: ((NSEvent) -> Void)?
+    private var touchpadDragMachine = TouchpadDragMachine()
+    private var leftMouseDown = false
 
     // 讓這個 view 能收到 keyDown/keyUp（否則 AppKit responder chain 不會投遞）。
     override var acceptsFirstResponder: Bool { true }
@@ -47,11 +55,18 @@ final class MirrorMTKView: MTKView {
     override func viewDidMoveToWindow() {
         super.viewDidMoveToWindow()
         AppLifecycle.diagnose("mirror-viewDidMoveToWindow", window: window)
+        removeTouchpadScrollMonitor()
+        cancelTouchpadDrag()
+        if window == nil { leftMouseDown = false }
         for observer in textWindowObservers { NotificationCenter.default.removeObserver(observer) }
         textWindowObservers.removeAll()
         guard let window else { cancelComposition(); return }
         textWindowObservers.append(NotificationCenter.default.addObserver(forName: NSWindow.didResignKeyNotification, object: window, queue: .main) { [weak self] _ in
-            MainActor.assumeIsolated { self?.cancelComposition() }
+            MainActor.assumeIsolated {
+                self?.leftMouseDown = false
+                self?.cancelComposition()
+                self?.cancelTouchpadDrag()
+            }
         })
         for name in [NSWindow.didMoveNotification, NSWindow.didResizeNotification, NSWindow.didChangeScreenNotification,
                      NSWindow.didChangeBackingPropertiesNotification, NSWindow.didEnterFullScreenNotification,
@@ -66,6 +81,62 @@ final class MirrorMTKView: MTKView {
         // KeymapController 完全收不到輸入。
         window.acceptsMouseMovedEvents = true
         window.makeFirstResponder(self)
+        touchpadScrollMonitor = NSEvent.addLocalMonitorForEvents(matching: .scrollWheel) { [weak self, weak window] event in
+            guard let self, let window, event.windowNumber == window.windowNumber else { return event }
+            let hasPhase = event.phase != []
+            let hasMomentum = event.momentumPhase != []
+            guard event.hasPreciseScrollingDeltas, hasPhase || hasMomentum else { return event }
+            MainActor.assumeIsolated { self.handleTouchpadScroll(event) }
+            return nil
+        }
+    }
+
+    private func removeTouchpadScrollMonitor() {
+        if let touchpadScrollMonitor {
+            NSEvent.removeMonitor(touchpadScrollMonitor)
+            self.touchpadScrollMonitor = nil
+        }
+    }
+
+    func cancelTouchpadDrag() {
+        for action in touchpadDragMachine.cancel() { dispatchTouchpadAction(action) }
+    }
+
+    private func handleTouchpadScroll(_ event: NSEvent) {
+        let phase: TouchpadScrollPhase
+        if event.phase.contains(.began) { phase = .began }
+        else if event.phase.contains(.changed) { phase = .changed }
+        else if event.phase.contains(.ended) { phase = .ended }
+        else if event.phase.contains(.cancelled) { phase = .cancelled }
+        else { phase = .none }
+        let point = convert(event.locationInWindow, from: nil)
+        let sample = TouchpadScrollSample(
+            phase: phase,
+            hasPreciseDeltas: event.hasPreciseScrollingDeltas,
+            hasPhase: event.phase != [],
+            hasMomentum: event.momentumPhase != [],
+            isEnabled: isTouchpadScrollEnabled(),
+            leftMouseDown: leftMouseDown || (NSEvent.pressedMouseButtons & 1) != 0,
+            location: (Double(point.x), Double(point.y)),
+            delta: (Double(event.scrollingDeltaX), Double(event.scrollingDeltaY)),
+            size: (Double(bounds.width), Double(bounds.height)))
+        for action in touchpadDragMachine.handle(sample) { dispatchTouchpadAction(action) }
+    }
+
+    private func dispatchTouchpadAction(_ action: TouchpadDragAction) {
+        let point: NormPoint
+        let down: Bool
+        switch action {
+        case .down(let value), .move(let value):
+            point = value
+            down = true
+        case .up(let value):
+            point = value
+            down = false
+        }
+        isDispatchingTouchpadAction = true
+        defer { isDispatchingTouchpadAction = false }
+        onMouse?(point.x, point.y, down)
     }
 
     private func normalized(_ event: NSEvent) -> (Double, Double)? {
@@ -82,6 +153,8 @@ final class MirrorMTKView: MTKView {
     }
 
     override func mouseDown(with event: NSEvent) {
+        leftMouseDown = true
+        cancelTouchpadDrag()
         window?.makeFirstResponder(self)
         if textMode {
             textInput?.queue.invalidateTextSession()
@@ -108,6 +181,7 @@ final class MirrorMTKView: MTKView {
         if let (nx, ny) = normalized(event) { onMouse?(nx, ny, true) }
     }
     override func mouseUp(with event: NSEvent) {
+        defer { leftMouseDown = false }
         if let (nx, ny) = normalized(event) { onMouse?(nx, ny, false) }
     }
 
@@ -169,6 +243,8 @@ struct MirrorView: NSViewRepresentable {
     /// D6：tap 與鍵位映射的觸控／鍵盤共用**同一條**佇列（由 `AppModel` 持有），
     /// 否則兩條佇列各自有序、彼此無序，切換 profile 的瞬間仍會對調。
     let queue: InputQueue
+    let isConnected: Bool
+    let isMouseCaptured: @MainActor () -> Bool
     /// Task 4：幀尺寸同時餵給容器（佈局用）與 `AppModel`（overlay 算內容矩形用）。
     let onFrameSize: (Int, Int) -> Void
     /// 視窗需要的串流尺寸。不直接設給 client：手機遙控也有需求，由 `AppModel` 合併兩者。
@@ -187,10 +263,12 @@ struct MirrorView: NSViewRepresentable {
             onFrameSize(w, h)
         }
         context.coordinator.renderer = renderer
-        context.coordinator.controller = controller
-        context.coordinator.isEditing = isEditing
-        view.onMouse = { nx, ny, down in
-            context.coordinator.sendMouse(nx: nx, ny: ny, down: down)
+        context.coordinator.bind(view: view, controller: controller)
+        context.coordinator.updateTouchpadAvailability(
+            connected: isConnected, editing: isEditing, mouseCaptured: isMouseCaptured)
+        view.onMouse = { [weak view] nx, ny, down in
+            context.coordinator.sendMouse(nx: nx, ny: ny, down: down,
+                                          fromTouchpad: view?.isDispatchingTouchpadAction == true)
         }
         view.onResize = { pixelSize in
             context.coordinator.resizeDebounced(to: pixelSize)
@@ -220,8 +298,9 @@ struct MirrorView: NSViewRepresentable {
     }
 
     func updateNSView(_ view: MirrorContainerView, context: Context) {
-        context.coordinator.controller = controller
-        context.coordinator.isEditing = isEditing
+        context.coordinator.bind(view: view.mirror, controller: controller)
+        context.coordinator.updateTouchpadAvailability(
+            connected: isConnected, editing: isEditing, mouseCaptured: isMouseCaptured)
         configureText(view.mirror, coordinator: context.coordinator)
     }
 
@@ -240,11 +319,18 @@ struct MirrorView: NSViewRepresentable {
         /// 前者問「該不該交給引擎」，這個問「該不該送出去」。
         var isEditing = false
         var textMode = false
+        private var isConnected = false
+        private var mouseCaptureState: @MainActor () -> Bool = { false }
+        private weak var mirrorView: MirrorMTKView?
         let queue: InputQueue
         private var resizeTask: Task<Void, Never>?
         private static let defaultStreamSize = (w: 540, h: 1200)
 
         private let onStreamDemand: @MainActor (Int, Int) async -> Void
+
+        private var touchpadScrollEnabled: Bool {
+            isConnected && !isEditing && !mouseCaptureState()
+        }
 
         init(client: EmulatorClient, queue: InputQueue,
              onStreamDemand: @escaping @MainActor (Int, Int) async -> Void = { _, _ in }) {
@@ -253,7 +339,34 @@ struct MirrorView: NSViewRepresentable {
             self.onStreamDemand = onStreamDemand
         }
 
+        func bind(view: MirrorMTKView, controller: KeymapController?) {
+            mirrorView = view
+            if self.controller !== controller {
+                self.controller?.onLoseFocus = nil
+                self.controller = controller
+                controller?.onLoseFocus = { [weak self] in self?.mirrorView?.cancelTouchpadDrag() }
+            }
+            view.isTouchpadScrollEnabled = { [weak self] in self?.touchpadScrollEnabled ?? false }
+        }
+
+        func updateTouchpadAvailability(connected: Bool, editing: Bool,
+                                        mouseCaptured: @escaping @MainActor () -> Bool) {
+            isConnected = connected
+            isEditing = editing
+            mouseCaptureState = mouseCaptured
+            if !touchpadScrollEnabled { mirrorView?.cancelTouchpadDrag() }
+        }
+
         func sendMouse(nx: Double, ny: Double, down: Bool) {
+            sendMouse(nx: nx, ny: ny, down: down, fromTouchpad: false)
+        }
+
+        func sendMouse(nx: Double, ny: Double, down: Bool, fromTouchpad: Bool) {
+            if fromTouchpad {
+                if down { guard touchpadScrollEnabled else { return } }
+                queue.tap(nx: nx, ny: ny, down: down)
+                return
+            }
             // D22：編輯中一律不送。使用者正在拖鍵位，不是在玩。
             guard !isEditing else { return }
             // 有作用中 profile 時鍵鼠改走 KeymapController → KeymapEngine，這裡不再重複送 tap。

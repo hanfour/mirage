@@ -213,6 +213,7 @@ final class AppModel {
                     if self.connState != s { self.inputQueue.invalidateTextSession() }
                     self.connState = s
                     self.menuBar?.updateStatus(Self.label(s))
+                    self.windowController.setAndroidActionsEnabled(s == .connected)
                 }
             }
         }
