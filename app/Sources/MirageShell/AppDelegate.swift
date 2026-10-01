@@ -80,6 +80,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationWillTerminate(_ notification: Notification) {
         MainActor.assumeIsolated {
+            model?.testControlChannel?.stop()
             if ProcessInfo.processInfo.environment["MIRAGE_CONN_LOG"] == "1" {
                 AppLifecycle.diagnose("applicationWillTerminate", window: nil)
                 for window in (NSApp as NSApplication?)?.windows ?? [] {
