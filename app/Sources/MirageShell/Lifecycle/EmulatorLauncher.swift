@@ -385,6 +385,15 @@ final class EmulatorLauncher {
                 runtime.launchPlan = plan
                 runtimes[entry.avdName] = runtime
             }
+            // 先用 spawn pid 記一筆所有權：探索檔要數秒後才出現，Mirage 在這段時間崩潰的話，
+            // 沒有紀錄的模擬器之後每次啟動都被當成 external，永遠沒人關（2026-10-01 實機遇到）。
+            // emulator 與 qemu 實測同 pid，下次啟動 reconcile 對得上；探索檔出現後依 avd 換成正式紀錄。
+            ownedRecords.removeAll { $0.avd == entry.avdName }
+            ownedRecords = OwnedInstances.adding(
+                OwnedRecord(avd: entry.avdName, consolePort: entry.consolePort,
+                            pid: process.pid, startedAt: now()),
+                to: ownedRecords)
+            persistOwnedRecords()
             await send(entry.avdName, .launchStarted)
         } catch {
             await send(entry.avdName, .launchFailed(.spawnFailed(error.localizedDescription)))
