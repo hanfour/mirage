@@ -7,3 +7,7 @@
 
 # 本機隔離工作區（superpowers using-git-worktrees）
 .worktrees/
+
+# Python 編譯快取：跑一次 CI 就會被改寫，不進版控（2026-10-02 移除原本追蹤的 9 個）
+__pycache__/
+*.pyc
