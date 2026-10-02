@@ -4,6 +4,7 @@ import Testing
 
 @Suite("OwnedInstances")
 struct OwnedInstancesTests {
+    private let scratch = ScratchDirectories()
     private let startedAt = Date(timeIntervalSince1970: 1_790_676_000)
 
     @Test func reconcileRequiresBothPidAndAvdName() {
@@ -86,10 +87,7 @@ struct OwnedInstancesTests {
     }
 
     private func temporaryDirectory() -> URL {
-        let directory = FileManager.default.temporaryDirectory
-            .appendingPathComponent("mirage-owned-test-\(UUID().uuidString)", isDirectory: true)
-        try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-        return directory
+        scratch.make("mirage-owned-test")
     }
 
     private func record(avd: String, pid: Int32) -> OwnedRecord {

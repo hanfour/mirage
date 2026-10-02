@@ -3,6 +3,7 @@ import Testing
 @testable import MirageCore
 
 @Suite struct ProfileStoreTests {
+    private let scratch = ScratchDirectories()
     /// 每次呼叫給一個**保證唯一**的目錄。
     ///
     /// 原本用 `ObjectIdentifier(NSObject()).hashValue` 當後綴——那是剛配置的物件位址，
@@ -10,10 +11,7 @@ import Testing
     /// 先前沒人踩到是因為沒有測試斷言「目錄是空的」；I2 新增的兩條正是那種形態，於是
     /// 這個既有的隱患會變成間歇失敗。UUID 沒有這個問題。
     private func tempDir() -> URL {
-        let d = FileManager.default.temporaryDirectory
-            .appendingPathComponent("mirage-store-test-\(UUID().uuidString)")
-        try? FileManager.default.createDirectory(at: d, withIntermediateDirectories: true)
-        return d
+        scratch.make("mirage-store-test")
     }
 
     private func sample() -> KeymapProfile {

@@ -3,6 +3,7 @@ import Testing
 @testable import MirageCore
 
 @Suite struct BuiltInProfilesTests {
+    private let scratch = ScratchDirectories()
     /// 這條是 D4 的風險閘門：整個設計建立在「Bundle.module 找得到資源」之上，
     /// 而那件事在動手前沒有被驗證過。先讓它綠，其餘才有意義。
     @Test func bundleContainsSampleProfile() throws {
@@ -36,12 +37,9 @@ import Testing
         #expect(outcome.failed.allSatisfy { !$0.error.localizedDescription.isEmpty })
     }
 
-    /// 暫存目錄慣例照抄 ProfileStoreTests.tempDir()。
+    /// 由 ScratchDirectories 建立並在測試結束時刪除。
     private func tempDir(_ tag: String) -> URL {
-        let d = FileManager.default.temporaryDirectory
-            .appendingPathComponent("mirage-seed-\(tag)-\(UInt64(bitPattern: Int64(ObjectIdentifier(NSObject()).hashValue)))")
-        try? FileManager.default.createDirectory(at: d, withIntermediateDirectories: true)
-        return d
+        scratch.make("mirage-seed-\(tag)")
     }
 
     /// 寫一個來源檔並回傳它的 URL。
