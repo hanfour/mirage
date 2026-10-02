@@ -43,7 +43,8 @@ private final class ReopenFake: AwaitableAudioTransport, @unchecked Sendable {
     @Test func waitsForCancellationBeforeReopeningAndForwardsPackets() async throws {
         let fake = ReopenFake()
         let transport = AudioReopenTransport(base: fake, on: .milliseconds(30),
-            off: .milliseconds(50), rounds: 3, event: { fake.record($0, $1) })
+            off: .milliseconds(50), rounds: 3, lateTolerance: .seconds(30),
+            event: { fake.record($0, $1) })
         var bytes: [Int] = []
         for try await chunk in transport.packets(format: .standard) {
             bytes.append(chunk.rawByteCount!)
@@ -69,7 +70,8 @@ private final class ReopenFake: AwaitableAudioTransport, @unchecked Sendable {
     @Test func cancellingDuringOnPreventsFurtherRPCs() async throws {
         let fake = ReopenFake()
         let transport = AudioReopenTransport(base: fake, on: .seconds(2),
-            off: .milliseconds(20), rounds: 3, event: { fake.record($0, $1) })
+            off: .milliseconds(20), rounds: 3, lateTolerance: .seconds(30),
+            event: { fake.record($0, $1) })
         for try await _ in transport.packets(format: .standard) {
             transport.cancelStream()
         }

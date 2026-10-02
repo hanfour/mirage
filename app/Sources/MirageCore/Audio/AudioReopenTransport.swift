@@ -13,12 +13,16 @@ public final class AudioReopenTransport: AudioTransport, @unchecked Sendable {
     private let off: Duration
     private let rounds: Int
     private let startEpoch: Double?
+    /// 排程晚多久就放棄（fail closed）。診斷用途預設 500 ms；測試驗的是順序與取消，給寬鬆值，
+    /// 避免系統一慢就被這道防線中止而與受測行為無關。
+    private let lateTolerance: Duration
     private let event: @Sendable (String, Int) -> Void
     private let lock = NSLock()
     private var task: Task<Void, Never>?
 
     public init(base: any AwaitableAudioTransport, on: Duration = .seconds(10),
                 off: Duration = .seconds(5), rounds: Int = 40, startEpoch: Double? = nil,
+                lateTolerance: Duration = .milliseconds(500),
                 event: @escaping @Sendable (String, Int) -> Void = { name, round in
                     print(String(format: "[audio-rpc] event=%@ round=%d epoch=%.6f", name, round, Date().timeIntervalSince1970))
                 }) {
@@ -27,6 +31,7 @@ public final class AudioReopenTransport: AudioTransport, @unchecked Sendable {
         self.off = off
         self.rounds = rounds
         self.startEpoch = startEpoch
+        self.lateTolerance = lateTolerance
         self.event = event
     }
 
@@ -39,7 +44,7 @@ public final class AudioReopenTransport: AudioTransport, @unchecked Sendable {
 
     public func packets(format: AudioStreamFormat) -> AsyncThrowingStream<AudioChunk, Error> {
         AsyncThrowingStream { continuation in
-            let task = Task { [base, on, off, rounds, startEpoch, event] in
+            let task = Task { [base, on, off, rounds, startEpoch, lateTolerance, event] in
                 defer { continuation.finish() }
                 let clock = ContinuousClock()
                 do {
@@ -54,7 +59,7 @@ public final class AudioReopenTransport: AudioTransport, @unchecked Sendable {
                         let planned = origin.advanced(by: (on + off) * round)
                         try await clock.sleep(until: planned)
                         // Fail closed if cancellation or scheduling missed the next planned slot.
-                        guard clock.now < planned.advanced(by: .milliseconds(500)) else {
+                        guard clock.now < planned.advanced(by: lateTolerance) else {
                             event("schedule-late-abort", round + 1); return
                         }
                         event("open", round + 1)

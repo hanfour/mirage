@@ -19,7 +19,8 @@ import Testing
 
         #expect(outcome == .finished(nil), "firstOf 應在逾時後回 nil；.watchdogFired 表示 2 秒內沒有返回")
         #expect(elapsed >= .milliseconds(100))
-        #expect(elapsed <= .milliseconds(600))
+        // 不再設 600 ms 上限：系統一慢（建置後的 CI 第 1 輪實測 1.2–1.57 秒）就誤判。
+        // 「等到子任務結束才回」的退化會讓看門狗在 2 秒觸發，上面的 outcome 斷言就會紅。
     }
 
     @Test func operationResultWinsBeforeTimeout() async {

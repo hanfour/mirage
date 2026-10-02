@@ -38,9 +38,20 @@ final class GameDetector {
     var scheduledPollingInterval: TimeInterval? { timer?.timeInterval }
     var pollingInterval: TimeInterval { consecutiveTimeouts >= 3 ? max(interval, 10) : interval }
 
+    /// 建立輪詢計時器。產品用排進主 run loop 的計時器；測試注入不排進 run loop 的版本，
+    /// 只讀它的間隔、手動呼叫 tick()。原本測試用真計時器又手動 tick，測試一慢真計時器就搶先觸發，
+    /// 吃掉預排的回應並讓手動 tick 被跳過（2026-10-02 建置後的 CI 第 1 輪常見）。
+    typealias TimerFactory = @MainActor (TimeInterval, @escaping @Sendable (Timer) -> Void) -> Timer
+    static let runLoopTimer: TimerFactory = { interval, block in
+        Timer.scheduledTimer(withTimeInterval: interval, repeats: true, block: block)
+    }
+    private let makeTimer: TimerFactory
+
     init(adb: any ForegroundPackageProviding, interval: Duration = .milliseconds(1500),
+         makeTimer: @escaping TimerFactory = GameDetector.runLoopTimer,
          onChange: @escaping (String?) -> Void) {
         self.adb = adb
+        self.makeTimer = makeTimer
         self.interval = Double(interval.components.seconds) + Double(interval.components.attoseconds) / 1e18
         self.onChange = onChange
     }
@@ -58,7 +69,7 @@ final class GameDetector {
         // 隔離且會變動非 Sendable 狀態（polling/timer/last）。閉包只捕捉 weak self（跨界
         // 的僅為 Optional 弱參照），`MainActor.assumeIsolated` 同步重新進入 MainActor 隔離——
         // 安全，因為 Foundation 的 run-loop-based Timer 回呼固定在主執行緒/主 run loop 觸發。
-        timer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { [weak self] _ in
+        timer = makeTimer(interval) { [weak self] _ in
             MainActor.assumeIsolated { _ = self?.tick() }
         }
         timer?.tolerance = interval * 0.3
