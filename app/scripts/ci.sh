@@ -379,6 +379,13 @@ else
     ./scripts/lib/gui_session_selftest.sh 2>&1 | grep "❌" | sed 's/^/   /'
 fi
 
+if /bin/bash ./scripts/lib/gui_session_quit_selftest.sh > /dev/null 2>&1; then
+    ok "gui_session_quit_gracefully PID 自我測試通過"
+else
+    fail "gui_session_quit_gracefully PID 自我測試失敗（重跑 ./scripts/lib/gui_session_quit_selftest.sh 看細節）："
+    /bin/bash ./scripts/lib/gui_session_quit_selftest.sh 2>&1 | grep "❌" | sed 's/^/   /'
+fi
+
 # first_run_selftest.sh 鎖住首次啟動情境的 completion 順序、空間 gate、下載狀態與 launcher log 解析。
 if ./scripts/lib/first_run_selftest.sh > /dev/null 2>&1; then
     ok "first_run.sh 驗證解析自我測試通過"
@@ -498,7 +505,7 @@ fi
 echo ""
 echo "======================================"
 if [ "$FAILURES" -eq 0 ]; then
-    echo "全部通過（$RUNS 次跑次、0 行 NIO ERROR、無假 skip、無全形標點陷阱、無永不紅的 #expect、provision 測試綠、共用函式庫自我測試（remote_fps_stats／verify_common／audio_stats／load_sentinel／guest_fps／gui_session／backpressure／input_latency／wake／getevent_touch／emu_instances）皆綠、remote_client unittest、phase0/harness 與 tools/probe pytest 綠、閘門 9 async Tu context 大小一致）"
+    echo "全部通過（$RUNS 次跑次、0 行 NIO ERROR、無假 skip、無全形標點陷阱、無永不紅的 #expect、provision 測試綠、共用函式庫自我測試（remote_fps_stats／verify_common／audio_stats／load_sentinel／guest_fps／gui_session／gui_session_quit／backpressure／input_latency／wake／getevent_touch／emu_instances）皆綠、remote_client unittest、phase0/harness 與 tools/probe pytest 綠、閘門 9 async Tu context 大小一致）"
     exit 0
 fi
 echo "$FAILURES 項失敗"

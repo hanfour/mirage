@@ -4,6 +4,7 @@ set -uo pipefail
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
 APP_ROOT="$(cd -- "${SCRIPT_DIR}/.." && pwd -P)"
 CALLER_DIR="$PWD"
+source "${APP_ROOT}/scripts/lib/gui_session.sh"
 
 log() { printf '%s\n' "$*" >&2; }
 record_r1_failure() {
@@ -19,12 +20,6 @@ if (($# > 1)); then
     log "用法：verify_release.sh [dmg 路徑]"
     exit 2
 fi
-if pgrep -x MirageApp >/dev/null 2>&1; then
-    log "❌ 已有 MirageApp 正在執行，請先自行結束後再驗證；腳本不會替你關閉。"
-    pgrep -alf MirageApp >&2 || true
-    exit 1
-fi
-
 if (($# == 1)); then
     DMG_PATH="$1"
 else
@@ -315,21 +310,19 @@ if [[ -d "${R4_APP:-}" ]]; then
 
     if ((CACHE_MOVE_FAILED)); then
         :
-    elif pgrep -x MirageApp >/dev/null 2>&1; then
-        record_r4_failure "啟動前已有 MirageApp 正在執行，拒絕建立第二個 GUI session。"
     elif [[ -d "$R4_APP" ]]; then
         EMPTY_SDK="${TEMP_ROOT}/empty-android-sdk"
         EMPTY_AVD="${TEMP_ROOT}/empty-android-avd"
         mkdir -p "$EMPTY_SDK" "$EMPTY_AVD"
         : > "$R4_LOG"
-        if open -n -a "$R4_APP" --stdout "$R4_LOG" --stderr "$R4_LOG" \
+        if open -g -n -a "$R4_APP" --stdout "$R4_LOG" --stderr "$R4_LOG" \
             --env MIRAGE_BACKGROUND_MODE=0 \
             --env "ANDROID_SDK_ROOT=${EMPTY_SDK}" \
             --env "ANDROID_AVD_HOME=${EMPTY_AVD}" >&2; then
             APP_PID=""
             STARTUP_READY=0
             for ((elapsed = 0; elapsed < 15; elapsed++)); do
-                APP_PID="$(pgrep -x MirageApp 2>/dev/null | head -n 1 || true)"
+                APP_PID="$(gui_session_pid_for_app "$R4_APP")"
                 if [[ -n "$APP_PID" ]] && kill -0 "$APP_PID" 2>/dev/null \
                     && grep -q '^\[setup\] ' "$R4_LOG" 2>/dev/null; then
                     STARTUP_READY=1
@@ -351,29 +344,13 @@ if [[ -d "${R4_APP:-}" ]]; then
             fi
 
             if [[ -n "$APP_PID" ]] && kill -0 "$APP_PID" 2>/dev/null; then
-                if osascript -e 'tell application "System Events" to set frontmost of process "MirageApp" to true' >&2; then
-                    if osascript -l JavaScript "${APP_ROOT}/scripts/lib/cgkey.js" 12 1048576 >&2; then
-                        APP_EXITED=0
-                        for ((elapsed = 0; elapsed < 10; elapsed++)); do
-                            if ! kill -0 "$APP_PID" 2>/dev/null; then
-                                APP_EXITED=1
-                                break
-                            fi
-                            sleep 1
-                        done
-                        if ((APP_EXITED)); then
-                            log "R4：MirageApp 在 ⌘Q 後 10 秒內結束。"
-                        else
-                            record_r4_failure "MirageApp 沒有在 ⌘Q 後 10 秒內結束。"
-                        fi
-                    else
-                        record_r4_failure "無法送出 ⌘Q。"
-                    fi
+                if gui_session_quit_gracefully "$APP_PID" 10; then
+                    log "R4：MirageApp 在正常結束要求後 10 秒內結束。"
                 else
-                    record_r4_failure "無法先將 MirageApp 設為前景，未送出 ⌘Q。"
+                    record_r4_failure "MirageApp 沒有在正常結束要求後 10 秒內結束。"
                 fi
             else
-                record_r4_failure "無法確認 MirageApp 行程，未送出 ⌘Q。"
+                record_r4_failure "無法確認 MirageApp 行程，未要求結束。"
             fi
         else
             record_r4_failure "open 無法啟動複製出的 Mirage.app。"

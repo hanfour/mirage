@@ -28,12 +28,6 @@ esac
 
 require_adb
 
-if pgrep -x MirageApp >/dev/null 2>&1; then
-    echo "❌ 前置檢查失敗：已有 MirageApp 在執行。請先自行結束該 app，再重跑；本腳本不會關閉它。"
-    pgrep -fl MirageApp || true
-    exit 1
-fi
-
 INITIAL_QEMU="$(pgrep -fl qemu-system 2>/dev/null || true)"
 INITIAL_INSTANCES="$(emu_running_instances "$INITIAL_QEMU")"
 RUNNING_DIR="$HOME/Library/Caches/TemporaryItems/avd/running"
@@ -151,7 +145,7 @@ remaining_time() {
 
 app_pid_alive() {
     local wanted="$1"
-    pgrep -x MirageApp 2>/dev/null | awk -v wanted="$wanted" '$1 == wanted { found = 1 } END { exit !found }'
+    gui_session_pid_matches_app "${ACTIVE_BUNDLE}/Mirage.app" "${wanted}"
 }
 
 wait_app_exit() {
@@ -190,20 +184,16 @@ start_app() {
     local log="$1"
     ACTIVE_LOG="$log"
     LOG_PATHS+=("$log")
-    if pgrep -x MirageApp >/dev/null 2>&1; then
-        record_failure "啟動前已有 MirageApp，拒絕建立第二個 GUI session" "$log"
-        return 1
-    fi
     ACTIVE_BUNDLE="$(mktemp -d -t mirage_instance_bundle)" || return 1
     : > "$log"
-    gui_session_start "$log" "$ACTIVE_BUNDLE" ""
+    gui_session_start "$log" "$ACTIVE_BUNDLE" "" --preserve-frontmost
     local rc=$?
     if [ "$rc" -ne 0 ]; then
-        APP_PID="$(pgrep -x MirageApp 2>/dev/null | head -1 || true)"
+        APP_PID="$(gui_session_pid_for_app "${ACTIVE_BUNDLE}/Mirage.app")"
         record_failure "gui_session_start 失敗（退出碼 ${rc}）" "$log"
         return 1
     fi
-    APP_PID="$(pgrep -x MirageApp 2>/dev/null | head -1 || true)"
+    APP_PID="$(gui_session_pid_for_app "${ACTIVE_BUNDLE}/Mirage.app")"
     if [ -z "$APP_PID" ]; then
         record_failure "open 成功但找不到 MirageApp 行程" "$log"
         return 1
@@ -220,27 +210,15 @@ remove_bundle() {
 }
 
 request_command_q() {
-    local log="$1" max_seconds="$2" before after elapsed rc
+    local log="$1" max_seconds="$2" before after elapsed
     if [ -z "$APP_PID" ] || ! app_pid_alive "$APP_PID"; then
         record_failure "送出 ⌘Q 前 MirageApp pid 不存在" "$log"
         return 1
     fi
-    osascript -e 'tell application "System Events" to set frontmost of process "MirageApp" to true' \
-        >/dev/null 2>&1
-    rc=$?
-    if [ "$rc" -ne 0 ]; then
-        record_failure "無法將 Mirage 設為前景 app（osascript 退出碼 ${rc}）" "$log"
-        return 1
-    fi
     before="$(monotonic_time)"
     Q_SENT_MONO="$before"
-    osascript -l JavaScript "${SCRIPT_DIR}/lib/cgkey.js" 12 1048576
-    rc=$?
-    if [ "$rc" -ne 0 ]; then
-        record_failure "CGEvent ⌘Q 發送失敗（退出碼 ${rc}）" "$log"
-        return 1
-    fi
-    if wait_app_exit "$APP_PID" "$((max_seconds * 10))"; then
+    # NSRunningApplication.terminate 與 ⌘Q 都會走 applicationShouldTerminate／WillTerminate。
+    if gui_session_quit_gracefully "$APP_PID" "$max_seconds"; then
         after="$(monotonic_time)"
         elapsed="$(awk -v before="$before" -v after="$after" 'BEGIN { printf "%.3f", after - before }')"
         echo "⌘Q 到 MirageApp 行程消失：${elapsed} 秒"

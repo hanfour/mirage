@@ -1,7 +1,9 @@
 #!/bin/bash
 # 驗收線 2：全螢幕量測到 present 的三個可控段，每輪 20 秒。
 # 用法：verify_input_latency.sh [-r rounds] [-p grpc_port]
+# 本腳本會移動游標並搶前景，執行期間不要操作電腦。
 set -uo pipefail
+echo "⚠️ 本腳本會移動游標並搶前景，執行期間不要操作電腦。"
 
 source "$(dirname "$0")/lib/load_sentinel.sh"
 HERE="$(cd "$(dirname "$0")" && pwd)"

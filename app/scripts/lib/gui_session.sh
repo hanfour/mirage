@@ -6,7 +6,7 @@
 # verify_game_fps.sh 裡，D32 的 verify_audio_gui.sh 需要一模一樣的東西加上 fps 解析。
 # 複製一份的下場已經有前例——D9 記載 coverage.sh 被修好而三支 verify_* 沒跟上。
 #
-# package_app.sh 由 D25 建立，是組 .app 的唯一入口；本檔只負責「啟動它、拉到前景、
+# package_app.sh 由 D25 建立，是組 .app 的唯一入口；本檔只負責「啟動它、視需要拉到前景、
 # 收 log、解析」，不重複打包邏輯。
 
 gui_session_sdk_root() {
@@ -32,7 +32,59 @@ gui_session_android_environment() {
         "$(gui_session_sdk_root)" "$(gui_session_avd_home)"
 }
 
+# 只找由指定 .app 啟動的 MirageApp，避免同名的使用者 app 混入驗證。
+gui_session_pids_for_app() {
+    local executable="${1}/Contents/MacOS/MirageApp" pattern
+    pattern="$(printf '%s\n' "${executable}" | sed 's/[][\\.^$*+?(){}|]/\\&/g')" || return 1
+    pgrep -f "${pattern}" 2>/dev/null || true
+}
+
+gui_session_pid_for_app() {
+    gui_session_pids_for_app "$1" | head -n 1
+}
+
+gui_session_app_is_running() {
+    [ -n "$(gui_session_pid_for_app "$1")" ]
+}
+
+gui_session_pid_matches_app() {
+    local app_bundle="$1" wanted_pid="$2"
+    gui_session_pids_for_app "${app_bundle}" \
+        | awk -v wanted="${wanted_pid}" '$1 == wanted { found = 1 } END { exit !found }'
+}
+
+# 以 PID 呼叫 AppKit 的 terminate，走 applicationShouldTerminate／WillTerminate，與 ⌘Q 相同。
+# 不用 bundle id 結束，因為測試用 .app 與使用者平常用的 Mirage 共用 bundle id。
+gui_session_quit_gracefully() {
+    local pid="$1" timeout_seconds="${2:-10}" attempts=0 max_attempts
+    case "${pid}" in ''|*[!0-9]*) return 1 ;; esac
+    case "${timeout_seconds}" in ''|*[!0-9]*) return 1 ;; esac
+    pid="$(printf '%s\n' "${pid}" | sed 's/^0*//')"
+    timeout_seconds="$(printf '%s\n' "${timeout_seconds}" | sed 's/^0*//')"
+    [ -n "${pid}" ] || return 1
+    [ -n "${timeout_seconds}" ] || timeout_seconds=0
+    [ "${#timeout_seconds}" -le 17 ] || return 1
+    kill -0 "${pid}" 2>/dev/null || return 1
+    if ! osascript -l JavaScript -e \
+        "ObjC.import('AppKit'); var app = $.NSRunningApplication.runningApplicationWithProcessIdentifier(${pid}); if (!app || !app.terminate) throw new Error('無法要求 app 結束');" \
+        >/dev/null 2>&1; then
+        kill -0 "${pid}" 2>/dev/null && return 1
+        return 0
+    fi
+    max_attempts=$((timeout_seconds * 10))
+    while kill -0 "${pid}" 2>/dev/null; do
+        if [ "${attempts}" -ge "${max_attempts}" ]; then
+            kill -0 "${pid}" 2>/dev/null && return 1
+            return 0
+        fi
+        sleep 0.1
+        attempts=$((attempts + 1))
+    done
+    return 0
+}
+
 # 打包並啟動 MirageApp，把 stdout/stderr 導向 log。
+# 選用 `--preserve-frontmost` 會以背景模式啟動，供不依賴畫面合成的驗證使用。
 #
 # **必須以 .app bundle 啟動，不能直接跑 bare executable**：直接跑時 macOS 不一定把
 # 視窗合成上螢幕，MTKView 的 currentDrawable 為 nil、Renderer 早退，present 一次都
@@ -57,6 +109,11 @@ gui_screen_lock_state() {
 
 gui_session_start() {
     local log="$1" bundle="$2" app_override="$3"; shift 3
+    local preserve_frontmost=0
+    if [ "${1:-}" = "--preserve-frontmost" ]; then
+        preserve_frontmost=1
+        shift
+    fi
     # D65：鎖定就直接紅，訊息要說「螢幕鎖定」而不是留給下游印「視窗未出現」。
     local lock_state
     lock_state=$(gui_screen_lock_state "$(ioreg -n Root -d1 -a 2>/dev/null)")
@@ -77,8 +134,18 @@ gui_session_start() {
         < <(gui_session_android_environment)
     local kv
     for kv in "$@"; do env_args+=(--env "$kv"); done
-    open -n -a "$bundle/Mirage.app" --stdout "$log" --stderr "$log" ${env_args[@]+"${env_args[@]}"} || return 1
+    if [ "${preserve_frontmost}" -eq 1 ]; then
+        open -g -n -a "$bundle/Mirage.app" --stdout "$log" --stderr "$log" \
+            ${env_args[@]+"${env_args[@]}"} || return 1
+    else
+        open -n -a "$bundle/Mirage.app" --stdout "$log" --stderr "$log" \
+            ${env_args[@]+"${env_args[@]}"} || return 1
+    fi
     sleep 6
+    if [ "${preserve_frontmost}" -eq 1 ]; then
+        gui_session_app_is_running "${bundle}/Mirage.app"
+        return $?
+    fi
     # 視窗要在前景才會被合成。取不到就繼續——量測本身仍可能成功，而 fps_summary
     # 的診斷分辨得出來。
     osascript -e 'tell application "System Events" to set frontmost of process "MirageApp" to true' \
@@ -87,8 +154,15 @@ gui_session_start() {
 
 gui_session_cleanup() {
     local bundle="${1:-}"
-    pkill -x MirageApp 2>/dev/null
-    [ -n "$bundle" ] && rm -rf "$bundle"
+    local pid
+    if [ -n "${bundle}" ]; then
+        while IFS= read -r pid; do
+            [ -n "${pid}" ] && kill "${pid}" 2>/dev/null || true
+        done <<EOF
+$(gui_session_pids_for_app "${bundle}/Mirage.app")
+EOF
+        rm -rf "${bundle}"
+    fi
     return 0
 }
 

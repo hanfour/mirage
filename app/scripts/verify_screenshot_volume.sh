@@ -23,12 +23,6 @@ case "$ROUNDS" in
     ''|*[!0-9]*|0) echo "--rounds 必須是大於零的整數：${ROUNDS}" >&2; exit 2 ;;
 esac
 
-if pgrep -x MirageApp >/dev/null 2>&1; then
-    echo "❌ 前置檢查失敗：已有 MirageApp 在執行。請先自行結束後重跑；腳本不會關閉它。"
-    pgrep -alf MirageApp || true
-    exit 1
-fi
-
 require_adb
 unset MIRAGE_HOST MIRAGE_PORT MIRAGE_AVD MIRAGE_GRPC
 
@@ -40,6 +34,8 @@ GETEVENT_PID=""
 ACTIVE_BUNDLE=""
 ACTIVE_LOG=""
 ACTIVE_SCREEN_DIR=""
+CONTROL_DIR=""
+CONTROL_SOCKET=""
 ROUND=0
 TOTAL_FAILURES=0
 RESULT_ROUNDS=()
@@ -62,6 +58,11 @@ cleanup() {
     if [ -n "${ACTIVE_BUNDLE}" ]; then
         gui_session_cleanup "${ACTIVE_BUNDLE}"
         ACTIVE_BUNDLE=""
+    fi
+    if [ -n "${CONTROL_DIR}" ]; then
+        rm -rf "${CONTROL_DIR}"
+        CONTROL_DIR=""
+        CONTROL_SOCKET=""
     fi
     if [ "${EMU_STARTED}" -eq 1 ]; then
         "${EMU_SCRIPT}" stop || status=1
@@ -116,16 +117,28 @@ record_result() {
     if [ "${status}" != PASS ]; then TOTAL_FAILURES=$((TOTAL_FAILURES + 1)); fi
 }
 
-focus_mirage() {
-    osascript -e 'tell application "System Events" to set frontmost of process "MirageApp" to true' \
-        >/dev/null 2>&1
+wait_for_control_socket() {
+    local poll=0
+    while [ "${poll}" -lt 100 ]; do
+        [ -S "${CONTROL_SOCKET}" ] && return 0
+        sleep 0.1
+        poll=$((poll + 1))
+    done
+    return 1
+}
+
+send_control_key() {
+    local key_code="$1"
+    wait_for_control_socket || return 1
+    python3 "${SCRIPT_DIR}/lib/mirage_ctl.py" "${CONTROL_SOCKET}" key \
+        --key-code "${key_code}" --modifiers cmd --action press
 }
 
 wait_for_connection() {
     local elapsed=0
     while [ "${elapsed}" -lt 60 ]; do
         if grep -qE 'connectSucceeded.*connected' "${ACTIVE_LOG}" 2>/dev/null; then return 0; fi
-        if ! pgrep -x MirageApp >/dev/null 2>&1; then return 1; fi
+        if ! gui_session_app_is_running "${ACTIVE_BUNDLE}/Mirage.app"; then return 1; fi
         sleep 1
         elapsed=$((elapsed + 1))
     done
@@ -138,12 +151,9 @@ png_count() {
 
 verify_screenshot() {
     local ok=1 details="" poll count png dimensions
-    if ! focus_mirage; then
+    if ! send_control_key 1 >/dev/null; then
         ok=0
-        details="無法將 MirageApp 設為前景"
-    elif ! osascript -l JavaScript "${SCRIPT_DIR}/lib/cgkey.js" 1 1048576 >/dev/null; then
-        ok=0
-        details="cgkey.js 未能送出 ⌘S"
+        details="測試控制通道未能送出 ⌘S"
     else
         poll=0
         count=0
@@ -196,12 +206,7 @@ volume_pairs_present() {
     ' "$1"
 }
 
-# `cgkey.js` accepts <virtualKeyCode> <flags> and passes the code to
-# CGEventCreateKeyboardEvent. Apple documents `virtualKey` as a CGKeyCode and defines
-# NumericPad as a keypad-area marker and SecondaryFn as the Fn modifier state. KeyTranslate
-# maps 126/125 to ArrowUp/ArrowDown, so these events need only Command (1048576), not either flag.
-# https://developer.apple.com/documentation/coregraphics/cgevent/init(keyboardeventsource:virtualkey:keydown:)
-# https://developer.apple.com/documentation/coregraphics/cgeventflags
+# 測試控制通道直接投遞 NSEvent；keyCode 126/125 分別是方向鍵上／下。
 verify_volume() {
     local ok=1 details="" poll
     GETEVENT_LOG="${WORK}/getevent-${ROUND}.log"
@@ -211,13 +216,9 @@ verify_volume() {
     if ! kill -0 "${GETEVENT_PID}" >/dev/null 2>&1; then
         ok=0
         details="adb shell getevent -l 未持續執行"
-    elif ! focus_mirage; then
+    elif ! send_control_key 126 >/dev/null || ! send_control_key 125 >/dev/null; then
         ok=0
-        details="無法將 MirageApp 設為前景"
-    elif ! osascript -l JavaScript "${SCRIPT_DIR}/lib/cgkey.js" 126 1048576 >/dev/null \
-        || ! osascript -l JavaScript "${SCRIPT_DIR}/lib/cgkey.js" 125 1048576 >/dev/null; then
-        ok=0
-        details="cgkey.js 未能送出 ⌘方向鍵"
+        details="測試控制通道未能送出 ⌘方向鍵"
     else
         poll=0
         while [ "${poll}" -lt 25 ]; do
@@ -245,16 +246,9 @@ verify_volume() {
 }
 
 quit_mirage() {
-    local elapsed=0
-    if ! pgrep -x MirageApp >/dev/null 2>&1; then return 0; fi
-    focus_mirage || true
-    osascript -l JavaScript "${SCRIPT_DIR}/lib/cgkey.js" 12 1048576 >/dev/null 2>&1 || true
-    while [ "${elapsed}" -lt 30 ]; do
-        if ! pgrep -x MirageApp >/dev/null 2>&1; then return 0; fi
-        sleep 1
-        elapsed=$((elapsed + 1))
-    done
-    return 1
+    local pid
+    pid="$(gui_session_pid_for_app "${ACTIVE_BUNDLE}/Mirage.app")"
+    [ -z "${pid}" ] || gui_session_quit_gracefully "${pid}"
 }
 
 for ((ROUND = 1; ROUND <= ROUNDS; ROUND++)); do
@@ -262,11 +256,19 @@ for ((ROUND = 1; ROUND <= ROUNDS; ROUND++)); do
     ACTIVE_BUNDLE="${WORK}/round-${ROUND}-bundle"
     GETEVENT_LOG=""
     ACTIVE_SCREEN_DIR="$(mktemp -d "${WORK}/screenshots-${ROUND}.XXXXXX")" || exit 1
+    CONTROL_DIR="$(mktemp -d /tmp/mtc.XXXXXX)" || exit 1
+    CONTROL_SOCKET="${CONTROL_DIR}/c"
     echo "=== 回合 ${ROUND}/${ROUNDS}：啟動 MirageApp ==="
     if ! gui_session_start "${ACTIVE_LOG}" "${ACTIVE_BUNDLE}" "" \
-        "MIRAGE_SCREENSHOT_DIR=${ACTIVE_SCREEN_DIR}" "MIRAGE_CONN_LOG=1"; then
+        --preserve-frontmost \
+        "MIRAGE_SCREENSHOT_DIR=${ACTIVE_SCREEN_DIR}" "MIRAGE_CONN_LOG=1" \
+        "MIRAGE_TEST_CONTROL=${CONTROL_SOCKET}"; then
         record_result "V1 截圖" FAIL "gui_session_start 失敗"
         record_result "V2 音量" FAIL "gui_session_start 失敗"
+        print_evidence
+    elif ! wait_for_control_socket; then
+        record_result "V1 截圖" FAIL "10 秒內沒有建立測試控制 socket"
+        record_result "V2 音量" FAIL "10 秒內沒有建立測試控制 socket"
         print_evidence
     elif ! wait_for_connection; then
         record_result "V1 截圖" FAIL "60 秒內未見連線成功 log"
@@ -279,15 +281,18 @@ for ((ROUND = 1; ROUND <= ROUNDS; ROUND++)); do
     fi
 
     if ! quit_mirage; then
-        record_result "退出 MirageApp" FAIL "30 秒內 ⌘Q 未結束 MirageApp"
-        echo "❌ 回合 ${ROUND} 未能以 ⌘Q 結束 MirageApp"
+        record_result "退出 MirageApp" FAIL "10 秒內未能正常結束 MirageApp"
+        echo "❌ 回合 ${ROUND} 未能正常結束 MirageApp"
         print_evidence
     else
-        record_result "退出 MirageApp" PASS "⌘Q 後 MirageApp 已結束"
-        echo "✅ 回合 ${ROUND} 已以 ⌘Q 結束 MirageApp"
+        record_result "退出 MirageApp" PASS "正常結束要求後 MirageApp 已結束"
+        echo "✅ 回合 ${ROUND} 已正常結束 MirageApp"
     fi
     gui_session_cleanup "${ACTIVE_BUNDLE}"
     ACTIVE_BUNDLE=""
+    rm -rf "${CONTROL_DIR}"
+    CONTROL_DIR=""
+    CONTROL_SOCKET=""
 done
 
 echo ""

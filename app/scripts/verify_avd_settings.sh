@@ -34,11 +34,6 @@ case "${ROUNDS}" in
     ''|*[!0-9]*|0) echo "--rounds 必須是大於零的整數：${ROUNDS}" >&2; exit 2 ;;
 esac
 
-if pgrep -x MirageApp >/dev/null 2>&1; then
-    echo "❌ 前置檢查失敗：MirageApp 正在執行。請先自行結束；腳本不會替你關閉。"
-    pgrep -alf MirageApp || true
-    exit 1
-fi
 INITIAL_QEMU="$(pgrep -fl '[q]emu' 2>/dev/null || true)"
 if [ -n "${INITIAL_QEMU}" ]; then
     echo "❌ 前置檢查失敗：偵測到 qemu 行程。請先自行停止；腳本不會替你關閉。"
@@ -128,7 +123,7 @@ wait_for_running_count() {
     while [ "$((SECONDS - started))" -lt "${timeout}" ]; do
         count="$(avd_settings_running_count "${log}" 2>/dev/null || printf '0')"
         if [ "${count}" -ge "${expected}" ]; then return 0; fi
-        if ! pgrep -x MirageApp >/dev/null 2>&1; then return 1; fi
+        if ! gui_session_app_is_running "${ACTIVE_BUNDLE}/Mirage.app"; then return 1; fi
         sleep 1
     done
     count="$(avd_settings_running_count "${log}" 2>/dev/null || printf '0')"
@@ -142,7 +137,7 @@ wait_for_applied() {
             "${EXPECTED_RESOLUTION}@${EXPECTED_DENSITY}" "${mode}"; then
             return 0
         fi
-        if ! pgrep -x MirageApp >/dev/null 2>&1; then return 1; fi
+        if ! gui_session_app_is_running "${ACTIVE_BUNDLE}/Mirage.app"; then return 1; fi
         sleep 1
     done
     avd_settings_has_applied "${log}" "${EXPECTED_CORES}" "${EXPECTED_RAM_MB}" \
@@ -153,7 +148,7 @@ wait_for_read_only() {
     local log="$1" avd_directory="$2" timeout="$3" started="$SECONDS"
     while [ "$((SECONDS - started))" -lt "${timeout}" ]; do
         if avd_settings_has_read_only "${log}" "${avd_directory}"; then return 0; fi
-        if ! pgrep -x MirageApp >/dev/null 2>&1; then return 1; fi
+        if ! gui_session_app_is_running "${ACTIVE_BUNDLE}/Mirage.app"; then return 1; fi
         sleep 1
     done
     avd_settings_has_read_only "${log}" "${avd_directory}"
@@ -179,31 +174,19 @@ start_app() {
     else
         unset MIRAGE_SKIP_BUILD
     fi
-    if gui_session_start "${log}" "${bundle}" "" "$@"; then
+    if gui_session_start "${log}" "${bundle}" "" --preserve-frontmost "$@"; then
         BUILD_READY=1
         return 0
     fi
     return 1
 }
 
-focus_mirage() {
-    osascript -e 'tell application "System Events" to set frontmost of process "MirageApp" to true' \
-        >/dev/null 2>&1
-}
-
 quit_app() {
-    local status=0 elapsed=0 bundle="${ACTIVE_BUNDLE}"
-    if pgrep -x MirageApp >/dev/null 2>&1; then
-        focus_mirage || status=1
-        osascript -l JavaScript "${SCRIPT_DIR}/lib/cgkey.js" 12 1048576 >/dev/null 2>&1 || status=1
-        while [ "${elapsed}" -lt 30 ] && pgrep -x MirageApp >/dev/null 2>&1; do
-            sleep 1
-            elapsed=$((elapsed + 1))
-        done
-        if pgrep -x MirageApp >/dev/null 2>&1; then
-            echo "❌ MirageApp 沒有在 ⌘Q 後結束"
-            status=1
-        fi
+    local status=0 bundle="${ACTIVE_BUNDLE}" pid
+    pid="$(gui_session_pid_for_app "${bundle}/Mirage.app")"
+    if [ -n "${pid}" ] && ! gui_session_quit_gracefully "${pid}"; then
+        echo "❌ MirageApp 未在期限內正常結束"
+        status=1
     fi
     if [ -n "${bundle}" ] && [ "${KEEP}" -eq 0 ]; then
         gui_session_cleanup "${bundle}"
@@ -412,7 +395,8 @@ run_v2() {
 cleanup() {
     local status=$?
     trap - EXIT INT TERM
-    if pgrep -x MirageApp >/dev/null 2>&1; then
+    if [ -n "${ACTIVE_BUNDLE}" ] \
+        && gui_session_app_is_running "${ACTIVE_BUNDLE}/Mirage.app"; then
         echo "⚠️ 清理由本腳本啟動的 MirageApp"
         quit_app || status=1
     fi
