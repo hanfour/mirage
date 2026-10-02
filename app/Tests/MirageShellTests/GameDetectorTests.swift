@@ -1,3 +1,4 @@
+import Foundation
 import Testing
 @testable import MirageShell
 
@@ -79,7 +80,7 @@ extension GameDetectorTests {
     @Test func thirdTimeoutReschedulesAndSuccessRestoresTimer() async {
         let detector = GameDetector(adb: ForegroundResultSequence([
             .timeout, .timeout, .timeout, .timeout, .success("game.a")
-        ])) { _ in }
+        ]), makeTimer: unscheduledTimer) { _ in }
         detector.start()
         defer { detector.stop() }
         #expect(detector.scheduledPollingInterval == 1.5)
@@ -140,7 +141,7 @@ extension GameDetectorTests {
     @Test func stopDuringPollDoesNotRestartTimer() async {
         let detector = GameDetector(adb: ForegroundResultSequence([
             .timeout, .timeout, .timeout
-        ])) { _ in }
+        ]), makeTimer: unscheduledTimer) { _ in }
         detector.start()
         await detector.tick()?.value
         await detector.tick()?.value
@@ -197,4 +198,9 @@ extension GameDetectorTests {
         #expect(changes == [nil, "game.a", nil, "game.b"])
     }
 
+}
+
+/// 不排進 run loop 的計時器：有間隔可讀，但永遠不會自己觸發，測試完全由手動 tick() 推進。
+@MainActor private let unscheduledTimer: GameDetector.TimerFactory = { interval, block in
+    Timer(timeInterval: interval, repeats: true, block: block)
 }

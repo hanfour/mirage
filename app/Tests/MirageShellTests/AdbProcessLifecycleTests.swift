@@ -32,10 +32,12 @@ struct AdbProcessLifecycleTests {
         )
         #expect(warmup?.exit == 0)
         let before = try openFDCount()
-        // 200 ms 在冷啟動並行負載下 shell 來不及登記 PID，實測第 1 跑次 18/20。
-        // 放寬為一秒並改跑十次；每次約洩漏三個 fd，仍遠超 fd 差 < 10 的門檻。
-        let timeout: Duration = .seconds(1)
-        for _ in 0..<10 {
+        // shell 要在逾時前登記 PID，逾時太短時系統一慢就少記一組（2026-10-02 全量建置後
+        // CI 第 1 輪實測 9/10）。改成 5 次、每次 2 秒，總時間不變；每次約洩漏三個 fd，
+        // 5 次仍超過 fd 差 < 10 的門檻。
+        let timeout: Duration = .seconds(2)
+        let rounds = 5
+        for _ in 0..<rounds {
             let start = ContinuousClock.now
             let result = await AdbClient.runProcess(
                 fixture.executable, [fixture.pids.path], timeout, true,
@@ -47,21 +49,21 @@ struct AdbProcessLifecycleTests {
             #expect(elapsed < timeout + .seconds(1))
         }
         let deadline = ContinuousClock.now.advanced(by: .seconds(1))
-        while drains.value < 10 && ContinuousClock.now < deadline {
+        while drains.value < rounds && ContinuousClock.now < deadline {
             try await Task.sleep(for: .milliseconds(10))
         }
-        #expect(drains.value == 10)
+        #expect(drains.value == rounds)
         let pairsWaitStart = ContinuousClock.now
         let pairsDeadline = pairsWaitStart.advanced(by: .seconds(10))
         var pairs = try fixture.processPairs()
-        while pairs.count < 10 && ContinuousClock.now < pairsDeadline {
+        while pairs.count < rounds && ContinuousClock.now < pairsDeadline {
             try await Task.sleep(for: .milliseconds(10))
             pairs = try fixture.processPairs()
         }
         let waited = pairsWaitStart.duration(to: .now)
         let waitedSeconds = Double(waited.components.seconds) + Double(waited.components.attoseconds) / 1e18
         // 防止 fixture 根本沒啟動也被當成逾時通過；等待到期仍保留失敗。
-        #expect(pairs.count == 10, "fixture PID 記錄實際 \(pairs.count)/10，已等待 \(waitedSeconds) 秒（上限 10 秒）")
+        #expect(pairs.count == rounds, "fixture PID 記錄實際 \(pairs.count)/\(rounds)，已等待 \(waitedSeconds) 秒（上限 10 秒）")
         // writer 仍存活時就量 fd，不能先清理 fixture 讓 EOF 幫忙收尾。
         for pair in pairs { #expect(Darwin.kill(pair.child, 0) == 0) }
         let after = try openFDCount()
@@ -108,15 +110,17 @@ struct AdbProcessLifecycleTests {
         let drains = DrainCount()
         let invocation = Task {
             await AdbClient.runProcess(
-                fixture.executable, [fixture.pids.path], .seconds(2), true,
+                fixture.executable, [fixture.pids.path], .seconds(5), true,
                 drainFinished: { drains.increment() }
             )
         }
-        let deadline = ContinuousClock.now.advanced(by: .milliseconds(1700))
+        // 看門狗 5 秒、最多等 4 秒：shell 啟動在系統慢時可能超過 1 秒，仍能分辨「EOF 後就收尾」
+        // 與「等到看門狗才收尾」。
+        let deadline = ContinuousClock.now.advanced(by: .seconds(4))
         while drains.value == 0 && ContinuousClock.now < deadline {
             try await Task.sleep(for: .milliseconds(10))
         }
-        #expect(drains.value == 1) // EOF 後至多等一秒，不必等兩秒 watchdog。
+        #expect(drains.value == 1) // EOF 後就收尾，不必等 5 秒看門狗。
         let result = await invocation.value
         #expect(result == nil)
     }
@@ -151,7 +155,8 @@ struct AdbProcessLifecycleTests {
             for _ in 0..<20 { group.addTask { await startup.prepare(fixture.executable) } }
         }
         await startup.prepare(fixture.executable)
-        #expect(start.duration(to: .now) < .seconds(1))
+        // 上限 5 秒：只要不是逐一等待或等背景的 sleep 60，就遠低於此；原本 1 秒在系統慢時誤判。
+        #expect(start.duration(to: .now) < .seconds(5))
         let calls = try String(contentsOf: fixture.directory.appendingPathComponent("calls"), encoding: .utf8)
         #expect(calls == "start-server\n")
         let outputs = try String(contentsOf: fixture.directory.appendingPathComponent("outputs"), encoding: .utf8)
