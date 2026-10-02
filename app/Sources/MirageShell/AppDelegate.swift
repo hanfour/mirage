@@ -1,5 +1,6 @@
 import AppKit
 import MirageCore
+import Observation
 
 // 更正（2026-07-29，D1）：下面這段描述的根因**已經修掉了**。
 // `GrpcChannelBox.deinit` 不再呼叫阻塞式的 `syncShutdownGracefully()`；
@@ -43,6 +44,7 @@ import MirageCore
 // to actually exit, so blocking it on a semaphore until the async drain
 // finishes is the simplest way to guarantee the drain runs to completion
 // before teardown.
+@Observable
 final class AppDelegate: NSObject, NSApplicationDelegate {
     var model: AppModel?
 

@@ -28,6 +28,7 @@ struct MirageScene: App {
                 CommandGroup(replacing: .appSettings) {
                     Button("設定…") { appDelegate.model?.showSettingsWindow() }
                         .keyboardShortcut(",", modifiers: .command)
+                        // AppDelegate 必須可觀察，才能在 model 從 nil 建立後重算選單，並接續追蹤 setupVisible。
                         .disabled(appDelegate.model?.instanceManagerPresentation.setupVisible ?? true)
                 }
             }
