@@ -40,7 +40,8 @@ request_control() {
 }
 
 wait_for_rotation() {
-    local expected="$1" timeout="$2" deadline=$((SECONDS + timeout)) state actual
+    local expected="$1" timeout="$2" state actual
+    local deadline=$((SECONDS + timeout))
     while [ "${SECONDS}" -lt "${deadline}" ]; do
         state="$(request_control state)"
         actual="$(python3 -c 'import json,sys; print(json.loads(sys.argv[1]).get("rotation", -1))' "${state}")"
@@ -68,36 +69,45 @@ assert_window_orientation() {
     return 1
 }
 
-verify_touch() {
-    local rotation="$1" nx="$2" ny="$3" label="$4"
+start_event_stream() {
     : > "${EVENT_LOG}"
     "${ADB}" -s "${TARGET_SERIAL}" shell getevent -lt /dev/input/event1 < /dev/null \
         > "${EVENT_LOG}" 2>&1 &
     GETEVENT_PID=$!
-    sleep 0.25
+    sleep 0.5
+    # evdev 只送有變化的軸。先點中央一次，讓之後每個角落的 X/Y 都與前一點不同、一定會出現在記錄裡。
+    request_control mouse click --x 0.5 --y 0.5 --unit norm >/dev/null
+    sleep 0.3
+}
+
+verify_touch() {
+    local rotation="$1" nx="$2" ny="$3" label="$4" before
+    before="$(wc -l < "${EVENT_LOG}")"
     request_control mouse click --x "${nx}" --y "${ny}" --unit norm >/dev/null
-    sleep 0.2
-    kill "${GETEVENT_PID}" 2>/dev/null || true
-    wait "${GETEVENT_PID}" 2>/dev/null || true
-    GETEVENT_PID=""
-    python3 - "${EVENT_LOG}" "${rotation}" "${nx}" "${ny}" "${PANEL_WIDTH}" "${PANEL_HEIGHT}" "${label}" <<'PY'
+    sleep 0.3
+    python3 - "${EVENT_LOG}" "${before}" "${rotation}" "${nx}" "${ny}" "${label}" <<'PY'
 import re
 import sys
 
-path, rotation, nx, ny, width, height, label = sys.argv[1:]
-rotation, width, height = int(rotation), int(width), int(height)
-nx, ny = float(nx), float(ny)
-values = {"x": None, "y": None}
-patterns = {"x": re.compile(r"ABS_MT_POSITION_X\s+([0-9a-fA-F]+)"),
-            "y": re.compile(r"ABS_MT_POSITION_Y\s+([0-9a-fA-F]+)")}
-with open(path, encoding="utf-8", errors="replace") as log:
-    for line in log:
-        for axis, pattern in patterns.items():
-            match = pattern.search(line)
-            if match:
-                values[axis] = int(match.group(1), 16)
-if values["x"] is None or values["y"] is None:
-    raise SystemExit(f"{label} 沒有讀到 event1 的 X/Y：{path}")
+log_path, before, rotation, nx, ny, label = sys.argv[1:]
+before, rotation, nx, ny = int(before), int(rotation), float(nx), float(ny)
+# 量程固定 0–32767（getevent -lp：ABS_MT_POSITION_X/Y max 32767）。
+latest = {"X": None, "Y": None}
+pressed = False
+with open(log_path, encoding="utf-8", errors="replace") as log:
+    for index, line in enumerate(log):
+        match = re.search(r"ABS_MT_POSITION_([XY])\s+([0-9a-f]+)", line)
+        if match:
+            latest[match.group(1)] = int(match.group(2), 16) / 32767
+        # 按下那一組事件裡 TRACKING_ID 排在 X/Y 前面，要讀到該組的 SYN_REPORT 才是這次的位置。
+        if pressed and "SYN_REPORT" in line:
+            break
+        if index >= before and re.search(r"ABS_MT_TRACKING_ID\s+(?!ffffffff)[0-9a-f]+", line):
+            pressed = True
+if not pressed:
+    raise SystemExit(f"{label} 這次點擊沒有在 event1 產生按下：{log_path}")
+if latest["X"] is None or latest["Y"] is None:
+    raise SystemExit(f"{label} 記錄裡沒有 X/Y：{log_path}")
 if rotation == 1:
     px, py = 1 - ny, nx
 elif rotation == 2:
@@ -106,20 +116,19 @@ elif rotation == 3:
     px, py = ny, 1 - nx
 else:
     px, py = nx, ny
-expected = (round(px * (width - 1)), round(py * (height - 1)))
-tolerance = ((width - 1) * 0.03, (height - 1) * 0.03)
-if abs(values["x"] - expected[0]) > tolerance[0] or abs(values["y"] - expected[1]) > tolerance[1]:
-    raise SystemExit(f"{label} rotation={rotation} 實測 {values}，期待 {expected} ±3%")
-print(f"✅ {label} rotation={rotation} 面板座標 {values['x']},{values['y']}")
+if abs(latest["X"] - px) > 0.03 or abs(latest["Y"] - py) > 0.03:
+    raise SystemExit(f"{label} rotation={rotation} 實測面板 ({latest['X']:.3f}, {latest['Y']:.3f})，期待 ({px:.3f}, {py:.3f}) ±0.03")
+print(f"✅ {label} rotation={rotation} 面板 ({latest['X']:.3f}, {latest['Y']:.3f})")
 PY
 }
 
+# 避開標題列：橫向時內容區只有 270 點高，y=0.1 會落在標題列（右上是主畫面／最近任務按鈕）。
 verify_corners() {
     local rotation="$1"
-    verify_touch "${rotation}" 0.1 0.1 "左上"
-    verify_touch "${rotation}" 0.9 0.1 "右上"
-    verify_touch "${rotation}" 0.1 0.9 "左下"
-    verify_touch "${rotation}" 0.9 0.9 "右下"
+    verify_touch "${rotation}" 0.2 0.2 "左上"
+    verify_touch "${rotation}" 0.8 0.2 "右上"
+    verify_touch "${rotation}" 0.2 0.8 "左下"
+    verify_touch "${rotation}" 0.8 0.8 "右下"
 }
 
 take_rotated_screenshot() {
@@ -175,6 +184,7 @@ PANEL_WIDTH="${BASH_REMATCH[1]}"
 PANEL_HEIGHT="${BASH_REMATCH[2]}"
 
 echo "=== Brotato 橫向驗證 ==="
+start_event_stream
 ACTIVITY="$("${ADB}" -s "${TARGET_SERIAL}" shell cmd package resolve-activity --brief \
     -a android.intent.action.MAIN -c android.intent.category.LAUNCHER "${BROTA_PACKAGE}" \
     | tr -d '\r' | tail -1)"
