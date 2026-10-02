@@ -1,3 +1,4 @@
+// 自行搬移像素，避免 CGContext 旋轉時內插造成邊緣模糊。
 import CoreGraphics
 import Foundation
 import ImageIO
@@ -23,8 +24,6 @@ enum ScreenshotRotation {
                                           bitsPerComponent: 8, bytesPerRow: rowBytes,
                                           space: CGColorSpaceCreateDeviceRGB(),
                                           bitmapInfo: bitmapInfo.rawValue) else { return false }
-            context.translateBy(x: 0, y: CGFloat(sourceHeight))
-            context.scaleBy(x: 1, y: -1)
             context.interpolationQuality = .none
             context.draw(image, in: CGRect(x: 0, y: 0, width: sourceWidth, height: sourceHeight))
             return true
