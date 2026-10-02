@@ -1,4 +1,5 @@
 import AppKit
+import MirageCore
 
 // 更正（2026-07-29，D1）：下面這段描述的根因**已經修掉了**。
 // `GrpcChannelBox.deinit` 不再呼叫阻塞式的 `syncShutdownGracefully()`；
@@ -49,7 +50,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// Dock 圖示從頭就不出現。
     func applicationWillFinishLaunching(_ notification: Notification) {
         MainActor.assumeIsolated {
-            if model == nil { model = AppModel() }
+            if model == nil {
+                model = AppModel(locationSettingsStore: .standard())
+            }
             guard model?.launchPreferences.effectiveBackgroundMode ?? false else { return }
             (NSApp as NSApplication?)?.setActivationPolicy(LaunchPreferences.launchActivationPolicy(backgroundMode: true))
         }

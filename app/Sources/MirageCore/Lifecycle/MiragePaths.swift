@@ -34,6 +34,14 @@ public enum MiragePaths {
             .appendingPathComponent("downloads", isDirectory: true)
     }
 
+    public static func locationSettingsFile(homeDirectory: URL) -> URL {
+        homeDirectory
+            .appendingPathComponent("Library", isDirectory: true)
+            .appendingPathComponent("Application Support", isDirectory: true)
+            .appendingPathComponent("Mirage", isDirectory: true)
+            .appendingPathComponent("location.json", isDirectory: false)
+    }
+
     private static func nonEmpty(_ value: String?) -> String? {
         guard let value else { return nil }
         let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)

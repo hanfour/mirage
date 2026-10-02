@@ -32,5 +32,7 @@ struct MiragePathsTests {
             homeDirectory: home).path == "/custom/avds")
         #expect(MiragePaths.downloadsDirectory(homeDirectory: home).path ==
                 "/users/tester/Library/Caches/Mirage/downloads")
+        #expect(MiragePaths.locationSettingsFile(homeDirectory: home).path ==
+                "/users/tester/Library/Application Support/Mirage/location.json")
     }
 }

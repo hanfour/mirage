@@ -1,4 +1,3 @@
-import AppKit
 import Foundation
 import MirageCore
 
@@ -10,22 +9,29 @@ extension AppModel {
             settingsWindowController.show()
             return
         }
-        guard let entry = InstanceTable.primaryEntry(in: presentation.entries),
-              let launcher = presentation.launcher else { return }
-
-        do {
-            let controller = try makeSettingsController(
-                entry: entry,
-                environment: ProcessInfo.processInfo.environment,
-                launcher: launcher)
-            let windowController = SettingsWindowController(controller: controller) { [weak self] in
+        var avdController: SettingsController?
+        var avdError: String?
+        if let entry = InstanceTable.primaryEntry(in: presentation.entries),
+           let launcher = presentation.launcher {
+            do {
+                avdController = try makeSettingsController(
+                    entry: entry,
+                    environment: ProcessInfo.processInfo.environment,
+                    launcher: launcher)
+            } catch {
+                avdError = "讀取 AVD 設定失敗：\(error.localizedDescription)"
+            }
+        }
+        let locationError = locationSettings.consumeLoadError()
+        let windowController = SettingsWindowController(
+            avdController: avdController,
+            locationController: locationSettings,
+            avdError: avdError,
+            initialLocationError: locationError) { [weak self] in
                 self?.settingsWindowController = nil
             }
-            settingsWindowController = windowController
-            windowController.show()
-        } catch {
-            NSAlert(error: error).runModal()
-        }
+        settingsWindowController = windowController
+        windowController.show()
     }
 
     func applySettingsAutoApplyIfNeeded(entry: InstanceEntry, environment: [String: String]) async {
