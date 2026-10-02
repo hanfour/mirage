@@ -3,6 +3,7 @@ import Testing
 @testable import MirageCore
 
 @Suite struct KeymapProfileTests {
+    private let scratch = ScratchDirectories()
     private func sampleProfile() -> KeymapProfile {
         KeymapProfile(gameId: "com.example.game", version: 1, bindings: [
             .joystick(up: .key("w"), down: .key("s"), left: .key("a"), right: .key("d"),
@@ -32,9 +33,7 @@ import Testing
 
         let userFixture = testDirectory.appendingPathComponent("Fixtures/profiles/user-profile.json")
         let sources = bundledFiles + [userFixture]
-        let storeDirectory = FileManager.default.temporaryDirectory
-            .appendingPathComponent("mirage-profile-compat-\(UUID().uuidString)", isDirectory: true)
-        try FileManager.default.createDirectory(at: storeDirectory, withIntermediateDirectories: true)
+        let storeDirectory = scratch.make("mirage-profile-compat")
         let store = ProfileStore(directory: storeDirectory)
 
         for source in sources {
