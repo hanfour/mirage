@@ -26,6 +26,21 @@ import Testing
         #expect(launcher.state(for: "mirage-game") == .booting(since: harness.nowValue))
     }
 
+    /// 探索檔出現前就要有所有權紀錄：這段時間 Mirage 崩潰時，下次啟動才認得這台模擬器。
+    @Test func spawnRecordsOwnershipBeforeDiscoveryFileAppears() async throws {
+        let ownedFile = temporaryOwnedFile()
+        defer { try? FileManager.default.removeItem(at: ownedFile.deletingLastPathComponent()) }
+        let harness = LauncherHarness()
+        let launcher = harness.makeLauncher(ownedFile: ownedFile)
+
+        await launcher.ensureRunning(harness.game)
+
+        let records = OwnedInstances.read(from: ownedFile).records
+        let spawnPid = try #require(harness.spawnPids.first)
+        #expect(records.map(\.pid) == [spawnPid])
+        #expect(records.map(\.avd) == ["mirage-game"])
+    }
+
     @Test func overlappingTickReturnsWhileBootProbeIsSuspended() async throws {
         let ownedFile = temporaryOwnedFile()
         defer { try? FileManager.default.removeItem(at: ownedFile.deletingLastPathComponent()) }
@@ -179,7 +194,8 @@ import Testing
         await launcher.ensureRunning(harness.game)
         let spawnPid = try #require(harness.spawnPids.first)
         #expect(launcher.state(for: "mirage-game") == .launching(since: harness.nowValue))
-        #expect(OwnedInstances.read(from: ownedFile).records.isEmpty)
+        // 探索檔出現前已用 spawn pid 記下所有權（崩潰後下次啟動才認得它）。
+        #expect(OwnedInstances.read(from: ownedFile).records.map(\.pid) == [spawnPid])
 
         launcher.stopAllOwnedForTermination()
 
