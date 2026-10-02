@@ -11,6 +11,7 @@ final class AppModel {
     /// 解析一次、`EmulatorClient()` 的預設值卻寫死 `localhost:8554`，於是**只有 App 走這條路，
     /// 所有測試都繞過它**。兩份各自解析的複本遲早會漂移，現在只有一份。
     let client = EmulatorClient()
+    let locationSettings: LocationSettingsController
     let box: any FrameSink
     /// `client.start` 實際拿到的 sink。遙控關閉時**就是** `box`（同一個物件，行為零改變）；
     /// 開啟時是 `BroadcastFrameSink(primary: box, secondary:)`。Renderer 一直拿 `box`
@@ -57,19 +58,24 @@ final class AppModel {
     let inputQueue: InputQueue
     let textInput: TextInputPresentation
 
-    /// **參數都有預設值，產品呼叫端（`AppDelegate.applicationWillFinishLaunching` 的 `AppModel()`）
-    /// 一個字都不用改。** 開這道縫只為了測試能餵暫存目錄與固定的 starter——構造 `AppModel`
+    /// 參數都有預設值；產品入口會明確提供位置設定檔路徑，測試則保持記憶體位置狀態。
+    /// Profile store 與 starter 的注入可讓測試使用暫存資料，構造 `AppModel`
     /// 原本會在使用者真實的 Application Support 底下建目錄（D13 記載的「光建構就有 8 個
     /// 全域副作用」之一），測試不該碰那裡。
     init(store: ProfileStore = .standard(),
          pairingTokens: PairingTokenStore = PairingTokenStore(),
          launchPreferences: LaunchPreferences = LaunchPreferences(),
+         locationSettingsStore: LocationSettingsStore? = nil,
          starterBindings: @escaping @Sendable () -> [Binding] = { BuiltInProfiles.starterBindings() })
     {
         self.pairingTokens = pairingTokens
         self.launchPreferences = launchPreferences
         self.store = store
         self.starterBindings = starterBindings
+        let client = self.client
+        locationSettings = LocationSettingsController(store: locationSettingsStore) { coordinate in
+            try await client.setLocation(coordinate)
+        }
         let sink = FrameSinkFactory.make(from: ProcessInfo.processInfo.environment)
         box = sink
         activeSink = sink
@@ -214,10 +220,17 @@ final class AppModel {
         Task { [client] in
             for await s in client.states {
                 await MainActor.run {
+                    let connectedNow = s == .connected && self.connState != .connected
                     if self.connState != s { self.inputQueue.invalidateTextSession() }
                     self.connState = s
                     self.menuBar?.updateStatus(Self.label(s))
                     self.windowController.setAndroidActionsEnabled(s == .connected)
+                    if connectedNow {
+                        let locationSettings = self.locationSettings
+                        Task { @MainActor in
+                            _ = await locationSettings.applyAfterConnection()
+                        }
+                    }
                 }
             }
         }
@@ -237,6 +250,11 @@ final class AppModel {
             onShow: { [weak self] in self?.wake() }
         )
         menuBar?.updateStatus(Self.label(connState))   // 補上 menuBar 建立前已錯過的狀態
+        menuBar?.updateLocationStatus(locationSettings.menuStatus)
+        locationSettings.onStatusChange = { [weak self] in
+            guard let self else { return }
+            self.menuBar?.updateLocationStatus(self.locationSettings.menuStatus)
+        }
         setupBackgroundModeMenu()
         // D2：選單列的 Android 實體鍵。down 之後緊接 up——guest 收到的是一次完整按放，
         // 不是按住不放。sendKey 在未連線時靜默不送（與 sendTap/sendTouches 一致）。

@@ -170,6 +170,16 @@ final class TestControlChannel {
         ]
         let windowFrame = window.frame
         let contentSize = contentView.bounds.size
+        let coordinate = model.locationSettings.currentCoordinate
+        let latitude: Any
+        let longitude: Any
+        if let coordinate {
+            latitude = coordinate.latitude
+            longitude = coordinate.longitude
+        } else {
+            latitude = NSNull()
+            longitude = NSNull()
+        }
         return [
             "pid": Int(getpid()),
             "windowNumber": window.windowNumber,
@@ -184,6 +194,11 @@ final class TestControlChannel {
             "profile": model.profile?.gameId ?? NSNull(),
             "keymapHasProfile": model.keymap?.hasProfile ?? false,
             "textMode": model.keymap?.isTextMode ?? false,
+            "location": [
+                "enabled": model.locationSettings.enabled,
+                "latitude": latitude,
+                "longitude": longitude,
+            ],
         ]
     }
 

@@ -9,6 +9,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
     private let onWake: () -> Void
     private let onShow: () -> Void
     private let statusMenuItem: NSMenuItem
+    private let locationStatusItem: NSMenuItem
     private let gameItem: NSMenuItem
     private let gamepadItem: NSMenuItem
     private let audioHealthItem: NSMenuItem
@@ -73,6 +74,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         statusItem.button?.title = "🪞"
         statusMenuItem = NSMenuItem(title: "狀態：—", action: nil, keyEquivalent: "")
+        locationStatusItem = NSMenuItem(title: "位置：模擬器預設", action: nil, keyEquivalent: "")
         gameItem = NSMenuItem(title: "遊戲：—", action: nil, keyEquivalent: "")
         gamepadItem = NSMenuItem(title: "手把：未連接", action: nil, keyEquivalent: "")
         muteItem = NSMenuItem(title: "靜音", action: nil, keyEquivalent: "")
@@ -103,6 +105,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         let menu = NSMenu()
         menu.delegate = self
         menu.addItem(statusMenuItem)
+        menu.addItem(locationStatusItem)
         menu.addItem(audioHealthItem)
         menu.addItem(.separator())
         menu.addItem(withTitle: "喚醒", action: #selector(wakeTapped), keyEquivalent: "").target = self
@@ -159,6 +162,8 @@ final class MenuBarController: NSObject, NSMenuDelegate {
     }
 
     func updateStatus(_ text: String) { statusMenuItem.title = "狀態：\(text)" }
+
+    func updateLocationStatus(_ text: String) { locationStatusItem.title = text }
 
     /// Task 6：依目前偵測到的 package 與 keymap 是否啟用更新選單列文字。
     func updateGame(package: String?, active: Bool) {
