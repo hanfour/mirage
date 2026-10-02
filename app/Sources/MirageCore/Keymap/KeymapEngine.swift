@@ -96,8 +96,10 @@ public final class KeymapEngine {
     /// 右搖桿視角每一個外層計時週期呼叫一次。右搖桿不受 look.activation 限制。
     public func gamepadLookTick(dt: Double) -> TouchFrame? {
         guard let look, rightStick.magnitude > 0.15, dt.isFinite, dt > 0 else { return nil }
-        // 以既有滑鼠 sensitivity 換算合成像素位移，讓滿偏的正規化速度約為半個畫面/秒。
-        let pixelsPerSecond = 500 / look.sensitivity
+        // 搖桿滿偏等同每秒 500 像素的滑鼠位移，再走與滑鼠相同的 sensitivity 換算：
+        // sensitivity 1.0 時滿偏約半個畫面/秒，sensitivity 加倍速度也加倍，與滑鼠一致。
+        // （原本先除以 sensitivity 再乘回去，編輯器的靈敏度滑桿對搖桿完全沒有作用。）
+        let pixelsPerSecond = 500.0
         let dx = rightStick.x * pixelsPerSecond * dt
         let dy = -rightStick.y * pixelsPerSecond * dt
         lookPoint = NormPoint.clamped(x: lookPoint.x + dx * look.sensitivity / 1000,

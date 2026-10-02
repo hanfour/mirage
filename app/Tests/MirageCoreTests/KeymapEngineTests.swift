@@ -90,22 +90,27 @@ import Testing
         let moved = try #require(e.gamepadLookTick(dt: 0.5))
         let touch = try #require(moved.touches.first)
         #expect(touch.down)
-        #expect(abs(touch.point.x - 0.625) < 1e-9)
-        #expect(abs(touch.point.y - 0.375) < 1e-9)
+        // 0.5 偏移 × 半個畫面/秒 × sensitivity 1.5 × 0.5 秒 = 0.1875
+        #expect(abs(touch.point.x - 0.6875) < 1e-9)
+        #expect(abs(touch.point.y - 0.3125) < 1e-9)
 
         let released = e.applyGamepad(.rightStickChanged(.zero))
         let lookTouchIsUp = try !#require(released.touches.first).down
         #expect(lookTouchIsUp)
     }
 
-    @Test func rightStickMaximumSpeedIsHalfScreenPerSecond() throws {
-        let e = KeymapEngine(profile: KeymapProfile(gameId: "g", version: 1, bindings: [
-            .look(activation: nil, sensitivity: 2),
-        ]))
-        _ = e.applyGamepad(.rightStickChanged(GamepadVector(x: 1, y: 0)))
-        let moved = try #require(e.gamepadLookTick(dt: 0.25))
-        let touch = try #require(moved.touches.first)
-        #expect(abs(touch.point.x - 0.625) < 1e-9)
+    /// 滿偏在 sensitivity 1.0 時是半個畫面/秒，並隨編輯器的靈敏度滑桿線性變化。
+    @Test func rightStickSpeedScalesWithLookSensitivity() throws {
+        func movedX(sensitivity: Double) throws -> Double {
+            let e = KeymapEngine(profile: KeymapProfile(gameId: "g", version: 1, bindings: [
+                .look(activation: nil, sensitivity: sensitivity),
+            ]))
+            _ = e.applyGamepad(.rightStickChanged(GamepadVector(x: 1, y: 0)))
+            let moved = try #require(e.gamepadLookTick(dt: 0.25))
+            return try #require(moved.touches.first).point.x
+        }
+        #expect(abs(try movedX(sensitivity: 1) - 0.625) < 1e-9)
+        #expect(abs(try movedX(sensitivity: 2) - 0.75) < 1e-9)
     }
 
     @Test func releaseAllLiftsGamepadTapAndBothStickTouches() throws {
