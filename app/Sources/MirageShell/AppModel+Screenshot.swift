@@ -11,7 +11,11 @@ extension AppModel {
         case .unavailable:
             failScreenshot("無法取得 PNG")
         case .png(let data):
-            saveScreenshot(data)
+            guard let upright = ScreenshotRotation.uprightPNG(data, rotation: displayRotation) else {
+                failScreenshot("無法將截圖轉正")
+                return
+            }
+            saveScreenshot(upright)
         }
     }
 

@@ -25,24 +25,6 @@ struct RemoteMirrorStats: Sendable, Equatable {
     let encodeFailures: Int
 }
 
-/// server 在 controller 初始化完成前就要綁回呼；弱參照避免循環持有。
-private final class RemoteControllerRelay: @unchecked Sendable {
-    private let lock = NSLock()
-    private weak var target: RemoteMirrorController?
-
-    func attach(_ controller: RemoteMirrorController) { lock.lock(); target = controller; lock.unlock() }
-
-    func record(_ stats: RemoteClientStats?) {
-        lock.lock(); let controller = target; lock.unlock()
-        controller?.recordClientStats(stats)
-    }
-
-    func request() {
-        lock.lock(); let controller = target; lock.unlock()
-        controller?.requestKeyframe()
-    }
-}
-
 /// 存取單元 → 幀序號 → `RemoteServer.send`。序號從 1 起，每個 controller 一條。
 private final class RemoteAccessUnitSequencer: @unchecked Sendable {
     private let lock = NSLock()
@@ -116,6 +98,7 @@ final class RemoteMirrorController: @unchecked Sendable {
     private let server: RemoteServer
     private let encoder: any RemoteFrameEncoding
     private let sequencer: RemoteAccessUnitSequencer
+    private let touchRelay: RemoteControllerRelay
     private let onError: @Sendable (String) -> Void
     private let emulatorConnected: @Sendable () async -> Bool
     private let lock = NSLock()
@@ -158,10 +141,11 @@ final class RemoteMirrorController: @unchecked Sendable {
         self.stateContinuation = continuation
         continuation.yield(.initial)
         let relay = RemoteControllerRelay()
+        self.touchRelay = relay
         let server = RemoteServer(
             configuration: RemoteServerConfiguration(host: configuration.host, port: configuration.port,
                                                      token: configuration.token, viewerPage: configuration.viewerPage),
-            onTouches: { inputQueue.touches($0) },
+            onTouches: { inputQueue.touches(relay.upright($0)) },
             onText: onText,
             // 手機端按下恢復就是「我核對過欄位了」。恢復永不重播舊稿，見 `resume`。
             onTextResume: { _ = inputQueue.resumeTextSubmissions(acknowledgingUncertainty: true) },
@@ -196,10 +180,12 @@ final class RemoteMirrorController: @unchecked Sendable {
         return clientStats
     }
 
-    fileprivate func recordClientStats(_ stats: RemoteClientStats?) {
+    func recordClientStats(_ stats: RemoteClientStats?) {
         lock.lock(); defer { lock.unlock() }
         clientStats = stats
     }
+
+    func setDisplayRotation(_ rotation: Int) { touchRelay.setDisplayRotation(rotation) }
 
     var sessionState: RemoteSessionState { server.sessionState }
     var boundPort: Int? { server.boundPort }

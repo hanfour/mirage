@@ -100,6 +100,13 @@ struct AdbClientTests {
         #expect(client == nil)
     }
 
+    @Test func standardUsesConfiguredEmulatorSerial() throws {
+        let client = try #require(AdbClient.standard(
+            environment: ["ANDROID_SDK_ROOT": "/sdk", "MIRAGE_ADB_SERIAL": "emulator-5560"],
+            isExecutable: { _ in true }))
+        #expect(client.serial == "emulator-5560")
+    }
+
     // Finder 未提供 SDK override 時，adb 使用 Mirage 的預設 SDK 位置。
     @Test func standardUsesMirageSdkWhenEnvironmentIsEmpty() throws {
         let client = try #require(AdbClient.standard(

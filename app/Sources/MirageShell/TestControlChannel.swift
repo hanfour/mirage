@@ -190,6 +190,7 @@ final class TestControlChannel {
             "titlebarVisible": model.windowController.isTitlebarVisible,
             "connected": model.connState == .connected,
             "connection": AppModel.label(model.connState),
+            "rotation": model.displayRotation,
             "buttons": buttons,
             "profile": model.profile?.gameId ?? NSNull(),
             "keymapHasProfile": model.keymap?.hasProfile ?? false,

@@ -31,7 +31,8 @@ final class MirrorBlitter: @unchecked Sendable {
     func makeCommandBuffer() -> MTLCommandBuffer? { queue.makeCommandBuffer() }
 
     /// 把 `source` 取樣繪製進 `target`。兩者尺寸無需有任何關係——那正是本型別存在的理由。
-    func encode(_ source: MTLTexture, into target: MTLTexture, on buffer: MTLCommandBuffer) {
+    func encode(_ source: MTLTexture, into target: MTLTexture, on buffer: MTLCommandBuffer,
+                rotation: UInt32 = 0) {
         let pass = MTLRenderPassDescriptor()
         pass.colorAttachments[0].texture = target
         pass.colorAttachments[0].loadAction = .dontCare   // 三角形覆蓋全畫面，不必先清
@@ -40,6 +41,8 @@ final class MirrorBlitter: @unchecked Sendable {
         encoder.setRenderPipelineState(pipeline)
         encoder.setFragmentTexture(source, index: 0)
         encoder.setFragmentSamplerState(sampler, index: 0)
+        var displayRotation = rotation
+        encoder.setFragmentBytes(&displayRotation, length: MemoryLayout<UInt32>.size, index: 0)
         encoder.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: 3)
         encoder.endEncoding()
     }

@@ -18,6 +18,15 @@ import Testing
         #expect(ev.touches[1].pressure == 0)         // up
     }
 
+    @Test func rotationOneMapsUprightTopLeftToPanelTopRight() {
+        let event = EmulatorClient.buildTouchEvent(
+            [TouchSpec(identifier: 1, point: NormPoint(x: 0, y: 0), down: true)],
+            width: 1080, height: 2400, rotation: 1)
+        let touch = event.touches[0]
+        let nearPanelTopRight = abs(Int(touch.x) - 1079) <= 1 && Int(touch.y) == 0
+        #expect(nearPanelTopRight)
+    }
+
     @Test func buildsKeyEventFromW3CKey() {
         let ev = EmulatorClient.buildKeyEvent(.key("Enter"), down: true)
         #expect(ev?.key == "Enter")

@@ -1,4 +1,5 @@
 import AppKit
+import MirageCore
 import SwiftUI
 
 /// 鏡像視窗的內容。原本寫在 `MirageScene` 的 `Window { }` 裡，2026-09-17 抽出來，
@@ -14,6 +15,7 @@ struct MirrorRootView: View {
             MirrorView(client: model.client, box: model.box,
                        controller: model.keymap, isEditing: model.editing, hasProfile: model.profile != nil, textInput: model.textInput,
                        queue: model.inputQueue, isConnected: model.connState == .connected,
+                       displayRotation: model.displayRotation,
                        isMouseCaptured: { model.mouseCapture.captured },
                        onFrameSize: { w, h in model.frameSize = (w: w, h: h) },
                        onStreamDemand: { w, h in await model.updateWindowStreamDemand(width: w, height: h) })
@@ -117,7 +119,7 @@ struct MirrorRootView: View {
         } message: {
             Text(model.profileSaveError ?? "")
         }
-        .frame(minWidth: 270, minHeight: 600)
+        .frame(minWidth: 270, minHeight: model.displayRotation.isMultiple(of: 2) ? 600 : 270)
         .allowsHitTesting(!model.instanceManagerPresentation.setupVisible)
     }
 
@@ -132,7 +134,8 @@ struct MirrorRootView: View {
     private var keymapOverlayLayer: some View {
         if model.editing, let session = model.editorSession {
             OverlayEditorView(session: session,
-                              frameSize: model.frameSize,
+                              frameSize: DisplayRotation.upright(size: model.frameSize,
+                                                                 rotation: model.displayRotation),
                               onSelect: { model.selectBinding($0) },
                               onMove: { model.moveSelectedBinding(to: $0) },
                               onSave: { model.saveEditorSession() },
@@ -145,7 +148,9 @@ struct MirrorRootView: View {
         } else if !model.isFullScreen {
             // P1-e 遊戲模式：全螢幕時隱藏唯讀提示標記（純視覺噪音）。ConnectionBanner
             // 與 InstallBanner 刻意保留——前者是必須知道的異常，後者是使用者主動觸發的回饋。
-            KeymapOverlay(profile: model.profile, frameSize: model.frameSize)
+            KeymapOverlay(profile: model.profile,
+                          frameSize: DisplayRotation.upright(size: model.frameSize,
+                                                             rotation: model.displayRotation))
         }
     }
 }

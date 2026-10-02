@@ -7,19 +7,19 @@ protocol ForegroundPackageProviding: Sendable {
 }
 
 enum ForegroundResult: Sendable {
-    case success(String?)
+    case success(package: String?, rotation: Int?)
     case timeout
     case failure
 
     var package: String? {
-        if case .success(let package) = self { return package }
+        if case .success(let package, _) = self { return package }
         return nil
     }
 }
 
 extension ForegroundPackageProviding {
     func foregroundResult(timeout: Duration) async -> ForegroundResult {
-        .success(await dumpsysForegroundPackage(timeout: timeout))
+        .success(package: await dumpsysForegroundPackage(timeout: timeout), rotation: nil)
     }
 }
 
@@ -31,8 +31,10 @@ final class GameDetector {
     private let adb: any ForegroundPackageProviding
     private let interval: TimeInterval
     private let onChange: (String?) -> Void
+    private let onRotationChange: (Int) -> Void
     private var timer: Timer?
     private var last: String??            // 尚未偵測=nil；已偵測=Optional(package/nil)
+    private var lastRotation: Int?
     private var polling = false
     private(set) var consecutiveTimeouts = 0
     var scheduledPollingInterval: TimeInterval? { timer?.timeInterval }
@@ -49,11 +51,13 @@ final class GameDetector {
 
     init(adb: any ForegroundPackageProviding, interval: Duration = .milliseconds(1500),
          makeTimer: @escaping TimerFactory = GameDetector.runLoopTimer,
+         onRotationChange: @escaping (Int) -> Void = { _ in },
          onChange: @escaping (String?) -> Void) {
         self.adb = adb
         self.makeTimer = makeTimer
         self.interval = Double(interval.components.seconds) + Double(interval.components.attoseconds) / 1e18
         self.onChange = onChange
+        self.onRotationChange = onRotationChange
     }
 
     func start() {
@@ -105,6 +109,11 @@ final class GameDetector {
             if self.last == nil || self.last! != pkg {   // 首次或變動
                 self.last = pkg
                 self.onChange(pkg)
+            }
+            if case .success(_, let rotation) = result,
+               let rotation, self.lastRotation != rotation {
+                self.lastRotation = rotation
+                self.onRotationChange(rotation)
             }
         }
     }
