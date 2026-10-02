@@ -6,9 +6,11 @@ import Foundation
 ///
 /// - `backgroundMode`：下次啟動不開視窗、自動開手機遙控，只留選單列。打勾當下不影響目前狀態。
 /// - `speechEnabled`：語音轉文字的開關。之前每次重開都要到選單列再開一次。
+/// - `smoothFrames`：降低卡頓，預設開啟；重新開啟 Mirage 後生效。
 final class LaunchPreferences {
     static let backgroundModeKey = "mirage.launch.backgroundMode"
     static let speechEnabledKey = "mirage.launch.speechEnabled"
+    static let smoothFramesKey = "mirage.display.smoothFrames"
     /// 驗證腳本用來指定這次啟動是否為背景模式（"1"／"0"），不寫回使用者的設定。
     static let backgroundModeOverrideKey = "MIRAGE_BACKGROUND_MODE"
     private let defaults: UserDefaults
@@ -48,6 +50,14 @@ final class LaunchPreferences {
     var speechEnabled: Bool {
         get { defaults.bool(forKey: Self.speechEnabledKey) }
         set { defaults.set(newValue, forKey: Self.speechEnabledKey) }
+    }
+
+    var smoothFrames: Bool {
+        get {
+            defaults.object(forKey: Self.smoothFramesKey) == nil
+                ? true : defaults.bool(forKey: Self.smoothFramesKey)
+        }
+        set { defaults.set(newValue, forKey: Self.smoothFramesKey) }
     }
 
     /// `start()` 完成之後視窗要怎麼處理。背景模式根本不建立視窗，

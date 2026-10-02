@@ -4,6 +4,7 @@ import SwiftUI
 
 @MainActor
 final class SettingsWindowController: NSObject, NSWindowDelegate {
+    private let displayController: DisplaySettingsController
     private let avdController: SettingsController?
     private let locationController: LocationSettingsController
     private let avdError: String?
@@ -11,11 +12,13 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
     private let onClose: () -> Void
     private var createdWindow: NSWindow?
 
-    init(avdController: SettingsController?,
+    init(displayController: DisplaySettingsController,
+         avdController: SettingsController?,
          locationController: LocationSettingsController,
          avdError: String?,
          initialLocationError: String?,
          onClose: @escaping () -> Void) {
+        self.displayController = displayController
         self.avdController = avdController
         self.locationController = locationController
         self.avdError = avdError
@@ -34,6 +37,7 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
             window.title = "Mirage 設定"
             window.isReleasedWhenClosed = false
             window.contentView = NSHostingView(rootView: SettingsView(
+                displayController: displayController,
                 avdController: avdController,
                 locationController: locationController,
                 avdError: avdError,
@@ -58,6 +62,7 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
 
 @MainActor
 private struct SettingsView: View {
+    let displayController: DisplaySettingsController
     let avdController: SettingsController?
     @Bindable var locationController: LocationSettingsController
     let avdError: String?
@@ -65,6 +70,7 @@ private struct SettingsView: View {
 
     var body: some View {
         Form {
+            DisplaySettingsSection(controller: displayController)
             if let avdController {
                 AVDSettingsSection(controller: avdController)
             }
@@ -80,6 +86,25 @@ private struct SettingsView: View {
         .formStyle(.grouped)
         .frame(minWidth: 560, idealWidth: 600, maxWidth: 720,
                minHeight: 420, idealHeight: 560, maxHeight: 760)
+    }
+}
+
+@MainActor
+private struct DisplaySettingsSection: View {
+    @Bindable var controller: DisplaySettingsController
+
+    var body: some View {
+        Section("畫面") {
+            Toggle("降低卡頓", isOn: $controller.smoothFrames)
+            Text("遊戲畫面忙碌時減少跳幀，畫面會多約一幀（約 15 ms）延遲。重新開啟 Mirage 後生效。")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            if controller.frameSinkSource == .environment {
+                Text("目前由 MIRAGE_FRAME_QUEUE 環境變數決定，這個開關暫時不影響。")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
     }
 }
 

@@ -24,6 +24,8 @@ extension AppModel {
         }
         let locationError = locationSettings.consumeLoadError()
         let windowController = SettingsWindowController(
+            displayController: DisplaySettingsController(
+                launchPreferences: launchPreferences, frameSinkSource: frameSinkSource),
             avdController: avdController,
             locationController: locationSettings,
             avdError: avdError,

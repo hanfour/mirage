@@ -18,7 +18,7 @@
 # 模擬器在這個畫面下本來就到不了 55。
 #
 # 用法：
-#   ./scripts/verify_fps_fullscreen.sh                       # 預設 5554/8554/Pixel Flow，5 輪各 20 秒
+#   ./scripts/verify_fps_fullscreen.sh                       # 量產品設定（預設 queue2），5 輪各 20 秒
 #   ./scripts/verify_fps_fullscreen.sh -r 5 -d 30
 #   ./scripts/verify_fps_fullscreen.sh -q 2                  # 啟用深度 2 幀佇列
 #   ./scripts/verify_fps_fullscreen.sh -E MIRAGE_REMOTE=1   # 可重複 -E KEY=VAL
@@ -127,6 +127,10 @@ fi
   echo "❌ -A 已固定比較 latest 與 queue2，不可同時指定 -q。" >&2
   exit 2
 }
+
+if [ "$AB_MODE" -eq 0 ] && [ -z "$QUEUE_DEPTH" ]; then
+  echo "ℹ️ 未指定 -q／-A，不傳 MIRAGE_FRAME_QUEUE：量產品設定（未設定時預設 queue2），實際接收端以下方啟動 log 為準。"
+fi
 
 # D51：必須在 getopts 之後，查看 -h 不應查詢桌面或觸發環境警告。
 # 與磁碟／CPU 閘門不同：換機器本身不是錯誤，硬擋會讓 CI 無法執行。
@@ -392,7 +396,7 @@ ab_print_result() {
 run_ab_sink() {
     local round="$1" sink="$2"
     local log="" bundle="" round_converged=0 latest_attach=""
-    local round_attempt sink_line before lat_before
+    local round_attempt sink_line sink_label expected_label before lat_before
     local m a d p gap20 maxgap in_p95 nodrawable noframe uploadskip
     local g="" gf gd gw b="" be="" base_out base_rc r
 
@@ -428,7 +432,7 @@ run_ab_sink() {
         else
             if ! gui_session_start "$log" "$bundle" "" \
                     "MIRAGE_PORT=$GRPC_PORT" "MIRAGE_FPS_LOG=1" "MIRAGE_CONN_LOG=1" \
-                    "MIRAGE_LATENCY_LOG=1" \
+                    "MIRAGE_FRAME_QUEUE=1" "MIRAGE_LATENCY_LOG=1" \
                     ${EXTRA_ENV[@]+"${EXTRA_ENV[@]}"}; then
                 gui_session_cleanup "$bundle"; rm -f "$log"; exit 1
             fi
@@ -456,7 +460,20 @@ run_ab_sink() {
 
     sink_line=$(grep '^\[app\] frame sink=' "$log" | tail -1)
     if [ -n "$sink_line" ]; then
-        echo "   $sink_line"
+        echo "   ${sink_line}"
+        # 來源後綴只供診斷，不參與 latest／queue 的判斷；也相容舊版無後綴的 log。
+        sink_label="${sink_line#'[app] frame sink='}"
+        sink_label="${sink_label%%（*}"
+        expected_label="latest"
+        [ "$sink" != "queue2" ] || expected_label="queue depth=2"
+        if [ "$sink_label" != "$expected_label" ]; then
+            echo "   ⚠️ [sink=${sink}] 實際接收端為 ${sink_label}，預期 ${expected_label}，不計本輪"
+            gui_session_cleanup "$bundle"
+            rm -f "$log"
+            sleep 3
+            ab_print_result "$round" "$sink"
+            return 0
+        fi
     else
         echo "   ⚠️ [sink=${sink}] log 找不到 [app] frame sink= 行"
     fi
@@ -733,13 +750,20 @@ for round in $(seq 1 "$ROUNDS"); do
         continue
     fi
     echo "✅ 串流尺寸已收斂到解析度上限附近（$(printf '%s' "$LATEST_ATTACH" | sed 's/.*請求 //')，寬度 ≥ ${FULLSCREEN_MIN_WIDTH}）"
-    if [ -n "$QUEUE_DEPTH" ]; then
-        SINK_LINE=$(grep '^\[app\] frame sink=' "$LOG" | tail -1)
-        if [ -n "$SINK_LINE" ]; then
-            echo "   $SINK_LINE"
-        else
-            echo "   ⚠️ log 找不到 [app] frame sink= 行"
+    SINK_LINE=$(grep '^\[app\] frame sink=' "$LOG" | tail -1)
+    if [ -n "$SINK_LINE" ]; then
+        echo "   ${SINK_LINE}"
+        SINK_LABEL="${SINK_LINE#'[app] frame sink='}"
+        SINK_LABEL="${SINK_LABEL%%（*}"
+        if [ -n "$QUEUE_DEPTH" ] && [ "$SINK_LABEL" != "queue depth=${QUEUE_DEPTH}" ]; then
+            echo "   ⚠️ 實際接收端為 ${SINK_LABEL}，預期 queue depth=${QUEUE_DEPTH}，不計本輪"
+            gui_session_cleanup "$BUNDLE"
+            rm -f "$LOG"
+            sleep 3
+            continue
         fi
+    else
+        echo "   ⚠️ log 找不到 [app] frame sink= 行"
     fi
 
     # **guest 的量測窗口必須與這裡的擷取窗口是同一段**（D56／D48 限制）。前一版把
