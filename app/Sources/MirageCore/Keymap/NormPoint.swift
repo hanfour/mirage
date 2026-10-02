@@ -1,6 +1,6 @@
 import Foundation
 
-/// 正規化座標（0–1，左上原點對齊 guest）。越界由 isValid 暴露，載入期拒絕。
+/// 正規化轉正座標（0–1，左上原點對齊 Mirage 顯示方向）。越界由 isValid 暴露，載入期拒絕。
 public struct NormPoint: Sendable, Codable, Equatable {
     public let x: Double
     public let y: Double
@@ -30,7 +30,7 @@ public struct NormPoint: Sendable, Codable, Equatable {
         NormPoint(x: min(max(x, 0), 1), y: min(max(y, 0), 1))
     }
 
-    /// AppKit 視圖座標（左下原點）→ 正規化座標（左上原點，對齊 guest），**夾在 0…1**。
+    /// AppKit 視圖座標（左下原點）→ 正規化轉正座標（左上原點），**夾在 0…1**。
     ///
     /// 抽成純函式的理由同 `KeyTranslate`：`MirrorMTKView` 只負責從 `NSEvent` 取欄位，
     /// 算術本身在這裡逐條測試。`nil` 只代表「視圖尺寸退化（寬或高 ≤ 0）」，沒有別的意思。

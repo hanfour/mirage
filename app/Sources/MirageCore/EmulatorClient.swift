@@ -42,6 +42,7 @@ public actor EmulatorClient {
     let pump = FramePump()
     var box: (any FrameSink)?
     var streamSize = (w: 540, h: 1200)
+    var displayRotation = 0
     var running = false
     private var loopTask: Task<Void, Never>?
     private var stopTask: Task<Void, Never>?
@@ -161,6 +162,12 @@ public actor EmulatorClient {
         if state == .connected { attachStream() }   // 換源，共用當前 breakCont
     }
 
+    /// 設定 guest 顯示方向；觸控座標仍以面板解析度為基準。
+    public func setDisplayRotation(_ rotation: Int) {
+        guard (0...3).contains(rotation) else { return }
+        displayRotation = rotation
+    }
+
     /// App 層（AudioPlayer）提供的音訊 sink。刻意用 setter 而非改 `start` 的簽章——
     /// 改簽章會動到所有既有呼叫端與測試，憑空製造回歸風險。
     public func setAudioSink(_ ring: (any AudioSink)?) {
@@ -202,7 +209,7 @@ public actor EmulatorClient {
         stopTask = nil
     }
 
-    /// 直接注入單點觸控，座標為**正規化的 0–1**（左上原點）。
+    /// 直接注入單點觸控，座標為**正規化轉正座標的 0–1**（左上原點）。
     ///
     /// **刻意不接受絕對像素**：`Touch.x/y` 的座標系是 guest 的實體螢幕（proto 明載
     /// "physical location on the screen"），而 App 層手上只有串流幀尺寸與視窗尺寸，
@@ -214,7 +221,8 @@ public actor EmulatorClient {
     /// 畫面會有反應但點在錯的地方，而使用者會以為是遊戲的問題。
     public func sendTap(nx: Double, ny: Double, down: Bool) async {
         guard let client = channelBox?.client, let display = guestDisplay else { return }
-        let point = NormPoint(x: nx, y: ny)
+        let point = DisplayRotation.panelPoint(fromUpright: NormPoint(x: nx, y: ny),
+                                               rotation: displayRotation)
         let (gx, gy) = point.guestPixel(width: display.w, height: display.h)
         var t = Android_Emulation_Control_Touch()
         t.x = Int32(gx); t.y = Int32(gy); t.identifier = 0; t.pressure = down ? 1024 : 0

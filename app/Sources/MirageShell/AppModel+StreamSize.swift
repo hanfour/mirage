@@ -4,8 +4,25 @@ import MirageCore
 /// 兩邊都只回報需求，只有這裡呼叫 `client.setStreamSize`。
 extension AppModel {
     func updateWindowStreamDemand(width: Int, height: Int) async {
-        streamDemands.window = (w: width, h: height)
+        streamDemands.window = DisplayRotation.upright(size: (w: width, h: height),
+                                                       rotation: displayRotation)
         await applyStreamDemands()
+    }
+
+    func applyDisplayRotation(_ rotation: Int) {
+        guard (0...3).contains(rotation), requestedDisplayRotation != rotation else { return }
+        requestedDisplayRotation = rotation
+        if let keymap { keymap.loseFocus() }
+        else { inputQueue.invalidateTextSession() }
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            await inputQueue.drained()
+            guard requestedDisplayRotation == rotation else { return }
+            await client.setDisplayRotation(rotation)
+            guard requestedDisplayRotation == rotation else { return }
+            displayRotation = rotation
+            remote?.setDisplayRotation(rotation)
+        }
     }
 
     /// nil 代表手機斷線。長寬比取 guest 解析度，直橫看最近的幀（理由見 `StreamSize.aspect`）。

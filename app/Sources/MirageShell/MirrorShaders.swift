@@ -38,8 +38,16 @@ enum MirrorShaders {
 
     fragment float4 mirage_fragment(VOut in [[stage_in]],
                                     texture2d<float> src [[texture(0)]],
-                                    sampler smp [[sampler(0)]]) {
-        return src.sample(smp, in.uv);
+                                    sampler smp [[sampler(0)]],
+                                    constant uint &rotation [[buffer(0)]]) {
+        float2 panelUV = in.uv;
+        switch (rotation) {
+        case 1: panelUV = float2(1.0 - in.uv.y, in.uv.x); break;
+        case 2: panelUV = float2(1.0 - in.uv.x, 1.0 - in.uv.y); break;
+        case 3: panelUV = float2(in.uv.y, 1.0 - in.uv.x); break;
+        default: break;
+        }
+        return src.sample(smp, panelUV);
     }
     """
 

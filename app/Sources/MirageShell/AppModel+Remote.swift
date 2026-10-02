@@ -93,6 +93,7 @@ extension AppModel {
         let secondary = (activeSink as? BroadcastFrameSink)?.secondary ?? LatestFrameBox()
         let controller = makeRemoteController(host: host, port: port, token: token,
                                               page: page, secondary: secondary, pullInterval: pullInterval)
+        controller.setDisplayRotation(displayRotation)
         do {
             let bound = try await controller.start()
             remote = controller

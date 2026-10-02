@@ -131,6 +131,9 @@ final class AppModel {
     /// 資料流是 `Renderer.onFrameSize` → `MirrorView` →（這裡）＋ `MirrorContainerView`，
     /// 同一個回呼餵兩個出口，既有那條不動。
     var frameSize: (w: Int, h: Int) = (0, 0)
+    /// guest 顯示方向；所有 App 內的畫面與正規化輸入都以此方向呈現。
+    var displayRotation = 0
+    @ObservationIgnored var requestedDisplayRotation = 0
     let audioRing = AudioRingBuffer(
         collectPacketSizes: ProcessInfo.processInfo.environment["MIRAGE_AUDIO_LOG"] == "1")
     /// 比照 `activeSink`：遙控關閉時就是 `audioRing` 本身，開啟時換成扇出包裝。

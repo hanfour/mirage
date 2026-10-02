@@ -79,7 +79,7 @@ private actor ForegroundResultSequence: ForegroundPackageProviding {
 extension GameDetectorTests {
     @Test func thirdTimeoutReschedulesAndSuccessRestoresTimer() async {
         let detector = GameDetector(adb: ForegroundResultSequence([
-            .timeout, .timeout, .timeout, .timeout, .success("game.a")
+            .timeout, .timeout, .timeout, .timeout, .success(package: "game.a", rotation: nil)
         ]), makeTimer: unscheduledTimer) { _ in }
         detector.start()
         defer { detector.stop() }
@@ -104,7 +104,7 @@ extension GameDetectorTests {
     @Test func successfulEmptyForegroundResetsTimeouts() async {
         var changes: [String?] = []
         let detector = GameDetector(adb: ForegroundResultSequence([
-            .timeout, .timeout, .timeout, .success(nil), .timeout
+            .timeout, .timeout, .timeout, .success(package: nil, rotation: nil), .timeout
         ])) { changes.append($0) }
         for _ in 0..<3 { await detector.tick()?.value }
         #expect(detector.pollingInterval == 10)
@@ -130,7 +130,7 @@ extension GameDetectorTests {
 
     @Test func failureDuringBackoffWaitsForSuccess() async {
         let detector = GameDetector(adb: ForegroundResultSequence([
-            .timeout, .timeout, .timeout, .failure, .success(nil)
+            .timeout, .timeout, .timeout, .failure, .success(package: nil, rotation: nil)
         ])) { _ in }
         for _ in 0..<4 { await detector.tick()?.value }
         #expect(detector.pollingInterval == 10)
@@ -154,7 +154,8 @@ extension GameDetectorTests {
 
     @Test func repeatedEmptyForegroundNeverBacksOff() async {
         let detector = GameDetector(adb: ForegroundResultSequence([
-            .success(nil), .success(nil), .success(nil), .success(nil)
+            .success(package: nil, rotation: nil), .success(package: nil, rotation: nil),
+            .success(package: nil, rotation: nil), .success(package: nil, rotation: nil)
         ])) { _ in }
         for _ in 0..<4 { await detector.tick()?.value }
         #expect(detector.consecutiveTimeouts == 0)
@@ -163,7 +164,7 @@ extension GameDetectorTests {
 
     @Test func restoresConfiguredInterval() async {
         let detector = GameDetector(adb: ForegroundResultSequence([
-            .timeout, .timeout, .timeout, .success("game.a")
+            .timeout, .timeout, .timeout, .success(package: "game.a", rotation: nil)
         ]), interval: .seconds(4)) { _ in }
         for _ in 0..<3 { await detector.tick()?.value }
         #expect(detector.pollingInterval == 10)
@@ -183,7 +184,8 @@ extension GameDetectorTests {
     @Test func successBreaksPartialStreakAndPreservesNotifications() async {
         var changes: [String?] = []
         let detector = GameDetector(adb: ForegroundResultSequence([
-            .timeout, .timeout, .success("game.a"), .timeout, .timeout, .success("game.b")
+            .timeout, .timeout, .success(package: "game.a", rotation: nil), .timeout, .timeout,
+            .success(package: "game.b", rotation: nil)
         ])) { changes.append($0) }
         for _ in 0..<3 { await detector.tick()?.value }
         #expect(detector.consecutiveTimeouts == 0)
@@ -196,6 +198,33 @@ extension GameDetectorTests {
         await detector.tick()?.value
         #expect(detector.consecutiveTimeouts == 0)
         #expect(changes == [nil, "game.a", nil, "game.b"])
+    }
+
+    @Test func rotationChangeNotifiesSeparatelyAndIgnoresNilAndDuplicates() async {
+        var rotations: [Int] = []
+        let detector = GameDetector(adb: ForegroundResultSequence([
+            .success(package: "game.a", rotation: 1),
+            .success(package: "game.a", rotation: nil),
+            .success(package: "game.a", rotation: 1),
+            .success(package: "game.a", rotation: 3),
+        ]), onRotationChange: { rotations.append($0) }) { _ in }
+
+        for _ in 0..<4 { await detector.tick()?.value }
+        #expect(rotations == [1, 3])
+    }
+
+    @Test func rotationChangesNotifyWhenPackageIsUnchanged() async {
+        var packages: [String?] = []
+        var rotations: [Int] = []
+        let detector = GameDetector(adb: ForegroundResultSequence([
+            .success(package: "game.a", rotation: 1),
+            .success(package: "game.a", rotation: 2),
+        ]), onRotationChange: { rotations.append($0) }) { packages.append($0) }
+
+        await detector.tick()?.value
+        await detector.tick()?.value
+        #expect(packages == ["game.a"])
+        #expect(rotations == [1, 2])
     }
 
 }

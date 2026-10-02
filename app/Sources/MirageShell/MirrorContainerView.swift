@@ -25,6 +25,13 @@ final class MirrorContainerView: NSView {
             applyWindowAspect()
         }
     }
+    var displayRotation = 0 {
+        didSet {
+            guard displayRotation != oldValue else { return }
+            needsLayout = true
+            applyWindowAspect(previousRotation: oldValue)
+        }
+    }
 
     override init(frame: NSRect) {
         super.init(frame: frame)
@@ -44,7 +51,8 @@ final class MirrorContainerView: NSView {
 
     override func layout() {
         super.layout()
-        let rect = ViewportFit.fit(frame: frameSize,
+        let rect = ViewportFit.fit(frame: DisplayRotation.upright(size: frameSize,
+                                                                  rotation: displayRotation),
                                    in: (w: Int(bounds.width), h: Int(bounds.height)))
         // 尚未收到幀（或視窗尺寸為 0）：先鋪滿，避免第一幀前出現 0×0 的 drawable。
         guard rect.width > 0, rect.height > 0 else {
@@ -88,11 +96,33 @@ final class MirrorContainerView: NSView {
     /// 用**實際幀長寬比**鎖定視窗（取代原本硬編碼的 9:20）。尚無幀時用 9:20 當初始值，
     /// 收到第一幀（含之後遊戲轉向）會立即改寫。全螢幕期間不碰視窗尺寸——macOS 全螢幕
     /// 下視窗就是整片螢幕，設 contentAspectRatio 無效且會擾動退出全螢幕後的尺寸。
-    private func applyWindowAspect() {
+    private func applyWindowAspect(previousRotation: Int? = nil) {
         guard let window, !window.styleMask.contains(.fullScreen) else { return }
-        let aspect = frameSize.w > 0 && frameSize.h > 0 ? frameSize : (w: 9, h: 20)
+        let panelSize = frameSize.w > 0 && frameSize.h > 0 ? frameSize : (w: 9, h: 20)
+        let aspect = DisplayRotation.upright(size: panelSize, rotation: displayRotation)
+        let oldFrame = window.frame
+        let oldContentSize = window.contentView?.bounds.size ?? .zero
         window.contentAspectRatio = NSSize(width: aspect.w, height: aspect.h)
-        let w = max(window.frame.width, 270)
-        window.setContentSize(NSSize(width: w, height: w * CGFloat(aspect.h) / CGFloat(aspect.w)))
+        let swappedOrientation = previousRotation.map {
+            $0.isMultiple(of: 2) != displayRotation.isMultiple(of: 2)
+        } ?? false
+        let widthBefore = swappedOrientation && oldContentSize.height > 0
+            ? oldContentSize.height : oldFrame.width
+        let ratio = CGFloat(aspect.w) / CGFloat(aspect.h)
+        let minimumWidth = aspect.w > aspect.h ? 270 * ratio : 270
+        let width = max(widthBefore, minimumWidth)
+        let topCenter = CGPoint(x: oldFrame.midX, y: oldFrame.maxY)
+        window.setContentSize(NSSize(width: width, height: width / ratio))
+
+        var frame = window.frame
+        frame.origin = CGPoint(x: topCenter.x - frame.width / 2,
+                               y: topCenter.y - frame.height)
+        if let visible = (window.screen ?? NSScreen.main)?.visibleFrame {
+            frame.origin.x = frame.width >= visible.width
+                ? visible.minX : min(max(frame.origin.x, visible.minX), visible.maxX - frame.width)
+            frame.origin.y = frame.height >= visible.height
+                ? visible.minY : min(max(frame.origin.y, visible.minY), visible.maxY - frame.height)
+        }
+        window.setFrame(frame, display: true, animate: false)
     }
 }

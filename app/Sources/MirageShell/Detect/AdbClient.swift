@@ -16,16 +16,16 @@ struct AdbClient: Sendable {
         self.runner = runner
     }
 
-    /// 由 ANDROID_SDK_ROOT/ANDROID_HOME 推導 adb；serial 預設 emulator-5554。
+    /// 由 SDK 環境推導 adb；serial 依序採用參數、MIRAGE_ADB_SERIAL 或預設模擬器。
     static func standard(
-        serial: String = "emulator-5554",
+        serial: String? = nil,
         environment env: [String: String] = ProcessInfo.processInfo.environment,
         homeDirectory: URL = FileManager.default.homeDirectoryForCurrentUser,
         isExecutable: (String) -> Bool = { FileManager.default.isExecutableFile(atPath: $0) }
     ) -> AdbClient? {
         let adb = SdkLocator(environment: env, homeDirectory: homeDirectory).adbBinary
         guard isExecutable(adb.path) else { return nil }
-        return AdbClient(adbPath: adb, serial: serial)
+        return AdbClient(adbPath: adb, serial: serial ?? env["MIRAGE_ADB_SERIAL"] ?? "emulator-5554")
     }
 
     /// 回前景 package 或 nil（降級）。逾時內未完成 → 殺行程回 nil。
@@ -37,7 +37,10 @@ struct AdbClient: Sendable {
     func foregroundResult(timeout: Duration) async -> ForegroundResult {
         switch await execute(["-s", serial, "shell", "dumpsys", "activity", "activities"], timeout, false) {
         case .completed(let exit, let stdout):
-            return exit == 0 ? .success(AdbOutcome.packageOrNil(exitCode: exit, stdout: stdout)) : .failure
+            return exit == 0
+                ? .success(package: AdbOutcome.packageOrNil(exitCode: exit, stdout: stdout),
+                           rotation: AdbOutcome.rotationOrNil(stdout: stdout))
+                : .failure
         case .timedOut: return .timeout
         case .failed: return .failure
         }

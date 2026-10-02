@@ -257,7 +257,9 @@ extension AppModel {
             if let p = try? self?.store.load(gameId: gid) { self?.setOverride(.force(p)) }
         }
         guard let adb = AdbClient.standard() else { return }
-        detector = GameDetector(adb: adb) { [weak self] pkg in
+        detector = GameDetector(adb: adb, onRotationChange: { [weak self] rotation in
+            self?.applyDisplayRotation(rotation)
+        }) { [weak self] pkg in
             self?.onForeground(pkg)
         }
         detector?.start()

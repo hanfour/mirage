@@ -8,12 +8,13 @@ import SwiftProtobuf
 
 extension EmulatorClient {
     /// 純建構——供單元測試，不需 channel。
-    static func buildTouchEvent(_ touches: [TouchSpec], width: Int, height: Int)
+    static func buildTouchEvent(_ touches: [TouchSpec], width: Int, height: Int, rotation: Int = 0)
         -> Android_Emulation_Control_TouchEvent
     {
         var event = Android_Emulation_Control_TouchEvent()
         event.touches = touches.map { spec in
-            let (gx, gy) = spec.point.guestPixel(width: width, height: height)
+            let panelPoint = DisplayRotation.panelPoint(fromUpright: spec.point, rotation: rotation)
+            let (gx, gy) = panelPoint.guestPixel(width: width, height: height)
             var t = Android_Emulation_Control_Touch()
             t.x = Int32(gx); t.y = Int32(gy)
             t.identifier = Int32(spec.identifier)
@@ -34,7 +35,7 @@ extension EmulatorClient {
         return ev
     }
 
-    /// 多指觸控注入。`TouchSpec.point` 已經是正規化座標，換算用的尺寸由本 actor 從健康
+    /// 多指觸控注入。`TouchSpec.point` 已經是正規化轉正座標，換算用的尺寸由本 actor 從健康
     /// 探測取得的 guest 實體解析度提供——**不再由呼叫端傳入**。
     ///
     /// 原本的簽章是 `sendTouches(_:width:height:)`，而唯一的呼叫端（KeymapController）
@@ -44,7 +45,7 @@ extension EmulatorClient {
     public func sendTouches(_ touches: [TouchSpec]) async {
         guard let client = channelBox?.client, let display = guestDisplay else { return }
         _ = try? await client.sendTouch(
-            Self.buildTouchEvent(touches, width: display.w, height: display.h))
+            Self.buildTouchEvent(touches, width: display.w, height: display.h, rotation: displayRotation))
     }
 
     public func sendKey(_ code: KeyCode, down: Bool) async {

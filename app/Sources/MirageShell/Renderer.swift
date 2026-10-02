@@ -25,6 +25,7 @@ final class Renderer: NSObject, MTKViewDelegate {
     private var reportedSkippedUploads = 0
     // AUTHORIZED FIX（Task 6 review CRITICAL：滑鼠映射採實際幀尺寸——proto 縮放合約 can-be-less）
     private(set) var lastFrameSize: (w: Int, h: Int)?
+    var displayRotation = 0
     /// P1-e：幀尺寸變動時通知容器重算 letterbox（含遊戲轉向時的長寬比翻轉）。
     var onFrameSize: ((Int, Int) -> Void)?
     private var fpsWindow: FpsWindow
@@ -86,7 +87,8 @@ final class Renderer: NSObject, MTKViewDelegate {
             return
         }
         frames.markInUse(by: buffer)
-        blitter.encode(texture, into: drawable.texture, on: buffer)
+        blitter.encode(texture, into: drawable.texture, on: buffer,
+                       rotation: UInt32(displayRotation))
         buffer.present(drawable)
         buffer.commit()
         let durationMs = drawStartedAt.map {
