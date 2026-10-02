@@ -13,6 +13,7 @@ final class AppModel {
     let client = EmulatorClient()
     let locationSettings: LocationSettingsController
     let box: any FrameSink
+    let frameSinkSource: FrameSinkSource
     /// `client.start` 實際拿到的 sink。遙控關閉時**就是** `box`（同一個物件，行為零改變）；
     /// 開啟時是 `BroadcastFrameSink(primary: box, secondary:)`。Renderer 一直拿 `box`
     /// （`MirrorRootView.swift`），扇出的 `takeLatest` 代理到它，所以 Renderer 不必知道這件事。
@@ -76,14 +77,21 @@ final class AppModel {
         locationSettings = LocationSettingsController(store: locationSettingsStore) { coordinate in
             try await client.setLocation(coordinate)
         }
-        let sink = FrameSinkFactory.make(from: ProcessInfo.processInfo.environment)
-        box = sink
-        activeSink = sink
+        let environment = ProcessInfo.processInfo.environment
+        let selection = FrameSinkFactory.make(
+            environment: environment, smoothFrames: launchPreferences.smoothFrames)
+        box = selection.sink
+        activeSink = selection.sink
+        frameSinkSource = selection.source
         activeAudioSink = audioRing
         inputQueue = InputQueue(injector: client)
         textInput = TextInputPresentation(queue: inputQueue)
-        if ProcessInfo.processInfo.environment["MIRAGE_CONN_LOG"] == "1" {
-            print("[app] frame sink=\(FrameSinkFactory.label(for: box))")
+        if let warning = selection.warning {
+            print("[app] \(warning)")
+        }
+        if environment["MIRAGE_CONN_LOG"] == "1" {
+            let source = frameSinkSource == .environment ? "MIRAGE_FRAME_QUEUE" : "設定"
+            print("[app] frame sink=\(FrameSinkFactory.label(for: box))（\(source)）")
         }
         windowController = Self.makeWindowController(for: self)
     }

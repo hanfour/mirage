@@ -33,6 +33,22 @@ import Testing
         }
     }
 
+    @Test func smoothFramesDefaultsOnAndSurvivesRecreation() throws {
+        try withSuite { defaults in
+            let prefs = LaunchPreferences(defaults: defaults, environment: [:])
+            #expect(defaults.object(forKey: LaunchPreferences.smoothFramesKey) == nil)
+            #expect(prefs.smoothFrames)
+            #expect(defaults.object(forKey: LaunchPreferences.smoothFramesKey) == nil)
+            prefs.smoothFrames = false
+            #expect(!prefs.smoothFrames)
+            let recreated = LaunchPreferences(defaults: defaults, environment: [:])
+            #expect(!recreated.smoothFrames)
+            recreated.smoothFrames = true
+            #expect(recreated.smoothFrames)
+            #expect(LaunchPreferences(defaults: defaults, environment: [:]).smoothFrames)
+        }
+    }
+
     @Test func windowStepAfterStart() {
         #expect(LaunchPreferences.windowStepAfterStart(backgroundMode: false, remoteStarted: false) == .keep)
         #expect(LaunchPreferences.windowStepAfterStart(backgroundMode: false, remoteStarted: true) == .keep)
