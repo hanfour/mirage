@@ -43,11 +43,6 @@ case "$ROUNDS" in
 esac
 if [ "$ROUNDS" -lt 1 ]; then echo "❌ --rounds 必須是正整數"; exit 2; fi
 
-if pgrep -x MirageApp > /dev/null 2>&1; then
-    echo "❌ MirageApp 正在執行。請先自行結束 Mirage，再重跑；腳本不會替你關閉。"
-    pgrep -alf MirageApp || true
-    exit 1
-fi
 QEMU_PROCESSES="$(pgrep -fl '[q]emu' 2>/dev/null || true)"
 if [ -n "$QEMU_PROCESSES" ]; then
     echo "❌ 偵測到 qemu 行程。請先自行停止模擬器，再重跑；腳本不會替你關閉。"
@@ -102,7 +97,7 @@ start_gui() {
     export ANDROID_AVD_HOME="$avd"
     unset ANDROID_HOME
     if [ "$BUILD_READY" -eq 1 ]; then export MIRAGE_SKIP_BUILD=1; fi
-    if gui_session_start "$log" "$bundle" "" "$@"; then
+    if gui_session_start "$log" "$bundle" "" --preserve-frontmost "$@"; then
         BUILD_READY=1
         return 0
     fi
@@ -110,20 +105,11 @@ start_gui() {
 }
 
 quit_gui() {
-    local bundle="$1" status=0 elapsed=0
-    if pgrep -x MirageApp > /dev/null 2>&1; then
-        osascript -e 'tell application "System Events" to set frontmost of process "MirageApp" to true' \
-            > /dev/null 2>&1 || status=1
-        osascript -l JavaScript "${SCRIPT_DIR}/lib/cgkey.js" 12 1048576 \
-            > /dev/null 2>&1 || status=1
-        while [ "$elapsed" -lt 30 ] && pgrep -x MirageApp > /dev/null 2>&1; do
-            sleep 1
-            elapsed=$((elapsed + 1))
-        done
-        if pgrep -x MirageApp > /dev/null 2>&1; then
-            echo "❌ MirageApp 沒有在 ⌘Q 後結束"
-            status=1
-        fi
+    local bundle="$1" status=0 pid
+    pid="$(gui_session_pid_for_app "${bundle}/Mirage.app")"
+    if [ -n "${pid}" ] && ! gui_session_quit_gracefully "${pid}"; then
+        echo "❌ MirageApp 未在期限內正常結束"
+        status=1
     fi
     gui_session_cleanup "$bundle"
     return "$status"
@@ -133,7 +119,7 @@ wait_for_log() {
     local log="$1" timeout="$2" predicate="$3" started="$SECONDS"
     while [ $((SECONDS - started)) -lt "$timeout" ]; do
         if "$predicate" "$log" > /dev/null 2>&1; then return 0; fi
-        if ! pgrep -x MirageApp > /dev/null 2>&1; then return 1; fi
+        if ! gui_session_app_is_running "${ACTIVE_BUNDLE}/Mirage.app"; then return 1; fi
         sleep 1
     done
     "$predicate" "$log" > /dev/null 2>&1
@@ -170,7 +156,7 @@ wait_for_setup_done() {
             done < <(awk '/^\[setup\] .* 完成$/ { print }' "$log")
         fi
         if first_run_has_setup_done "$log"; then return 0; fi
-        if ! pgrep -x MirageApp > /dev/null 2>&1; then return 1; fi
+        if ! gui_session_app_is_running "${ACTIVE_BUNDLE}/Mirage.app"; then return 1; fi
         sleep 1
         elapsed=$((SECONDS - started))
     done
@@ -373,7 +359,7 @@ run_s3() {
                 passed=0
                 break
             fi
-            if ! pgrep -x MirageApp > /dev/null 2>&1; then
+            if ! gui_session_app_is_running "${ACTIVE_BUNDLE}/Mirage.app"; then
                 echo "❌ MirageApp 提前結束"
                 passed=0
                 break

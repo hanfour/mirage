@@ -73,9 +73,11 @@ for ((round=1; round<=ROUNDS; round++)); do
         cat "$WORK/error-${round}.log"
     fi
     # 輪間只清行程，保留已打包的 bundle 給下一輪；EXIT trap 才刪除 bundle。
-    gui_session_cleanup ''
-    if pgrep -x MirageApp >/dev/null; then
-        echo 'FAIL: 清理後 MirageApp 仍在執行'; exit 1
+    # 只結束這支腳本打包的那份 Mirage（使用者自己的 Mirage 同名，不能用 pgrep -x）。
+    for pid in $(gui_session_pids_for_app "$BUNDLE/Mirage.app"); do kill "${pid}" 2>/dev/null || true; done
+    for _ in $(seq 1 50); do gui_session_app_is_running "$BUNDLE/Mirage.app" || break; sleep 0.1; done
+    if gui_session_app_is_running "$BUNDLE/Mirage.app"; then
+        echo 'FAIL: 清理後測試用 MirageApp 仍在執行'; exit 1
     fi
 done
 python3 "$HERE/lib/wake_probe.py" summary "$WORK/rounds.jsonl" "$ROUNDS"
