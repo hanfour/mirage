@@ -155,10 +155,10 @@
       "installPath": "emulator",
       "manifestKey": "repo",
       "path": "emulator",
-      "revision": "37.1.11",
-      "sha1": "f22f44948a2b7f0a0103645b9a639290eef92426",
-      "size": 394555844,
-      "url": "https://dl.google.com/android/repository/emulator-darwin_aarch64-15917651.zip"
+      "revision": "37.2.12",
+      "sha1": "3af4fe44ce82b3d88ae5678a53735f27ad729c15",
+      "size": 416112708,
+      "url": "https://dl.google.com/android/repository/emulator-darwin_aarch64-16428233.zip"
     },
     {
       "channel": "stable",
