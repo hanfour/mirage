@@ -58,12 +58,12 @@ class ResolveTests(unittest.TestCase):
     def test_newer_revision_on_manifest_is_fatal(self):
         """Google bump 之後 manifest 只剩新版。默默採用它會讓同一份 commit
         在不同日子跑出不同環境——D33 要消滅的正是這件事。"""
-        refs = _all_matching(emulator={"revision": "37.1.12"})
+        refs = _all_matching(emulator={"revision": "37.2.13"})
         with self.assertRaises(PinDriftError) as caught:
             resolve_pins(refs)
         message = str(caught.exception)
-        self.assertIn("37.1.11", message)
-        self.assertIn("37.1.12", message)
+        self.assertIn("37.2.12", message)
+        self.assertIn("37.2.13", message)
 
     def test_same_revision_different_sha1_is_fatal(self):
         """版本號相同但 sha1 變了，代表上游重新打包過。這比 revision 改變
@@ -93,7 +93,7 @@ class ResolveTests(unittest.TestCase):
     def test_error_message_says_it_needs_a_commit(self):
         """訊息要讓讀的人知道這不是「重跑一次就會好」的錯誤，
         而是一個需要有人做決定並留下 commit 的事件。"""
-        refs = _all_matching(emulator={"revision": "37.1.12"})
+        refs = _all_matching(emulator={"revision": "37.2.13"})
         with self.assertRaises(PinDriftError) as caught:
             resolve_pins(refs)
         self.assertIn("sdk-spec.json", str(caught.exception))

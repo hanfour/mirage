@@ -8,9 +8,9 @@ struct SdkSpecTests {
         let spec = try SdkSpec.bundled().get()
         #expect(spec.androidTarget == "android-35")
         #expect(spec.packages.count == 4)
-        #expect(spec.packages.map(\.revision) == ["37.1.11", "37.0.1", "2", "9"])
+        #expect(spec.packages.map(\.revision) == ["37.2.12", "37.0.1", "2", "9"])
         #expect(spec.packages.map(\.sha1) == [
-            "f22f44948a2b7f0a0103645b9a639290eef92426",
+            "3af4fe44ce82b3d88ae5678a53735f27ad729c15",
             "6ae73f4de6452dc57e62ec02b68eed92a4c21661",
             "2026a06409db630b56711afdbffb457c1dbaed49",
             "b01416bc0bca12a85295dad179f9b8a1cae3d1e6",
